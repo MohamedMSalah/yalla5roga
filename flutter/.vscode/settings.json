@@ -1,0 +1,29 @@
+{
+  "dart.flutterSdkPath": "C:\\SDKs\\flutter",
+  "dart.sdkPath": "C:\\SDKs\\dart-sdk",
+  "dart.lineLength": 80,
+  "dart.analysisExcludedFolders": [
+    "build",
+    ".dart_tool"
+  ],
+  "editor.formatOnSave": true,
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.rulers": [
+      80
+    ],
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+  "files.exclude": {
+    "**/.dart_tool": false
+  },
+  "search.exclude": {
+    "**/.dart_tool": true,
+    "**/build": true
+  }
+}

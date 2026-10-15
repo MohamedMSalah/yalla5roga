@@ -1,0 +1,34 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="background" x1="126" y1="96" x2="914" y2="934" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4338CA"/>
+      <stop offset="0.52" stop-color="#5B46E8"/>
+      <stop offset="1" stop-color="#9333EA"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="510" y1="230" x2="574" y2="302" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FDBA74"/>
+      <stop offset="1" stop-color="#FB7185"/>
+    </linearGradient>
+    <filter id="shadow" x="91" y="90" width="842" height="878" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="26" stdDeviation="28" flood-color="#312E81" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect x="56" y="56" width="912" height="912" rx="248" fill="url(#background)"/>
+  <path d="M142 334C142 200.899 249.899 93 383 93H777C853.767 93 916 155.233 916 232V232C916 371.176 803.176 484 664 484H383C249.899 484 142 376.101 142 243V334Z" fill="white" fill-opacity="0.035"/>
+
+  <g filter="url(#shadow)">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M512 146C309.698 146 146 309.698 146 512C146 740.206 356.083 855.294 479.837 911.867C500.294 921.218 523.706 921.218 544.163 911.867C667.917 855.294 878 740.206 878 512C878 309.698 714.302 146 512 146ZM512 238C360.122 238 238 360.122 238 512C238 672.394 380.193 767.92 512 833.972C643.807 767.92 786 672.394 786 512C786 360.122 663.878 238 512 238Z" fill="white"/>
+  </g>
+
+  <circle cx="512" cy="469" r="65" fill="white"/>
+  <circle cx="349" cy="488" r="49" fill="white" fill-opacity="0.94"/>
+  <circle cx="675" cy="488" r="49" fill="white" fill-opacity="0.94"/>
+
+  <path d="M392 657C392 590.726 445.726 537 512 537C578.274 537 632 590.726 632 657V680C632 693.255 621.255 704 608 704H416C402.745 704 392 693.255 392 680V657Z" fill="white"/>
+  <path d="M260 638C260 584.429 303.429 541 357 541C383.084 541 406.763 551.291 424.2 568.038C391.963 598.628 372 641.891 372 690V706H311C282.833 706 260 683.167 260 655V638Z" fill="white" fill-opacity="0.94"/>
+  <path d="M764 638C764 584.429 720.571 541 667 541C640.916 541 617.237 551.291 599.8 568.038C632.037 598.628 652 641.891 652 690V706H713C741.167 706 764 683.167 764 655V638Z" fill="white" fill-opacity="0.94"/>
+
+  <path d="M512 260C519.577 293.591 530.409 304.423 564 312C530.409 319.577 519.577 330.409 512 364C504.423 330.409 493.591 319.577 460 312C493.591 304.423 504.423 293.591 512 260Z" fill="url(#spark)"/>
+  <circle cx="581" cy="274" r="10" fill="#FDBA74"/>
+</svg>
