@@ -1,0 +1,33 @@
+# Secrets. Example env files stay tracked.
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+**/key.properties
+**/*firebase-adminsdk*.json
+**/*serviceAccount*.json
+**/*service-account*.json
+flutter/lib/firebase_options.dart
+
+# Backend generated output
+backend/node_modules/
+backend/dist/
+
+# Flutter / Dart generated output
+flutter/.dart_tool/
+flutter/.flutter-plugins
+flutter/.flutter-plugins-dependencies
+flutter/.pub-cache/
+flutter/.pub/
+flutter/build/
+flutter/coverage/
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
