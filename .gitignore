@@ -2,6 +2,12 @@
 .env
 .env.*
 !.env.example
+
+# Backend environment secrets
+/backend/.env
+/backend/.env.*
+!/backend/.env.example
+
 *.pem
 *.p12
 *.pfx
@@ -11,7 +17,9 @@
 **/*firebase-adminsdk*.json
 **/*serviceAccount*.json
 **/*service-account*.json
-flutter/lib/firebase_options.dart
+
+# Flutter Firebase configuration generated locally
+/flutter/lib/firebase_options.dart
 
 # Backend generated output
 backend/node_modules/
