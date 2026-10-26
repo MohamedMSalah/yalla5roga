@@ -14,6 +14,7 @@ class PlaceCoverImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.radius,
+    this.fade = true,
   });
 
   PlaceCoverImage.fromSuggested({
@@ -23,6 +24,7 @@ class PlaceCoverImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.radius,
+    this.fade = true,
   }) : url = place.coverImageUrl,
        vibe = place.vibe;
 
@@ -33,6 +35,7 @@ class PlaceCoverImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.radius,
+    this.fade = true,
   }) : url = place.imageUrl,
        vibe = place.vibe;
 
@@ -42,6 +45,7 @@ class PlaceCoverImage extends StatelessWidget {
   final double? height;
   final BoxFit fit;
   final double? radius;
+  final bool fade;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +58,7 @@ class PlaceCoverImage extends StatelessWidget {
       placeholderIcon: vibe.icon,
       placeholderColor: vibe.softBackground,
       placeholderIconColor: vibe.accent,
+      fade: fade,
     );
   }
 }

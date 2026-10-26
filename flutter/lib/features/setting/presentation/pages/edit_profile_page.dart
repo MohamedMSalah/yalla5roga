@@ -12,6 +12,7 @@ import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_a
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_fields_section.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_password_section.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_phone_otp_section.dart';
+import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_section_card.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -39,11 +40,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late final String _initialPhone;
   late final String _initialName;
   late final String? _initialImage;
+  late final AuthProvider _auth;
 
   @override
   void initState() {
     super.initState();
-    final user = context.read<AuthProvider>().user;
+    _auth = context.read<AuthProvider>();
+    final user = _auth.user;
     _initialName = user?.name ?? '';
     _initialEmail = user?.email?.trim() ?? '';
     _initialPhone = user?.phone ?? '';
@@ -56,11 +59,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   String _displayPhone(String phone) {
-    final digits = Validators.normalizePhone(phone);
-    if (digits.startsWith('+20') && digits.length > 3) {
-      return digits.substring(3);
-    }
-    return phone.replaceFirst(RegExp(r'^\+?20'), '');
+    final local = Validators.localPhoneDigits(phone);
+    if (local.length <= Validators.localPhoneLength) return local;
+    return local.substring(local.length - Validators.localPhoneLength);
   }
 
   @override
@@ -73,17 +74,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     _otpController.dispose();
+    if (_auth.otpSent || _auth.phoneAutoVerified) {
+      _auth.resetOtp();
+    }
     super.dispose();
   }
 
   void _onPhoneChanged() {
-    final auth = context.read<AuthProvider>();
-    if (!auth.otpSent) return;
-    final pending = auth.pendingPhone;
-    final current = Validators.normalizePhone(_phoneController.text);
-    if (pending != null && pending == current) return;
-    _otpController.clear();
-    auth.resetOtp();
+    if (_auth.otpSent || _auth.phoneAutoVerified) {
+      final pending = _auth.pendingPhone;
+      if (pending == null ||
+          Validators.localPhoneDigits(pending) != _newLocalPhone) {
+        _otpController.clear();
+        _auth.resetOtp();
+      }
+    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _pickImage() async {
@@ -101,14 +107,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  bool get _phoneChanged {
-    if (_phoneController.text.trim().isEmpty && _initialPhone.isEmpty) {
-      return false;
-    }
-    if (_phoneController.text.trim().isEmpty) return false;
-    return Validators.normalizePhone(_phoneController.text) !=
-        Validators.normalizePhone(_initialPhone);
-  }
+  String get _lastLocalPhone => Validators.localPhoneDigits(_initialPhone);
+
+  String get _newLocalPhone =>
+      Validators.localPhoneDigits(_phoneController.text);
+
+  bool get _phoneChanged => _newLocalPhone != _lastLocalPhone;
+
+  bool get _needsPhoneOtp =>
+      _newLocalPhone.length == Validators.localPhoneLength &&
+      _phoneChanged &&
+      Validators.isValidEgyptianPhone(_phoneController.text);
 
   bool get _emailChanged =>
       _emailController.text.trim().toLowerCase() != _initialEmail.toLowerCase();
@@ -173,9 +182,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       return;
     }
 
-    if (_phoneChanged && !auth.otpSent && !auth.phoneAutoVerified) {
-      AppSnackBar.showError(l10n.verifyPhoneFirst);
-      return;
+    if (_phoneChanged) {
+      final phone = Validators.normalizePhone(_phoneController.text);
+      final otpReady =
+          (auth.otpSent || auth.phoneAutoVerified) &&
+          auth.pendingPhone == phone;
+      if (!otpReady) {
+        AppSnackBar.showError(l10n.verifyNewPhoneFirst);
+        return;
+      }
     }
 
     if (hasPassword) {
@@ -300,57 +315,103 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final hasPassword = auth.hasPasswordProvider;
 
     return Scaffold(
-      appBar: AppPageBar(title: l10n.editProfile),
+      appBar: AppPageBar(
+        title: l10n.editProfile,
+        subtitle: l10n.profileSettings,
+      ),
       body: Form(
         key: _formKey,
-        child: ListView(
-          padding: Responsive.pagePadding(),
+        child: Column(
           children: [
-            EditProfileAvatarSection(
-              imagePath: _imagePath,
-              onPickImage: _pickImage,
-              pickEnabled: !auth.isLoading,
-            ),
-            Responsive.spaceLg.gapH,
-            EditProfileFieldsSection(
-              nameController: _nameController,
-              emailController: _emailController,
-              phoneController: _phoneController,
-              hasPassword: hasPassword,
-            ),
-            EditProfilePhoneOtpSection(
-              phoneChanged: _phoneChanged,
-              otpSent: auth.otpSent,
-              phoneAutoVerified: auth.phoneAutoVerified,
-              isLoading: auth.isLoading,
-              otpController: _otpController,
-              onSendOtp: _sendPhoneOtp,
-            ),
-            if (hasPassword)
-              EditProfilePasswordSection(
-                currentPasswordController: _currentPasswordController,
-                newPasswordController: _newPasswordController,
-                confirmPasswordController: _confirmPasswordController,
-                obscureCurrent: _obscureCurrent,
-                obscureNew: _obscureNew,
-                obscureConfirm: _obscureConfirm,
-                editingPassword: _editingPassword,
-                isLoading: auth.isLoading,
-                hasAnyChange: _hasAnyChange,
-                onToggleObscureCurrent: () =>
-                    setState(() => _obscureCurrent = !_obscureCurrent),
-                onToggleObscureNew: () =>
-                    setState(() => _obscureNew = !_obscureNew),
-                onToggleObscureConfirm: () =>
-                    setState(() => _obscureConfirm = !_obscureConfirm),
-                onToggleEditPassword: _toggleEditPassword,
+            Expanded(
+              child: ListView(
+                padding: Responsive.pagePadding(),
+                children: [
+                  EditProfileAvatarSection(
+                    imagePath: _imagePath,
+                    onPickImage: _pickImage,
+                    pickEnabled: !auth.isLoading,
+                  ),
+                  Responsive.spaceLg.gapH,
+                  EditProfileSectionCard(
+                    title: l10n.personalDetails,
+                    child: EditProfileFieldsSection(
+                      nameController: _nameController,
+                      emailController: _emailController,
+                      phoneController: _phoneController,
+                      hasPassword: hasPassword,
+                      showContact: false,
+                    ),
+                  ),
+                  Responsive.spaceMd.gapH,
+                  EditProfileSectionCard(
+                    title: l10n.contactDetails,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        EditProfileFieldsSection(
+                          nameController: _nameController,
+                          emailController: _emailController,
+                          phoneController: _phoneController,
+                          hasPassword: hasPassword,
+                          showName: false,
+                          phoneAutovalidateMode:
+                              AutovalidateMode.onUserInteraction,
+                        ),
+                        EditProfilePhoneOtpSection(
+                          phoneChanged: _needsPhoneOtp,
+                          otpSent: auth.otpSent,
+                          phoneAutoVerified: auth.phoneAutoVerified,
+                          isLoading: auth.isLoading,
+                          otpController: _otpController,
+                          onSendOtp: _sendPhoneOtp,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (hasPassword) ...[
+                    Responsive.spaceMd.gapH,
+                    EditProfileSectionCard(
+                      title: l10n.securityDetails,
+                      subtitle: l10n.confirmWithPassword,
+                      child: EditProfilePasswordSection(
+                        currentPasswordController: _currentPasswordController,
+                        newPasswordController: _newPasswordController,
+                        confirmPasswordController: _confirmPasswordController,
+                        obscureCurrent: _obscureCurrent,
+                        obscureNew: _obscureNew,
+                        obscureConfirm: _obscureConfirm,
+                        editingPassword: _editingPassword,
+                        isLoading: auth.isLoading,
+                        hasAnyChange: _hasAnyChange,
+                        onToggleObscureCurrent: () =>
+                            setState(() => _obscureCurrent = !_obscureCurrent),
+                        onToggleObscureNew: () =>
+                            setState(() => _obscureNew = !_obscureNew),
+                        onToggleObscureConfirm: () =>
+                            setState(() => _obscureConfirm = !_obscureConfirm),
+                        onToggleEditPassword: _toggleEditPassword,
+                      ),
+                    ),
+                  ],
+                  Responsive.spaceXl.gapH,
+                ],
               ),
-            Responsive.spaceLg.gapH,
-            CustomButton(
-              label: l10n.saveChanges,
-              icon: Icons.check,
-              isLoading: auth.isLoading,
-              onPressed: _save,
+            ),
+            Material(
+              color: context.palette.background,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: Responsive.pagePadding().copyWith(top: 8.h),
+                  child: CustomButton(
+                    label: l10n.saveChanges,
+                    icon: Icons.check,
+                    isLoading: auth.isLoading,
+                    onPressed: _save,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

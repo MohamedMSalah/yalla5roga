@@ -8,17 +8,19 @@ import 'package:yalla_5roga/core/constants/app_constants.dart';
 import 'package:yalla_5roga/core/di/app_dependencies.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
+import 'package:yalla_5roga/core/navigation/app_page_transition.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/theme/app_theme.dart';
 import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
-import 'package:yalla_5roga/features/outings/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/providers/settings_provider.dart';
@@ -61,6 +63,11 @@ class App extends StatelessWidget {
           return GetMaterialApp(
             title: AppConstants.appName,
             debugShowCheckedModeBanner: false,
+            // iOS keeps the native cupertino push (edge-swipe back); other
+            // platforms use the RTL-aware fade-slide in AppPageTransition.
+            defaultTransition: AppPageTransition.defaultTransition(),
+            customTransition: AppPageTransition(),
+            transitionDuration: AppMotion.emphasis,
             theme: AppTheme.light(locale.locale),
             darkTheme: AppTheme.dark(locale.locale),
             themeMode: theme.themeMode,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 
@@ -22,7 +23,20 @@ class _AppShimmerState extends State<AppShimmer>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
-    )..repeat();
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reduced motion: hold a static mid-sweep highlight instead of looping.
+    if (AppMotion.reduce(context)) {
+      _controller
+        ..stop()
+        ..value = 0.5;
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override

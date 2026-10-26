@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_icon_button.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/user_avatar.dart';
 import 'package:yalla_5roga/features/auth/domain/entities/user.dart';
 
 class ProfileHeader extends StatelessWidget {
@@ -66,39 +67,11 @@ class ProfileHeader extends StatelessWidget {
           ],
         ),
         Responsive.spaceMd.gapH,
-        GestureDetector(
+        UserAvatar(
+          url: user?.imageUrl ?? '',
+          size: avatar,
+          heroTag: HeroTags.profileAvatar,
           onTap: onEditProfile,
-          child: Stack(
-            children: [
-              Container(
-                width: avatar,
-                height: avatar,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(26.r),
-                  border: Border.all(color: Colors.white, width: 4.w),
-                ),
-                child: AppNetworkImage.avatar(
-                  url: user?.imageUrl ?? '',
-                  width: avatar,
-                  height: avatar,
-                  radius: 22.r,
-                ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: CircleAvatar(
-                  radius: 12.r,
-                  backgroundColor: AppColors.brand600,
-                  child: Icon(
-                    Icons.edit_outlined,
-                    size: Responsive.iconSm,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
-          ),
         ),
         12.gapH,
         Text(

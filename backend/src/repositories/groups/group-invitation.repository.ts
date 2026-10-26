@@ -30,4 +30,16 @@ export class GroupInvitationRepository implements IGroupInvitationRepository {
   ): Promise<GroupInvitation[]> {
     return this.datasource.claimForVerifiedPhone(userId, phone, now);
   }
+
+  findById(id: string): Promise<GroupInvitation | null> {
+    return this.datasource.findById(id);
+  }
+
+  declineForVerifiedPhone(
+    invitationId: string,
+    userId: string,
+    phone: string,
+  ): Promise<number> {
+    return this.datasource.declineForVerifiedPhone(invitationId, userId, phone);
+  }
 }

@@ -33,6 +33,31 @@ export type CreatePlaceInput = {
 
 export type UpdatePlaceInput = Partial<CreatePlaceInput>;
 
+export type FindNearbyPlacesInput = {
+  lat: number;
+  lng: number;
+  radiusKm?: number;
+  vibe?: OutingVibe;
+  limit?: number;
+  offset?: number;
+};
+
+/** Row returned by the raw nearby query. Decimals arrive as strings. */
+export type NearbyPlace = {
+  id: string;
+  name: string;
+  area: string;
+  vibe: OutingVibe;
+  cover_image_url: string;
+  price_level: PriceLevel;
+  price_min: string | null;
+  price_max: string | null;
+  currency: string;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+};
+
 export type UpsertPlaceHourInput = {
   place_id: string;
   day: Weekday;

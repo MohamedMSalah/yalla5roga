@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
@@ -8,10 +9,18 @@ import 'package:yalla_5roga/features/discover/presentation/widgets/cards/suggest
 
 /// Vertical list of nearby / filtered places with an optional section title.
 class NearbyPlacesList extends StatelessWidget {
-  const NearbyPlacesList({super.key, required this.places, this.title});
+  const NearbyPlacesList({
+    super.key,
+    required this.places,
+    this.title,
+    this.heroSurface = 'discover-nearby',
+  });
 
   final List<SuggestedPlace> places;
   final String? title;
+
+  /// Keeps Hero tags unique across lists that share a route.
+  final String heroSurface;
 
   @override
   Widget build(BuildContext context) {
@@ -46,14 +55,21 @@ class NearbyPlacesList extends StatelessWidget {
             itemCount: places.length,
             itemBuilder: (context, index) {
               final place = places[index];
+              final heroTag = HeroTags.placeCover(heroSurface, place.id);
               return Padding(
                 padding: EdgeInsets.only(
                   bottom: index == places.length - 1 ? 0 : Responsive.spaceSm,
                 ),
                 child: SuggestedPlaceTile(
                   place: place,
-                  onTap: () =>
-                      Get.to(() => DiscoverPlaceDetailsPage(placeId: place.id)),
+                  heroTag: heroTag,
+                  onTap: () => Get.to(
+                    () => DiscoverPlaceDetailsPage(
+                      placeId: place.id,
+                      coverHeroTag: heroTag,
+                      coverUrl: place.coverImageUrl,
+                    ),
+                  ),
                 ),
               );
             },

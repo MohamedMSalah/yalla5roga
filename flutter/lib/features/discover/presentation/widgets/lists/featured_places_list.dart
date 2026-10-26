@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
@@ -14,12 +15,16 @@ class FeaturedPlacesList extends StatelessWidget {
     this.compact = false,
     this.showPriceLevel = true,
     this.title,
+    this.heroSurface = 'discover-featured',
   });
 
   final List<SuggestedPlace> places;
   final bool compact;
   final bool showPriceLevel;
   final String? title;
+
+  /// Keeps Hero tags unique across lists that share a route.
+  final String heroSurface;
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +57,11 @@ class FeaturedPlacesList extends StatelessWidget {
             height: 168.h,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
+              addAutomaticKeepAlives: false,
               itemCount: places.length,
               itemBuilder: (context, index) {
                 final place = places[index];
+                final heroTag = HeroTags.placeCover(heroSurface, place.id);
                 return Padding(
                   padding: EdgeInsets.only(
                     right: index == places.length - 1 ? 0 : Responsive.spaceSm,
@@ -63,8 +70,13 @@ class FeaturedPlacesList extends StatelessWidget {
                     place: place,
                     compact: compact,
                     showPriceLevel: showPriceLevel,
+                    heroTag: heroTag,
                     onTap: () => Get.to(
-                      () => DiscoverPlaceDetailsPage(placeId: place.id),
+                      () => DiscoverPlaceDetailsPage(
+                        placeId: place.id,
+                        coverHeroTag: heroTag,
+                        coverUrl: place.coverImageUrl,
+                      ),
                     ),
                   ),
                 );

@@ -53,6 +53,9 @@ class Outing {
   /// When the outing is scheduled (source of truth for past / chat closed).
   final DateTime? scheduledAt;
 
+  /// Chat stays open this long after [scheduledAt].
+  static const Duration chatOpenAfterStart = Duration(hours: 2);
+
   /// Member/user id of the creator (auto attendance = going).
   final String? createdById;
 
@@ -82,6 +85,27 @@ class Outing {
     final at = scheduledAt;
     if (at == null) return false;
     return !at.isAfter(DateTime.now());
+  }
+
+  /// Chat unlocks once at least one place has been suggested.
+  bool get hasSuggestedPlaces => votePlaces.isNotEmpty || location != null;
+
+  /// Outing chat can be opened (read or write) after a suggestion exists.
+  bool get canOpenChat => hasSuggestedPlaces;
+
+  /// When sending closes: [scheduledAt] + [chatOpenAfterStart].
+  DateTime? get chatClosesAt {
+    final at = scheduledAt;
+    if (at == null) return null;
+    return at.add(chatOpenAfterStart);
+  }
+
+  /// True when the composer should lock (read-only history remains).
+  bool get isChatClosed {
+    if (!hasSuggestedPlaces) return true;
+    final closesAt = chatClosesAt;
+    if (closesAt != null) return !DateTime.now().isBefore(closesAt);
+    return isPastOuting || status == OutingStatus.past;
   }
 
   /// Final location is hidden while place voting is still open.

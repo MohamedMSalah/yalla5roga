@@ -12,6 +12,7 @@ import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/firebase_auth_service.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/notifications/data/repositories/push_messaging_repository_impl.dart';
@@ -20,7 +21,6 @@ import 'package:yalla_5roga/features/notifications/data/services/local_notificat
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
-import 'package:yalla_5roga/features/outings/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/providers/settings_provider.dart';
@@ -129,7 +129,7 @@ class AppDependencies {
       auth: auth,
       notifications: NotificationsProvider(repository: repos.notifications()),
       fcm: fcm,
-      outingChat: OutingChatProvider(),
+      outingChat: OutingChatProvider(repository: repos.outingChat()),
       outings: outings,
       savedOutings: savedOutings,
       shell: shell,

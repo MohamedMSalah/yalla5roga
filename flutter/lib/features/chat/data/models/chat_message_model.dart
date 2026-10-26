@@ -1,0 +1,54 @@
+import 'package:yalla_5roga/core/network/api_payload.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
+
+class ChatMessageModel extends ChatMessage {
+  const ChatMessageModel({
+    required super.id,
+    required super.sender,
+    required super.text,
+    required super.time,
+    required super.isMine,
+    super.outingId,
+    super.avatar,
+    super.senderId,
+    super.sentAt,
+    super.deliveryStatus,
+  });
+
+  factory ChatMessageModel.fromEntity(ChatMessage message) {
+    return ChatMessageModel(
+      id: message.id,
+      outingId: message.outingId,
+      sender: message.sender,
+      text: message.text,
+      time: message.time,
+      isMine: message.isMine,
+      avatar: message.avatar,
+      senderId: message.senderId,
+      sentAt: message.sentAt,
+      deliveryStatus: message.deliveryStatus,
+    );
+  }
+
+  factory ChatMessageModel.fromJson(
+    Map<dynamic, dynamic> json, {
+    String? outingId,
+  }) {
+    final sentAtRaw = apiString(json['sentAt']) ?? apiString(json['createdAt']);
+    return ChatMessageModel(
+      id: apiString(json['id']) ?? '',
+      outingId: apiString(json['outingId']) ?? outingId,
+      sender: apiString(json['sender']) ?? '',
+      text: apiString(json['text']) ?? '',
+      time: apiString(json['time']) ?? '',
+      isMine: apiBool(json['isMine']),
+      avatar: apiString(json['avatar']),
+      senderId: apiString(json['senderId']),
+      sentAt: DateTime.tryParse(sentAtRaw ?? ''),
+      deliveryStatus: MessageDeliveryStatus.values.firstWhere(
+        (status) => status.name == apiString(json['deliveryStatus']),
+        orElse: () => MessageDeliveryStatus.sent,
+      ),
+    );
+  }
+}

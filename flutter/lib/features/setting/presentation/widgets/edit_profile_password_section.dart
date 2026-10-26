@@ -43,16 +43,6 @@ class EditProfilePasswordSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Responsive.spaceLg.gapH,
-        Text(
-          l10n.confirmWithPassword,
-          style: TextStyle(
-            color: context.palette.textMuted,
-            fontSize: Responsive.fontSm,
-            height: 1.35,
-          ),
-        ),
-        Responsive.spaceMd.gapH,
         CustomTextField(
           controller: currentPasswordController,
           label: l10n.currentPassword,

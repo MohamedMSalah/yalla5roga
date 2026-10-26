@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/app_pressable.dart';
 import 'package:yalla_5roga/core/widgets/avatar_stack.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -29,7 +33,7 @@ class _FeaturedOutingCardState extends State<FeaturedOutingCard> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final slides = context.watch<OutingsProvider>().outings;
-    final index = context.watch<OutingsProvider>().featuredIndex;
+    final featuredIndex = context.watch<OutingsProvider>().featuredIndex;
     if (slides.isEmpty) {
       return AppEmptyState(
         icon: Icons.photo_outlined,
@@ -62,14 +66,25 @@ class _FeaturedOutingCardState extends State<FeaturedOutingCard> {
                 onPageChanged: context.read<OutingsProvider>().setFeaturedIndex,
                 itemBuilder: (context, index) {
                   final slide = slides[index];
-                  return GestureDetector(
-                    onTap: () => Get.to(() => EventPage(event: slide)),
+                  final heroTag = HeroTags.outingCover('featured', slide.id);
+                  return AppPressable(
+                    key: ValueKey(slide.id),
+                    onTap: () => Get.to(
+                      () => EventPage(event: slide, coverHeroTag: heroTag),
+                    ),
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        AppNetworkImage(
+                        AppHero(
+                          tag: index == featuredIndex ? heroTag : null,
                           url: slide.image,
-                          placeholderIcon: Icons.explore_outlined,
+                          radius: 24.r,
+                          child: AppNetworkImage(
+                            url: slide.image,
+                            height: 176.h,
+                            placeholderIcon: Icons.explore_outlined,
+                            fade: false,
+                          ),
                         ),
                         const DecoratedBox(
                           decoration: BoxDecoration(
@@ -101,7 +116,7 @@ class _FeaturedOutingCardState extends State<FeaturedOutingCard> {
                                 ),
                                 6.gapW,
                                 Text(
-                                  l10n.digits(slide.date),
+                                  slide.localizedDate(l10n),
                                   style: TextStyle(
                                     fontSize: Responsive.fontCaption,
                                     fontWeight: FontWeight.w800,
@@ -141,7 +156,7 @@ class _FeaturedOutingCardState extends State<FeaturedOutingCard> {
                                       ),
                                     ),
                                     Text(
-                                      l10n.digits(slide.meta),
+                                      slide.localizedMeta(l10n),
                                       style: TextStyle(
                                         color: Colors.white70,
                                         fontSize: Responsive.fontSm,
@@ -172,12 +187,13 @@ class _FeaturedOutingCardState extends State<FeaturedOutingCard> {
           children: [
             for (var i = 0; i < slides.length; i++)
               AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
+                duration: AppMotion.standard,
+                curve: AppMotion.settle,
                 margin: EdgeInsets.symmetric(horizontal: 3.w),
-                width: (i == index ? 20 : 6).w,
+                width: (i == featuredIndex ? 20 : 6).w,
                 height: 6.h,
                 decoration: BoxDecoration(
-                  color: i == index
+                  color: i == featuredIndex
                       ? AppColors.brand600
                       : context.palette.border,
                   borderRadius: BorderRadius.circular(999.r),

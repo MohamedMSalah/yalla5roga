@@ -19,6 +19,7 @@ class CustomTextField extends StatelessWidget {
     this.inputFormatters,
     this.textInputAction,
     this.textDirection,
+    this.autovalidateMode,
     this.maxLines = 1,
     this.minLines,
   });
@@ -36,6 +37,7 @@ class CustomTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final TextInputAction? textInputAction;
   final TextDirection? textDirection;
+  final AutovalidateMode? autovalidateMode;
   final int? maxLines;
   final int? minLines;
 
@@ -64,6 +66,7 @@ class CustomTextField extends StatelessWidget {
             inputFormatters: inputFormatters,
             textInputAction: textInputAction,
             textDirection: textDirection,
+            autovalidateMode: autovalidateMode,
             maxLines: obscureText ? 1 : maxLines,
             minLines: obscureText ? 1 : minLines,
             style: TextStyle(

@@ -21,4 +21,10 @@ export interface IGroupInvitationRepository {
     phone: string,
     now?: Date,
   ): Promise<GroupInvitation[]>;
+  findById(id: string): Promise<GroupInvitation | null>;
+  declineForVerifiedPhone(
+    invitationId: string,
+    userId: string,
+    phone: string,
+  ): Promise<number>;
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class ImageSourceSheet {
@@ -68,6 +69,8 @@ class ImageSourceSheet {
       ),
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      enterBottomSheetDuration: AppMotion.sheetEnter,
+      exitBottomSheetDuration: AppMotion.sheetExit,
     );
 
     if (source == null) return null;

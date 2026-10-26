@@ -68,7 +68,16 @@ class EditProfilePhoneOtpSection extends StatelessWidget {
                       ),
                     ),
                   )
-                else
+                else ...[
+                  Text(
+                    l10n.verifyNewPhoneHint,
+                    style: TextStyle(
+                      color: context.palette.textMuted,
+                      fontSize: Responsive.fontCaption,
+                      height: 1.4,
+                    ),
+                  ),
+                  Responsive.spaceSm.gapH,
                   CustomButton(
                     label: l10n.sendOtp,
                     icon: Icons.sms_outlined,
@@ -76,6 +85,7 @@ class EditProfilePhoneOtpSection extends StatelessWidget {
                     isLoading: isLoading,
                     onPressed: onSendOtp,
                   ),
+                ],
               ],
             )
           : const SizedBox(width: double.infinity),

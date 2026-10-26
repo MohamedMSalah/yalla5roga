@@ -40,19 +40,3 @@ class OutingChatSkeleton extends StatelessWidget {
     );
   }
 }
-
-class PlaceSearchSkeleton extends StatelessWidget {
-  const PlaceSearchSkeleton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return AppShimmer(
-      child: ListView.separated(
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: 6,
-        separatorBuilder: (_, _) => 8.gapH,
-        itemBuilder: (_, _) => const ShimmerSearchTile(),
-      ),
-    );
-  }
-}

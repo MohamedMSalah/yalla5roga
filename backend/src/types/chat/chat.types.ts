@@ -12,6 +12,9 @@ export type CreateChatMessageInput = {
   outing_id: string;
   sender_id: string;
   text: string;
+  /** Client-generated UUID that makes a retried send idempotent. */
+  client_message_id?: string | null;
+  /** @deprecated Kept for existing callers only. Seen state lives in chat_reads. */
   delivery_status?: MessageDeliveryStatus;
 };
 

@@ -7,5 +7,3 @@ enum OutingVibe { food, activity, outdoor, movie }
 
 /// Whether a group member is attending an outing (separate from place votes).
 enum AttendanceStatus { going, notGoing, notVoted }
-
-enum MessageDeliveryStatus { sent, delivered, seen }

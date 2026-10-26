@@ -1,5 +1,6 @@
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
+import { assertEndsAfterStart } from "../../services/outings/outing-time-window.js";
 import type {
   Outing,
   UpdateOutingInput,
@@ -14,6 +15,13 @@ export class UpdateOutingUseCase {
   async execute(id: string, data: UpdateOutingInput): Promise<Outing> {
     const existing = await this.outings.findById(id);
     if (!existing) throw new NotFoundError("Outing");
+
+    // Compare against the values the row will hold after this update.
+    const scheduledAt =
+      data.scheduled_at !== undefined ? data.scheduled_at : existing.scheduled_at;
+    const endsAt = data.ends_at !== undefined ? data.ends_at : existing.ends_at;
+    assertEndsAfterStart(scheduledAt, endsAt);
+
     return this.outings.update(id, data);
   }
 }

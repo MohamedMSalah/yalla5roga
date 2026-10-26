@@ -3,6 +3,7 @@ import type {
   CreatePlaceImageInput,
   CreatePlaceInput,
   CreatePlacePriceInput,
+  FindNearbyPlacesInput,
   Place,
   UpdatePlaceInput,
   UpsertPlaceHourInput,
@@ -20,6 +21,9 @@ export class PlaceRepository implements IPlaceRepository {
   }
   findFeatured() {
     return this.datasource.findFeatured();
+  }
+  findNearby(opts: FindNearbyPlacesInput) {
+    return this.datasource.findNearby(opts);
   }
   create(data: CreatePlaceInput) {
     return this.datasource.create(data);

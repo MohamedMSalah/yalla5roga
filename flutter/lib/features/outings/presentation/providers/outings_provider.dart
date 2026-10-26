@@ -396,6 +396,7 @@ class OutingsProvider extends ChangeNotifier {
     var changed = false;
     result.fold(
       (failure) {
+        changed = _errorMessage != failure.message;
         _errorMessage = failure.message;
         AppErrorFeedback.report(
           failure,
@@ -404,15 +405,36 @@ class OutingsProvider extends ChangeNotifier {
         );
       },
       (snapshot) {
-        changed =
-            snapshot.outings.length != _outings.length ||
-            snapshot.outings.map((e) => e.status).join() !=
-                _outings.map((e) => e.status).join();
+        changed = _snapshotDiffers(snapshot);
         _applySnapshot(snapshot);
       },
     );
-    notifyListeners();
+    if (changed) notifyListeners();
     return changed;
+  }
+
+  bool _snapshotDiffers(OutingSnapshot snapshot) {
+    if (!_sameOutings(_outings, snapshot.outings)) return true;
+    if (_suggestions.length != snapshot.suggestions.length) return true;
+    if (_votesByOuting.length != snapshot.votesByOuting.length) return true;
+    if (_attendanceByOuting.length != snapshot.attendanceByOuting.length) {
+      return true;
+    }
+    return false;
+  }
+
+  bool _sameOutings(List<Outing> a, List<Outing> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i].id != b[i].id ||
+          a[i].status != b[i].status ||
+          a[i].image != b[i].image ||
+          a[i].title != b[i].title ||
+          a[i].going != b[i].going) {
+        return false;
+      }
+    }
+    return true;
   }
 
   String specialEventImage(OutingOccasion occasion) =>

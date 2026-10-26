@@ -11,6 +11,13 @@ import { ConflictError, ValidationError } from "../../utils/errors.js";
 const PHONE_ALREADY_LINKED =
   "This phone number is already associated with another account";
 
+/** users.name is VarChar(30); Google and Apple display names can be longer. */
+const MAX_NAME_LENGTH = 30;
+
+export function truncateDisplayName(name: string): string {
+  return name.trim().slice(0, MAX_NAME_LENGTH).trimEnd();
+}
+
 export class SyncUserUseCase {
   constructor(
     private readonly users: IUserRepository = new UserRepository(),
@@ -45,7 +52,7 @@ export class SyncUserUseCase {
 
     const user = await this.users.sync({
       id: input.id,
-      name: input.name,
+      name: truncateDisplayName(input.name),
       phone,
       email: input.email,
       image_url: input.image_url,

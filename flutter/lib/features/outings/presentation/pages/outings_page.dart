@@ -32,7 +32,9 @@ class _OutingsPageState extends State<OutingsPage> {
   @override
   Widget build(BuildContext context) {
     final outings = context.watch<OutingsProvider>();
-    if (!outings.hasLoaded) return const OutingsSkeleton();
+    if (!outings.hasLoaded) {
+      return const OutingsSkeleton();
+    }
 
     final l10n = context.l10n;
 
@@ -67,7 +69,7 @@ class _OutingsPageState extends State<OutingsPage> {
             badges: {outings.filter: l10n.n(outings.filtered.length)},
           ),
           Responsive.spaceLg.gapH,
-          const DiscoverSection(limit: 4),
+          const DiscoverSection(limit: 4, heroSurface: 'outings'),
           Responsive.spaceLg.gapH,
           const WeekendOutingsList(),
         ],

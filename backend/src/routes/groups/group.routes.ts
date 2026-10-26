@@ -7,6 +7,7 @@ import {
   createGroupBodySchema,
   groupIdParamsSchema,
   groupMemberParamsSchema,
+  invitationIdParamsSchema,
   inviteToGroupBodySchema,
   listGroupsQuerySchema,
   updateGroupBodySchema,
@@ -144,6 +145,42 @@ import {
  *               $ref: "#/components/schemas/GroupInvitationConflict"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ * /api/groups/invitations/{invitationId}/decline:
+ *   post:
+ *     tags: [Groups]
+ *     summary: Decline a pending group invitation
+ *     description: >
+ *       The invitation must be pending and addressed to the phone number verified on the
+ *       caller's Firebase ID token. The UID and phone come from the token only. A repeated
+ *       call finds no pending row and returns 404.
+ *     operationId: declineGroupInvitation
+ *     parameters:
+ *       - $ref: "#/components/parameters/InvitationId"
+ *     responses:
+ *       "200":
+ *         description: The invitation, now with status declined
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/GroupInvitationRecordResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         description: The token carries no verified phone number
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       "404":
+ *         description: No pending invitation for this id and verified phone
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
  * /api/groups/{id}/members/{userId}:
  *   delete:
  *     tags: [Groups]
@@ -265,6 +302,12 @@ api.get(
  *         $ref: "#/components/responses/InternalServerError"
  */
 api.get("/cuser", controller.listForCuser);
+// Registered before the /:id routes so "invitations" is never read as a group id.
+api.post(
+  "/invitations/:invitationId/decline",
+  validate({ params: invitationIdParamsSchema }),
+  controller.decline,
+);
 api.post(
   "/",
   validate({ body: createGroupBodySchema }),

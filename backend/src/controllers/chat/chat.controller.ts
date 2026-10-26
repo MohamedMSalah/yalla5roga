@@ -11,8 +11,11 @@ export class ChatController {
 
   listByOuting = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+
       const messages = await this.listMessages.execute(
         req.params.outingId as string,
+        req.user.uid,
       );
       res.json({ success: true, data: messages });
     } catch (error) {
@@ -28,6 +31,7 @@ export class ChatController {
         outing_id: req.params.outingId as string,
         sender_id: req.user.uid,
         text: req.body.text,
+        client_message_id: req.body.clientMessageId ?? null,
       });
 
       res.status(201).json({ success: true, data: message });

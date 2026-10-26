@@ -63,12 +63,19 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   /// Home content first. Groups, notifications, and saved outings follow so
   /// they do not compete with the first screen.
   Future<void> _loadShell() async {
-    final outings = context.read<OutingsProvider>();
-    final discover = context.read<DiscoverProvider>();
-    await Future.wait<void>([outings.load(), discover.load()]);
+    await context.read<OutingsProvider>().load();
     if (!mounted) return;
     StartupTrace.mark('home_feed_ready');
 
+    // Let featured outings paint (and start image decode) before discover
+    // covers and the other tabs' data hit the UI thread together.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await context.read<DiscoverProvider>().load();
+    if (!mounted) return;
+
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     unawaited(context.read<GroupsProvider>().refresh());
     unawaited(context.read<NotificationsProvider>().refresh());
     unawaited(context.read<SavedOutingsProvider>().load());

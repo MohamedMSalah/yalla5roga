@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -296,6 +297,8 @@ class SuggestedPlacesList extends StatelessWidget {
           ),
         ),
         isScrollControlled: true,
+        enterBottomSheetDuration: AppMotion.sheetEnter,
+        exitBottomSheetDuration: AppMotion.sheetExit,
       );
 
       if (createdOuting == null || !context.mounted) return;

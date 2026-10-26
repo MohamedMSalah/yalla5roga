@@ -1,4 +1,6 @@
 import 'package:flutter/widgets.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 /// Single source for every on-screen string.
 /// Getter names match the copy they return.
@@ -47,6 +49,78 @@ class L10n {
   String formatPrice(num amount, [String currency = 'EGP']) =>
       '${n(amount)} $currency';
 
+  String get _dateLocale => locale.languageCode;
+
+  /// Weekday + day + month (e.g. THU, 26 OCT / الخميس، ٢٦ أكتوبر).
+  String formatDate(DateTime date) {
+    final text = DateFormat.MMMEd(_dateLocale).format(date);
+    return digits(_ar ? text : text.toUpperCase());
+  }
+
+  /// Clock time in the active locale (e.g. 8:00 PM / ٨:٠٠ م).
+  String formatTime(DateTime date) =>
+      digits(DateFormat.jm(_dateLocale).format(date));
+
+  String formatStoredDate(DateTime? scheduledAt, String stored) {
+    if (scheduledAt != null) return formatDate(scheduledAt);
+    return digits(stored.trim());
+  }
+
+  String formatStoredTime(DateTime? scheduledAt, String stored) {
+    if (scheduledAt != null) return formatTime(scheduledAt);
+    final clock = _tryParseClock(stored);
+    if (clock != null) return formatTime(clock);
+    return digits(stored.trim());
+  }
+
+  String formatWhen(
+    DateTime? scheduledAt, {
+    String date = '',
+    String time = '',
+  }) {
+    final dateText = formatStoredDate(scheduledAt, date);
+    final timeText = formatStoredTime(scheduledAt, time);
+    if (dateText.isEmpty) return timeText;
+    if (timeText.isEmpty) return dateText;
+    return '$dateText · $timeText';
+  }
+
+  /// Place hours like `12:00` or `8:00 PM`.
+  String formatClock(String raw) {
+    final clock = _tryParseClock(raw);
+    if (clock != null) return formatTime(clock);
+    return digits(raw.trim());
+  }
+
+  String formatRelative(DateTime? at, {String fallback = ''}) {
+    if (at == null) return digits(fallback);
+    final now = DateTime.now();
+    final delta = now.difference(at);
+    if (delta.inSeconds < 45) return justNow;
+    if (delta.inMinutes < 60) return minutesAgo(delta.inMinutes.clamp(1, 59));
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    if (!at.isBefore(startOfToday) && delta.inHours < 24) {
+      return hoursAgo(delta.inHours.clamp(1, 23));
+    }
+    final startOfYesterday = startOfToday.subtract(const Duration(days: 1));
+    if (!at.isBefore(startOfYesterday) && at.isBefore(startOfToday)) {
+      return yesterday;
+    }
+    if (delta.inDays < 7) return daysAgo(delta.inDays.clamp(1, 6));
+    return formatDate(at);
+  }
+
+  DateTime? _tryParseClock(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty) return null;
+    for (final pattern in ['h:mm a', 'hh:mm a', 'H:mm', 'HH:mm', 'h:mm']) {
+      try {
+        return DateFormat(pattern, 'en').parseLoose(text);
+      } catch (_) {}
+    }
+    return null;
+  }
+
   static L10n of(BuildContext context) {
     return Localizations.of<L10n>(context, L10n) ?? const L10n(Locale('en'));
   }
@@ -69,6 +143,11 @@ class L10n {
   String get edit => _t('Edit', 'تعديل');
   String get change => _t('Change', 'تغيير');
   String get today => _t('Today', 'اليوم');
+  String get yesterday => _t('Yesterday', 'أمس');
+  String get justNow => _t('Just now', 'الآن');
+  String minutesAgo(int count) => _t('${n(count)}m', '${n(count)} د');
+  String hoursAgo(int count) => _t('${n(count)}h', '${n(count)} س');
+  String daysAgo(int count) => _t('${n(count)}d', '${n(count)} ي');
   String get all => _t('All', 'الكل');
   String get owner => _t('Owner', 'المالك');
   String get member => _t('Member', 'عضو');
@@ -258,6 +337,12 @@ class L10n {
   String get requiredField => _t('This field is required', 'هذا الحقل مطلوب');
   String get invalidPhone =>
       _t('Enter a valid Egyptian phone number', 'أدخل رقم هاتف مصري صالح');
+  String get phoneMustBe10Digits => digits(
+    _t(
+      'Enter the 10-digit phone number',
+      'أدخل رقم الهاتف المكوّن من 10 أرقام',
+    ),
+  );
   String get passwordTooShort => passwordRequirements;
   String get loginFailed => _t('Login failed', 'فشل تسجيل الدخول');
   String get registerFailed => _t('Registration failed', 'فشل إنشاء الحساب');
@@ -747,8 +832,12 @@ class L10n {
 
   String get chatClosed => _t('Chat is closed', 'المحادثة مغلقة');
   String get chatClosedHint => _t(
-    'This outing has ended. You can still read past messages.',
-    'انتهت هذه الخروجة. يمكنك قراءة الرسائل السابقة.',
+    'Chat closes 2 hours after the outing starts. You can still read past messages.',
+    'تُغلق المحادثة بعد ساعتين من موعد الخروجة. يمكنك قراءة الرسائل السابقة.',
+  );
+  String get chatNeedsSuggestion => _t(
+    'Chat opens after a place is suggested',
+    'المحادثة تفتح بعد اقتراح مكان',
   );
   String get locationAfterVoting => _t(
     'Location will be revealed when voting ends',
@@ -879,8 +968,9 @@ class L10n {
       _t('Coming Soon feature', 'ميزة قادمة قريباً');
   String get writeMessage => _t('Write a message', 'اكتب رسالة');
   String get mentionSomeone => _t('Mention someone', 'أشّر على شخص');
-  String get mentionAll => _t('Mention all', 'أشّر على الجميع');
-  String get mentionAllLabel => _t('Everyone', 'الجميع');
+  String get mentionAll =>
+      _t('Mention everyone in the group', 'أشّر على كل أعضاء المجموعة');
+  String get mentionAllLabel => _t('@all', '@all');
   String get noMembersToMention =>
       _t('No group members to mention', 'لا يوجد أعضاء للإشارة إليهم');
   String get chooseLocation => _t('Choose a location', 'اختر المكان');
@@ -1020,6 +1110,10 @@ class L10n {
   String get signedOut => _t('Signed out safely', 'تم تسجيل الخروج بأمان');
   String get editProfile => _t('Edit profile', 'تعديل الملف');
   String get profileSettings => _t('Profile settings', 'إعدادات الملف');
+  String get contactDetails => _t('Contact details', 'بيانات التواصل');
+  String get securityDetails =>
+      _t('Sign-in & security', 'تسجيل الدخول والأمان');
+  String get changePhoto => _t('Change photo', 'تغيير الصورة');
   String get currentPassword => _t('Current password', 'كلمة المرور الحالية');
   String get newPassword => _t('New password', 'كلمة المرور الجديدة');
   String get confirmNewPassword =>
@@ -1034,6 +1128,14 @@ class L10n {
   String get phoneVerified =>
       _t('Phone number verified', 'تم التحقق من رقم الهاتف');
   String get phoneUpdated => _t('Phone number updated', 'تم تحديث رقم الهاتف');
+  String get verifyNewPhoneFirst => _t(
+    'Verify the new phone number with the code we send you',
+    'تحقق من رقم الهاتف الجديد برمز التحقق',
+  );
+  String get verifyNewPhoneHint => _t(
+    'We’ll send a one-time code to confirm this number.',
+    'سنرسل رمزاً لمرة واحدة لتأكيد هذا الرقم.',
+  );
   String get socialAccountHint => _t(
     'Signed in with Google or Apple — email and password are managed by that provider.',
     'سجّلت الدخول عبر Google أو Apple — البريد وكلمة المرور يديرهما مزوّد الحساب.',
@@ -1098,7 +1200,10 @@ class _L10nDelegate extends LocalizationsDelegate<L10n> {
   bool isSupported(Locale locale) => ['en', 'ar'].contains(locale.languageCode);
 
   @override
-  Future<L10n> load(Locale locale) async => L10n(locale);
+  Future<L10n> load(Locale locale) async {
+    await initializeDateFormatting(locale.languageCode);
+    return L10n(locale);
+  }
 
   @override
   bool shouldReload(_L10nDelegate old) => false;

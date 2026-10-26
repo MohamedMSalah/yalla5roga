@@ -2,6 +2,8 @@ import type {
   CreatePlaceImageInput,
   CreatePlaceInput,
   CreatePlacePriceInput,
+  FindNearbyPlacesInput,
+  NearbyPlace,
   Place,
   PlaceHour,
   PlaceImage,
@@ -14,6 +16,7 @@ export interface IPlaceRepository {
   findById(id: string): Promise<Place | null>;
   findMany(): Promise<Place[]>;
   findFeatured(): Promise<Place[]>;
+  findNearby(opts: FindNearbyPlacesInput): Promise<NearbyPlace[]>;
   create(data: CreatePlaceInput): Promise<Place>;
   update(id: string, data: UpdatePlaceInput): Promise<Place>;
   delete(id: string): Promise<Place>;

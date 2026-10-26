@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { AddGroupMemberUseCase } from "../../usecases/groups/add-group-member.usecase.js";
 import { InviteToGroupUseCase } from "../../usecases/groups/invite-to-group.usecase.js";
 import { CreateGroupUseCase } from "../../usecases/groups/create-group.usecase.js";
+import { DeclineGroupInvitationUseCase } from "../../usecases/groups/decline-group-invitation.usecase.js";
 import { DeleteGroupUseCase } from "../../usecases/groups/delete-group.usecase.js";
 import { GetGroupUseCase } from "../../usecases/groups/get-group.usecase.js";
 import { ListGroupMembersUseCase } from "../../usecases/groups/list-group-members.usecase.js";
@@ -20,6 +21,7 @@ export class GroupController {
     private readonly listMembers = new ListGroupMembersUseCase(),
     private readonly addMember = new AddGroupMemberUseCase(),
     private readonly inviteToGroup = new InviteToGroupUseCase(),
+    private readonly declineInvitation = new DeclineGroupInvitationUseCase(),
     private readonly removeMember = new RemoveGroupMemberUseCase(),
   ) {}
 
@@ -167,6 +169,22 @@ export class GroupController {
           member: result.member,
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  decline = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+
+      const invitation = await this.declineInvitation.execute({
+        invitationId: req.params.invitationId as string,
+        userId: req.user.uid,
+        verifiedPhone: req.user.phone ?? null,
+      });
+
+      res.json({ success: true, data: invitation });
     } catch (error) {
       next(error);
     }

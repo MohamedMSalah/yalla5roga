@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 
 class MarqueeText extends StatelessWidget {
   const MarqueeText({
@@ -19,8 +20,15 @@ class MarqueeText extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
-        if (!maxWidth.isFinite || maxWidth <= 0) {
-          return Text(text, maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+        // Reduced motion: never scroll, fall back to a static ellipsis.
+        if (!maxWidth.isFinite || maxWidth <= 0 || AppMotion.reduce(context)) {
+          return Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: style,
+          );
         }
         return _MarqueeBody(
           text: text,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/loading_indicator.dart';
 
@@ -86,24 +87,37 @@ class CustomButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = isLoading
-        ? LoadingIndicator(size: _iconSize, strokeWidth: 2.2, color: _foreground)
-        : Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: _iconSize),
-                8.gapW,
-              ],
-              Flexible(
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
+    // Label <-> spinner crossfade so an async press does not pop. Material
+    // already tweens the enabled/disabled colours (ButtonStyle.animationDuration).
+    final child = AnimatedSwitcher(
+      duration: AppMotion.of(context, AppMotion.press),
+      switchInCurve: AppMotion.enter,
+      switchOutCurve: AppMotion.exit,
+      child: isLoading
+          ? LoadingIndicator(
+              key: const ValueKey('loading'),
+              size: _iconSize,
+              strokeWidth: 2.2,
+              color: _foreground,
+            )
+          : Row(
+              key: const ValueKey('label'),
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: _iconSize),
+                  8.gapW,
+                ],
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-            ],
-          );
+              ],
+            ),
+    );
 
     final style = ButtonStyle(
       elevation: const WidgetStatePropertyAll(0),

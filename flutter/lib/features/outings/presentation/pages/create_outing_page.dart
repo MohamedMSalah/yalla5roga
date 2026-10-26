@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
@@ -67,6 +69,41 @@ class CreateOutingPage extends StatelessWidget {
         return form;
       },
       child: const _CreateOutingView(),
+    );
+  }
+}
+
+/// Slides wizard steps along the reading direction: forward enters from the
+/// end side, back enters from the start side. Keyed on the step index only,
+/// so form edits within a step never replay the transition.
+class _StepSwitcher extends StatefulWidget {
+  const _StepSwitcher({required this.step, required this.child});
+
+  final int step;
+  final Widget child;
+
+  @override
+  State<_StepSwitcher> createState() => _StepSwitcherState();
+}
+
+class _StepSwitcherState extends State<_StepSwitcher> {
+  var _forward = true;
+
+  @override
+  void didUpdateWidget(covariant _StepSwitcher oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.step != widget.step) {
+      _forward = widget.step > oldWidget.step;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppFadeSwitcher(
+      axis: AppRevealAxis.horizontal,
+      forward: _forward,
+      alignment: AlignmentDirectional.topStart,
+      child: widget.child,
     );
   }
 }
@@ -215,6 +252,8 @@ class _CreateOutingView extends StatelessWidget {
       ),
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      enterBottomSheetDuration: AppMotion.sheetEnter,
+      exitBottomSheetDuration: AppMotion.sheetExit,
     );
     if (selected == null) return;
     form.setGroup(selected);
@@ -305,22 +344,30 @@ class _CreateOutingView extends StatelessWidget {
                 ),
                 children: [
                   CreateOutingStepHeader(form: form),
-                  if (form.step == 0)
-                    CreateOutingBasicsStep(
-                      form: form,
-                      onUploadPhoto: () => _uploadPhoto(context, form),
-                      onInviteGuests: () => _inviteGuests(context, form),
-                      onPickGroup: () => _pickGroup(context, form),
-                      onPickDate: () => _pickDate(context, form),
-                      onPickTime: () => _pickTime(context, form),
-                    ),
-                  if (form.step == 1)
-                    CreateOutingLocationStep(
-                      form: form,
-                      onPickCustomLocation: () =>
-                          _pickCustomLocation(context, form),
-                    ),
-                  if (form.step == 2) CreateOutingReviewStep(form: form),
+                  _StepSwitcher(
+                    step: form.step,
+                    child: switch (form.step) {
+                      0 => CreateOutingBasicsStep(
+                        key: const ValueKey(0),
+                        form: form,
+                        onUploadPhoto: () => _uploadPhoto(context, form),
+                        onInviteGuests: () => _inviteGuests(context, form),
+                        onPickGroup: () => _pickGroup(context, form),
+                        onPickDate: () => _pickDate(context, form),
+                        onPickTime: () => _pickTime(context, form),
+                      ),
+                      1 => CreateOutingLocationStep(
+                        key: const ValueKey(1),
+                        form: form,
+                        onPickCustomLocation: () =>
+                            _pickCustomLocation(context, form),
+                      ),
+                      _ => CreateOutingReviewStep(
+                        key: const ValueKey(2),
+                        form: form,
+                      ),
+                    },
+                  ),
                 ],
               ),
             ),

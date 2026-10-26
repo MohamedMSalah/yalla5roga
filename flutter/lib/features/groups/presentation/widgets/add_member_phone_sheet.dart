@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
@@ -13,6 +14,8 @@ class AddMemberPhoneSheet {
     final phoneController = TextEditingController();
     return Get.bottomSheet<String>(
       SafeArea(child: _AddMemberPhoneSheetBody(controller: phoneController)),
+      enterBottomSheetDuration: AppMotion.sheetEnter,
+      exitBottomSheetDuration: AppMotion.sheetExit,
     ).whenComplete(phoneController.dispose);
   }
 }

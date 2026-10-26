@@ -94,7 +94,14 @@ const weekdayEnum = [
   "saturday",
   "sunday",
 ];
-const outingStatusEnum = ["upcoming", "voting", "past"];
+const outingStatusEnum = ["upcoming", "voting", "past", "cancelled"];
+const invitationStatusEnum = [
+  "pending",
+  "accepted",
+  "declined",
+  "expired",
+  "revoked",
+];
 const occasionEnum = ["none", "birthday", "wedding"];
 const attendanceEnum = ["going", "not_going", "not_voted"];
 const roleEnum = ["owner", "member"];
@@ -174,6 +181,13 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           in: "path",
           required: true,
           description: "Outing UUID",
+          schema: uuid,
+        },
+        InvitationId: {
+          name: "invitationId",
+          in: "path",
+          required: true,
+          description: "Group invitation UUID",
           schema: uuid,
         },
         HourId: {
@@ -563,7 +577,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             },
             status: {
               type: "string",
-              enum: ["pending", "accepted", "expired", "revoked"],
+              enum: invitationStatusEnum,
             },
             invited_phone: {
               type: "string",
@@ -574,6 +588,21 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           },
         },
         GroupInvitationResponse: itemResponse("GroupInvitationResult"),
+        GroupInvitationRecord: {
+          type: "object",
+          properties: {
+            id: uuid,
+            group_id: uuid,
+            invited_by_user_id: firebaseUid,
+            invited_phone: { type: "string", example: "+201001234567" },
+            user_id: { ...firebaseUid, nullable: true },
+            status: { type: "string", enum: invitationStatusEnum },
+            expires_at: dateTime,
+            created_at: dateTime,
+            updated_at: dateTime,
+          },
+        },
+        GroupInvitationRecordResponse: itemResponse("GroupInvitationRecord"),
         GroupInvitationConflict: {
           allOf: [
             ref("ErrorResponse"),
@@ -602,6 +631,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           required: ["text"],
           properties: {
             text: { type: "string", minLength: 1, maxLength: 2000 },
+            clientMessageId: {
+              ...uuid,
+              description:
+                "Optional client-generated idempotency key. Resending with the same value returns the stored message instead of creating a duplicate.",
+            },
           },
         },
         ChatMessage: {
@@ -622,7 +656,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             delivery_status: {
               type: "string",
               enum: ["pending", "sent", "delivered", "seen"],
+              deprecated: true,
+              description:
+                "Deprecated. A group chat cannot carry a single delivery status; derive seen state from chat_reads.",
             },
+            client_message_id: { ...uuid, nullable: true },
             sent_at: dateTime,
           },
         },
@@ -667,6 +705,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             status: { type: "string", enum: outingStatusEnum },
             occasion: { type: "string", enum: occasionEnum },
             scheduled_at: { ...dateTime, nullable: true },
+            ends_at: {
+              ...dateTime,
+              nullable: true,
+              description: "Must be later than scheduled_at. Defaults to scheduled_at + 6h for completion.",
+            },
             location_place_id: { ...uuid, nullable: true },
             location_name: { type: "string", maxLength: 100, nullable: true },
             location_area: { type: "string", maxLength: 100, nullable: true },
@@ -685,6 +728,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             status: { type: "string", enum: outingStatusEnum },
             occasion: { type: "string", enum: occasionEnum },
             scheduled_at: { ...dateTime, nullable: true },
+            ends_at: {
+              ...dateTime,
+              nullable: true,
+              description: "Must be later than scheduled_at.",
+            },
             location_place_id: { ...uuid, nullable: true },
             location_name: { type: "string", maxLength: 100, nullable: true },
             location_area: { type: "string", maxLength: 100, nullable: true },
@@ -707,6 +755,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             status: { type: "string", enum: outingStatusEnum },
             occasion: { type: "string", enum: occasionEnum },
             scheduled_at: { ...dateTime, nullable: true },
+            ends_at: { ...dateTime, nullable: true },
             location_place_id: { ...uuid, nullable: true },
             location_name: { type: "string", nullable: true },
             location_area: { type: "string", nullable: true },
@@ -946,12 +995,34 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             latitude: { type: "number", nullable: true },
             longitude: { type: "number", nullable: true },
             featured: { type: "boolean" },
+            is_active: {
+              type: "boolean",
+              description: "Inactive places are hidden from listings and nearby search",
+            },
             created_at: dateTime,
             updated_at: dateTime,
           },
         },
         PlaceResponse: itemResponse("Place"),
         PlaceListResponse: listResponse("Place"),
+        NearbyPlace: {
+          type: "object",
+          properties: {
+            id: uuid,
+            name: { type: "string" },
+            area: { type: "string" },
+            vibe: { type: "string", enum: vibeEnum },
+            cover_image_url: { type: "string" },
+            price_level: { type: "string", enum: priceLevelEnum },
+            price_min: { type: "string", nullable: true },
+            price_max: { type: "string", nullable: true },
+            currency: { type: "string", example: "EGP" },
+            latitude: { type: "number" },
+            longitude: { type: "number" },
+            distance_km: { type: "number", example: 1.73 },
+          },
+        },
+        NearbyPlaceListResponse: listResponse("NearbyPlace"),
         UpsertPlaceHourRequest: {
           type: "object",
           required: ["day"],

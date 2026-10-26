@@ -1,4 +1,4 @@
-import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
+enum MessageDeliveryStatus { sent, delivered, seen }
 
 class ChatMessage {
   const ChatMessage({
@@ -28,21 +28,41 @@ class ChatMessage {
   final MessageDeliveryStatus deliveryStatus;
 
   ChatMessage copyWith({
-    MessageDeliveryStatus? deliveryStatus,
+    String? id,
     String? outingId,
+    String? sender,
+    String? text,
+    String? time,
+    bool? isMine,
+    String? avatar,
+    String? senderId,
     DateTime? sentAt,
+    MessageDeliveryStatus? deliveryStatus,
   }) {
     return ChatMessage(
-      id: id,
+      id: id ?? this.id,
       outingId: outingId ?? this.outingId,
-      sender: sender,
-      text: text,
-      time: time,
-      isMine: isMine,
-      avatar: avatar,
-      senderId: senderId,
+      sender: sender ?? this.sender,
+      text: text ?? this.text,
+      time: time ?? this.time,
+      isMine: isMine ?? this.isMine,
+      avatar: avatar ?? this.avatar,
+      senderId: senderId ?? this.senderId,
       sentAt: sentAt ?? this.sentAt,
       deliveryStatus: deliveryStatus ?? this.deliveryStatus,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'outingId': outingId,
+    'sender': sender,
+    'text': text,
+    'time': time,
+    'isMine': isMine,
+    'avatar': avatar,
+    'senderId': senderId,
+    'sentAt': sentAt?.toIso8601String(),
+    'deliveryStatus': deliveryStatus.name,
+  };
 }

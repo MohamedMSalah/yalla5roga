@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_pressable.dart';
 
 class AppCard extends StatelessWidget {
   const AppCard({
@@ -28,7 +30,8 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final card = AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+      duration: AppMotion.standard,
+      curve: AppMotion.settle,
       margin: margin,
       padding: padding ?? EdgeInsets.all(14.w),
       decoration: BoxDecoration(
@@ -50,7 +53,7 @@ class AppCard extends StatelessWidget {
     );
 
     if (onTap == null) return card;
-    return GestureDetector(onTap: onTap, child: card);
+    return AppPressable(onTap: onTap, child: card);
   }
 }
 

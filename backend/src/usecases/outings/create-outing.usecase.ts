@@ -1,5 +1,6 @@
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
+import { assertEndsAfterStart } from "../../services/outings/outing-time-window.js";
 import type {
   CreateOutingInput,
   Outing,
@@ -15,6 +16,8 @@ export class CreateOutingUseCase {
     if (!input.title || !input.created_by) {
       throw new ValidationError("title and created_by are required");
     }
+
+    assertEndsAfterStart(input.scheduled_at, input.ends_at);
 
     return this.outings.create(input);
   }

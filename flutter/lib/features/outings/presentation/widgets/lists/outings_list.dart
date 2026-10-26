@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/cards/outing_list_tile.dart';
@@ -15,12 +17,17 @@ class OutingsList extends StatelessWidget {
     this.limit,
     this.filtered = false,
     this.titleStyle,
+    this.heroSurface = 'outings',
   });
 
   final String? title;
   final int? limit;
   final bool filtered;
   final TextStyle? titleStyle;
+
+  /// Keeps Hero tags unique when this list and another list showing the same
+  /// outings live on one route (Home and Outings tabs share an IndexedStack).
+  final String heroSurface;
 
   @override
   Widget build(BuildContext context) {
@@ -60,21 +67,22 @@ class OutingsList extends StatelessWidget {
             itemCount: items.length,
             itemBuilder: (context, index) {
               final outing = items[index];
+              final heroTag = HeroTags.outingCover(heroSurface, outing.id);
               return Padding(
                 padding: EdgeInsets.only(
                   bottom: index == items.length - 1 ? 0 : 8.h,
                 ),
                 child: OutingListTile(
                   title: outing.title,
-                  subtitle: l10n.digits(
-                    [
-                      if (outing.date.isNotEmpty) outing.date,
-                      if (outing.time.isNotEmpty) outing.time,
-                      l10n.goingCount(outing.going),
-                    ].join(' · '),
-                  ),
+                  subtitle: [
+                    outing.localizedWhen(l10n),
+                    l10n.goingCount(outing.going),
+                  ].where((part) => part.trim().isNotEmpty).join(' · '),
                   image: outing.image,
-                  onTap: () => Get.to(() => EventPage(event: outing)),
+                  heroTag: heroTag,
+                  onTap: () => Get.to(
+                    () => EventPage(event: outing, coverHeroTag: heroTag),
+                  ),
                 ),
               );
             },

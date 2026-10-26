@@ -1,4 +1,9 @@
-export type InvitationStatus = "pending" | "accepted" | "expired" | "revoked";
+export type InvitationStatus =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "expired"
+  | "revoked";
 
 export type InvitationRecord = {
   id: string;

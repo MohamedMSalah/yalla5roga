@@ -7,6 +7,7 @@ import {
   createPlaceImageBodySchema,
   createPlacePriceBodySchema,
   listPlacesQuerySchema,
+  nearbyPlacesQuerySchema,
   placeHourIdParamsSchema,
   placeIdParamsSchema,
   placeImageIdParamsSchema,
@@ -59,6 +60,50 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ * /api/places/nearby:
+ *   get:
+ *     tags: [Places]
+ *     summary: Active places near a coordinate, closest first
+ *     description: "Bounding-box search followed by the haversine distance. Only places with is_active = true and coordinates are returned."
+ *     operationId: listNearbyPlaces
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: lat
+ *         required: true
+ *         schema: { type: number, minimum: -90, maximum: 90 }
+ *       - in: query
+ *         name: lng
+ *         required: true
+ *         schema: { type: number, minimum: -180, maximum: 180 }
+ *       - in: query
+ *         name: radiusKm
+ *         required: false
+ *         schema: { type: number, default: 5 }
+ *         description: "Clamped to 0.5..50."
+ *       - in: query
+ *         name: vibe
+ *         required: false
+ *         schema: { type: string, enum: [food, activity, outdoor, movie] }
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema: { type: integer, default: 20, maximum: 50 }
+ *       - in: query
+ *         name: offset
+ *         required: false
+ *         schema: { type: integer, default: 0 }
+ *     responses:
+ *       "200":
+ *         description: Nearby places with distance_km
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/NearbyPlaceListResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  * /api/places/{id}:
@@ -329,6 +374,12 @@ api.get(
   "/",
   validate({ query: listPlacesQuerySchema }),
   controller.list,
+);
+// Registered before /:id so "nearby" is not read as a place id.
+api.get(
+  "/nearby",
+  validate({ query: nearbyPlacesQuerySchema }),
+  controller.nearby,
 );
 api.get(
   "/:id",

@@ -9,6 +9,7 @@ class AppConstants {
   static const String localeKey = 'locale';
   static const String savedOutingsKey = 'saved_outings';
   static const String outingDraftsKey = 'outing_drafts';
+  static const String outingChatMessagesKey = 'outing_chat_messages';
   static const String locationPromptShownKey = 'location_prompt_shown';
   static const String fcmTokenKey = 'fcm_device_token';
 

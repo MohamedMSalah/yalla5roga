@@ -46,6 +46,16 @@ export const listPlacesQuerySchema = z.object({
     .transform((value) => value === "true"),
 });
 
+/** radiusKm is clamped to 0.5..50 and limit to at most 50 by the datasource. */
+export const nearbyPlacesQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
+  radiusKm: z.coerce.number().positive().optional(),
+  vibe: vibeSchema.optional(),
+  limit: z.coerce.number().int().positive().optional(),
+  offset: z.coerce.number().int().nonnegative().optional(),
+});
+
 export const upsertPlaceHourBodySchema = z.object({
   day: weekdaySchema,
   opens_at: z.coerce.date().optional().nullable(),

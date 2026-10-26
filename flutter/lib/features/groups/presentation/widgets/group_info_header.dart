@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/presentation/widgets/cards/group_bio_card.dart';
@@ -36,12 +38,17 @@ class GroupInfoHeader extends StatelessWidget {
           child: Stack(
             alignment: Alignment.bottomCenter,
             children: [
-              AppNetworkImage(
+              AppHero(
+                tag: HeroTags.groupCover(group.id),
                 url: group.image,
-                width: double.infinity,
-                height: headerHeight,
                 radius: 22.r,
-                placeholderIcon: Icons.groups_outlined,
+                child: AppNetworkImage(
+                  url: group.image,
+                  width: double.infinity,
+                  height: headerHeight,
+                  placeholderIcon: Icons.groups_outlined,
+                  fade: false,
+                ),
               ),
               if (canManage)
                 Positioned(

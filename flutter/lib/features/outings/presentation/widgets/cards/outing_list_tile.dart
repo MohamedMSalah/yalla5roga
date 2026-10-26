@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 
 class OutingListTile extends StatelessWidget {
@@ -11,6 +12,7 @@ class OutingListTile extends StatelessWidget {
     required this.image,
     this.onTap,
     this.trailing,
+    this.heroTag,
   });
 
   final String title;
@@ -19,16 +21,25 @@ class OutingListTile extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailing;
 
+  /// Shared-element tag for the thumbnail; pass the same tag to the details
+  /// page. Null when the tile does not open outing details.
+  final String? heroTag;
+
   @override
   Widget build(BuildContext context) {
     final details = Row(
       children: [
-        AppNetworkImage(
+        AppHero(
+          tag: heroTag,
           url: image,
-          width: 48.w,
-          height: 48.w,
           radius: 12.r,
-          placeholderIcon: Icons.explore_outlined,
+          child: AppNetworkImage(
+            url: image,
+            width: 48.w,
+            height: 48.w,
+            placeholderIcon: Icons.explore_outlined,
+            fade: false,
+          ),
         ),
         12.gapW,
         Expanded(

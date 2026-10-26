@@ -80,7 +80,7 @@ class NotificationsList extends StatelessWidget {
           padding: EdgeInsets.only(bottom: 10.h),
           child: NotificationCard(
             body: item.body,
-            time: item.time,
+            time: l10n.formatRelative(item.createdAt, fallback: item.time),
             unread: item.unread,
             image: item.image,
             actionLabel: entry.showAction && item.action ? l10n.voteNow : null,

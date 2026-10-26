@@ -30,7 +30,16 @@ class NotificationItem {
   /// Legacy alias used by older UI / JSON payloads.
   String? get eventId => outingId;
 
-  bool get isEarlier => time.toLowerCase().contains('yesterday');
+  bool get isEarlier {
+    final at = createdAt;
+    if (at != null) {
+      final now = DateTime.now();
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      return at.isBefore(startOfToday);
+    }
+    final stamp = time.toLowerCase();
+    return stamp.contains('yesterday') || stamp.contains('أمس');
+  }
 
   NotificationItem copyWith({bool? unread}) {
     return NotificationItem(

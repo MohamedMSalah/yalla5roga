@@ -10,6 +10,7 @@ import 'package:yalla_5roga/core/widgets/icon_circle.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_category_style.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -32,7 +33,7 @@ class ActiveVoteCard extends StatelessWidget {
     final vibe = outing.primaryVibe;
     final voted = outings.hasVoted(outing.id);
     final votedCount = outings.votedCountFor(outing.id);
-    final dateLine = outing.dateTimeLine(l10n.digits);
+    final dateLine = outing.localizedWhen(l10n);
     final cardWidth = width ?? Responsive.voteCardWidth;
 
     return SizedBox(

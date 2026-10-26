@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/cards/outing_list_tile.dart';
@@ -43,17 +45,22 @@ class GroupOutingsList extends StatelessWidget {
             itemCount: outings.length,
             itemBuilder: (context, index) {
               final outing = outings[index];
+              final heroTag = HeroTags.outingCover('group', outing.id);
               return Padding(
                 padding: EdgeInsets.only(
                   bottom: index == outings.length - 1 ? 0 : 8.h,
                 ),
                 child: OutingListTile(
                   title: outing.title,
-                  subtitle: l10n.digits(
-                    '${outing.date} · ${outing.time} · ${outing.meta}',
-                  ),
+                  subtitle: [
+                    outing.localizedWhen(l10n),
+                    outing.localizedPlace,
+                  ].where((part) => part.trim().isNotEmpty).join(' · '),
                   image: outing.image,
-                  onTap: () => Get.to(() => EventPage(event: outing)),
+                  heroTag: heroTag,
+                  onTap: () => Get.to(
+                    () => EventPage(event: outing, coverHeroTag: heroTag),
+                  ),
                 ),
               );
             },

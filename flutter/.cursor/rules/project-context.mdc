@@ -73,7 +73,8 @@ index.html       # design preview only
 | `shell` | presentation | 4-tab `MainShell` |
 | `home` | presentation | Dashboard |
 | `groups` | full stack | List/create/members via `GroupsRepository` |
-| `outings` | full stack | CRUD, votes, attendance, chat, saved/drafts, geocoding |
+| `outings` | full stack | CRUD, votes, attendance, saved/drafts, geocoding |
+| `chat` | full stack | Outing chat messages via `OutingChatRepository`; prefs cache |
 | `discover` | full stack | Places via `DiscoverRepository` |
 | `notifications` | full stack | Feed + read + local emit; FCM via `PushMessagingRepository` |
 | `unread` | data/domain | Shared `/user/unread-counts` |
@@ -99,11 +100,12 @@ Widget → Provider → Repository → RemoteDataSource (ApiClient placeholders)
 AuthRepository → AuthRemote + AuthLocal + FirebaseAuthDataSource
 PushMessagingRepository → FcmMessagingService
 LocationRepository → Nominatim HTTP
+OutingChatRepository → Chat remote + prefs message cache
 ```
 
 ### Domain models (canonical)
 
-`Outing` (alias `HeroSlide`), `Group` (`DemoGroup`), `GroupMember`, `Place` (`OutingPlace`), `PlaceLocation`, `PlaceVote`/`VoteOption`, `Attendance`/`AttendanceStatus`, `ChatMessage`, `SuggestedPlace`, `SavedOuting`/`OutingDraft`, `NotificationItem` (`outingId`; `eventId` alias).
+`Outing` (alias `HeroSlide`), `Group` (`DemoGroup`), `GroupMember`, `Place` (`OutingPlace`), `PlaceLocation`, `PlaceVote`/`VoteOption`, `Attendance`/`AttendanceStatus`, `ChatMessage` (chat feature), `SuggestedPlace`, `SavedOuting`/`OutingDraft`, `NotificationItem` (`outingId`; `eventId` alias).
 
 Display strings (`meta`, relative time) are computed getters/formatters from `scheduledAt` + place data.
 
@@ -126,7 +128,7 @@ Until the Node backend exists, Dio calls may fail and providers should surface e
 
 ### Local storage keys (`AppConstants`)
 
-`auth_token`, `cached_user`, `theme_mode`, `locale`, `saved_outings`, `outing_drafts`, `location_prompt_shown`.
+`auth_token`, `cached_user`, `theme_mode`, `locale`, `saved_outings`, `outing_drafts`, `outing_chat_messages`, `location_prompt_shown`.
 
 ### State management
 

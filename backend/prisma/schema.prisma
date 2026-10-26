@@ -20,13 +20,13 @@ model group_members {
 }
 
 model groups {
-  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String          @db.VarChar(30)
-  bio           String          @default("") @db.VarChar(160)
-  image_url     String          @db.VarChar(2048)
-  created_by    String          @db.VarChar(128)
-  created_at    DateTime        @default(now()) @db.Timestamptz(6)
-  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name              String              @db.VarChar(30)
+  bio               String              @default("") @db.VarChar(160)
+  image_url         String              @default("") @db.VarChar(2048)
+  created_by        String              @db.VarChar(128)
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
   group_members     group_members[]
   group_invitations group_invitations[]
   users             users               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -39,7 +39,7 @@ model outing_attendance {
   outing_id  String            @db.Uuid
   user_id    String            @db.VarChar(128)
   status     attendance_status @default(not_voted)
-  updated_at DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
   outings    outings           @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users      users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -54,6 +54,7 @@ model outing_guests {
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([outing_id, user_id])
+  @@index([user_id], map: "idx_outing_guests_user")
 }
 
 model outing_vote_options {
@@ -72,6 +73,8 @@ model outing_vote_options {
   outing_votes outing_votes[]
 
   @@unique([outing_id, place_id])
+  // Phase 2.2: target of the composite vote foreign key.
+  @@unique([id, outing_id], map: "uq_vote_options_id_outing")
 }
 
 model outings {
@@ -83,6 +86,7 @@ model outings {
   status                                    outing_status         @default(upcoming)
   occasion                                  outing_occasion       @default(none)
   scheduled_at                              DateTime?             @db.Timestamptz(6)
+  ends_at                                   DateTime?             @db.Timestamptz(6)
   location_place_id                         String?               @db.Uuid
   location_name                             String?               @db.VarChar(100)
   location_area                             String?               @db.VarChar(100)
@@ -93,7 +97,7 @@ model outings {
   vote_finalized                            Boolean               @default(false)
   suggested_by_user_id                      String?               @db.VarChar(128)
   created_at                                DateTime              @default(now()) @db.Timestamptz(6)
-  updated_at                                DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                                DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
   chat_messages                             chat_messages[]
   chat_reads                                chat_reads[]
   notifications                             notifications[]
@@ -110,6 +114,7 @@ model outings {
   @@index([status], map: "idx_outings_status")
   @@index([group_id], map: "idx_outings_group")
   @@index([scheduled_at], map: "idx_outings_scheduled")
+  @@index([created_by], map: "idx_outings_created_by")
 }
 
 model place_images {
@@ -119,6 +124,8 @@ model place_images {
   caption    String? @db.VarChar(200)
   sort_order Int     @default(0)
   places     places  @relation(fields: [place_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([place_id, sort_order], map: "idx_place_images_place")
 }
 
 model place_prices {
@@ -128,6 +135,8 @@ model place_prices {
   amount   Decimal @db.Decimal(12, 2)
   currency String  @default("EGP") @db.Char(3)
   places   places  @relation(fields: [place_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([place_id], map: "idx_place_prices_place")
 }
 
 model places {
@@ -144,8 +153,9 @@ model places {
   latitude            Float?
   longitude           Float?
   featured            Boolean               @default(false)
+  is_active           Boolean               @default(true)
   created_at          DateTime              @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
   outing_vote_options outing_vote_options[]
   outings             outings[]
   place_hours         place_hours[]
@@ -153,6 +163,7 @@ model places {
   place_prices        place_prices[]
 
   @@index([vibe], map: "idx_places_vibe")
+  @@index([latitude, longitude], map: "idx_places_lat_lng")
 }
 
 model users {
@@ -162,7 +173,7 @@ model users {
   email                                       String?             @unique @db.VarChar(254)
   image_url                                   String?             @db.VarChar(2048)
   created_at                                  DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at                                  DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at                                  DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
   chat_messages                               chat_messages[]
   chat_reads                                  chat_reads[]
   group_members                               group_members[]
@@ -192,19 +203,21 @@ model group_invitations {
   status             invitation_status @default(pending)
   expires_at         DateTime          @db.Timestamptz(6)
   created_at         DateTime          @default(now()) @db.Timestamptz(6)
-  updated_at         DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime          @default(now()) @updatedAt @db.Timestamptz(6)
   groups             groups            @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   inviter            users             @relation("group_invitations_invited_by", fields: [invited_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   invitee            users?            @relation("group_invitations_user", fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  // One pending row per group and phone is enforced by partial unique index
+  // group_invitations_pending_phone_key in the migration. Prisma cannot model
+  // that predicate, so later diffs must keep the index.
+  // The partial index idx_group_invitations_pending_expiry (expires_at WHERE
+  // status = 'pending') also lives only in SQL, for the same reason.
 
   @@index([group_id], map: "idx_group_invitations_group")
   @@index([invited_phone], map: "idx_group_invitations_phone")
   @@index([status], map: "idx_group_invitations_status")
   @@index([invited_phone, status], map: "idx_group_invitations_phone_status")
   @@index([user_id], map: "idx_group_invitations_user")
-  // One pending row per group and phone is enforced by partial unique index
-  // group_invitations_pending_phone_key in the migration. Prisma cannot model
-  // that predicate, so later diffs must keep the index.
 }
 
 model user_fcm_tokens {
@@ -213,24 +226,32 @@ model user_fcm_tokens {
   token      String   @db.VarChar(512)
   platform   String?  @db.VarChar(20)
   created_at DateTime @default(now()) @db.Timestamptz(6)
-  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
+  // Phase 2.1: a device token belongs to exactly one user. The older
+  // (user_id, token) key stays until the registration code uses upsert by token.
   @@unique([user_id, token])
+  @@unique([token], map: "uq_user_fcm_tokens_token")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model chat_messages {
-  id              String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  outing_id       String                  @db.Uuid
-  sender_id       String                  @db.VarChar(128)
-  text            String                  @db.VarChar(2000)
-  delivery_status message_delivery_status @default(sent)
-  sent_at         DateTime                @default(now()) @db.Timestamptz(6)
-  outings         outings                 @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users           users                   @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  outing_id         String                  @db.Uuid
+  sender_id         String                  @db.VarChar(128)
+  text              String                  @db.VarChar(2000)
+  /// @deprecated Group chat cannot use a single delivery status. Derive seen state from chat_reads.
+  delivery_status   message_delivery_status @default(sent)
+  sent_at           DateTime                @default(now()) @db.Timestamptz(6)
+  client_message_id String?                 @db.Uuid
+  outings           outings                 @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users             users                   @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@unique([outing_id, sender_id, client_message_id], map: "uq_chat_messages_client_msg")
   @@index([outing_id, sent_at(sort: Desc)], map: "idx_chat_messages_outing_sent")
+  // Phase 2.3: replacement for idx_chat_messages_outing_sent (kept until approved).
+  @@index([outing_id, sent_at(sort: Desc), id(sort: Desc)], map: "idx_chat_messages_outing_sent_id")
 }
 
 model chat_reads {
@@ -283,7 +304,7 @@ model outing_drafts {
   vote_deadline_hours Int?            @db.SmallInt
   guest_ids           Json            @default("[]")
   selected_places     Json            @default("[]")
-  updated_at          DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
   created_at          DateTime        @default(now()) @db.Timestamptz(6)
   groups              groups?         @relation(fields: [group_id], references: [id], onUpdate: NoAction)
   users               users           @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -296,7 +317,8 @@ model outing_votes {
   user_id             String              @db.VarChar(128)
   option_id           String              @db.Uuid
   created_at          DateTime            @default(now()) @db.Timestamptz(6)
-  outing_vote_options outing_vote_options @relation(fields: [option_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  // Phase 2.2: the option must belong to the same outing as the vote.
+  outing_vote_options outing_vote_options @relation(fields: [option_id, outing_id], references: [id, outing_id], onDelete: Cascade, onUpdate: NoAction)
   outings             outings             @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users               users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -357,6 +379,7 @@ enum outing_status {
   upcoming
   voting
   past
+  cancelled
 }
 
 enum outing_vibe {
@@ -394,6 +417,7 @@ enum message_delivery_status {
 enum invitation_status {
   pending
   accepted
+  declined
   expired
   revoked
 }

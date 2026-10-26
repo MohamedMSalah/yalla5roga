@@ -5,6 +5,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -15,7 +16,7 @@ import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/custom_textfield.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/pick_location_provider.dart';
-import 'package:yalla_5roga/features/outings/presentation/widgets/outing_chat_skeleton.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/place_search_skeleton.dart';
 
 export 'package:yalla_5roga/features/outings/presentation/providers/pick_location_provider.dart'
     show PickedPlace;
@@ -122,6 +123,8 @@ class _PickLocationViewState extends State<_PickLocationView> {
         child: const _PlaceSearchSheet(),
       ),
       isScrollControlled: true,
+      enterBottomSheetDuration: AppMotion.sheetEnter,
+      exitBottomSheetDuration: AppMotion.sheetExit,
     );
     if (hit == null || !mounted) return;
     await _dropPin(hit.point, name: hit.name);

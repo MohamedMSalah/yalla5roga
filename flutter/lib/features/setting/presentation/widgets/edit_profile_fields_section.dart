@@ -13,20 +13,24 @@ class EditProfileFieldsSection extends StatelessWidget {
     required this.emailController,
     required this.phoneController,
     required this.hasPassword,
+    this.showName = true,
+    this.showContact = true,
+    this.phoneAutovalidateMode,
   });
 
   final TextEditingController nameController;
   final TextEditingController emailController;
   final TextEditingController phoneController;
   final bool hasPassword;
+  final bool showName;
+  final bool showContact;
+  final AutovalidateMode? phoneAutovalidateMode;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
+    final children = <Widget>[
+      if (showName)
         CustomTextField(
           controller: nameController,
           label: l10n.name,
@@ -38,7 +42,7 @@ class EditProfileFieldsSection extends StatelessWidget {
           ],
           validator: (value) => Validators.name(value, l10n),
         ),
-        Responsive.spaceMd.gapH,
+      if (showContact) ...[
         CustomTextField(
           controller: emailController,
           label: l10n.email,
@@ -49,22 +53,30 @@ class EditProfileFieldsSection extends StatelessWidget {
           inputFormatters: [InputFormatters.noSpaces, InputFormatters.email],
           validator: (value) => Validators.email(value, l10n),
         ),
-        if (!hasPassword) ...[
-          Responsive.spaceSm.gapH,
+        if (!hasPassword)
           Text(
             l10n.socialAccountHint,
             style: TextStyle(
               color: context.palette.textMuted,
-              fontSize: Responsive.fontSm,
-              height: 1.35,
+              fontSize: Responsive.fontCaption,
+              height: 1.4,
             ),
           ),
-        ],
-        Responsive.spaceMd.gapH,
         PhoneTextField(
           controller: phoneController,
           textInputAction: TextInputAction.next,
+          autovalidateMode: phoneAutovalidateMode,
         ),
+      ],
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) Responsive.spaceMd.gapH,
+          children[i],
+        ],
       ],
     );
   }

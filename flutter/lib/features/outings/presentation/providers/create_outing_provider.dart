@@ -17,20 +17,16 @@ import 'package:yalla_5roga/features/outings/presentation/providers/pick_locatio
 
 class CreateOutingProvider extends ChangeNotifier {
   CreateOutingProvider({
-    required List<Group> groups,
-    required List<GroupMember> contacts,
-    required List<Place> catalogPlaces,
-    required String Function(OutingOccasion) specialEventImage,
+    required this._groups,
+    required this._contacts,
+    required this._catalogPlaces,
+    required this._specialEventImage,
     Group? group,
     SuggestedPlace? suggestedPlace,
     this.saved,
     this.draft,
     bool specialEvent = false,
-  }) : _groups = groups,
-       _contacts = contacts,
-       _catalogPlaces = catalogPlaces,
-       _specialEventImage = specialEventImage,
-       _group = group,
+  }) : _group = group,
        _groupLocked = group != null,
        _specialEvent = specialEvent || (draft?.specialEvent ?? false),
        _draftId =
@@ -202,24 +198,26 @@ class CreateOutingProvider extends ChangeNotifier {
     if (multiPlaceMode && _selectedPlaces.isNotEmpty) {
       return _selectedPlaces.map((place) => place.name).join(' · ');
     }
-    if (customPlaceController.text.trim().isNotEmpty)
+    if (customPlaceController.text.trim().isNotEmpty) {
       return customPlaceController.text.trim();
+    }
     if (_place != null) return '${_place!.name}, ${_place!.area}';
     return '';
   }
 
-  String get formattedDate => L10n(_locale).digits(
-    DateFormat('EEE, d MMM', _locale.languageCode).format(_date).toUpperCase(),
-  );
+  String get formattedDate => L10n(_locale).formatDate(_date);
 
-  String get shortDate =>
-      L10n(_locale)
-          .digits(DateFormat('d MMM', _locale.languageCode).format(_date));
+  String get shortDate {
+    final l10n = L10n(_locale);
+    final text = DateFormat.MMMd(_locale.languageCode).format(_date);
+    return l10n.digits(
+      _locale.languageCode == 'ar' ? text : text.toUpperCase(),
+    );
+  }
 
   String get formattedTime {
     final value = DateTime(0, 1, 1, _time.hour, _time.minute);
-    return L10n(_locale)
-        .digits(DateFormat('h:mm a', _locale.languageCode).format(value));
+    return L10n(_locale).formatTime(value);
   }
 
   List<String> get guestNames => [

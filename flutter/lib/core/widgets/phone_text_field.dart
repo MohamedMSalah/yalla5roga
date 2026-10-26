@@ -14,6 +14,7 @@ class PhoneTextField extends StatelessWidget {
     this.validator,
     this.validate = true,
     this.textInputAction,
+    this.autovalidateMode,
   });
 
   final TextEditingController controller;
@@ -22,6 +23,7 @@ class PhoneTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final bool validate;
   final TextInputAction? textInputAction;
+  final AutovalidateMode? autovalidateMode;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +36,7 @@ class PhoneTextField extends StatelessWidget {
       keyboardType: TextInputType.phone,
       textInputAction: textInputAction,
       textDirection: TextDirection.ltr,
+      autovalidateMode: autovalidateMode,
       prefix: Padding(
         padding: EdgeInsetsDirectional.only(start: 12.w, end: 8.w),
         child: Row(
@@ -54,7 +57,7 @@ class PhoneTextField extends StatelessWidget {
       inputFormatters: [
         InputFormatters.localizedDigits(
           arabicDisplay: l10n.locale.languageCode == 'ar',
-          maxLength: 11,
+          maxLength: Validators.localPhoneLength,
         ),
       ],
       validator:

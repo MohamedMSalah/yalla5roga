@@ -15,4 +15,7 @@ class CachePolicy {
 
   /// Notifications feed — short window to avoid stale unread UI.
   static const Duration notifications = Duration(seconds: 45);
+
+  /// Outing chat threads — short TTL; disk cache keeps older messages.
+  static const Duration outingChat = Duration(seconds: 30);
 }

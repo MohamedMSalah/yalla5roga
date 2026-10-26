@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
@@ -65,12 +67,17 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       body: ListView(
         padding: Responsive.pagePadding(),
         children: [
-          AppNetworkImage(
+          AppHero(
+            tag: HeroTags.groupCover(group.id),
             url: group.image,
-            width: double.infinity,
-            height: 180.h,
             radius: 22.r,
-            placeholderIcon: Icons.groups_outlined,
+            child: AppNetworkImage(
+              url: group.image,
+              width: double.infinity,
+              height: 180.h,
+              placeholderIcon: Icons.groups_outlined,
+              fade: false,
+            ),
           ),
           Responsive.spaceMd.gapH,
           Row(

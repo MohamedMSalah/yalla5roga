@@ -22,7 +22,7 @@ class HappeningNowList extends StatelessWidget {
           onAction: onSeeAll,
         ),
         12.gapH,
-        const OutingsList(limit: 3),
+        const OutingsList(limit: 3, heroSurface: 'home'),
       ],
     );
   }

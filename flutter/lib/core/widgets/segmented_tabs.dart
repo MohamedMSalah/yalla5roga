@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 
 class SegmentedTabs extends StatelessWidget {
   const SegmentedTabs({
@@ -34,7 +36,8 @@ class SegmentedTabs extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => onChanged(i),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
+                  duration: AppMotion.standard,
+                  curve: AppMotion.settle,
                   padding: EdgeInsets.symmetric(vertical: 10.h),
                   decoration: BoxDecoration(
                     color: i == index ? palette.surface : Colors.transparent,
@@ -94,7 +97,14 @@ class SegmentedTabs extends StatelessWidget {
       children: [
         tabs,
         Responsive.spaceLg.gapH,
-        children[selected],
+        // Body crossfades per tab; the key only changes with the selection so
+        // data refreshes inside a tab never replay the reveal.
+        AppFadeSwitcher(
+          child: KeyedSubtree(
+            key: ValueKey(selected),
+            child: children[selected],
+          ),
+        ),
       ],
     );
   }

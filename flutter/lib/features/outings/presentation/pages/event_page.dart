@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/app_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
+import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/app_icon_button.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
@@ -12,30 +17,75 @@ import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/avatar_stack.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/chat/presentation/pages/outing_chat_page.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/outing_going_sheet.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/outing_vote_widget.dart';
 
 class EventPage extends StatefulWidget {
-  const EventPage({super.key, required this.event});
+  const EventPage({super.key, required this.event, this.coverHeroTag});
 
   final Outing event;
+
+  /// Hero tag of the card thumbnail that opened this page; null for deep
+  /// links, notifications and post-create navigation (no source image).
+  final String? coverHeroTag;
 
   @override
   State<EventPage> createState() => _EventPageState();
 }
 
 class _EventPageState extends State<EventPage> {
+  Animation<double>? _routeAnimation;
+  AnimationStatusListener? _routeListener;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      await context.read<OutingsProvider>().refreshLifecycle();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAfterPush());
+  }
+
+  @override
+  void dispose() {
+    _stopRouteListener();
+    super.dispose();
+  }
+
+  void _stopRouteListener() {
+    final animation = _routeAnimation;
+    final listener = _routeListener;
+    if (animation != null && listener != null) {
+      animation.removeStatusListener(listener);
+    }
+    _routeAnimation = null;
+    _routeListener = null;
+  }
+
+  /// Wait until the GetX / Hero push has landed. Refreshing on the first
+  /// frame rebuilds IndexedStack source Heroes mid-flight and skips frames.
+  void _refreshAfterPush() {
+    if (!mounted) return;
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.status == AnimationStatus.completed) {
+      unawaited(_refreshLifecycle());
+      return;
+    }
+    _routeAnimation = animation;
+    _routeListener = (status) {
+      if (status != AnimationStatus.completed) return;
+      _stopRouteListener();
+      unawaited(_refreshLifecycle());
+    };
+    animation.addStatusListener(_routeListener!);
+  }
+
+  Future<void> _refreshLifecycle() async {
+    if (!mounted) return;
+    await context.read<OutingsProvider>().refreshLifecycle();
   }
 
   @override
@@ -72,12 +122,17 @@ class _EventPageState extends State<EventPage> {
         child: ListView(
           padding: Responsive.pagePadding(),
           children: [
-            AppNetworkImage(
-              url: live.image,
-              width: double.infinity,
-              height: 220.h,
+            AppHero(
+              tag: widget.coverHeroTag,
+              url: _coverUrl(live),
               radius: 24.r,
-              placeholderIcon: Icons.explore_outlined,
+              child: AppNetworkImage(
+                url: _coverUrl(live),
+                width: double.infinity,
+                height: 220.h,
+                placeholderIcon: Icons.explore_outlined,
+                fade: false,
+              ),
             ),
             Responsive.spaceMd.gapH,
             Text(
@@ -89,18 +144,25 @@ class _EventPageState extends State<EventPage> {
               spacing: 8.w,
               runSpacing: 8.h,
               children: [
-                AppBadge(
-                  label: switch (live.status) {
-                    OutingStatus.voting => l10n.voting,
-                    OutingStatus.past => l10n.past,
-                    _ => l10n.confirmed,
-                  },
-                  color: live.status == OutingStatus.voting
-                      ? AppColors.amber100
-                      : AppColors.emerald500,
-                  textColor: live.status == OutingStatus.voting
-                      ? AppColors.amber700
-                      : Colors.white,
+                // Status reflects provider state; the badge only animates
+                // once the outing actually moves (voting -> confirmed -> past).
+                AppFadeSwitcher(
+                  axis: AppRevealAxis.vertical,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: AppBadge(
+                    key: ValueKey(live.status),
+                    label: switch (live.status) {
+                      OutingStatus.voting => l10n.voting,
+                      OutingStatus.past => l10n.past,
+                      _ => l10n.confirmed,
+                    },
+                    color: live.status == OutingStatus.voting
+                        ? AppColors.amber100
+                        : AppColors.emerald500,
+                    textColor: live.status == OutingStatus.voting
+                        ? AppColors.amber700
+                        : Colors.white,
+                  ),
                 ),
                 if (live.occasion == OutingOccasion.birthday)
                   AppBadge(
@@ -118,7 +180,7 @@ class _EventPageState extends State<EventPage> {
             ),
             Responsive.spaceSm.gapH,
             Text(
-              live.meta,
+              live.localizedMeta(l10n),
               style: TextStyle(
                 color: palette.textMuted,
                 fontSize: Responsive.fontBody,
@@ -134,7 +196,7 @@ class _EventPageState extends State<EventPage> {
                 ),
                 8.gapW,
                 Text(
-                  live.date,
+                  live.localizedDate(l10n),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: Responsive.fontBody,
@@ -148,7 +210,7 @@ class _EventPageState extends State<EventPage> {
                 ),
                 8.gapW,
                 Text(
-                  live.time,
+                  live.localizedTime(l10n),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: Responsive.fontBody,
@@ -210,12 +272,29 @@ class _EventPageState extends State<EventPage> {
               label: l10n.outingChat,
               icon: Icons.chat_bubble_outline,
               variant: AppButtonVariant.outlined,
-              onPressed: () => AppSnackBar.show(l10n.comingSoonFeature),
+              onPressed: () => _openChat(context, live),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Prefer the cover the user tapped so a live refresh cannot swap the
+  /// Hero artwork mid-flight. Fall back to the provider copy when the
+  /// snapshot had no image (empty API payload that later hydrates).
+  String _coverUrl(Outing live) {
+    final tapped = widget.event.image.trim();
+    if (tapped.isNotEmpty) return widget.event.image;
+    return live.image;
+  }
+
+  void _openChat(BuildContext context, Outing live) {
+    if (!live.canOpenChat) {
+      AppSnackBar.show(context.l10n.chatNeedsSuggestion);
+      return;
+    }
+    Get.to(() => OutingChatPage(event: live));
   }
 
   Future<void> _toggleSaved(BuildContext context, Outing live) async {

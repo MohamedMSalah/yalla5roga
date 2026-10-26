@@ -3,6 +3,7 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_cover_image.dart';
 
 class SuggestedPlaceTile extends StatelessWidget {
@@ -10,10 +11,14 @@ class SuggestedPlaceTile extends StatelessWidget {
     super.key,
     required this.place,
     required this.onTap,
+    this.heroTag,
   });
 
   final SuggestedPlace place;
   final VoidCallback onTap;
+
+  /// Shared-element tag for the thumbnail; pass the same tag to place details.
+  final String? heroTag;
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +31,16 @@ class SuggestedPlaceTile extends StatelessWidget {
       radius: 18,
       child: Row(
         children: [
-          PlaceCoverImage.fromSuggested(
-            place: place,
-            width: thumb,
-            height: thumb,
+          AppHero(
+            tag: heroTag,
+            url: place.coverImageUrl,
             radius: 14.r,
+            child: PlaceCoverImage.fromSuggested(
+              place: place,
+              width: thumb,
+              height: thumb,
+              fade: false,
+            ),
           ),
           12.gapW,
           Expanded(

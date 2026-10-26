@@ -9,6 +9,7 @@ import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_category_style.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -25,7 +26,7 @@ class ActiveVoteTile extends StatelessWidget {
     final outings = context.watch<OutingsProvider>();
     final vibe = outing.primaryVibe;
     final voted = outings.hasVoted(outing.id);
-    final dateLine = outing.dateTimeLine(l10n.digits);
+    final dateLine = outing.localizedWhen(l10n);
     final options = outings.optionsFor(outing.id);
     final selected = outings.voteIndexesFor(outing.id);
     final locked = outings.isVoteFinalized(outing.id);

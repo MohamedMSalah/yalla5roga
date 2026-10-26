@@ -110,6 +110,26 @@ export class GroupInvitationDatasource {
     }
   }
 
+  findById(id: string): Promise<GroupInvitation | null> {
+    return prisma.group_invitations.findUnique({ where: { id } });
+  }
+
+  /**
+   * Marks a pending invitation as declined. The status filter makes a double
+   * tap harmless: the second call matches zero rows. Returns the row count.
+   */
+  async declineForVerifiedPhone(
+    invitationId: string,
+    userId: string,
+    phone: string,
+  ): Promise<number> {
+    const result = await prisma.group_invitations.updateMany({
+      where: { id: invitationId, invited_phone: phone, status: "pending" },
+      data: { status: "declined", user_id: userId },
+    });
+    return result.count;
+  }
+
   claimForVerifiedPhone(
     userId: string,
     phone: string,

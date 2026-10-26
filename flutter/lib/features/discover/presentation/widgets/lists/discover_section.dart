@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
+import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_shimmer.dart';
 import 'package:yalla_5roga/core/widgets/section_header.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/lists/featured_places_list.dart';
@@ -17,11 +18,16 @@ class DiscoverSection extends StatelessWidget {
     this.compact = true,
     this.limit = 5,
     this.showPlaces = false,
+    this.heroSurface = 'section',
   });
 
   final bool compact;
   final int limit;
   final bool showPlaces;
+
+  /// Home and Outings tabs both embed this section on one route; each passes
+  /// its own surface so place Hero tags never collide.
+  final String heroSurface;
 
   @override
   Widget build(BuildContext context) {
@@ -39,32 +45,40 @@ class DiscoverSection extends StatelessWidget {
           onAction: () => Get.to(() => const DiscoverPage()),
         ),
         12.gapH,
-        if (!discover.hasLoaded)
-          AppShimmer(
-            child: ShimmerBone(
-              width: double.infinity,
-              height: 120.h,
-              radius: 24.r,
-            ),
-          )
-        else if (featured.isEmpty)
-          AppEmptyState(
-            icon: Icons.travel_explore_outlined,
-            message: l10n.noPlaces,
-            subtitle: l10n.noPlacesHint,
-            compact: true,
-          )
-        else
-          FeaturedPlacesList(
-            places: featured,
-            compact: compact,
-            showPriceLevel: false,
-          ),
+        // Shimmer -> list reveals once per load state; the key does not
+        // change when the list contents refresh.
+        AppFadeSwitcher(
+          child: !discover.hasLoaded
+              ? AppShimmer(
+                  key: const ValueKey('loading'),
+                  child: ShimmerBone(
+                    width: double.infinity,
+                    height: 120.h,
+                    radius: 24.r,
+                  ),
+                )
+              : featured.isEmpty
+              ? AppEmptyState(
+                  key: const ValueKey('empty'),
+                  icon: Icons.travel_explore_outlined,
+                  message: l10n.noPlaces,
+                  subtitle: l10n.noPlacesHint,
+                  compact: true,
+                )
+              : FeaturedPlacesList(
+                  key: const ValueKey('list'),
+                  places: featured,
+                  compact: compact,
+                  showPriceLevel: false,
+                  heroSurface: '$heroSurface-featured',
+                ),
+        ),
         if (showPlaces && discover.hasLoaded) ...[
           Responsive.spaceMd.gapH,
           NearbyPlacesList(
             places: discover.places.take(3).toList(),
             title: l10n.nearbyPlaces,
+            heroSurface: '$heroSurface-nearby',
           ),
         ],
       ],

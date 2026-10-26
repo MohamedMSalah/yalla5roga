@@ -7,7 +7,8 @@ import { z } from "zod";
  */
 export const syncUserBodySchema = z
   .object({
-    name: z.string().trim().min(1).max(30),
+    // Longer provider display names are truncated to 30 before insert.
+    name: z.string().trim().min(1).max(200),
     email: z.email().max(254),
     phoneNumber: z
       .string()

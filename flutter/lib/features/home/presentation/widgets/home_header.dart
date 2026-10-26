@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/core/widgets/notification_button.dart';
+import 'package:yalla_5roga/core/widgets/user_avatar.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 
 class HomeHeader extends StatelessWidget {
@@ -18,21 +17,7 @@ class HomeHeader extends StatelessWidget {
 
     return Row(
       children: [
-        Container(
-          width: avatar,
-          height: avatar,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.brand200, width: 2.w),
-          ),
-          child: ClipOval(
-            child: AppNetworkImage.avatar(
-              url: photo,
-              width: avatar,
-              height: avatar,
-            ),
-          ),
-        ),
+        UserAvatar(url: photo, size: avatar),
         12.gapW,
         Expanded(
           child: Column(

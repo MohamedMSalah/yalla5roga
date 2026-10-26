@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/features/chat/presentation/pages/outing_chat_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_details_page.dart';
 import 'package:yalla_5roga/features/notifications/domain/entities/push_notification_payload.dart';
 import 'package:yalla_5roga/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
-import 'package:yalla_5roga/features/outings/presentation/pages/outing_chat_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
 /// Maps a push payload to an in-app destination.
@@ -71,6 +71,10 @@ class PushNotificationNavigator {
       return;
     }
     final outing = context.read<OutingsProvider>().byId(outingId);
+    if (!outing.canOpenChat) {
+      Get.to(() => EventPage(event: outing));
+      return;
+    }
     Get.to(() => OutingChatPage(event: outing));
   }
 

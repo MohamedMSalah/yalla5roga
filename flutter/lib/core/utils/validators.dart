@@ -50,12 +50,23 @@ class Validators {
     return null;
   }
 
+  static const localPhoneLength = 10;
+
+  /// National number without `+20` / leading `0` (Western digits).
+  static String localPhoneDigits(String value) {
+    final digits = DigitUtils.westernDigitsOnly(value);
+    var local = digits.startsWith('20') ? digits.substring(2) : digits;
+    if (local.startsWith('0')) local = local.substring(1);
+    return local;
+  }
+
   static String? phone(String? value, L10n l10n) {
     final requiredError = required(value, l10n);
     if (requiredError != null) return requiredError;
-    final digits = DigitUtils.westernDigitsOnly(value!);
-    var local = digits.startsWith('20') ? digits.substring(2) : digits;
-    if (local.startsWith('0')) local = local.substring(1);
+    final local = localPhoneDigits(value!);
+    if (local.length < localPhoneLength) {
+      return l10n.phoneMustBe10Digits;
+    }
     if (!RegExp(r'^1[0125]\d{8}$').hasMatch(local)) {
       return l10n.invalidPhone;
     }
@@ -63,19 +74,11 @@ class Validators {
   }
 
   /// Always returns E.164 with Western digits for Firebase / REST.
-  static String normalizePhone(String value) {
-    final digits = DigitUtils.westernDigitsOnly(value);
-    var local = digits.startsWith('20') ? digits.substring(2) : digits;
-    if (local.startsWith('0')) local = local.substring(1);
-    return '+20$local';
-  }
+  static String normalizePhone(String value) => '+20${localPhoneDigits(value)}';
 
   static bool isValidEgyptianPhone(String? value) {
     if (value == null || value.trim().isEmpty) return false;
-    final digits = DigitUtils.westernDigitsOnly(value);
-    var local = digits.startsWith('20') ? digits.substring(2) : digits;
-    if (local.startsWith('0')) local = local.substring(1);
-    return RegExp(r'^1[0125]\d{8}$').hasMatch(local);
+    return RegExp(r'^1[0125]\d{8}$').hasMatch(localPhoneDigits(value));
   }
 
   static String? email(String? value, L10n l10n) {

@@ -1,6 +1,7 @@
 import "dotenv/config";
 import app from "./app.js";
 import { prisma } from "./config/database.js";
+import { startOutingCompletionJob } from "./jobs/complete-outings.job.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -12,6 +13,8 @@ async function start() {
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
+
+    startOutingCompletionJob();
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);

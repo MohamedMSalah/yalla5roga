@@ -96,6 +96,22 @@ class GroupsProvider extends ChangeNotifier {
     return Group(id: id, name: '', outings: 0, image: '', members: const []);
   }
 
+  Future<Group?> ensureGroupLoaded(String groupId) async {
+    final existing = findById(groupId);
+    if (existing != null && existing.members.isNotEmpty) return existing;
+
+    final result = await repository.getGroup(groupId);
+    return result.fold((_) => existing, (group) {
+      _groups = [
+        group,
+        for (final item in _groups)
+          if (item.id != group.id) item,
+      ];
+      notifyListeners();
+      return group;
+    });
+  }
+
   Future<void> loadGroups({bool forceRefresh = false}) async {
     final result = await repository.getGroups(forceRefresh: forceRefresh);
     result.fold(
@@ -232,10 +248,7 @@ class GroupsProvider extends ChangeNotifier {
     return created;
   }
 
-  L10n? get _l10n {
-    final context = Get.context;
-    return context == null ? null : context.l10n;
-  }
+  L10n? get _l10n => Get.context?.l10n;
 
   Future<void> changeImage(String groupId) async {
     final l10n = _l10n;

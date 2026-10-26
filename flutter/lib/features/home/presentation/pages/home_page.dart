@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_shimmer.dart';
 import 'package:yalla_5roga/core/widgets/section_header.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/lists/discover_section.dart';
@@ -26,21 +27,38 @@ class HomePage extends StatelessWidget {
         children: [
           const HomeHeader(),
           Responsive.spaceMd.gapH,
-          if (outingsReady)
-            const FeaturedOutingCard()
-          else
-            const _HomeFeedPlaceholder(height: 176),
+          // Shimmer -> content reveals once; keyed on hasLoaded so later
+          // refreshes never replay it.
+          AppFadeSwitcher(
+            child: outingsReady
+                ? const FeaturedOutingCard(key: ValueKey('featured'))
+                : const _HomeFeedPlaceholder(
+                    key: ValueKey('featured-skeleton'),
+                    height: 176,
+                  ),
+          ),
           Responsive.spaceLg.gapH,
           SectionHeader(title: l10n.quickActions, subtitle: l10n.makeItHappen),
           12.gapH,
           const QuickActions(),
           Responsive.spaceLg.gapH,
-          const DiscoverSection(showPlaces: true, limit: 3),
+          const DiscoverSection(
+            showPlaces: true,
+            limit: 3,
+            heroSurface: 'home',
+          ),
           Responsive.spaceLg.gapH,
-          if (outingsReady)
-            HappeningNowList(onSeeAll: onSeeAllOutings)
-          else
-            const _HomeFeedPlaceholder(height: 88),
+          AppFadeSwitcher(
+            child: outingsReady
+                ? HappeningNowList(
+                    key: const ValueKey('happening'),
+                    onSeeAll: onSeeAllOutings,
+                  )
+                : const _HomeFeedPlaceholder(
+                    key: ValueKey('happening-skeleton'),
+                    height: 88,
+                  ),
+          ),
         ],
       ),
     );
@@ -48,7 +66,7 @@ class HomePage extends StatelessWidget {
 }
 
 class _HomeFeedPlaceholder extends StatelessWidget {
-  const _HomeFeedPlaceholder({required this.height});
+  const _HomeFeedPlaceholder({super.key, required this.height});
 
   final double height;
 

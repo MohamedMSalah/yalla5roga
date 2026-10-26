@@ -13,6 +13,7 @@ import {
  *   get:
  *     tags: [Chat]
  *     summary: List messages for an outing
+ *     description: The caller must be the outing creator or an outing guest. History stays readable after the outing ends.
  *     operationId: listOutingMessages
  *     parameters:
  *       - $ref: "#/components/parameters/ChatOutingId"
@@ -27,12 +28,19 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *   post:
  *     tags: [Chat]
  *     summary: Send a message in an outing chat
- *     description: The sender is the authenticated Firebase UID.
+ *     description: >
+ *       The sender is the authenticated Firebase UID and must be the creator or a guest.
+ *       Sending is allowed only while the outing status is upcoming or voting; afterwards 409 CHAT_CLOSED is returned.
+ *       Pass clientMessageId to make retries idempotent.
  *     operationId: sendOutingMessage
  *     parameters:
  *       - $ref: "#/components/parameters/ChatOutingId"
@@ -40,7 +48,7 @@ import {
  *       $ref: "#/components/requestBodies/SendMessage"
  *     responses:
  *       "201":
- *         description: Created message
+ *         description: Created message, or the stored message for a repeated clientMessageId
  *         content:
  *           application/json:
  *             schema:
@@ -49,6 +57,16 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: The outing is past or cancelled, so the chat is closed (CHAT_CLOSED)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */

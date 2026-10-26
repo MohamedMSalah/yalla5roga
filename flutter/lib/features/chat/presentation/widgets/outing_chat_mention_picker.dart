@@ -31,14 +31,12 @@ class OutingChatMentionPicker extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final itemCount = members.length + (showMentionAll ? 1 : 0);
+
     return Material(
       color: palette.surface,
-      elevation: 2,
-      child: Container(
-        constraints: BoxConstraints(maxHeight: 220.h),
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: palette.border)),
-        ),
+      elevation: 8,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: 240.h),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -67,73 +65,69 @@ class OutingChatMentionPicker extends StatelessWidget {
               )
             else
               Flexible(
-                child: ListView.builder(
+                child: ListView.separated(
                   shrinkWrap: true,
                   padding: EdgeInsets.only(bottom: 8.h),
                   itemCount: itemCount,
+                  separatorBuilder: (_, _) =>
+                      Divider(height: 1, color: palette.border),
                   itemBuilder: (context, index) {
                     if (showMentionAll && index == 0) {
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            dense: true,
-                            leading: CircleAvatar(
-                              radius: 18.r,
-                              backgroundColor: AppColors.brand50,
-                              child: Icon(
-                                Icons.groups_outlined,
-                                color: AppColors.brand600,
-                                size: 18.sp,
-                              ),
-                            ),
-                            title: Text(
-                              mentionAllLabel,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w800,
-                                fontSize: Responsive.fontSm,
-                                color: AppColors.brand600,
-                              ),
-                            ),
-                            subtitle: Text(
-                              mentionAllSubtitle,
-                              style: TextStyle(
-                                fontSize: 11.sp,
-                                color: palette.textMuted,
-                              ),
-                            ),
-                            onTap: onMentionAll,
+                      return ListTile(
+                        dense: true,
+                        leading: CircleAvatar(
+                          radius: 18.r,
+                          backgroundColor: AppColors.brand50,
+                          child: Icon(
+                            Icons.groups_outlined,
+                            color: AppColors.brand600,
+                            size: 18.sp,
                           ),
-                          if (itemCount > 1)
-                            Divider(height: 1, color: palette.border),
-                        ],
+                        ),
+                        title: Text(
+                          mentionAllLabel,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: Responsive.fontSm,
+                            color: AppColors.brand600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          mentionAllSubtitle,
+                          style: TextStyle(
+                            fontSize: 11.sp,
+                            color: palette.textMuted,
+                          ),
+                        ),
+                        onTap: onMentionAll,
                       );
                     }
                     final member = members[index - (showMentionAll ? 1 : 0)];
                     final name = MemberDisplayName.resolve(member);
-                    final isLast = index == itemCount - 1;
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        ListTile(
-                          dense: true,
-                          leading: AppNetworkImage.avatar(
-                            url: member.avatar,
-                            width: 36.w,
-                            height: 36.w,
-                            radius: 999,
-                          ),
-                          title: Text(
-                            name,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: Responsive.fontSm,
-                            ),
-                          ),
-                          onTap: () => onSelected(member),
+                    return ListTile(
+                      dense: true,
+                      leading: AppNetworkImage.avatar(
+                        url: member.avatar,
+                        width: 36.w,
+                        height: 36.w,
+                        radius: 999,
+                      ),
+                      title: Text(
+                        name,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: Responsive.fontSm,
                         ),
-                        if (!isLast) Divider(height: 1, color: palette.border),
-                      ],
+                      ),
+                      subtitle: Text(
+                        '@$name',
+                        style: TextStyle(
+                          fontSize: 11.sp,
+                          color: AppColors.brand600,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      onTap: () => onSelected(member),
                     );
                   },
                 ),

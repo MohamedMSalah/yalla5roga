@@ -6,19 +6,19 @@ import 'package:yalla_5roga/core/mock/mock_data.dart';
 import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dart';
 import 'package:yalla_5roga/features/auth/domain/entities/user.dart';
 import 'package:yalla_5roga/features/auth/domain/repositories/auth_repository.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/outing_chat_read_result.dart';
+import 'package:yalla_5roga/features/chat/domain/repositories/outing_chat_repository.dart';
 import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/domain/repositories/groups_repository.dart';
 import 'package:yalla_5roga/features/notifications/domain/repositories/notifications_repository.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/chat_message.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing_chat_read_result.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/saved_outing.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
-import 'package:yalla_5roga/features/outings/domain/repositories/outing_chat_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/outings_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/saved_outings_repository.dart';
 
@@ -427,12 +427,18 @@ void _stubOutings(MockOutingsRepository outings) {
 }
 
 void _stubOutingChat(MockOutingChatRepository outingChat) {
+  when(outingChat.cachedMessages(any)).thenReturn(const []);
+
+  when(outingChat.getMessages(any, forceRefresh: anyNamed('forceRefresh')))
+      .thenAnswer((_) async => const Right(<ChatMessage>[]));
+
   when(
     outingChat.sendMessage(
       outingId: anyNamed('outingId'),
       text: anyNamed('text'),
       senderId: anyNamed('senderId'),
       senderName: anyNamed('senderName'),
+      avatar: anyNamed('avatar'),
     ),
   ).thenAnswer((invocation) async {
     return Right(
@@ -458,6 +464,8 @@ void _stubOutingChat(MockOutingChatRepository outingChat) {
       ),
     );
   });
+
+  when(outingChat.clearCache()).thenAnswer((_) async {});
 }
 
 void _stubDiscover(MockDiscoverRepository discover) {

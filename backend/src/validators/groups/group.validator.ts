@@ -38,3 +38,7 @@ export const groupMemberParamsSchema = z.object({
 export const inviteToGroupBodySchema = z.object({
   phoneNumber: z.string().trim().min(8).max(20),
 });
+
+export const invitationIdParamsSchema = z.object({
+  invitationId: z.uuid(),
+});

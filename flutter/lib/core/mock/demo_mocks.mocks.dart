@@ -28,11 +28,11 @@ import 'package:yalla_5roga/features/notifications/domain/entities/notification_
     as _i22;
 import 'package:yalla_5roga/features/notifications/domain/repositories/notifications_repository.dart'
     as _i21;
-import 'package:yalla_5roga/features/outings/domain/entities/chat_message.dart'
+import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart'
     as _i17;
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart'
     as _i14;
-import 'package:yalla_5roga/features/outings/domain/entities/outing_chat_read_result.dart'
+import 'package:yalla_5roga/features/chat/domain/entities/outing_chat_read_result.dart'
     as _i18;
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart'
     as _i15;
@@ -42,7 +42,7 @@ import 'package:yalla_5roga/features/outings/domain/entities/saved_outing.dart'
     as _i24;
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart'
     as _i25;
-import 'package:yalla_5roga/features/outings/domain/repositories/outing_chat_repository.dart'
+import 'package:yalla_5roga/features/chat/domain/repositories/outing_chat_repository.dart'
     as _i16;
 import 'package:yalla_5roga/features/outings/domain/repositories/outings_repository.dart'
     as _i12;
@@ -975,17 +975,57 @@ class MockOutingsRepository extends _i1.Mock implements _i12.OutingsRepository {
 class MockOutingChatRepository extends _i1.Mock
     implements _i16.OutingChatRepository {
   @override
+  List<_i17.ChatMessage> cachedMessages(String? outingId) =>
+      (super.noSuchMethod(
+        Invocation.method(#cachedMessages, [outingId]),
+        returnValue: <_i17.ChatMessage>[],
+        returnValueForMissingStub: <_i17.ChatMessage>[],
+      ) as List<_i17.ChatMessage>);
+
+  @override
+  _i4.Future<_i2.Either<_i5.Failure, List<_i17.ChatMessage>>> getMessages(
+    String? outingId, {
+    bool? forceRefresh = false,
+  }) => (super.noSuchMethod(
+    Invocation.method(#getMessages, [outingId], {#forceRefresh: forceRefresh}),
+    returnValue:
+        _i4.Future<_i2.Either<_i5.Failure, List<_i17.ChatMessage>>>.value(
+          _FakeEither_0<_i5.Failure, List<_i17.ChatMessage>>(
+            this,
+            Invocation.method(
+              #getMessages,
+              [outingId],
+              {#forceRefresh: forceRefresh},
+            ),
+          ),
+        ),
+    returnValueForMissingStub:
+        _i4.Future<_i2.Either<_i5.Failure, List<_i17.ChatMessage>>>.value(
+          _FakeEither_0<_i5.Failure, List<_i17.ChatMessage>>(
+            this,
+            Invocation.method(
+              #getMessages,
+              [outingId],
+              {#forceRefresh: forceRefresh},
+            ),
+          ),
+        ),
+  ) as _i4.Future<_i2.Either<_i5.Failure, List<_i17.ChatMessage>>>);
+
+  @override
   _i4.Future<_i2.Either<_i5.Failure, _i17.ChatMessage>> sendMessage({
     required String? outingId,
     required String? text,
     required String? senderId,
     required String? senderName,
+    String? avatar,
   }) => (super.noSuchMethod(
     Invocation.method(#sendMessage, [], {
       #outingId: outingId,
       #text: text,
       #senderId: senderId,
       #senderName: senderName,
+      #avatar: avatar,
     }),
     returnValue: _i4.Future<_i2.Either<_i5.Failure, _i17.ChatMessage>>.value(
       _FakeEither_0<_i5.Failure, _i17.ChatMessage>(
@@ -995,6 +1035,7 @@ class MockOutingChatRepository extends _i1.Mock
           #text: text,
           #senderId: senderId,
           #senderName: senderName,
+          #avatar: avatar,
         }),
       ),
     ),
@@ -1007,6 +1048,7 @@ class MockOutingChatRepository extends _i1.Mock
               #text: text,
               #senderId: senderId,
               #senderName: senderName,
+              #avatar: avatar,
             }),
           ),
         ),
@@ -1032,6 +1074,13 @@ class MockOutingChatRepository extends _i1.Mock
           ),
         ),
   ) as _i4.Future<_i2.Either<_i5.Failure, _i18.OutingChatReadResult>>);
+
+  @override
+  _i4.Future<void> clearCache() => (super.noSuchMethod(
+    Invocation.method(#clearCache, []),
+    returnValue: _i4.Future<void>.value(),
+    returnValueForMissingStub: _i4.Future<void>.value(),
+  ) as _i4.Future<void>);
 }
 
 /// A class which mocks [DiscoverRepository].

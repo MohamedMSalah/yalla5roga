@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
 import type {
   ChatMessage,
@@ -5,6 +6,13 @@ import type {
   CreateChatMessageInput,
   UpsertChatReadInput,
 } from "../../types/chat/chat.types.js";
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  );
+}
 
 export class ChatDatasource {
   findMessageById(id: string): Promise<ChatMessage | null> {
@@ -18,8 +26,27 @@ export class ChatDatasource {
     });
   }
 
-  createMessage(data: CreateChatMessageInput): Promise<ChatMessage> {
-    return prisma.chat_messages.create({ data });
+  /**
+   * Inserts the message. When the client sent a client_message_id and the
+   * same (outing, sender, client_message_id) already exists, the retry hits
+   * uq_chat_messages_client_msg and the stored row is returned instead.
+   */
+  async createMessage(data: CreateChatMessageInput): Promise<ChatMessage> {
+    try {
+      return await prisma.chat_messages.create({ data });
+    } catch (error) {
+      if (!isUniqueViolation(error) || !data.client_message_id) throw error;
+
+      const existing = await prisma.chat_messages.findFirst({
+        where: {
+          outing_id: data.outing_id,
+          sender_id: data.sender_id,
+          client_message_id: data.client_message_id,
+        },
+      });
+      if (!existing) throw error;
+      return existing;
+    }
   }
 
   upsertRead(data: UpsertChatReadInput): Promise<ChatRead> {

@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
@@ -12,18 +14,58 @@ import 'package:yalla_5roga/features/discover/presentation/widgets/place_cover_i
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
 
 class DiscoverPlaceDetailsPage extends StatelessWidget {
-  const DiscoverPlaceDetailsPage({super.key, required this.placeId});
+  const DiscoverPlaceDetailsPage({
+    super.key,
+    required this.placeId,
+    this.coverHeroTag,
+    this.coverUrl,
+  });
 
   final String placeId;
+
+  /// Hero tag of the card cover that opened this page. Only the gallery image
+  /// that matches the tapped cover takes part in the flight.
+  final String? coverHeroTag;
+
+  /// Cover URL from the card (may differ from a live-API gallery[0]).
+  final String? coverUrl;
+
+  /// Builds a gallery that always contains the card cover when the URL is
+  /// known. Mock fixtures already match; live APIs often send a different
+  /// first gallery photo than `coverImageUrl`.
+  @visibleForTesting
+  static ({List<DiscoverPlaceImage> gallery, int coverIndex}) heroGallery({
+    required SuggestedPlace place,
+    String? tappedCoverUrl,
+  }) {
+    final cover = (tappedCoverUrl ?? place.coverImageUrl).trim();
+    final images = place.images.isNotEmpty
+        ? List<DiscoverPlaceImage>.from(place.images)
+        : [DiscoverPlaceImage(imageUrl: place.coverImageUrl)];
+    if (cover.isEmpty) {
+      return (gallery: images, coverIndex: -1);
+    }
+    final existing = images.indexWhere((image) => image.imageUrl == cover);
+    if (existing >= 0) {
+      return (gallery: images, coverIndex: existing);
+    }
+    return (
+      gallery: [
+        DiscoverPlaceImage(imageUrl: cover),
+        ...images,
+      ],
+      coverIndex: 0,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final palette = context.palette;
     final place = context.read<DiscoverProvider>().placeById(placeId);
-    final gallery = place.images.isNotEmpty
-        ? place.images
-        : [DiscoverPlaceImage(imageUrl: place.coverImageUrl)];
+    final laidOut = heroGallery(place: place, tappedCoverUrl: coverUrl);
+    final gallery = laidOut.gallery;
+    final coverIndex = laidOut.coverIndex;
 
     return Scaffold(
       appBar: AppPageBar(title: place.localizedName(l10n)),
@@ -45,12 +87,17 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
                               ? 0
                               : Responsive.spaceSm,
                         ),
-                        child: PlaceCoverImage(
+                        child: AppHero(
+                          tag: index == coverIndex ? coverHeroTag : null,
                           url: gallery[index].imageUrl,
-                          vibe: place.vibe,
-                          width: 280.w,
-                          height: 210.h,
                           radius: 18.r,
+                          child: PlaceCoverImage(
+                            url: gallery[index].imageUrl,
+                            vibe: place.vibe,
+                            width: 280.w,
+                            height: 210.h,
+                            fade: false,
+                          ),
                         ),
                       );
                     },
@@ -163,9 +210,7 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
                         Text(
                           hour.isClosed
                               ? l10n.closed
-                              : l10n.digits(
-                                  '${hour.opensAt} – ${hour.closesAt}',
-                                ),
+                              : '${l10n.formatClock(hour.opensAt ?? '')} – ${l10n.formatClock(hour.closesAt ?? '')}',
                           style: TextStyle(
                             color: hour.isClosed
                                 ? palette.textMuted

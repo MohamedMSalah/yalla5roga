@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_hero.dart';
+import 'package:yalla_5roga/core/widgets/app_pressable.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_cover_image.dart';
 
 /// Horizontal featured place card used in Discover carousels.
@@ -11,6 +13,7 @@ class DiscoverPlaceCard extends StatelessWidget {
     required this.onTap,
     this.compact = false,
     this.showPriceLevel = true,
+    this.heroTag,
   });
 
   final SuggestedPlace place;
@@ -18,13 +21,16 @@ class DiscoverPlaceCard extends StatelessWidget {
   final bool compact;
   final bool showPriceLevel;
 
+  /// Shared-element tag for the cover; pass the same tag to place details.
+  final String? heroTag;
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final width = compact ? 200.w : 220.w;
     final height = compact ? 168.h : 168.h;
 
-    return GestureDetector(
+    return AppPressable(
       onTap: onTap,
       child: Container(
         width: width,
@@ -44,7 +50,18 @@ class DiscoverPlaceCard extends StatelessWidget {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              PlaceCoverImage.fromSuggested(place: place, fit: BoxFit.cover),
+              AppHero(
+                tag: heroTag,
+                url: place.coverImageUrl,
+                radius: 18.r,
+                child: PlaceCoverImage.fromSuggested(
+                  place: place,
+                  width: width,
+                  height: height,
+                  fit: BoxFit.cover,
+                  fade: false,
+                ),
+              ),
               DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(

@@ -1,5 +1,5 @@
 class AppConfig {
   const AppConfig._();
 
-  static const bool useMockData = false;
+  static const bool useMockData = true;
 }

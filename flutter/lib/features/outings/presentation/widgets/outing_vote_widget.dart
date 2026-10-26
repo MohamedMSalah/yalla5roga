@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
@@ -332,46 +333,73 @@ class _AttendanceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? color.withValues(alpha: 0.12)
-          : context.palette.surfaceMuted,
-      borderRadius: BorderRadius.circular(14.r),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
+    final palette = context.palette;
+    final duration = AppMotion.of(context, AppMotion.standard);
+    // Fill and label colour tween between states; the ripple stays on the
+    // transparent Material so press feedback is unchanged.
+    return AnimatedContainer(
+      duration: duration,
+      curve: AppMotion.settle,
+      decoration: BoxDecoration(
+        color: selected ? color.withValues(alpha: 0.12) : palette.surfaceMuted,
         borderRadius: BorderRadius.circular(14.r),
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 10.w),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (loading)
-                SizedBox(
-                  width: 16.w,
-                  height: 16.w,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: color,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14.r),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(14.r),
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 10.w),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedSwitcher(
+                  duration: duration,
+                  switchInCurve: AppMotion.enter,
+                  switchOutCurve: AppMotion.exit,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(begin: 0.7, end: 1).animate(
+                        animation,
+                      ),
+                      child: child,
+                    ),
                   ),
-                )
-              else
-                Icon(
-                  icon,
-                  size: 18.w,
-                  color: selected ? color : context.palette.textMuted,
+                  child: loading
+                      ? SizedBox(
+                          key: const ValueKey('loading'),
+                          width: 16.w,
+                          height: 16.w,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: color,
+                          ),
+                        )
+                      : Icon(
+                          icon,
+                          key: ValueKey(selected),
+                          size: 18.w,
+                          color: selected ? color : palette.textMuted,
+                        ),
                 ),
-              6.gapW,
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.sp,
-                    color: selected ? color : context.palette.textPrimary,
+                6.gapW,
+                Flexible(
+                  child: AnimatedDefaultTextStyle(
+                    duration: duration,
+                    curve: AppMotion.settle,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.sp,
+                      color: selected ? color : palette.textPrimary,
+                    ),
+                    child: Text(label),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -453,16 +481,19 @@ class _VoteOptionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final opacity = enabled ? 1.0 : 0.45;
-    return Opacity(
-      opacity: opacity,
+    final duration = AppMotion.of(context, AppMotion.standard);
+    return AnimatedOpacity(
+      opacity: enabled ? 1.0 : 0.45,
+      duration: duration,
+      curve: AppMotion.settle,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(12.r),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
+            duration: duration,
+            curve: AppMotion.settle,
             padding: EdgeInsets.all(compact ? 10.w : 12.w),
             decoration: BoxDecoration(
               color: selected ? brandSoft : surface,
@@ -488,7 +519,8 @@ class _VoteOptionTile extends StatelessWidget {
                 Row(
                   children: [
                     AnimatedContainer(
-                      duration: const Duration(milliseconds: 180),
+                      duration: duration,
+                      curve: AppMotion.settle,
                       width: 20.w,
                       height: 20.w,
                       decoration: BoxDecoration(
@@ -501,9 +533,16 @@ class _VoteOptionTile extends StatelessWidget {
                           width: 2,
                         ),
                       ),
-                      child: selected
-                          ? Icon(Icons.check, size: 12.w, color: Colors.white)
-                          : null,
+                      child: AnimatedScale(
+                        scale: selected ? 1 : 0,
+                        duration: duration,
+                        curve: selected ? Curves.easeOutBack : AppMotion.exit,
+                        child: Icon(
+                          Icons.check,
+                          size: 12.w,
+                          color: Colors.white,
+                        ),
+                      ),
                     ),
                     Responsive.spaceSm.gapW,
                     Expanded(
@@ -530,13 +569,24 @@ class _VoteOptionTile extends StatelessWidget {
                   Responsive.spaceSm.gapH,
                   ClipRRect(
                     borderRadius: BorderRadius.circular(999.r),
-                    child: LinearProgressIndicator(
-                      value: (percent.clamp(0, 100)) / 100,
-                      minHeight: 6.h,
-                      backgroundColor: border.withValues(alpha: 0.45),
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        selected ? AppColors.brand600 : AppColors.brand200,
+                    // Tween the bar so a new vote visibly moves the share
+                    // instead of snapping to the new value.
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        end: (percent.clamp(0, 100)) / 100,
                       ),
+                      duration: AppMotion.of(context, AppMotion.emphasis),
+                      curve: AppMotion.enter,
+                      builder: (context, value, _) {
+                        return LinearProgressIndicator(
+                          value: value,
+                          minHeight: 6.h,
+                          backgroundColor: border.withValues(alpha: 0.45),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            selected ? AppColors.brand600 : AppColors.brand200,
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],

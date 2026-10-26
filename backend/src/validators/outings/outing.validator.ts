@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const outingStatusSchema = z.enum(["upcoming", "voting", "past"]);
+const outingStatusSchema = z.enum(["upcoming", "voting", "past", "cancelled"]);
 const outingOccasionSchema = z.enum(["none", "birthday", "wedding"]);
 const outingVibeSchema = z.enum(["food", "activity", "outdoor", "movie"]);
 const attendanceStatusSchema = z.enum(["going", "not_going", "not_voted"]);
@@ -12,6 +12,7 @@ export const createOutingBodySchema = z.object({
   status: outingStatusSchema.optional(),
   occasion: outingOccasionSchema.optional(),
   scheduled_at: z.coerce.date().optional().nullable(),
+  ends_at: z.coerce.date().optional().nullable(),
   location_place_id: z.uuid().optional().nullable(),
   location_name: z.string().trim().max(100).optional().nullable(),
   location_area: z.string().trim().max(100).optional().nullable(),

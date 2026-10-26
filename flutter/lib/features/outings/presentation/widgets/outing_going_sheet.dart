@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -27,6 +28,8 @@ class OutingGoingSheet {
               ),
       ),
       isScrollControlled: true,
+      enterBottomSheetDuration: AppMotion.sheetEnter,
+      exitBottomSheetDuration: AppMotion.sheetExit,
     );
   }
 }

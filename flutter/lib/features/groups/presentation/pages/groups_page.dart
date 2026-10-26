@@ -47,7 +47,11 @@ class _GroupsPageState extends State<GroupsPage> {
   @override
   Widget build(BuildContext context) {
     final groups = context.watch<GroupsProvider>();
-    if (groups.isInitialLoading) return const GroupsSkeleton();
+    // Instant swap — a page-level FadeSwitcher here ran during tab switches
+    // and dropped frames over the groups list.
+    if (groups.isInitialLoading) {
+      return const GroupsSkeleton();
+    }
 
     final l10n = context.l10n;
     final palette = context.palette;

@@ -3,9 +3,10 @@ import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
-import 'package:yalla_5roga/features/outings/data/models/outing_chat_read_result_model.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/chat_message.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing_chat_read_result.dart';
+import 'package:yalla_5roga/features/chat/data/models/chat_message_model.dart';
+import 'package:yalla_5roga/features/chat/data/models/outing_chat_read_result_model.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/outing_chat_read_result.dart';
 
 abstract class OutingChatDataSource {
   Future<List<ChatMessage>> getMessages(String outingId);
@@ -35,17 +36,7 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
       return [
         for (final item in raw)
           if (item is Map)
-            ChatMessage(
-              id: apiString(item['id']) ?? '',
-              outingId: outingId,
-              sender: apiString(item['sender']) ?? '',
-              text: apiString(item['text']) ?? '',
-              time: apiString(item['time']) ?? '',
-              isMine: apiBool(item['isMine']),
-              avatar: apiString(item['avatar']),
-              senderId: apiString(item['senderId']),
-              sentAt: DateTime.tryParse(apiString(item['sentAt']) ?? ''),
-            ),
+            ChatMessageModel.fromJson(item, outingId: outingId),
       ];
     } on DioException catch (error) {
       throw _unwrap(error);
@@ -65,12 +56,9 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
         data: {'text': text, 'senderId': senderId, 'sender': senderName},
       );
       final payload = apiPayload(response.data);
-      return ChatMessage(
-        id: apiString(payload['id']) ?? '',
-        outingId: outingId,
+      return ChatMessageModel.fromJson(payload, outingId: outingId).copyWith(
         sender: apiString(payload['sender']) ?? senderName,
         text: apiString(payload['text']) ?? text,
-        time: apiString(payload['time']) ?? '',
         isMine: true,
         senderId: senderId,
         sentAt:

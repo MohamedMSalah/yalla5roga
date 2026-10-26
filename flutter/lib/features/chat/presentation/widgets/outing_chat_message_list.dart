@@ -5,9 +5,8 @@ import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/chat_message.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
-import 'package:yalla_5roga/features/outings/presentation/widgets/outing_chat_mention_text.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
+import 'package:yalla_5roga/features/chat/presentation/widgets/outing_chat_mention_text.dart';
 
 class OutingChatMessageList extends StatelessWidget {
   const OutingChatMessageList({
@@ -27,10 +26,11 @@ class OutingChatMessageList extends StatelessWidget {
     final palette = context.palette;
 
     return ListView.builder(
+      reverse: true,
       padding: Responsive.pagePadding(),
       itemCount: messages.length,
       itemBuilder: (context, index) {
-        final message = messages[index];
+        final message = messages[messages.length - 1 - index];
         final align = message.isMine
             ? Alignment.centerRight
             : Alignment.centerLeft;
@@ -60,7 +60,11 @@ class OutingChatMessageList extends StatelessWidget {
                   8.gapW,
                 ],
                 ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 240.w),
+                  constraints: BoxConstraints(
+                    maxWidth: (MediaQuery.sizeOf(context).width * 0.72)
+                        .clamp(200.w, 320.w)
+                        .toDouble(),
+                  ),
                   child: Container(
                     padding: Responsive.padding(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
@@ -112,7 +116,7 @@ class OutingChatMessageList extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              l10n.digits(message.time),
+                              _formatTime(context, message),
                               style: TextStyle(
                                 color: message.isMine
                                     ? Colors.white70
@@ -141,6 +145,13 @@ class OutingChatMessageList extends StatelessWidget {
       },
     );
   }
+}
+
+String _formatTime(BuildContext context, ChatMessage message) {
+  final l10n = context.l10n;
+  final sentAt = message.sentAt;
+  if (sentAt != null) return l10n.formatTime(sentAt);
+  return l10n.formatClock(message.time);
 }
 
 IconData _statusIcon(MessageDeliveryStatus status) {

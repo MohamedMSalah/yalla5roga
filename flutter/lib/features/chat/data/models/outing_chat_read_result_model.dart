@@ -1,5 +1,5 @@
 import 'package:yalla_5roga/core/network/api_payload.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing_chat_read_result.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/outing_chat_read_result.dart';
 
 class OutingChatReadResultModel extends OutingChatReadResult {
   const OutingChatReadResultModel({

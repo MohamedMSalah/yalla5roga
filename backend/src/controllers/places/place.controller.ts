@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { CreatePlaceUseCase } from "../../usecases/places/create-place.usecase.js";
 import { DeletePlaceUseCase } from "../../usecases/places/delete-place.usecase.js";
+import { FindNearbyPlacesUseCase } from "../../usecases/places/find-nearby-places.usecase.js";
 import { GetPlaceUseCase } from "../../usecases/places/get-place.usecase.js";
 import { ListPlacesUseCase } from "../../usecases/places/list-places.usecase.js";
 import {
@@ -15,12 +16,14 @@ import {
   UpsertPlaceHourUseCase,
 } from "../../usecases/places/place-details.usecase.js";
 import { UpdatePlaceUseCase } from "../../usecases/places/update-place.usecase.js";
+import { nearbyPlacesQuerySchema } from "../../validators/places/place.validator.js";
 
 export class PlaceController {
   constructor(
     private readonly createPlace = new CreatePlaceUseCase(),
     private readonly getPlace = new GetPlaceUseCase(),
     private readonly listPlaces = new ListPlacesUseCase(),
+    private readonly findNearby = new FindNearbyPlacesUseCase(),
     private readonly updatePlace = new UpdatePlaceUseCase(),
     private readonly deletePlace = new DeletePlaceUseCase(),
     private readonly listHours = new ListPlaceHoursUseCase(),
@@ -38,6 +41,18 @@ export class PlaceController {
     try {
       const featuredOnly = Boolean(req.query.featured);
       const places = await this.listPlaces.execute(featuredOnly);
+      res.json({ success: true, data: places });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  nearby = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // The route already validated the query (400 on bad input). Express 5
+      // re-parses req.query on each access, so coerce here to get numbers.
+      const query = nearbyPlacesQuerySchema.parse(req.query);
+      const places = await this.findNearby.execute(query);
       res.json({ success: true, data: places });
     } catch (error) {
       next(error);

@@ -37,6 +37,8 @@ export type CreateOutingInput = {
   status?: OutingStatus;
   occasion?: OutingOccasion;
   scheduled_at?: Date | null;
+  /** Optional end time; the completion job falls back to scheduled_at + 6h. */
+  ends_at?: Date | null;
   location_place_id?: string | null;
   location_name?: string | null;
   location_area?: string | null;
