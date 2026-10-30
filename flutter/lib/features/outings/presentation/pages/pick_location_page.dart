@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
@@ -167,8 +168,7 @@ class _PickLocationViewState extends State<_PickLocationView> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: AppConfig.instance.osmTileUrlTemplate,
                       userAgentPackageName: 'com.example.yalla_5roga',
                     ),
                     if (pin != null)

@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/app.dart';
+import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/di/app_dependencies.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
 import 'package:yalla_5roga/core/monitoring/crashlytics_service.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   await runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+      AppConfig.initializeFromEnvironment();
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );

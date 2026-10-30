@@ -22,7 +22,7 @@ import 'package:yalla_5roga/features/outings/domain/repositories/location_reposi
 import 'package:yalla_5roga/features/outings/domain/repositories/outings_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/saved_outings_repository.dart';
 
-// Temporary Mockito stubs for AppConfig.useMockData.
+// Temporary Mockito stubs for AppConfig.instance.useMockData.
 // Delete this file with lib/core/mock/ when demos are done.
 
 /// Stubbed demo repositories. Built once so every screen shares the same fakes.

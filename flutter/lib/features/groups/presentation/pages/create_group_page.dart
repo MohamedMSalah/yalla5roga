@@ -75,7 +75,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final groups = context.read<GroupsProvider>();
     if (groups.isCreating) return;
     if (!_formKey.currentState!.validate()) return;
-    if (groups.createImage == null && !AppConfig.useMockData) {
+    if (groups.createImage == null && !AppConfig.instance.useMockData) {
       AppSnackBar.show(context.l10n.photoRequired);
       return;
     }

@@ -171,7 +171,7 @@ class CreateOutingProvider extends ChangeNotifier {
   String get resolvedImage {
     if (_image != null && _image!.isNotEmpty) return _image!;
     if (_specialEvent) return _specialEventImage(_occasion);
-    if (AppConfig.useMockData) return MockData.defaultCoverImage;
+    if (AppConfig.instance.useMockData) return MockData.defaultCoverImage;
     return '';
   }
 
@@ -281,7 +281,7 @@ class CreateOutingProvider extends ChangeNotifier {
     if (_step == 0) {
       final nameError = Validators.outingName(nameController.text, l10n);
       if (nameError != null) return nameError;
-      if (!AppConfig.useMockData && !_specialEvent && _image == null) {
+      if (!AppConfig.instance.useMockData && !_specialEvent && _image == null) {
         return l10n.photoRequired;
       }
       if (_specialEvent) {
@@ -298,7 +298,9 @@ class CreateOutingProvider extends ChangeNotifier {
         }
       } else {
         if (locationLabel.isEmpty) return l10n.locationRequired;
-        if (!AppConfig.useMockData && isCustomPlace && !customPlacePinned) {
+        if (!AppConfig.instance.useMockData &&
+            isCustomPlace &&
+            !customPlacePinned) {
           return l10n.pickLocationRequired;
         }
       }
@@ -317,7 +319,7 @@ class CreateOutingProvider extends ChangeNotifier {
   String? draftError(L10n l10n) {
     final nameError = Validators.outingName(nameController.text, l10n);
     if (nameError != null) return nameError;
-    if (!AppConfig.useMockData && !_specialEvent && _image == null) {
+    if (!AppConfig.instance.useMockData && !_specialEvent && _image == null) {
       return l10n.photoRequired;
     }
     if (multiPlaceMode) {

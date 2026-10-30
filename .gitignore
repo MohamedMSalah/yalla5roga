@@ -18,9 +18,6 @@
 **/*serviceAccount*.json
 **/*service-account*.json
 
-# Flutter Firebase configuration generated locally
-/flutter/lib/firebase_options.dart
-
 # Backend generated output
 backend/node_modules/
 backend/dist/

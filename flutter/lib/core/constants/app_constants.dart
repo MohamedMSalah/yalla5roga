@@ -1,8 +1,10 @@
+import 'package:yalla_5roga/core/config/app_config.dart';
+
 class AppConstants {
   const AppConstants._();
 
   static const String appName = 'Yalla 5roga';
-  static const String downloadUrl = 'https://yalla5roga.com';
+  static String get downloadUrl => AppConfig.instance.downloadUrl;
   static const String tokenKey = 'auth_token';
   static const String userCacheKey = 'cached_user';
   static const String themeKey = 'theme_mode';

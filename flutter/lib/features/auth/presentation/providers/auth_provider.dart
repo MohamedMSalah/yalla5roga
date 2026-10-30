@@ -103,7 +103,8 @@ class AuthProvider extends ChangeNotifier {
     if (_isLoading) return false;
 
     final e164 = Validators.normalizePhone(phone);
-    if (!AppConfig.useMockData && !Validators.isValidEgyptianPhone(e164)) {
+    if (!AppConfig.instance.useMockData &&
+        !Validators.isValidEgyptianPhone(e164)) {
       _errorCode = AuthErrorCodes.invalidPhone;
       _errorMessage = 'Enter a valid Egyptian phone number';
       notifyListeners();
@@ -203,10 +204,10 @@ class AuthProvider extends ChangeNotifier {
     required String smsCode,
   }) async {
     final e164 = Validators.normalizePhone(phone);
-    final verificationId = AppConfig.useMockData
+    final verificationId = AppConfig.instance.useMockData
         ? (_verificationId ?? 'mock-verification-id')
         : _verificationId;
-    final pendingPhone = AppConfig.useMockData
+    final pendingPhone = AppConfig.instance.useMockData
         ? (_pendingPhone ?? e164)
         : _pendingPhone;
     if (verificationId == null ||

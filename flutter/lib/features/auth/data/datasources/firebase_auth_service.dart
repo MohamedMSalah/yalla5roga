@@ -337,7 +337,7 @@ class FirebaseAuthService {
     }
   }
 
-  /// Temporary Swagger helper. Prints a force-refreshed ID token in debug only.
+  /// Debug helper. Never prints the token value — ID tokens are credentials.
   Future<void> debugPrintSwaggerIdToken() async {
     if (!kDebugMode) return;
 
@@ -356,9 +356,9 @@ class FirebaseAuthService {
 
       final segments = token.split('.').length;
       debugPrint(
-        'Firebase ID token (Swagger Bearer): length=${token.length} segments=$segments',
+        'Firebase ID token (Swagger Bearer): available '
+        'length=${token.length} segments=$segments (value not logged)',
       );
-      debugPrint('Firebase ID token (Swagger Bearer): $token', wrapWidth: 8192);
     } catch (_) {
       debugPrint('Firebase ID token (Swagger Bearer): refresh failed');
     }

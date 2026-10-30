@@ -139,8 +139,8 @@ class FcmMessagingService {
     if (!_tokenController.isClosed) {
       _tokenController.add(token);
     }
-    if (token != null && token.isNotEmpty) {
-      debugPrint('Firebase token is : "$token"');
+    if (kDebugMode && token != null && token.isNotEmpty) {
+      debugPrint('[FCM] token refreshed');
     }
   }
 

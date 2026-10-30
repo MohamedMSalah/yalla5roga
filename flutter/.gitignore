@@ -47,5 +47,8 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
-# Firebase client options (API keys). Keep the generated file local.
-/lib/firebase_options.dart
+# Local compile-time configuration (--dart-define-from-file).
+# Includes Firebase client identifiers. Do not commit this file.
+.env
+.env.*
+!.env.example

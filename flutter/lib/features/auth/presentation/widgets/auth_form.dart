@@ -82,7 +82,7 @@ class _AuthFormState extends State<AuthForm> {
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
-    if (!AppConfig.useMockData && !auth.agreeTerms) {
+    if (!AppConfig.instance.useMockData && !auth.agreeTerms) {
       AppSnackBar.showError(context.l10n.termsRequired);
       return;
     }
@@ -117,11 +117,11 @@ class _AuthFormState extends State<AuthForm> {
     if (auth.isLoading) return;
     if (!_formKey.currentState!.validate()) return;
     final l10n = context.l10n;
-    if (!AppConfig.useMockData && !auth.agreeTerms) {
+    if (!AppConfig.instance.useMockData && !auth.agreeTerms) {
       AppSnackBar.showError(l10n.termsRequired);
       return;
     }
-    if (!AppConfig.useMockData && !auth.otpSent) {
+    if (!AppConfig.instance.useMockData && !auth.otpSent) {
       AppSnackBar.showError(l10n.verifyPhoneFirst);
       return;
     }
@@ -132,7 +132,7 @@ class _AuthFormState extends State<AuthForm> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
       phone: Validators.normalizePhone(_phoneController.text),
-      smsCode: AppConfig.useMockData
+      smsCode: AppConfig.instance.useMockData
           ? '123456'
           : Validators.normalizeOtp(_otpController.text),
     );
@@ -279,14 +279,14 @@ class _AuthFormState extends State<AuthForm> {
             )
           else
             CustomButton(
-              label: AppConfig.useMockData || otpSent
+              label: AppConfig.instance.useMockData || otpSent
                   ? l10n.register
                   : l10n.sendOtp,
-              icon: AppConfig.useMockData || otpSent
+              icon: AppConfig.instance.useMockData || otpSent
                   ? Icons.person_add_alt_1
                   : Icons.sms_outlined,
               isLoading: auth.isLoading,
-              onPressed: AppConfig.useMockData || otpSent
+              onPressed: AppConfig.instance.useMockData || otpSent
                   ? _submitRegister
                   : _sendOtp,
             ),

@@ -201,7 +201,7 @@ class GroupsProvider extends ChangeNotifier {
     if (_isCreating || name.trim().isEmpty) return null;
     final coverImage =
         _createImage ??
-        (AppConfig.useMockData ? MockData.defaultCoverImage : null);
+        (AppConfig.instance.useMockData ? MockData.defaultCoverImage : null);
     if (coverImage == null) return null;
 
     _isCreating = true;

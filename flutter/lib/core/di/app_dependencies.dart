@@ -1,7 +1,7 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:yalla_5roga/core/constants/api_constants.dart';
+import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/di/repository_factory.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
@@ -28,6 +28,7 @@ import 'package:yalla_5roga/features/shell/presentation/providers/shell_provider
 
 class AppDependencies {
   const AppDependencies({
+    required this.config,
     required this.theme,
     required this.locale,
     required this.auth,
@@ -44,6 +45,7 @@ class AppDependencies {
     required this.prefs,
   });
 
+  final AppConfig config;
   final ThemeProvider theme;
   final LocaleProvider locale;
   final AuthProvider auth;
@@ -59,7 +61,8 @@ class AppDependencies {
   final LocationRepository geocoding;
   final SharedPreferences prefs;
 
-  static Future<AppDependencies> create() async {
+  static Future<AppDependencies> create({AppConfig? config}) async {
+    final appConfig = config ?? AppConfig.instance;
     final prefs = await SharedPreferences.getInstance();
     final networkInfo = NetworkInfoImpl(Connectivity());
 
@@ -71,9 +74,9 @@ class AppDependencies {
 
     final dio = Dio(
       BaseOptions(
-        baseUrl: ApiConstants.baseUrl,
-        connectTimeout: ApiConstants.connectTimeout,
-        receiveTimeout: ApiConstants.receiveTimeout,
+        baseUrl: appConfig.apiBaseUrl,
+        connectTimeout: appConfig.connectTimeout,
+        receiveTimeout: appConfig.receiveTimeout,
         headers: const {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -92,6 +95,7 @@ class AppDependencies {
       networkInfo: networkInfo,
       prefs: prefs,
       firebaseAuth: firebaseAuth,
+      config: appConfig,
     );
 
     final authRepository = repos.auth();
@@ -124,6 +128,7 @@ class AppDependencies {
     );
 
     return AppDependencies(
+      config: appConfig,
       theme: ThemeProvider(prefs),
       locale: LocaleProvider(prefs),
       auth: auth,

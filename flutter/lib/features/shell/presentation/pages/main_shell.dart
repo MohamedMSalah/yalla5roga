@@ -81,7 +81,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     unawaited(context.read<SavedOutingsProvider>().load());
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || AppConfig.useMockData) return;
+      if (!mounted || AppConfig.instance.useMockData) return;
       if (await AppPermissions.isNotificationGranted) return;
       if (!mounted) return;
       await AppPermissions.promptNotificationsOnLaunch(context.l10n);

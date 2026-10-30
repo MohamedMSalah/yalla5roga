@@ -37,6 +37,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        Provider<AppConfig>.value(value: deps.config),
         ChangeNotifierProvider<ThemeProvider>.value(value: deps.theme),
         ChangeNotifierProvider<LocaleProvider>.value(value: deps.locale),
         ChangeNotifierProvider<AuthProvider>.value(value: deps.auth),
@@ -131,7 +132,7 @@ class _PushBootstrapState extends State<_PushBootstrap> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       // Mock/demo mode skips native push setup entirely.
-      if (AppConfig.useMockData) return;
+      if (AppConfig.instance.useMockData) return;
 
       final fcm = context.read<FcmProvider>();
       // Listeners and local notifications run after the first frame.
