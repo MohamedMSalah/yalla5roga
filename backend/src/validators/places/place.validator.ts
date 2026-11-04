@@ -56,12 +56,62 @@ export const nearbyPlacesQuerySchema = z.object({
   offset: z.coerce.number().int().nonnegative().optional(),
 });
 
-export const upsertPlaceHourBodySchema = z.object({
-  day: weekdaySchema,
-  opens_at: z.coerce.date().optional().nullable(),
-  closes_at: z.coerce.date().optional().nullable(),
-  is_closed: z.boolean().optional(),
-});
+/**
+ * place_hours.opens_at / closes_at are Postgres TIME columns.
+ * Accept "HH:mm", "HH:mm:ss", or a full ISO datetime (time portion used).
+ */
+const timeOfDaySchema = z
+  .union([z.string(), z.date()])
+  .nullable()
+  .optional()
+  .transform((value, ctx) => {
+    if (value == null || value === "") return null;
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) {
+        ctx.addIssue({ code: "custom", message: "Invalid time" });
+        return z.NEVER;
+      }
+      return value;
+    }
+
+    const trimmed = value.trim();
+    const hm = /^([01]?\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/.exec(trimmed);
+    if (hm) {
+      const hours = Number(hm[1]);
+      const minutes = Number(hm[2]);
+      const seconds = Number(hm[3] ?? "0");
+      return new Date(Date.UTC(1970, 0, 1, hours, minutes, seconds));
+    }
+
+    const parsed = new Date(trimmed);
+    if (Number.isNaN(parsed.getTime())) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Expected HH:mm, HH:mm:ss, or an ISO datetime",
+      });
+      return z.NEVER;
+    }
+    return parsed;
+  });
+
+export const upsertPlaceHourBodySchema = z
+  .object({
+    day: weekdaySchema,
+    opens_at: timeOfDaySchema,
+    closes_at: timeOfDaySchema,
+    is_closed: z.boolean().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const closed = data.is_closed === true;
+    if (!closed && (data.opens_at == null || data.closes_at == null)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["opens_at"],
+        message:
+          "opens_at and closes_at are required when is_closed is false or omitted",
+      });
+    }
+  });
 
 export const placeHourIdParamsSchema = z.object({
   id: z.uuid(),

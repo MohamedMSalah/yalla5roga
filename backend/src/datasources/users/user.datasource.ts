@@ -10,6 +10,10 @@ export class UserDatasource {
     return prisma.users.findUnique({ where: { id } });
   }
 
+  findByEmail(email: string): Promise<User | null> {
+    return prisma.users.findUnique({ where: { email } });
+  }
+
   findByPhone(phone: string): Promise<User | null> {
     return prisma.users.findUnique({ where: { phone } });
   }
@@ -29,15 +33,15 @@ export class UserDatasource {
     });
   }
 
+  /**
+   * Legacy helper. Prefer create + selective update from SyncUserUseCase so
+   * existing profile fields are not overwritten by identity sync.
+   */
   upsert(data: CreateUserInput): Promise<User> {
     return prisma.users.upsert({
       where: { id: data.id },
       create: data,
       update: {
-        name: data.name,
-        phone: data.phone,
-        email: data.email,
-        image_url: data.image_url,
         updated_at: new Date(),
       },
     });

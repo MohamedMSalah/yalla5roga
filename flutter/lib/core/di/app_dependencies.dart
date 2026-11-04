@@ -66,7 +66,10 @@ class AppDependencies {
     final prefs = await SharedPreferences.getInstance();
     final networkInfo = NetworkInfoImpl(Connectivity());
 
-    final firebaseAuth = FirebaseAuthService();
+    final firebaseAuth = FirebaseAuthService(
+      googleIosClientId: appConfig.firebase.iosClientId,
+      googleWebClientId: appConfig.firebase.webClientId,
+    );
     final authInterceptor = AuthInterceptor(
       tokenProvider: ({bool forceRefresh = false}) =>
           firebaseAuth.idToken(forceRefresh: forceRefresh),

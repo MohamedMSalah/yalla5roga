@@ -169,6 +169,12 @@ class FakeUsers implements IUserRepository {
   findById(id: string) {
     return Promise.resolve(this.users.get(id) ?? null);
   }
+  findByEmail(email: string) {
+    for (const user of this.users.values()) {
+      if (user.email === email) return Promise.resolve(user);
+    }
+    return Promise.resolve(null);
+  }
   findByPhone(phone: string) {
     for (const user of this.users.values()) {
       if (user.phone === phone) return Promise.resolve(user);
@@ -178,21 +184,20 @@ class FakeUsers implements IUserRepository {
   findMany(): Promise<User[]> {
     throw new Error("not used");
   }
-  create(): Promise<User> {
-    throw new Error("not used");
-  }
-  update(): Promise<User> {
-    throw new Error("not used");
-  }
-  sync(data: {
+  create(data: {
     id: string;
     name: string;
     phone: string | null;
-    email: string;
+    email: string | null;
     image_url?: string | null;
+    password_hash?: string | null;
+    password_updated_at?: Date | null;
   }) {
     const user = {
       ...data,
+      email: data.email,
+      password_hash: data.password_hash ?? null,
+      password_updated_at: data.password_updated_at ?? null,
       image_url: data.image_url ?? null,
       created_at: NOW,
       updated_at: NOW,
@@ -200,6 +205,23 @@ class FakeUsers implements IUserRepository {
     this.users.set(user.id, user);
     this.synced = user;
     return Promise.resolve(user);
+  }
+  update(id: string, data: Partial<User>) {
+    const existing = this.users.get(id);
+    if (!existing) throw new Error("missing user");
+    const user = { ...existing, ...data, updated_at: NOW } as User;
+    this.users.set(id, user);
+    this.synced = user;
+    return Promise.resolve(user);
+  }
+  sync(data: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+    image_url?: string | null;
+  }) {
+    return this.create(data);
   }
   delete(): Promise<User> {
     throw new Error("not used");

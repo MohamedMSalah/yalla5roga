@@ -8,7 +8,14 @@ import { errorMiddleware } from "./middleware/error.middleware.js";
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    allowedHeaders: ["Authorization", "Content-Type", "Accept"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  }),
+);
 app.use(express.json());
 
 /**
@@ -16,7 +23,8 @@ app.use(express.json());
  * /:
  *   get:
  *     tags: [System]
- *     summary: API status
+ *     summary: Process health
+ *     description: Confirms the API process is running and accepting HTTP requests. Does not check the database.
  *     operationId: getRoot
  *     security: []
  *     responses:
@@ -47,7 +55,8 @@ app.get("/", (_req, res) => {
  * /health:
  *   get:
  *     tags: [System]
- *     summary: Database health check
+ *     summary: Database health
+ *     description: Runs a lightweight database query to verify connectivity.
  *     operationId: getHealth
  *     security: []
  *     responses:

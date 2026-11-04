@@ -10,26 +10,13 @@ import {
 
 /**
  * @openapi
- * /api/users:
- *   get:
- *     tags: [Users]
- *     summary: List users
- *     operationId: listUsers
- *     responses:
- *       "200":
- *         description: All user profiles
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/UserListResponse"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
  * /api/users/cuser:
  *   get:
  *     tags: [Users]
  *     summary: Get the authenticated user
+ *     description: >
+ *       Returns the profile for the Firebase UID on the Bearer token.
+ *       Returns 404 until a profile row exists (call sync or signup first).
  *     operationId: getCurrentUser
  *     responses:
  *       "200":
@@ -47,6 +34,11 @@ import {
  *   patch:
  *     tags: [Users]
  *     summary: Update the authenticated user
+ *     description: >
+ *       Updates application profile fields for the Firebase UID on the Bearer
+ *       token. Use this for profile completion and edits after Sync. UID, role,
+ *       and other privileged fields cannot be changed. A phone in this body is
+ *       not treated as Firebase-verified.
  *     operationId: updateCurrentUser
  *     requestBody:
  *       $ref: "#/components/requestBodies/UpdateUser"
@@ -68,6 +60,7 @@ import {
  *   delete:
  *     tags: [Users]
  *     summary: Delete the authenticated user
+ *     description: Deletes the profile that belongs to the Firebase UID on the Bearer token.
  *     operationId: deleteCurrentUser
  *     responses:
  *       "200":
@@ -88,18 +81,21 @@ import {
  *     summary: Sync a Firebase user into the database
  *     description: >
  *       Called after Firebase phone, Google, or Apple sign-in. The user id is
- *       the Firebase UID. Do not send a password. Phone is optional. Invitations
- *       are claimed only when the token contains a verified phone number.
- *       Google and Apple accounts without a verified phone still receive a
- *       profile. `invitations.status` is then `phone_verification_required`,
- *       which does not list invitations and does not block other features.
- *       A phone already stored for a different user returns 409 and is not merged.
+ *       the Firebase UID from the Bearer token. Do not send a password.
+ *       First call creates a minimal profile from trusted token claims (and
+ *       optional body bootstrap fields). Later calls return the existing
+ *       profile without overwriting name, email, phone, or image_url from the
+ *       body. A verified token phone may update the stored phone and claim
+ *       invitations. Body phone is never treated as verified. Google and Apple
+ *       accounts without a verified phone still receive a profile;
+ *       `invitations.status` is then `phone_verification_required`. A verified
+ *       phone already stored for a different user returns 409.
  *     operationId: syncUser
  *     requestBody:
  *       $ref: "#/components/requestBodies/SyncUser"
  *     responses:
  *       "200":
- *         description: Created or updated profile, plus invitation claim state
+ *         description: Existing or newly created profile, plus invitation claim state
  *         content:
  *           application/json:
  *             schema:
@@ -116,10 +112,28 @@ import {
  *               $ref: "#/components/schemas/ErrorResponse"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ * /api/users:
+ *   get:
+ *     tags: [Users]
+ *     summary: List users
+ *     description: Returns all user profiles. Requires a valid Firebase ID token.
+ *     operationId: listUsers
+ *     responses:
+ *       "200":
+ *         description: All user profiles
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/UserListResponse"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
  * /api/users/{id}:
  *   get:
  *     tags: [Users]
  *     summary: Get a user by id
+ *     description: Returns the profile for the given Firebase UID.
  *     operationId: getUser
  *     parameters:
  *       - $ref: "#/components/parameters/UserId"
@@ -168,7 +182,7 @@ const controller = new UserController();
 
 api.use(authMiddleware);
 
-api.get("/", controller.list);
+// Static paths before /:id so "cuser" and "sync" are never treated as user ids.
 api.get("/cuser", controller.getCuser);
 api.patch(
   "/cuser",
@@ -181,6 +195,7 @@ api.post(
   validate({ body: syncUserBodySchema }),
   controller.sync,
 );
+api.get("/", controller.list);
 api.get(
   "/:id",
   validate({ params: userIdParamsSchema }),

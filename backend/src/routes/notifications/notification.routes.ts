@@ -9,7 +9,8 @@ import { notificationIdParamsSchema } from "../../validators/notifications/notif
  * /api/notifications:
  *   get:
  *     tags: [Notifications]
- *     summary: List notifications for the authenticated user
+ *     summary: List notifications
+ *     description: Returns notifications owned by the Firebase UID on the Bearer token.
  *     operationId: listNotifications
  *     responses:
  *       "200":
@@ -26,6 +27,7 @@ import { notificationIdParamsSchema } from "../../validators/notifications/notif
  *   patch:
  *     tags: [Notifications]
  *     summary: Mark a notification as read
+ *     description: Marks the given notification as read for the authenticated user.
  *     operationId: markNotificationRead
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"

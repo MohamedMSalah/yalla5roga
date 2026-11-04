@@ -9,11 +9,14 @@ export class CreateGroupUseCase {
   ) {}
 
   async execute(input: CreateGroupInput): Promise<Group> {
-    if (!input.name || !input.image_url || !input.created_by) {
-      throw new ValidationError("name, image_url, and created_by are required");
+    if (!input.name || !input.created_by) {
+      throw new ValidationError("name and created_by are required");
     }
 
-    const group = await this.groups.create(input);
+    const group = await this.groups.create({
+      ...input,
+      image_url: input.image_url ?? "",
+    });
     await this.groups.addMember({
       group_id: group.id,
       user_id: input.created_by,

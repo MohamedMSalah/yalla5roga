@@ -115,13 +115,17 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
       description: [
         "API documentation for the Yalla 5roga backend.",
         "",
-        "Routes are grouped by resource: Users, Groups, Outings, Saved Outings, Places, Notifications, and Chat.",
+        "Sections (in order): System, Authentication, Users, Groups, Outings, Saved Outings, Places, Notifications, Chat.",
         "Every client uses the same `/api` paths and the same response shape.",
         "",
-        "Protected operations require a Firebase Authentication ID token.",
-        "The existing auth middleware reads the `Authorization: Bearer <token>` header and verifies it with Firebase Admin `verifyIdToken`.",
-        "In Swagger UI, use Authorize and paste the ID token only. Swagger adds the Bearer prefix.",
-        "Passwords are handled by Firebase and are never accepted by these endpoints.",
+        "Protected operations require a Firebase Authentication ID token (JWT), not an FCM device token.",
+        "The auth middleware reads `Authorization: Bearer <token>` and verifies it with Firebase Admin `verifyIdToken`.",
+        "In Swagger UI: click Authorize, paste the ID token only, then Execute. Swagger adds the `Bearer` prefix — do not paste `Bearer ` yourself.",
+        "Email/password credentials are stored in Neon (`users.password_hash`). `POST /api/auth/signup` and `POST /api/auth/login` verify against Neon, then return a Firebase ID token via a custom-token exchange.",
+        "Firebase Auth is identity-only for Google, Apple, phone OTP, and ID token issuance — not the application profile or password database.",
+        "Mobile clients can also use Flutter `currentUser.getIdToken(true)`. ID tokens expire after one hour.",
+        "A valid token that has never been synced still authenticates. Create the database row with `POST /api/users/sync` after Google, Apple, or phone sign-in; email/password signup already creates the profile.",
+        "`GET /api/users/cuser` returns 404 until a profile row exists.",
         "",
         "Successful responses use `{ success: true, data }`.",
         "Handled errors use `{ success: false, message }`.",
@@ -134,14 +138,47 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
       },
     ],
     tags: [
-      { name: "System", description: "Process and database health" },
-      { name: "Users", description: "User profiles" },
-      { name: "Groups", description: "Groups and membership" },
-      { name: "Outings", description: "Outings, drafts, guests, attendance, and voting" },
-      { name: "Saved Outings", description: "Outings saved by the authenticated user" },
-      { name: "Places", description: "Places and their hours, images, and prices" },
-      { name: "Notifications", description: "Notifications" },
-      { name: "Chat", description: "Outing chat" },
+      {
+        name: "System",
+        description: "Process health and database health checks",
+      },
+      {
+        name: "Authentication",
+        description:
+          "Email/password against Neon; Firebase ID tokens for API authorization",
+      },
+      {
+        name: "Users",
+        description:
+          "Authenticated user operations, Firebase user synchronization, and user listing/management",
+      },
+      {
+        name: "Groups",
+        description:
+          "My groups, group CRUD, members, and invitations",
+      },
+      {
+        name: "Outings",
+        description:
+          "My outings, outing CRUD, drafts, attendance, guests, voting options, and votes",
+      },
+      {
+        name: "Saved Outings",
+        description: "List, save, and unsave outings for the authenticated user",
+      },
+      {
+        name: "Places",
+        description:
+          "Nearby places, place CRUD, opening hours, images, and prices",
+      },
+      {
+        name: "Notifications",
+        description: "List notifications and mark them as read",
+      },
+      {
+        name: "Chat",
+        description: "Outing messages and sending messages",
+      },
     ],
     security: [{ bearerAuth: [] }],
     components: {
@@ -149,9 +186,9 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         bearerAuth: {
           type: "http",
           scheme: "bearer",
-          bearerFormat: "Firebase ID token",
+          bearerFormat: "JWT",
           description:
-            "Firebase Authentication ID token. Send as `Authorization: Bearer <token>`. Verified by the existing auth middleware.",
+            "Firebase Authentication ID token from `getIdToken()`. Paste the JWT only. Swagger sends `Authorization: Bearer <token>`. Do not paste an FCM token or a second Bearer prefix.",
         },
       },
       parameters: {
@@ -239,10 +276,22 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         ),
       },
       requestBodies: {
-        SyncUser: {
+        Login: {
           required: true,
+          content: {
+            "application/json": { schema: ref("LoginRequest") },
+          },
+        },
+        Signup: {
+          required: true,
+          content: {
+            "application/json": { schema: ref("SignupRequest") },
+          },
+        },
+        SyncUser: {
+          required: false,
           description:
-            "Profile written after Firebase sign-up or sign-in. Do not send a password.",
+            "Optional bootstrap fields for the first sync only. Identity comes from the Bearer token. Do not send a password. Existing profile fields are never overwritten by this body.",
           content: {
             "application/json": { schema: ref("SyncUserRequest") },
           },
@@ -396,26 +445,92 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             error: { type: "string" },
           },
         },
-        SyncUserRequest: {
+        LoginRequest: {
           type: "object",
-          required: ["name", "email"],
+          required: ["email", "password"],
+          properties: {
+            email: { type: "string", format: "email", maxLength: 254 },
+            password: { type: "string", minLength: 6, maxLength: 128 },
+          },
+        },
+        SignupRequest: {
+          type: "object",
+          required: ["name", "email", "password", "phone"],
           properties: {
             name: { type: "string", minLength: 1, maxLength: 30 },
             email: { type: "string", format: "email", maxLength: 254 },
-            phoneNumber: phone,
+            password: { type: "string", minLength: 6, maxLength: 128 },
+            phoneNumber: {
+              ...phone,
+              description: "Accepted alias of phone",
+            },
+            phone: phone,
+          },
+          description:
+            "Provide phone or phoneNumber. The phone is stored on the profile but is not verified.",
+        },
+        AuthSession: {
+          type: "object",
+          required: ["idToken", "refreshToken", "expiresIn", "uid"],
+          properties: {
+            idToken: {
+              type: "string",
+              description: "Firebase Authentication ID token (JWT)",
+            },
+            refreshToken: { type: "string" },
+            expiresIn: {
+              type: "string",
+              description: "ID token lifetime in seconds",
+              example: "3600",
+            },
+            uid: firebaseUid,
+            user: {
+              allOf: [ref("User")],
+              nullable: true,
+              description:
+                "Neon profile without credential fields. Present after email/password signup or login when a password_hash row exists.",
+            },
+          },
+        },
+        AuthSessionResponse: itemResponse("AuthSession"),
+        SyncUserRequest: {
+          type: "object",
+          properties: {
+            name: {
+              type: "string",
+              minLength: 1,
+              maxLength: 200,
+              description:
+                "Optional create-time bootstrap only. Ignored when a profile already exists.",
+            },
+            email: {
+              type: "string",
+              format: "email",
+              maxLength: 254,
+              description:
+                "Optional create-time fallback when the token has no email. Never overwrites a stored email.",
+            },
+            phoneNumber: {
+              ...phone,
+              description:
+                "Alias of phone. Unverified. Ignored when a profile phone already exists.",
+            },
             phone: {
               ...phone,
-              description: "Accepted alias of phoneNumber",
+              description:
+                "Accepted alias of phoneNumber. Unverified. Never treated as Firebase-verified.",
             },
             image_url: {
               type: "string",
               format: "uri",
               maxLength: 2048,
               nullable: true,
+              description:
+                "Optional create-time bootstrap only. Ignored when a profile already exists.",
             },
           },
           description:
-            "Phone is optional. Google and Apple sign-in can omit it. A phone in this body is not treated as verified.",
+            "All fields optional. Sync creates a minimal profile on first call and returns the existing profile afterward without overwriting name, phone, email, or image_url from the body. Send phone or phoneNumber, not conflicting values of both.",
         },
         InvitationSyncState: {
           type: "object",
@@ -489,17 +604,22 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         UserListResponse: listResponse("User"),
         CreateGroupRequest: {
           type: "object",
-          required: ["name", "image_url"],
+          required: ["name"],
           properties: {
-            name: { type: "string", minLength: 1, maxLength: 30 },
+            name: { type: "string", minLength: 3, maxLength: 30 },
             bio: { type: "string", maxLength: 160 },
-            image_url: { type: "string", format: "uri", maxLength: 2048 },
+            image_url: {
+              type: "string",
+              format: "uri",
+              maxLength: 2048,
+              description: "Optional. Omit or send empty string to use the default cover.",
+            },
           },
         },
         UpdateGroupRequest: {
           type: "object",
           properties: {
-            name: { type: "string", minLength: 1, maxLength: 30 },
+            name: { type: "string", minLength: 3, maxLength: 30 },
             bio: { type: "string", maxLength: 160 },
             image_url: { type: "string", format: "uri", maxLength: 2048 },
           },
@@ -698,8 +818,10 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         CreateOutingRequest: {
           type: "object",
           required: ["title"],
+          description:
+            "Group outings require group_id and occasion 'none' (default). Special events omit group_id and must set occasion to 'birthday' or 'wedding'.",
           properties: {
-            title: { type: "string", minLength: 1, maxLength: 20 },
+            title: { type: "string", minLength: 3, maxLength: 20 },
             image_url: { type: "string", format: "uri", maxLength: 2048 },
             group_id: { ...uuid, nullable: true },
             status: { type: "string", enum: outingStatusEnum },
@@ -715,14 +837,21 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_area: { type: "string", maxLength: 100, nullable: true },
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
-            vote_deadline_hours: { type: "integer", nullable: true },
+            vote_deadline_hours: {
+              type: "integer",
+              minimum: 1,
+              maximum: 72,
+              nullable: true,
+            },
             vote_ends_at: { ...dateTime, nullable: true },
           },
         },
         UpdateOutingRequest: {
           type: "object",
+          description:
+            "When changing group_id or occasion, the same group/special-event pairing rules as create apply.",
           properties: {
-            title: { type: "string", minLength: 1, maxLength: 20 },
+            title: { type: "string", minLength: 3, maxLength: 20 },
             image_url: { type: "string", format: "uri", maxLength: 2048 },
             group_id: { ...uuid, nullable: true },
             status: { type: "string", enum: outingStatusEnum },
@@ -1026,10 +1155,22 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         UpsertPlaceHourRequest: {
           type: "object",
           required: ["day"],
+          description:
+            "When is_closed is false or omitted, opens_at and closes_at are required (HH:mm, HH:mm:ss, or ISO datetime). When is_closed is true, times are cleared.",
           properties: {
             day: { type: "string", enum: weekdayEnum },
-            opens_at: { ...dateTime, nullable: true },
-            closes_at: { ...dateTime, nullable: true },
+            opens_at: {
+              type: "string",
+              nullable: true,
+              example: "09:00:00",
+              description: "HH:mm, HH:mm:ss, or ISO datetime",
+            },
+            closes_at: {
+              type: "string",
+              nullable: true,
+              example: "23:00:00",
+              description: "HH:mm, HH:mm:ss, or ISO datetime",
+            },
             is_closed: { type: "boolean" },
           },
         },

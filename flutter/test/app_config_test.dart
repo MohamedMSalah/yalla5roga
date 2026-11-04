@@ -129,6 +129,32 @@ void main() {
     );
   });
 
+  test('rejects missing Google OAuth client IDs', () {
+    expect(
+      () => AppConfig.testing(
+        firebase: const FirebaseClientConfig(
+          androidApiKey: 'test-android-api-key',
+          iosApiKey: 'test-ios-api-key',
+          androidAppId: '1:0:android:test',
+          iosAppId: '1:0:ios:test',
+          messagingSenderId: '0',
+          projectId: 'test-project',
+          storageBucket: 'test-project.appspot.com',
+          iosBundleId: 'com.example.yalla5roga',
+          iosClientId: '',
+          webClientId: 'test-web-client-id.apps.googleusercontent.com',
+        ),
+      ).validate(),
+      throwsA(
+        isA<AppConfigException>().having(
+          (error) => error.message,
+          'message',
+          contains('FIREBASE_IOS_CLIENT_ID'),
+        ),
+      ),
+    );
+  });
+
   test('rejects missing Firebase client options', () {
     expect(
       () => AppConfig.testing(
@@ -141,6 +167,8 @@ void main() {
           projectId: 'test-project',
           storageBucket: 'test-project.appspot.com',
           iosBundleId: 'com.example.yalla5roga',
+          iosClientId: 'test-ios-client-id.apps.googleusercontent.com',
+          webClientId: 'test-web-client-id.apps.googleusercontent.com',
         ),
       ).validate(),
       throwsA(
@@ -176,6 +204,8 @@ void main() {
         projectId: 'test-project',
         storageBucket: 'test-project.appspot.com',
         iosBundleId: 'com.example.yalla5roga',
+        iosClientId: 'test-ios-client-id.apps.googleusercontent.com',
+        webClientId: 'test-web-client-id.apps.googleusercontent.com',
       ),
     ).toString();
     expect(summary, contains('development'));

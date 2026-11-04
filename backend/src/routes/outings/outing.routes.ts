@@ -20,10 +20,154 @@ import {
 
 /**
  * @openapi
+ * /api/outings/cuser:
+ *   get:
+ *     tags: [Outings]
+ *     summary: List my outings
+ *     description: >
+ *       Uses only the Firebase UID on the Bearer token. Includes outings the
+ *       user created, was invited to, or can see through a group membership.
+ *     operationId: listCurrentUserOutings
+ *     responses:
+ *       "200":
+ *         description: Outings for the authenticated user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/OutingListResponse"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ * /api/outings:
+ *   get:
+ *     tags: [Outings]
+ *     summary: List outings
+ *     description: "userId defaults to the authenticated user when omitted."
+ *     operationId: listOutings
+ *     parameters:
+ *       - in: query
+ *         name: groupId
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: userId
+ *         required: false
+ *         schema:
+ *           type: string
+ *           minLength: 1
+ *     responses:
+ *       "200":
+ *         description: Outings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/OutingListResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ *   post:
+ *     tags: [Outings]
+ *     summary: Create an outing
+ *     description: >
+ *       created_by is taken from the authenticated Firebase UID.
+ *       Group outings require group_id (occasion defaults to none).
+ *       Special events omit group_id and must set occasion to birthday or wedding.
+ *     operationId: createOuting
+ *     requestBody:
+ *       $ref: "#/components/requestBodies/CreateOuting"
+ *     responses:
+ *       "201":
+ *         description: Created outing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/OutingResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ * /api/outings/{id}:
+ *   get:
+ *     tags: [Outings]
+ *     summary: Get an outing
+ *     description: Returns a single outing by UUID.
+ *     operationId: getOuting
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     responses:
+ *       "200":
+ *         description: Outing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/OutingResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ *   patch:
+ *     tags: [Outings]
+ *     summary: Update an outing
+ *     description: Updates outing fields for the given UUID.
+ *     operationId: updateOuting
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     requestBody:
+ *       $ref: "#/components/requestBodies/UpdateOuting"
+ *     responses:
+ *       "200":
+ *         description: Updated outing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/OutingResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ *   delete:
+ *     tags: [Outings]
+ *     summary: Delete an outing
+ *     description: Deletes the outing with the given UUID.
+ *     operationId: deleteOuting
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     responses:
+ *       "200":
+ *         description: Deleted outing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/OutingResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
  * /api/outings/drafts:
  *   get:
  *     tags: [Outings]
- *     summary: List the authenticated user's outing drafts
+ *     summary: List my outing drafts
+ *     description: Returns drafts owned by the authenticated Firebase UID.
  *     operationId: listOutingDrafts
  *     responses:
  *       "200":
@@ -107,62 +251,11 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
- * /api/outings:
- *   get:
- *     tags: [Outings]
- *     summary: List outings
- *     description: "userId defaults to the authenticated user when omitted."
- *     operationId: listOutings
- *     parameters:
- *       - in: query
- *         name: groupId
- *         required: false
- *         schema:
- *           type: string
- *           format: uuid
- *       - in: query
- *         name: userId
- *         required: false
- *         schema:
- *           type: string
- *           minLength: 1
- *     responses:
- *       "200":
- *         description: Outings
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/OutingListResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- *   post:
- *     tags: [Outings]
- *     summary: Create an outing
- *     description: "created_by is taken from the authenticated Firebase UID."
- *     operationId: createOuting
- *     requestBody:
- *       $ref: "#/components/requestBodies/CreateOuting"
- *     responses:
- *       "201":
- *         description: Created outing
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/OutingResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
  * /api/outings/{id}/attendance:
  *   get:
  *     tags: [Outings]
  *     summary: List attendance for an outing
+ *     description: Returns attendance rows for the outing.
  *     operationId: listOutingAttendance
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -183,7 +276,8 @@ import {
  *         $ref: "#/components/responses/InternalServerError"
  *   put:
  *     tags: [Outings]
- *     summary: Set the authenticated user's attendance
+ *     summary: Set my attendance for an outing
+ *     description: Upserts attendance for the authenticated Firebase UID.
  *     operationId: setOutingAttendance
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -208,6 +302,7 @@ import {
  *   get:
  *     tags: [Outings]
  *     summary: List outing guests
+ *     description: Returns guests invited to the outing.
  *     operationId: listOutingGuests
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -229,6 +324,7 @@ import {
  *   post:
  *     tags: [Outings]
  *     summary: Invite a guest
+ *     description: Adds a guest invitation for the outing.
  *     operationId: inviteOutingGuest
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -253,6 +349,7 @@ import {
  *   delete:
  *     tags: [Outings]
  *     summary: Remove a guest
+ *     description: Removes a guest invitation from the outing.
  *     operationId: removeOutingGuest
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -275,7 +372,8 @@ import {
  * /api/outings/{id}/vote-options:
  *   get:
  *     tags: [Outings]
- *     summary: List vote options
+ *     summary: List voting options
+ *     description: Returns vote options for the outing.
  *     operationId: listVoteOptions
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -296,7 +394,8 @@ import {
  *         $ref: "#/components/responses/InternalServerError"
  *   post:
  *     tags: [Outings]
- *     summary: Add a vote option
+ *     summary: Add a voting option
+ *     description: Creates a new vote option for the outing.
  *     operationId: createVoteOption
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -320,7 +419,8 @@ import {
  * /api/outings/{id}/vote-options/{optionId}:
  *   delete:
  *     tags: [Outings]
- *     summary: Delete a vote option
+ *     summary: Delete a voting option
+ *     description: Deletes a vote option from the outing.
  *     operationId: deleteVoteOption
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -342,6 +442,7 @@ import {
  *   get:
  *     tags: [Outings]
  *     summary: List votes
+ *     description: Returns votes cast for the outing.
  *     operationId: listVotes
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -387,7 +488,8 @@ import {
  * /api/outings/{id}/votes/{optionId}:
  *   delete:
  *     tags: [Outings]
- *     summary: Remove the authenticated user's vote for an option
+ *     summary: Remove my vote for an option
+ *     description: Removes the authenticated user's vote for the given option.
  *     operationId: removeVote
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -405,77 +507,24 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
- * /api/outings/{id}:
- *   get:
- *     tags: [Outings]
- *     summary: Get an outing
- *     operationId: getOuting
- *     parameters:
- *       - $ref: "#/components/parameters/UuidId"
- *     responses:
- *       "200":
- *         description: Outing
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/OutingResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "404":
- *         $ref: "#/components/responses/NotFound"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- *   patch:
- *     tags: [Outings]
- *     summary: Update an outing
- *     operationId: updateOuting
- *     parameters:
- *       - $ref: "#/components/parameters/UuidId"
- *     requestBody:
- *       $ref: "#/components/requestBodies/UpdateOuting"
- *     responses:
- *       "200":
- *         description: Updated outing
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/OutingResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "404":
- *         $ref: "#/components/responses/NotFound"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- *   delete:
- *     tags: [Outings]
- *     summary: Delete an outing
- *     operationId: deleteOuting
- *     parameters:
- *       - $ref: "#/components/parameters/UuidId"
- *     responses:
- *       "200":
- *         description: Deleted outing
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/OutingResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "404":
- *         $ref: "#/components/responses/NotFound"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
  */
 const api = Router();
 const controller = new OutingController();
 
 api.use(authMiddleware);
+
+// Static paths before /:id so "cuser" and "drafts" are never treated as outing ids.
+api.get("/cuser", controller.listForCuser);
+api.get(
+  "/",
+  validate({ query: listOutingsQuerySchema }),
+  controller.list,
+);
+api.post(
+  "/",
+  validate({ body: createOutingBodySchema }),
+  controller.create,
+);
 
 api.get("/drafts", controller.getDrafts);
 api.post(
@@ -492,38 +541,6 @@ api.delete(
   "/drafts/:id",
   validate({ params: draftIdParamsSchema }),
   controller.removeDraft,
-);
-
-api.get(
-  "/",
-  validate({ query: listOutingsQuerySchema }),
-  controller.list,
-);
-/**
- * @openapi
- * /api/outings/cuser:
- *   get:
- *     tags: [Outings]
- *     summary: List outings for the authenticated user
- *     description: Uses only the Firebase UID on the Bearer token. Includes outings the user created, was invited to, or can see through a group membership.
- *     operationId: listCurrentUserOutings
- *     responses:
- *       "200":
- *         description: Outings for the authenticated user
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/OutingListResponse"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- */
-api.get("/cuser", controller.listForCuser);
-api.post(
-  "/",
-  validate({ body: createOutingBodySchema }),
-  controller.create,
 );
 
 // Attendance
@@ -555,7 +572,7 @@ api.delete(
   controller.uninviteGuest,
 );
 
-// Voting
+// Voting options
 api.get(
   "/:id/vote-options",
   validate({ params: outingIdParamsSchema }),
@@ -574,6 +591,8 @@ api.delete(
   validate({ params: voteParamsSchema }),
   controller.removeVoteOption,
 );
+
+// Votes
 api.get(
   "/:id/votes",
   validate({ params: outingIdParamsSchema }),

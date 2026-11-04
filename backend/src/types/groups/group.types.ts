@@ -7,7 +7,8 @@ export type GroupRole = group_role;
 export type CreateGroupInput = {
   name: string;
   bio?: string;
-  image_url: string;
+  /** Defaults to "" in the database when omitted. */
+  image_url?: string;
   created_by: string;
 };
 

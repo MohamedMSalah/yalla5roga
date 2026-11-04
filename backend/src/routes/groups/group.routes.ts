@@ -15,11 +15,32 @@ import {
 
 /**
  * @openapi
+ * /api/groups/cuser:
+ *   get:
+ *     tags: [Groups]
+ *     summary: List my groups
+ *     description: >
+ *       Uses only the Firebase UID on the Bearer token. Returns groups where
+ *       the caller is a member.
+ *     operationId: listCurrentUserGroups
+ *     responses:
+ *       "200":
+ *         description: Groups for the authenticated user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/GroupListResponse"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
  * /api/groups:
  *   get:
  *     tags: [Groups]
  *     summary: List groups
- *     description: "Filters by the userId query when present, otherwise by the authenticated user."
+ *     description: >
+ *       Filters by the `userId` query when present, otherwise by the
+ *       authenticated user.
  *     operationId: listGroups
  *     parameters:
  *       - in: query
@@ -45,7 +66,9 @@ import {
  *   post:
  *     tags: [Groups]
  *     summary: Create a group
- *     description: "created_by is taken from the authenticated Firebase UID."
+ *     description: >
+ *       created_by is taken from the authenticated Firebase UID.
+ *       image_url is optional; omit it or send an empty string for the default cover.
  *     operationId: createGroup
  *     requestBody:
  *       $ref: "#/components/requestBodies/CreateGroup"
@@ -62,10 +85,80 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ * /api/groups/{id}:
+ *   get:
+ *     tags: [Groups]
+ *     summary: Get a group
+ *     description: Returns a single group by UUID.
+ *     operationId: getGroup
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     responses:
+ *       "200":
+ *         description: Group
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/GroupResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ *   patch:
+ *     tags: [Groups]
+ *     summary: Update a group
+ *     description: Updates group fields for the given UUID.
+ *     operationId: updateGroup
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     requestBody:
+ *       $ref: "#/components/requestBodies/UpdateGroup"
+ *     responses:
+ *       "200":
+ *         description: Updated group
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/GroupResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ *   delete:
+ *     tags: [Groups]
+ *     summary: Delete a group
+ *     description: Deletes the group with the given UUID.
+ *     operationId: deleteGroup
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     responses:
+ *       "200":
+ *         description: Deleted group
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/GroupResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
  * /api/groups/{id}/members:
  *   get:
  *     tags: [Groups]
  *     summary: List group members
+ *     description: Returns memberships for the group.
  *     operationId: listGroupMembers
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -87,6 +180,7 @@ import {
  *   post:
  *     tags: [Groups]
  *     summary: Add a group member by phone number
+ *     description: Adds an existing user to the group using their phone number.
  *     operationId: addGroupMember
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -95,6 +189,30 @@ import {
  *     responses:
  *       "201":
  *         description: Created membership
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/GroupMemberResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ * /api/groups/{id}/members/{userId}:
+ *   delete:
+ *     tags: [Groups]
+ *     summary: Remove a group member
+ *     description: Removes the given user from the group.
+ *     operationId: removeGroupMember
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *       - $ref: "#/components/parameters/MemberUserId"
+ *     responses:
+ *       "200":
+ *         description: Removed membership
  *         content:
  *           application/json:
  *             schema:
@@ -181,137 +299,28 @@ import {
  *               $ref: "#/components/schemas/ErrorResponse"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
- * /api/groups/{id}/members/{userId}:
- *   delete:
- *     tags: [Groups]
- *     summary: Remove a group member
- *     operationId: removeGroupMember
- *     parameters:
- *       - $ref: "#/components/parameters/UuidId"
- *       - $ref: "#/components/parameters/MemberUserId"
- *     responses:
- *       "200":
- *         description: Removed membership
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/GroupMemberResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "404":
- *         $ref: "#/components/responses/NotFound"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- * /api/groups/{id}:
- *   get:
- *     tags: [Groups]
- *     summary: Get a group
- *     operationId: getGroup
- *     parameters:
- *       - $ref: "#/components/parameters/UuidId"
- *     responses:
- *       "200":
- *         description: Group
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/GroupResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "404":
- *         $ref: "#/components/responses/NotFound"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- *   patch:
- *     tags: [Groups]
- *     summary: Update a group
- *     operationId: updateGroup
- *     parameters:
- *       - $ref: "#/components/parameters/UuidId"
- *     requestBody:
- *       $ref: "#/components/requestBodies/UpdateGroup"
- *     responses:
- *       "200":
- *         description: Updated group
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/GroupResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "404":
- *         $ref: "#/components/responses/NotFound"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- *   delete:
- *     tags: [Groups]
- *     summary: Delete a group
- *     operationId: deleteGroup
- *     parameters:
- *       - $ref: "#/components/parameters/UuidId"
- *     responses:
- *       "200":
- *         description: Deleted group
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/GroupResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "404":
- *         $ref: "#/components/responses/NotFound"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
  */
 const api = Router();
 const controller = new GroupController();
 
 api.use(authMiddleware);
 
+// Static paths before /:id so "cuser" and "invitations" are never treated as group ids.
+api.get("/cuser", controller.listForCuser);
 api.get(
   "/",
   validate({ query: listGroupsQuerySchema }),
   controller.list,
 );
-/**
- * @openapi
- * /api/groups/cuser:
- *   get:
- *     tags: [Groups]
- *     summary: List groups for the authenticated user
- *     description: Uses only the Firebase UID on the Bearer token. The caller must be a member of each returned group.
- *     operationId: listCurrentUserGroups
- *     responses:
- *       "200":
- *         description: Groups for the authenticated user
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/GroupListResponse"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- */
-api.get("/cuser", controller.listForCuser);
-// Registered before the /:id routes so "invitations" is never read as a group id.
-api.post(
-  "/invitations/:invitationId/decline",
-  validate({ params: invitationIdParamsSchema }),
-  controller.decline,
-);
 api.post(
   "/",
   validate({ body: createGroupBodySchema }),
   controller.create,
+);
+api.post(
+  "/invitations/:invitationId/decline",
+  validate({ params: invitationIdParamsSchema }),
+  controller.decline,
 );
 api.get(
   "/:id/members",
@@ -323,15 +332,15 @@ api.post(
   validate({ params: groupIdParamsSchema, body: addGroupMemberBodySchema }),
   controller.addGroupMember,
 );
-api.post(
-  "/:id/invitations",
-  validate({ params: groupIdParamsSchema, body: inviteToGroupBodySchema }),
-  controller.invite,
-);
 api.delete(
   "/:id/members/:userId",
   validate({ params: groupMemberParamsSchema }),
   controller.removeGroupMember,
+);
+api.post(
+  "/:id/invitations",
+  validate({ params: groupIdParamsSchema, body: inviteToGroupBodySchema }),
+  controller.invite,
 );
 api.get(
   "/:id",

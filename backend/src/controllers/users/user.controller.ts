@@ -1,4 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
+import {
+  toPublicUser,
+  toPublicUsers,
+} from "../../services/auth/to-public-user.js";
 import { DeleteUserUseCase } from "../../usecases/users/delete-user.usecase.js";
 import { GetUserUseCase } from "../../usecases/users/get-user.usecase.js";
 import { ListUsersUseCase } from "../../usecases/users/list-users.usecase.js";
@@ -18,7 +22,7 @@ export class UserController {
   list = async (_req: Request, res: Response, next: NextFunction) => {
     try {
       const users = await this.listUsers.execute();
-      res.json({ success: true, data: users });
+      res.json({ success: true, data: toPublicUsers(users) });
     } catch (error) {
       next(error);
     }
@@ -27,7 +31,7 @@ export class UserController {
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = await this.getUser.execute(req.params.id as string);
-      res.json({ success: true, data: user });
+      res.json({ success: true, data: toPublicUser(user) });
     } catch (error) {
       next(error);
     }
@@ -37,7 +41,7 @@ export class UserController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const user = await this.getUser.execute(req.user.uid);
-      res.json({ success: true, data: user });
+      res.json({ success: true, data: toPublicUser(user) });
     } catch (error) {
       next(error);
     }
@@ -47,6 +51,7 @@ export class UserController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
 
+      // Identity always comes from the verified token — never body.uid / role.
       const result = await this.syncUser.execute({
         id: req.user.uid,
         name: req.body.name,
@@ -54,12 +59,14 @@ export class UserController {
         email: req.body.email,
         image_url: req.body.image_url ?? null,
         verifiedPhone: req.user.phone ?? null,
+        tokenEmail: req.user.email ?? null,
+        tokenName: req.user.name ?? null,
         signInProvider: req.user.signInProvider ?? null,
       });
 
       res.status(200).json({
         success: true,
-        data: result.user,
+        data: toPublicUser(result.user),
         invitations: result.invitations,
       });
     } catch (error) {
@@ -71,7 +78,7 @@ export class UserController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const user = await this.updateUser.execute(req.user.uid, req.body);
-      res.json({ success: true, data: user });
+      res.json({ success: true, data: toPublicUser(user) });
     } catch (error) {
       next(error);
     }
@@ -81,7 +88,7 @@ export class UserController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const user = await this.deleteUser.execute(req.user.uid);
-      res.json({ success: true, data: user });
+      res.json({ success: true, data: toPublicUser(user) });
     } catch (error) {
       next(error);
     }
@@ -92,7 +99,7 @@ export class UserController {
       if (!req.user?.uid) throw new UnauthorizedError();
       if (req.user.uid !== req.params.id) throw new ForbiddenError();
       const user = await this.deleteUser.execute(req.params.id as string);
-      res.json({ success: true, data: user });
+      res.json({ success: true, data: toPublicUser(user) });
     } catch (error) {
       next(error);
     }

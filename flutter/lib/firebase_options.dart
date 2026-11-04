@@ -60,6 +60,7 @@ class DefaultFirebaseOptions {
       projectId: firebase.projectId,
       storageBucket: firebase.storageBucket,
       iosBundleId: firebase.iosBundleId,
+      iosClientId: firebase.iosClientId,
     );
   }
 }

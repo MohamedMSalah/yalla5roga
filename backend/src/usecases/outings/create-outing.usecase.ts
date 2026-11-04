@@ -17,8 +17,23 @@ export class CreateOutingUseCase {
       throw new ValidationError("title and created_by are required");
     }
 
+    const occasion = input.occasion ?? "none";
+    const hasGroup = input.group_id != null;
+    if (hasGroup && occasion !== "none") {
+      throw new ValidationError("group outings must use occasion 'none'");
+    }
+    if (!hasGroup && occasion === "none") {
+      throw new ValidationError(
+        "provide group_id for a group outing, or set occasion to 'birthday' or 'wedding' for a special event",
+      );
+    }
+
     assertEndsAfterStart(input.scheduled_at, input.ends_at);
 
-    return this.outings.create(input);
+    return this.outings.create({
+      ...input,
+      occasion,
+      image_url: input.image_url ?? "",
+    });
   }
 }

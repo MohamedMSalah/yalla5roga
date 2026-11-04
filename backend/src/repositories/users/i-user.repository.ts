@@ -6,6 +6,7 @@ import type {
 
 export interface IUserRepository {
   findById(id: string): Promise<User | null>;
+  findByEmail(email: string): Promise<User | null>;
   findByPhone(phone: string): Promise<User | null>;
   findMany(): Promise<User[]>;
   create(data: CreateUserInput): Promise<User>;

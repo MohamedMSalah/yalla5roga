@@ -59,6 +59,8 @@ class FirebaseClientConfig {
     required this.projectId,
     required this.storageBucket,
     required this.iosBundleId,
+    required this.iosClientId,
+    required this.webClientId,
   });
 
   static const testing = FirebaseClientConfig(
@@ -70,6 +72,8 @@ class FirebaseClientConfig {
     projectId: 'test-project',
     storageBucket: 'test-project.appspot.com',
     iosBundleId: 'com.example.yalla5roga',
+    iosClientId: 'test-ios-client-id.apps.googleusercontent.com',
+    webClientId: 'test-web-client-id.apps.googleusercontent.com',
   );
 
   final String androidApiKey;
@@ -81,6 +85,12 @@ class FirebaseClientConfig {
   final String storageBucket;
   final String iosBundleId;
 
+  /// iOS OAuth client ID (`CLIENT_ID` in GoogleService-Info.plist).
+  final String iosClientId;
+
+  /// Web OAuth client ID used as Google Sign-In `serverClientId`.
+  final String webClientId;
+
   void validate() {
     _require('FIREBASE_ANDROID_API_KEY', androidApiKey);
     _require('FIREBASE_IOS_API_KEY', iosApiKey);
@@ -90,6 +100,8 @@ class FirebaseClientConfig {
     _require('FIREBASE_PROJECT_ID', projectId);
     _require('FIREBASE_STORAGE_BUCKET', storageBucket);
     _require('FIREBASE_IOS_BUNDLE_ID', iosBundleId);
+    _require('FIREBASE_IOS_CLIENT_ID', iosClientId);
+    _require('FIREBASE_WEB_CLIENT_ID', webClientId);
   }
 
   static void _require(String name, String value) {
@@ -207,6 +219,12 @@ class AppConfig {
     const firebaseIosBundleId = String.fromEnvironment(
       'FIREBASE_IOS_BUNDLE_ID',
     );
+    const firebaseIosClientId = String.fromEnvironment(
+      'FIREBASE_IOS_CLIENT_ID',
+    );
+    const firebaseWebClientId = String.fromEnvironment(
+      'FIREBASE_WEB_CLIENT_ID',
+    );
 
     if (rawEnv.isEmpty && !debugMode) {
       throw const AppConfigException(
@@ -254,6 +272,8 @@ class AppConfig {
         projectId: firebaseProjectId.trim(),
         storageBucket: firebaseStorageBucket.trim(),
         iosBundleId: firebaseIosBundleId.trim(),
+        iosClientId: firebaseIosClientId.trim(),
+        webClientId: firebaseWebClientId.trim(),
       ),
     );
     config.validate();

@@ -42,6 +42,7 @@ abstract final class AuthErrorCodes {
   static const credentialAlreadyInUse = 'credential-already-in-use';
   static const providerAlreadyLinked = 'provider-already-linked';
   static const cancelled = 'cancelled';
+  static const googleSignInFailed = 'google-sign-in-failed';
   static const appleUnavailable = 'apple-unavailable';
   static const requiresRecentLogin = 'requires-recent-login';
 }

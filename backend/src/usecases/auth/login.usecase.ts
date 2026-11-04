@@ -1,0 +1,46 @@
+import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
+import { UserRepository } from "../../repositories/users/user.repository.js";
+import { issueFirebaseSession } from "../../services/auth/firebase-identity.js";
+import { verifyPassword } from "../../services/auth/password.js";
+import { toPublicUser } from "../../services/auth/to-public-user.js";
+import type {
+  AuthSessionResult,
+  LoginInput,
+} from "../../types/auth/auth.types.js";
+import { UnauthorizedError, ValidationError } from "../../utils/errors.js";
+
+const INVALID_CREDENTIALS = "Invalid email or password";
+
+export class LoginUseCase {
+  constructor(private readonly users: IUserRepository = new UserRepository()) {}
+
+  async execute(input: LoginInput): Promise<AuthSessionResult> {
+    if (!input.email || !input.password) {
+      throw new ValidationError("email and password are required");
+    }
+
+    const email = input.email.trim().toLowerCase();
+    const user = await this.users.findByEmail(email);
+
+    // Missing user, social/phone-only account, or wrong password all map to
+    // the same error so callers cannot probe which emails exist.
+    if (!user?.password_hash) {
+      throw new UnauthorizedError(INVALID_CREDENTIALS);
+    }
+
+    const matches = await verifyPassword(input.password, user.password_hash);
+    if (!matches) {
+      throw new UnauthorizedError(INVALID_CREDENTIALS);
+    }
+
+    const session = await issueFirebaseSession(user.id);
+
+    return {
+      idToken: session.idToken,
+      refreshToken: session.refreshToken,
+      expiresIn: session.expiresIn,
+      uid: session.uid,
+      user: toPublicUser(user),
+    };
+  }
+}

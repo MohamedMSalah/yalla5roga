@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "847978310366-1uvtoda7jddgvkokcnd03rqcg21antj7.apps.googleusercontent.com",
+          "client_id": "847978310366-orr7q6gej09h28q3r7kg8vcd7qgd4e5j.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.yalla_5roga",
-            "certificate_hash": "b23ed73e65643bb58d2dad4af2c5300a619e8e23"
+            "certificate_hash": "911bc17548b12dcada189f6589529778f3f00243"
           }
         },
         {

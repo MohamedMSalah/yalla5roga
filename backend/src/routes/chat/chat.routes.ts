@@ -12,8 +12,10 @@ import {
  * /api/chat/outings/{outingId}/messages:
  *   get:
  *     tags: [Chat]
- *     summary: List messages for an outing
- *     description: The caller must be the outing creator or an outing guest. History stays readable after the outing ends.
+ *     summary: List outing messages
+ *     description: >
+ *       The caller must be the outing creator or an outing guest. History stays
+ *       readable after the outing ends.
  *     operationId: listOutingMessages
  *     parameters:
  *       - $ref: "#/components/parameters/ChatOutingId"
@@ -36,7 +38,7 @@ import {
  *         $ref: "#/components/responses/InternalServerError"
  *   post:
  *     tags: [Chat]
- *     summary: Send a message in an outing chat
+ *     summary: Send an outing message
  *     description: >
  *       The sender is the authenticated Firebase UID and must be the creator or a guest.
  *       Sending is allowed only while the outing status is upcoming or voting; afterwards 409 CHAT_CLOSED is returned.

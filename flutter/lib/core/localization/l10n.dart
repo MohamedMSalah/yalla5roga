@@ -318,6 +318,10 @@ class L10n {
   );
   String get socialSignInCancelled =>
       _t('Sign in cancelled', 'تم إلغاء تسجيل الدخول');
+  String get googleSignInFailed => _t(
+    'Google Sign-In is not set up for this app build. Add the SHA-1 fingerprint in Firebase.',
+    'تسجيل الدخول بجوجل غير مُعد لهذا الإصدار. أضف بصمة SHA-1 في Firebase.',
+  );
   String get appleSignInUnavailable => _t(
     'Apple Sign In is not available on this device',
     'تسجيل الدخول بـ Apple غير متاح على هذا الجهاز',
@@ -517,6 +521,7 @@ class L10n {
       'wrong-password' ||
       'invalid-credential' => incorrectEmailOrPassword,
       'cancelled' => socialSignInCancelled,
+      'google-sign-in-failed' || 'sign_in_failed' => googleSignInFailed,
       'apple-unavailable' => appleSignInUnavailable,
       'requires-recent-login' => requiresRecentLogin,
       _ =>

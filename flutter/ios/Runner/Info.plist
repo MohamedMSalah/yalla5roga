@@ -43,6 +43,10 @@
 			</array>
 		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>847978310366-jdef4dcmnifvbvaejftvt6jl6kgbouv9.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>847978310366-vfkb3pogif76e92mhj15shcpv8q6tts2.apps.googleusercontent.com</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>https</string>

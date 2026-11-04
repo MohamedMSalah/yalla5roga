@@ -5,7 +5,7 @@ import type {
   Outing,
   UpdateOutingInput,
 } from "../../types/outings/outing.types.js";
-import { NotFoundError } from "../../utils/errors.js";
+import { NotFoundError, ValidationError } from "../../utils/errors.js";
 
 export class UpdateOutingUseCase {
   constructor(
@@ -21,6 +21,20 @@ export class UpdateOutingUseCase {
       data.scheduled_at !== undefined ? data.scheduled_at : existing.scheduled_at;
     const endsAt = data.ends_at !== undefined ? data.ends_at : existing.ends_at;
     assertEndsAfterStart(scheduledAt, endsAt);
+
+    const groupId =
+      data.group_id !== undefined ? data.group_id : existing.group_id;
+    const occasion =
+      data.occasion !== undefined ? data.occasion : existing.occasion;
+    const hasGroup = groupId != null;
+    if (hasGroup && occasion !== "none") {
+      throw new ValidationError("group outings must use occasion 'none'");
+    }
+    if (!hasGroup && occasion === "none") {
+      throw new ValidationError(
+        "provide group_id for a group outing, or set occasion to 'birthday' or 'wedding' for a special event",
+      );
+    }
 
     return this.outings.update(id, data);
   }

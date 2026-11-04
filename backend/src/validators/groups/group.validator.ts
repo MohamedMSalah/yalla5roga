@@ -1,15 +1,20 @@
 import { z } from "zod";
 
+/** Empty string is allowed and stored as the DB default cover. */
+const optionalImageUrl = z
+  .union([z.literal(""), z.url().max(2048)])
+  .optional();
+
 export const createGroupBodySchema = z.object({
-  name: z.string().trim().min(1).max(30),
+  name: z.string().trim().min(3).max(30),
   bio: z.string().trim().max(160).optional(),
-  image_url: z.url().max(2048),
+  image_url: optionalImageUrl,
 });
 
 export const updateGroupBodySchema = z.object({
-  name: z.string().trim().min(1).max(30).optional(),
+  name: z.string().trim().min(3).max(30).optional(),
   bio: z.string().trim().max(160).optional(),
-  image_url: z.url().max(2048).optional(),
+  image_url: optionalImageUrl,
 });
 
 export const groupIdParamsSchema = z.object({

@@ -30,6 +30,8 @@ export function initFirebase() {
       privateKey,
     }),
   });
+
+  console.error("[Firebase Admin] Initialized", { projectId });
 }
 
 export function getFirebaseAuth() {

@@ -18,55 +18,13 @@ import {
 
 /**
  * @openapi
- * /api/places:
- *   get:
- *     tags: [Places]
- *     summary: List places
- *     operationId: listPlaces
- *     security: []
- *     parameters:
- *       - in: query
- *         name: featured
- *         required: false
- *         schema:
- *           type: string
- *           enum: ["true", "false"]
- *         description: "When true, only featured places are returned."
- *     responses:
- *       "200":
- *         description: Places
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/PlaceListResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
- *   post:
- *     tags: [Places]
- *     summary: Create a place
- *     operationId: createPlace
- *     requestBody:
- *       $ref: "#/components/requestBodies/CreatePlace"
- *     responses:
- *       "201":
- *         description: Created place
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/PlaceResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
  * /api/places/nearby:
  *   get:
  *     tags: [Places]
- *     summary: Active places near a coordinate, closest first
- *     description: "Bounding-box search followed by the haversine distance. Only places with is_active = true and coordinates are returned."
+ *     summary: List nearby places
+ *     description: >
+ *       Bounding-box search followed by haversine distance. Only places with
+ *       `is_active = true` and coordinates are returned, closest first.
  *     operationId: listNearbyPlaces
  *     security: []
  *     parameters:
@@ -106,10 +64,57 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ * /api/places:
+ *   get:
+ *     tags: [Places]
+ *     summary: List places
+ *     description: Returns places. Optionally filter to featured places only.
+ *     operationId: listPlaces
+ *     security: []
+ *     parameters:
+ *       - in: query
+ *         name: featured
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: ["true", "false"]
+ *         description: "When true, only featured places are returned."
+ *     responses:
+ *       "200":
+ *         description: Places
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/PlaceListResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
+ *   post:
+ *     tags: [Places]
+ *     summary: Create a place
+ *     description: Creates a new place. Requires authentication.
+ *     operationId: createPlace
+ *     requestBody:
+ *       $ref: "#/components/requestBodies/CreatePlace"
+ *     responses:
+ *       "201":
+ *         description: Created place
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/PlaceResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
  * /api/places/{id}:
  *   get:
  *     tags: [Places]
  *     summary: Get a place
+ *     description: Returns a single place by UUID. Public.
  *     operationId: getPlace
  *     security: []
  *     parameters:
@@ -130,6 +135,7 @@ import {
  *   patch:
  *     tags: [Places]
  *     summary: Update a place
+ *     description: Updates place fields. Requires authentication.
  *     operationId: updatePlace
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -153,6 +159,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete a place
+ *     description: Deletes the place. Requires authentication.
  *     operationId: deletePlace
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -175,6 +182,7 @@ import {
  *   get:
  *     tags: [Places]
  *     summary: List opening hours
+ *     description: Returns opening-hours rows for the place. Public.
  *     operationId: listPlaceHours
  *     security: []
  *     parameters:
@@ -194,7 +202,8 @@ import {
  *         $ref: "#/components/responses/InternalServerError"
  *   put:
  *     tags: [Places]
- *     summary: Create or replace the hours for one weekday
+ *     summary: Upsert opening hours for a weekday
+ *     description: Creates or replaces the hours for one weekday. Requires authentication.
  *     operationId: upsertPlaceHour
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -219,6 +228,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete an opening-hours row
+ *     description: Deletes one opening-hours row. Requires authentication.
  *     operationId: deletePlaceHour
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -240,6 +250,7 @@ import {
  *   get:
  *     tags: [Places]
  *     summary: List place images
+ *     description: Returns images for the place. Public.
  *     operationId: listPlaceImages
  *     security: []
  *     parameters:
@@ -260,6 +271,7 @@ import {
  *   post:
  *     tags: [Places]
  *     summary: Add a place image
+ *     description: Adds an image to the place. Requires authentication.
  *     operationId: createPlaceImage
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -284,6 +296,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete a place image
+ *     description: Deletes an image from the place. Requires authentication.
  *     operationId: deletePlaceImage
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -305,6 +318,7 @@ import {
  *   get:
  *     tags: [Places]
  *     summary: List place prices
+ *     description: Returns prices for the place. Public.
  *     operationId: listPlacePrices
  *     security: []
  *     parameters:
@@ -325,6 +339,7 @@ import {
  *   post:
  *     tags: [Places]
  *     summary: Add a place price
+ *     description: Adds a price row to the place. Requires authentication.
  *     operationId: createPlacePrice
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -349,6 +364,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete a place price
+ *     description: Deletes a price row from the place. Requires authentication.
  *     operationId: deletePlacePrice
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -370,27 +386,27 @@ import {
 const api = Router();
 const controller = new PlaceController();
 
-api.get(
-  "/",
-  validate({ query: listPlacesQuerySchema }),
-  controller.list,
-);
-// Registered before /:id so "nearby" is not read as a place id.
+// Static `/nearby` before `/:id` so "nearby" is never treated as a place id.
 api.get(
   "/nearby",
   validate({ query: nearbyPlacesQuerySchema }),
   controller.nearby,
 );
 api.get(
-  "/:id",
-  validate({ params: placeIdParamsSchema }),
-  controller.getById,
+  "/",
+  validate({ query: listPlacesQuerySchema }),
+  controller.list,
 );
 api.post(
   "/",
   authMiddleware,
   validate({ body: createPlaceBodySchema }),
   controller.create,
+);
+api.get(
+  "/:id",
+  validate({ params: placeIdParamsSchema }),
+  controller.getById,
 );
 api.patch(
   "/:id",

@@ -4,30 +4,13 @@ import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { savedOutingParamsSchema } from "../../validators/outings/outing.validator.js";
 
-const api = Router();
-const controller = new OutingController();
-
-api.use(authMiddleware);
-api.get("/saved", controller.getSaved);
-api.post(
-  "/:id/save",
-  validate({ params: savedOutingParamsSchema }),
-  controller.save,
-);
-api.delete(
-  "/:id/save",
-  validate({ params: savedOutingParamsSchema }),
-  controller.unsave,
-);
-
-const router = Router();
-
 /**
  * @openapi
  * /api/outings/saved:
  *   get:
  *     tags: [Saved Outings]
- *     summary: List outings saved by the authenticated user
+ *     summary: List saved outings
+ *     description: Returns outings saved by the authenticated Firebase UID.
  *     operationId: listSavedOutings
  *     responses:
  *       "200":
@@ -44,6 +27,7 @@ const router = Router();
  *   post:
  *     tags: [Saved Outings]
  *     summary: Save an outing
+ *     description: Saves the outing for the authenticated user.
  *     operationId: saveOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -65,6 +49,7 @@ const router = Router();
  *   delete:
  *     tags: [Saved Outings]
  *     summary: Unsave an outing
+ *     description: Removes the saved-outing record for the authenticated user.
  *     operationId: unsaveOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -82,6 +67,25 @@ const router = Router();
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */
+const api = Router();
+const controller = new OutingController();
+
+api.use(authMiddleware);
+
+// Static `/saved` before `/:id/save` so "saved" is never treated as an outing id.
+api.get("/saved", controller.getSaved);
+api.post(
+  "/:id/save",
+  validate({ params: savedOutingParamsSchema }),
+  controller.save,
+);
+api.delete(
+  "/:id/save",
+  validate({ params: savedOutingParamsSchema }),
+  controller.unsave,
+);
+
+const router = Router();
 router.use("/api/outings", api);
 
 export default router;

@@ -32,9 +32,25 @@ export class UpsertPlaceHourUseCase {
     data: Omit<UpsertPlaceHourInput, "place_id">,
   ): Promise<PlaceHour> {
     if (!data.day) throw new ValidationError("day is required");
+
+    const closed = data.is_closed === true;
+    if (!closed && (data.opens_at == null || data.closes_at == null)) {
+      throw new ValidationError(
+        "opens_at and closes_at are required when is_closed is false or omitted",
+      );
+    }
+
     const place = await this.places.findById(placeId);
     if (!place) throw new NotFoundError("Place");
-    return this.places.upsertHour({ ...data, place_id: placeId });
+
+    return this.places.upsertHour({
+      ...data,
+      place_id: placeId,
+      // Closed days should not keep stale open/close times.
+      opens_at: closed ? null : data.opens_at,
+      closes_at: closed ? null : data.closes_at,
+      is_closed: closed,
+    });
   }
 }
 
