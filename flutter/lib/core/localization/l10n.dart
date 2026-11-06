@@ -850,7 +850,14 @@ class L10n {
   );
   String get imIn => _t("I'm In", 'أنا مشارك');
   String get notIn => _t('Not In', 'لن أحضر');
+  String get maybe => _t('Maybe', 'ربما');
   String get stillNotVoted => _t('Still Not Voted', 'لم يصوّت بعد');
+  String get letYallaDecide =>
+      _t('Let Yalla 5roga Decide!', 'خلّي يلا خروج تقرر!');
+  String get pickingWinner => _t('Picking a place…', 'جاري اختيار المكان…');
+  String winnerIs(String place) =>
+      _t('Winner: $place', 'الفائز: $place');
+  String get done => _t('Done', 'تم');
   String get attendanceUpdated => _t('Attendance updated', 'تم تحديث الحضور');
   String get attendanceClosed =>
       _t('Attendance voting is closed', 'تصويت الحضور مغلق');

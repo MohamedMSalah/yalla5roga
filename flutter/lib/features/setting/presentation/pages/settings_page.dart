@@ -10,7 +10,6 @@ import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/app_switch.dart';
 import 'package:yalla_5roga/core/widgets/language_choice.dart';
-import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/features/auth/presentation/pages/auth_page.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
@@ -50,22 +49,6 @@ class SettingsPage extends StatelessWidget {
 
   void _openEditProfile(BuildContext context) {
     Get.to(() => const EditProfilePage());
-  }
-
-  Future<void> _deleteAccount(BuildContext context) async {
-    final l10n = context.l10n;
-    final confirmed = await AppAlert.confirm(
-      title: l10n.deleteAccountTitle,
-      message: l10n.deleteAccountBody,
-      confirmText: l10n.deleteAccount,
-      cancelText: l10n.cancel,
-    );
-    if (!confirmed || !context.mounted) return;
-    _clearUnread(context);
-    // TODO: POST a delete-account endpoint when one exists in ApiConstants.
-    await context.read<AuthProvider>().logout();
-    AppSnackBar.show(l10n.accountDeleted);
-    Get.offAll(() => const AuthPage());
   }
 
   void _clearUnread(BuildContext context) {
@@ -342,14 +325,6 @@ class SettingsPage extends StatelessWidget {
                     onTap: () => Get.to(() => const AboutDeveloperPage()),
                   ),
                 ],
-              ),
-              Responsive.spaceLg.gapH,
-              // CustomButton — delete account
-              CustomButton(
-                label: l10n.deleteAccount,
-                icon: Icons.delete_outline,
-                variant: AppButtonVariant.danger,
-                onPressed: () => _deleteAccount(context),
               ),
             ],
           ),

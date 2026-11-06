@@ -1,7 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -11,9 +11,11 @@ import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
-/// Merged attendance + place voting card for an outing.
+/// Attendance + place voting for an outing (independent domains).
 class OutingVoteWidget extends StatefulWidget {
   const OutingVoteWidget({
     super.key,
@@ -32,19 +34,15 @@ class OutingVoteWidget extends StatefulWidget {
 
 class _OutingVoteWidgetState extends State<OutingVoteWidget> {
   var _saving = false;
+  var _breakingTie = false;
 
   Future<void> _selectAttendance(AttendanceStatus status) async {
-    if (_saving) return;
+    if (_saving || status == AttendanceStatus.unset) return;
     final outings = context.read<OutingsProvider>();
     final userId = context.read<AuthProvider>().user?.id;
     if (userId == null || userId.isEmpty) return;
-
     if (widget.outing.createdById == userId) return;
-    if (outings.isVoteFinalized(widget.outing.id)) {
-      AppSnackBar.show(context.l10n.voteLocked);
-      return;
-    }
-    if (!outings.canChangeAttendance(widget.outing.id)) {
+    if (!outings.canChangeAttendance(widget.outing.id, userId: userId)) {
       AppSnackBar.show(context.l10n.attendanceClosed);
       return;
     }
@@ -53,34 +51,17 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final ok = await outings.setAttendance(widget.outing.id, userId, status);
     if (!mounted) return;
     setState(() => _saving = false);
-    if (!ok) {
-      AppSnackBar.show(context.l10n.attendanceClosed);
-      return;
-    }
-    AppSnackBar.show(context.l10n.attendanceUpdated);
-
-    // Lock when I'm In is chosen after place(s) were already selected.
-    if (status == AttendanceStatus.going &&
-        outings.hasVoted(widget.outing.id) &&
-        !outings.isVoteFinalized(widget.outing.id)) {
-      await outings.finalizeVoteFor(widget.outing.id);
-      if (mounted) AppSnackBar.show(context.l10n.voteLocked);
-    }
+    AppSnackBar.show(
+      ok ? context.l10n.attendanceUpdated : context.l10n.attendanceClosed,
+    );
   }
 
   Future<void> _togglePlace(int index) async {
     final outings = context.read<OutingsProvider>();
-    final userId = context.read<AuthProvider>().user?.id;
     final l10n = context.l10n;
 
     if (outings.isVoteFinalized(widget.outing.id)) {
       AppSnackBar.show(l10n.voteLocked);
-      return;
-    }
-
-    final attendance = outings.cuserAttendance(widget.outing.id, userId);
-    if (attendance == AttendanceStatus.notGoing) {
-      AppSnackBar.show(l10n.notInCannotVotePlaces);
       return;
     }
 
@@ -89,28 +70,45 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     if (ok) AppSnackBar.show(l10n.voteUpdated);
   }
 
-  Future<void> _confirmVote() async {
+  Future<void> _runTieBreak() async {
+    if (_breakingTie) return;
     final outings = context.read<OutingsProvider>();
     final userId = context.read<AuthProvider>().user?.id;
-    final l10n = context.l10n;
-
-    final isCreator =
+    final isOwner =
         widget.outing.createdById != null &&
         widget.outing.createdById == userId;
-    if (!isCreator &&
-        outings.cuserAttendance(widget.outing.id, userId) !=
-            AttendanceStatus.going) {
-      AppSnackBar.show(l10n.pickImInToVote);
-      return;
-    }
-    if (!outings.hasVoted(widget.outing.id)) {
-      AppSnackBar.show(l10n.pickFavoritePlace);
+    if (!isOwner) return;
+
+    setState(() => _breakingTie = true);
+    final winnerId = await outings.breakTieFor(widget.outing.id);
+    if (!mounted) return;
+
+    if (winnerId == null || winnerId.isEmpty) {
+      setState(() => _breakingTie = false);
+      AppSnackBar.show(context.l10n.voteUpdated);
       return;
     }
 
-    final ok = await outings.finalizeVoteFor(widget.outing.id);
-    if (!mounted) return;
-    AppSnackBar.show(ok ? l10n.voteLocked : l10n.voteUpdated);
+    final options = outings.optionsFor(widget.outing.id);
+    final labels = [for (final option in options) option.label];
+    final matched = options.where((o) => o.placeId == winnerId);
+    final winnerLabel = matched.isNotEmpty
+        ? matched.first.label
+        : (labels.isNotEmpty ? labels.first : 'Winner');
+
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'tie-break',
+      pageBuilder: (context, animation, secondary) {
+        return TieBreakRevealDialog(
+          candidates: labels,
+          winnerLabel: winnerLabel,
+        );
+      },
+    );
+
+    if (mounted) setState(() => _breakingTie = false);
   }
 
   @override
@@ -129,18 +127,11 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
         outing.createdById != null && outing.createdById == userId;
     final locked = outings.isVoteFinalized(outing.id);
     final attendanceOpen =
-        outings.canChangeAttendance(outing.id) && !locked && !_saving;
-    final placesEnabled =
-        !locked &&
-        showPlaces &&
-        (isCreator || outings.canSelectPlaces(outing.id, userId));
-    final totalMembers = outing.going;
+        outings.canChangeAttendance(outing.id, userId: userId) && !_saving;
+    final placesEnabled = !locked && showPlaces;
+    final totalMembers = math.max(outing.going, 1);
     final voted = outings.votedCountFor(outing.id).clamp(0, totalMembers);
-    final canConfirm =
-        showPlaces &&
-        !locked &&
-        outings.hasVoted(outing.id) &&
-        (isCreator || mine == AttendanceStatus.going);
+    final showTieBreak = isCreator && outings.isTied(outing.id);
 
     return AppCard(
       child: Column(
@@ -237,6 +228,18 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                 8.gapW,
                 Expanded(
                   child: _AttendanceButton(
+                    label: l10n.maybe,
+                    icon: Icons.help_outline,
+                    selected: mine == AttendanceStatus.maybe,
+                    loading: _saving && mine != AttendanceStatus.maybe,
+                    enabled: attendanceOpen,
+                    color: AppColors.amber700,
+                    onTap: () => _selectAttendance(AttendanceStatus.maybe),
+                  ),
+                ),
+                8.gapW,
+                Expanded(
+                  child: _AttendanceButton(
                     label: l10n.notIn,
                     icon: Icons.close,
                     selected: mine == AttendanceStatus.notGoing,
@@ -259,21 +262,6 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-          ] else if (mine == AttendanceStatus.notGoing && showPlaces) ...[
-            8.gapH,
-            Text(
-              l10n.notInCannotVotePlaces,
-              style: TextStyle(color: palette.textMuted, fontSize: 11.sp),
-            ),
-          ] else if (showPlaces &&
-              outings.hasVoted(outing.id) &&
-              mine != AttendanceStatus.going &&
-              !isCreator) ...[
-            8.gapH,
-            Text(
-              l10n.pickImInToVote,
-              style: TextStyle(color: palette.textMuted, fontSize: 11.sp),
-            ),
           ],
           if (showPlaces) ...[
             14.gapH,
@@ -292,19 +280,19 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
               enabled: placesEnabled,
               onSelected: _togglePlace,
             ),
-            if (canConfirm) ...[
-              12.gapH,
-              CustomButton(
-                label: l10n.confirmVote,
-                icon: Icons.lock_outline,
-                size: AppButtonSize.small,
-                onPressed: _confirmVote,
-              ),
-            ],
             if (outings.voteEndsAt(outing.id) != null) ...[
               12.gapH,
               VoteCountdownText(endsAt: outings.voteEndsAt(outing.id)!),
             ],
+          ],
+          if (showTieBreak) ...[
+            14.gapH,
+            CustomButton(
+              label: l10n.letYallaDecide,
+              icon: Icons.casino_outlined,
+              size: AppButtonSize.small,
+              onPressed: _breakingTie ? null : _runTieBreak,
+            ),
           ],
         ],
       ),
@@ -335,8 +323,6 @@ class _AttendanceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final duration = AppMotion.of(context, AppMotion.standard);
-    // Fill and label colour tween between states; the ripple stays on the
-    // transparent Material so press feedback is unchanged.
     return AnimatedContainer(
       duration: duration,
       curve: AppMotion.settle,
@@ -351,51 +337,35 @@ class _AttendanceButton extends StatelessWidget {
           onTap: enabled ? onTap : null,
           borderRadius: BorderRadius.circular(14.r),
           child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 10.w),
+            padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 6.w),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedSwitcher(
-                  duration: duration,
-                  switchInCurve: AppMotion.enter,
-                  switchOutCurve: AppMotion.exit,
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.7, end: 1).animate(
-                        animation,
-                      ),
-                      child: child,
+                if (loading)
+                  SizedBox(
+                    width: 14.w,
+                    height: 14.w,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: color,
                     ),
+                  )
+                else
+                  Icon(
+                    icon,
+                    size: 16.w,
+                    color: selected ? color : palette.textMuted,
                   ),
-                  child: loading
-                      ? SizedBox(
-                          key: const ValueKey('loading'),
-                          width: 16.w,
-                          height: 16.w,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: color,
-                          ),
-                        )
-                      : Icon(
-                          icon,
-                          key: ValueKey(selected),
-                          size: 18.w,
-                          color: selected ? color : palette.textMuted,
-                        ),
-                ),
-                6.gapW,
+                4.gapW,
                 Flexible(
-                  child: AnimatedDefaultTextStyle(
-                    duration: duration,
-                    curve: AppMotion.settle,
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 12.sp,
+                      fontSize: 11.sp,
                       color: selected ? color : palette.textPrimary,
                     ),
-                    child: Text(label),
                   ),
                 ),
               ],
@@ -433,168 +403,55 @@ class OutingVoteOptions extends StatelessWidget {
       children: [
         for (var i = 0; i < options.length; i++) ...[
           if (i > 0) Responsive.spaceSm.gapH,
-          _VoteOptionTile(
-            label: options[i].label,
-            votesLabel: l10n.votesPercent(options[i].votes, options[i].percent),
-            percent: options[i].percent,
-            selected: selectedIndexes.contains(i),
-            compact: compact,
-            enabled: enabled,
-            onTap: () => onSelected(i),
-            muted: palette.textMuted,
-            surface: palette.surface,
-            border: palette.border,
-            brandSoft: palette.brandSoft,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _VoteOptionTile extends StatelessWidget {
-  const _VoteOptionTile({
-    required this.label,
-    required this.votesLabel,
-    required this.percent,
-    required this.selected,
-    required this.compact,
-    required this.enabled,
-    required this.onTap,
-    required this.muted,
-    required this.surface,
-    required this.border,
-    required this.brandSoft,
-  });
-
-  final String label;
-  final String votesLabel;
-  final int percent;
-  final bool selected;
-  final bool compact;
-  final bool enabled;
-  final VoidCallback onTap;
-  final Color muted;
-  final Color surface;
-  final Color border;
-  final Color brandSoft;
-
-  @override
-  Widget build(BuildContext context) {
-    final duration = AppMotion.of(context, AppMotion.standard);
-    return AnimatedOpacity(
-      opacity: enabled ? 1.0 : 0.45,
-      duration: duration,
-      curve: AppMotion.settle,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(12.r),
-          child: AnimatedContainer(
-            duration: duration,
-            curve: AppMotion.settle,
-            padding: EdgeInsets.all(compact ? 10.w : 12.w),
-            decoration: BoxDecoration(
-              color: selected ? brandSoft : surface,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: enabled ? () => onSelected(i) : null,
               borderRadius: BorderRadius.circular(12.r),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: AppColors.brand600.withValues(alpha: 0.12),
-                        blurRadius: 12.w,
-                        offset: Offset(0, 4.h),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: context.palette.shadow,
-                        blurRadius: 10.w,
-                        offset: Offset(0, 4.h),
-                      ),
-                    ],
-            ),
-            child: Column(
-              children: [
-                Row(
+              child: AnimatedContainer(
+                duration: AppMotion.of(context, AppMotion.standard),
+                padding: EdgeInsets.all(compact ? 10.w : 12.w),
+                decoration: BoxDecoration(
+                  color: selectedIndexes.contains(i)
+                      ? palette.brandSoft
+                      : palette.surface,
+                  borderRadius: BorderRadius.circular(12.r),
+                ),
+                child: Row(
                   children: [
-                    AnimatedContainer(
-                      duration: duration,
-                      curve: AppMotion.settle,
-                      width: 20.w,
-                      height: 20.w,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6.r),
-                        color: selected
-                            ? AppColors.brand600
-                            : Colors.transparent,
-                        border: Border.all(
-                          color: selected ? AppColors.brand600 : border,
-                          width: 2,
-                        ),
-                      ),
-                      child: AnimatedScale(
-                        scale: selected ? 1 : 0,
-                        duration: duration,
-                        curve: selected ? Curves.easeOutBack : AppMotion.exit,
-                        child: Icon(
-                          Icons.check,
-                          size: 12.w,
-                          color: Colors.white,
-                        ),
-                      ),
+                    Icon(
+                      selectedIndexes.contains(i)
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      color: selectedIndexes.contains(i)
+                          ? AppColors.brand600
+                          : palette.border,
                     ),
                     Responsive.spaceSm.gapW,
                     Expanded(
                       child: Text(
-                        label,
+                        options[i].label,
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: Responsive.fontSm,
-                          color: selected ? context.palette.brandStrong : null,
                         ),
                       ),
                     ),
                     Text(
-                      votesLabel,
+                      l10n.votesPercent(options[i].votes, options[i].percent),
                       style: TextStyle(
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w800,
-                        color: selected ? AppColors.brand600 : muted,
+                        color: AppColors.brand600,
                       ),
                     ),
                   ],
                 ),
-                if (!compact) ...[
-                  Responsive.spaceSm.gapH,
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(999.r),
-                    // Tween the bar so a new vote visibly moves the share
-                    // instead of snapping to the new value.
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween<double>(
-                        end: (percent.clamp(0, 100)) / 100,
-                      ),
-                      duration: AppMotion.of(context, AppMotion.emphasis),
-                      curve: AppMotion.enter,
-                      builder: (context, value, _) {
-                        return LinearProgressIndicator(
-                          value: value,
-                          minHeight: 6.h,
-                          backgroundColor: border.withValues(alpha: 0.45),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            selected ? AppColors.brand600 : AppColors.brand200,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        ],
+      ],
     );
   }
 }
@@ -642,6 +499,139 @@ class _VoteCountdownTextState extends State<VoteCountdownText> {
           ],
         );
       },
+    );
+  }
+}
+
+/// Polished reveal for the server-selected tie-break winner.
+class TieBreakRevealDialog extends StatefulWidget {
+  const TieBreakRevealDialog({
+    super.key,
+    required this.candidates,
+    required this.winnerLabel,
+  });
+
+  final List<String> candidates;
+  final String winnerLabel;
+
+  @override
+  State<TieBreakRevealDialog> createState() => _TieBreakRevealDialogState();
+}
+
+class _TieBreakRevealDialogState extends State<TieBreakRevealDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final palette = context.palette;
+    final candidates = widget.candidates.isEmpty
+        ? [widget.winnerLabel]
+        : widget.candidates;
+
+    return Material(
+      color: Colors.black54,
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = Curves.easeInOutCubic.transform(_controller.value);
+            final index = (_controller.value * 12).floor() % candidates.length;
+            final revealing = _controller.value > 0.72;
+            final label = revealing ? widget.winnerLabel : candidates[index];
+
+            return Container(
+              width: 300.w,
+              padding: EdgeInsets.all(22.w),
+              decoration: BoxDecoration(
+                color: palette.surface,
+                borderRadius: BorderRadius.circular(24.r),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    l10n.letYallaDecide,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18.sp,
+                    ),
+                  ),
+                  16.gapH,
+                  Transform.rotate(
+                    angle: (1 - t) * math.pi * 4,
+                    child: Container(
+                      width: 120.w,
+                      height: 120.w,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.brand200,
+                            AppColors.brand600.withValues(alpha: 0.85),
+                          ],
+                        ),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.all(12.w),
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  18.gapH,
+                  if (revealing)
+                    Text(
+                      l10n.winnerIs(widget.winnerLabel),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 14.sp,
+                        color: AppColors.brand600,
+                      ),
+                    )
+                  else
+                    Text(
+                      l10n.pickingWinner,
+                      style: TextStyle(color: palette.textMuted),
+                    ),
+                  16.gapH,
+                  if (_controller.isCompleted)
+                    CustomButton(
+                      label: l10n.done,
+                      size: AppButtonSize.small,
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }

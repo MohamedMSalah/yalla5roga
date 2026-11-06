@@ -54,6 +54,8 @@ export type EmailPasswordSession = {
   idToken: string;
   refreshToken: string;
   expiresIn: string;
+  /** Returned so mobile clients can `signInWithCustomToken` and own token refresh. */
+  customToken: string;
 };
 
 /** Exchange a Firebase Admin custom token for an ID token session. */
@@ -69,6 +71,7 @@ export async function signInWithCustomTokenSession(
       idToken,
       refreshToken: credential.user.refreshToken,
       expiresIn: "3600",
+      customToken,
     };
   });
 }

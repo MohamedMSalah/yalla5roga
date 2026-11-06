@@ -178,81 +178,44 @@ class FirebaseAuthService {
     }
   }
 
-  /// Login with email + password.
-  Future<fb.UserCredential> signInWithEmail({
-    required String email,
-    required String password,
-  }) async {
+  /// Establishes a Firebase client session after backend email login/signup.
+  ///
+  /// Email passwords live in Neon; the API returns a custom token so the app
+  /// can refresh Firebase ID tokens for Bearer auth.
+  Future<fb.UserCredential> signInWithCustomToken(String customToken) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
-      );
+      return await _auth.signInWithCustomToken(customToken.trim());
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
   }
 
-  /// Verifies phone OTP first, then links email/password to create the account.
-  Future<fb.UserCredential> registerWithEmailAfterPhone({
-    required String name,
-    required String email,
-    required String password,
-    required String phone,
+  /// Confirms a phone OTP without keeping that temporary Firebase session.
+  ///
+  /// Used before backend email signup so the phone is client-verified while
+  /// Neon remains the email/password store.
+  Future<void> verifyPhoneOtpThenSignOut({
     required String verificationId,
     required String smsCode,
   }) async {
-    final e164 = Validators.normalizePhone(phone);
-    if (!Validators.isValidEgyptianPhone(e164)) {
-      throw const AuthException(
-        'Enter a valid Egyptian phone number',
-        AuthErrorCodes.invalidPhone,
-      );
-    }
     if (verificationId.isEmpty) {
       throw const AuthException(
         'Request a verification code first',
         AuthErrorCodes.missingVerification,
       );
     }
-
     try {
-      final phoneCredential = fb.PhoneAuthProvider.credential(
+      final credential = fb.PhoneAuthProvider.credential(
         verificationId: verificationId,
         smsCode: smsCode.trim(),
       );
-      final phoneResult = await _auth.signInWithCredential(phoneCredential);
-      final user = phoneResult.user;
-      if (user == null) {
-        throw const AuthException(
-          'Phone verification failed',
-          AuthErrorCodes.verificationFailed,
-        );
-      }
-
-      final emailCredential = fb.EmailAuthProvider.credential(
-        email: email.trim(),
-        password: password,
-      );
-      final linked = await user.linkWithCredential(emailCredential);
-      final linkedUser = linked.user ?? user;
-      final trimmedName = name.trim();
-      if (trimmedName.isNotEmpty) {
-        await linkedUser.updateDisplayName(trimmedName);
-        await linkedUser.reload();
-      }
-      return linked;
+      await _auth.signInWithCredential(credential);
+      await _auth.signOut();
     } on fb.FirebaseAuthException catch (error) {
-      // Leave a half-linked phone session cleared so the user can retry.
-      if (_auth.currentUser != null &&
-          (error.code == 'email-already-in-use' ||
-              error.code == 'credential-already-in-use' ||
-              error.code == 'provider-already-linked')) {
+      if (_auth.currentUser != null) {
         await _auth.signOut();
       }
       throw _mapFirebaseAuthException(error);
-    } on AuthException {
-      rethrow;
     }
   }
 

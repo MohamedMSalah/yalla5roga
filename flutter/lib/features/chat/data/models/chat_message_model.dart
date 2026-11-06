@@ -34,19 +34,29 @@ class ChatMessageModel extends ChatMessage {
     Map<dynamic, dynamic> json, {
     String? outingId,
   }) {
-    final sentAtRaw = apiString(json['sentAt']) ?? apiString(json['createdAt']);
+    final sentAtRaw =
+        apiString(json['sent_at']) ??
+        apiString(json['sentAt']) ??
+        apiString(json['createdAt']);
     return ChatMessageModel(
       id: apiString(json['id']) ?? '',
-      outingId: apiString(json['outingId']) ?? outingId,
+      outingId:
+          apiString(json['outing_id']) ??
+          apiString(json['outingId']) ??
+          outingId,
       sender: apiString(json['sender']) ?? '',
       text: apiString(json['text']) ?? '',
       time: apiString(json['time']) ?? '',
       isMine: apiBool(json['isMine']),
       avatar: apiString(json['avatar']),
-      senderId: apiString(json['senderId']),
+      senderId:
+          apiString(json['sender_id']) ?? apiString(json['senderId']),
       sentAt: DateTime.tryParse(sentAtRaw ?? ''),
       deliveryStatus: MessageDeliveryStatus.values.firstWhere(
-        (status) => status.name == apiString(json['deliveryStatus']),
+        (status) =>
+            status.name ==
+            (apiString(json['delivery_status']) ??
+                apiString(json['deliveryStatus'])),
         orElse: () => MessageDeliveryStatus.sent,
       ),
     );

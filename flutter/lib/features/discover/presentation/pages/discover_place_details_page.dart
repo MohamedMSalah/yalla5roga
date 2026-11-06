@@ -31,8 +31,8 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
   final String? coverUrl;
 
   /// Builds a gallery that always contains the card cover when the URL is
-  /// known. Mock fixtures already match; live APIs often send a different
-  /// first gallery photo than `coverImageUrl`.
+  /// known. Live APIs often send a different first gallery photo than
+  /// `coverImageUrl`.
   @visibleForTesting
   static ({List<DiscoverPlaceImage> gallery, int coverIndex}) heroGallery({
     required SuggestedPlace place,

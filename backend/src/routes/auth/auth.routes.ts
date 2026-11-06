@@ -13,10 +13,12 @@ import {
  *     tags: [Authentication]
  *     summary: Log in with email and password
  *     description: >
- *       Verifies the email and password against the Neon `users.password_hash`,
- *       then returns a Firebase ID token (via a custom token exchange) for use
- *       as `Authorization: Bearer <idToken>` on protected routes. Firebase is
- *       identity-only for this flow; credentials live in Neon.
+ *       Canonical email/password login. Verifies Neon `users.password_hash`,
+ *       then returns a Firebase ID token session (via custom-token exchange)
+ *       plus `customToken` so mobile clients can `signInWithCustomToken` and
+ *       refresh ID tokens locally. Firebase Auth is not used for email passwords.
+ *       Google, Apple, and phone OTP still use Firebase Auth on the client,
+ *       then `POST /api/users/sync`.
  *     operationId: loginWithEmailPassword
  *     security: []
  *     requestBody:
@@ -45,12 +47,11 @@ import {
  *     tags: [Authentication]
  *     summary: Sign up with name, email, password, and phone
  *     description: >
- *       Hashes the password into Neon (`users.password_hash`), creates a
- *       Firebase Auth identity without a Firebase password, and returns a
- *       Firebase ID token. The phone is saved on the profile but is not treated
- *       as verified until Firebase phone auth succeeds. Google, Apple, and
- *       phone-only flows should use `POST /api/users/sync` after Firebase
- *       sign-in instead.
+ *       Canonical email/password signup. Hashes the password into Neon
+ *       (`users.password_hash`), creates a Firebase Auth identity without a
+ *       Firebase password, and returns `idToken` + `customToken` for the client
+ *       session. Phone OTP may be verified on the client before calling this
+ *       endpoint; Google/Apple continue to use Firebase then `POST /api/users/sync`.
  *     operationId: signupWithEmailPassword
  *     security: []
  *     requestBody:

@@ -71,6 +71,34 @@ import {
  *               $ref: "#/components/schemas/ErrorResponse"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ * /api/chat/outings/{outingId}/read:
+ *   patch:
+ *     tags: [Chat]
+ *     summary: Mark outing chat as read
+ *     description: >
+ *       Upserts a `chat_reads` row for the authenticated participant so
+ *       unread state can be derived from `last_read_at`. History remains
+ *       readable after the outing ends.
+ *     operationId: markOutingChatRead
+ *     parameters:
+ *       - $ref: "#/components/parameters/ChatOutingId"
+ *     responses:
+ *       "200":
+ *         description: Updated chat read cursor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ChatReadResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "500":
+ *         $ref: "#/components/responses/InternalServerError"
  */
 const api = Router();
 const controller = new ChatController();
@@ -89,6 +117,11 @@ api.post(
     body: sendMessageBodySchema,
   }),
   controller.send,
+);
+api.patch(
+  "/outings/:outingId/read",
+  validate({ params: outingIdParamsSchema }),
+  controller.markAsRead,
 );
 
 const router = Router();

@@ -9,7 +9,7 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "test": "tsx --test tests/group-invitations.test.ts tests/auth.middleware.test.ts tests/sync-user.test.ts"
+    "test": "tsx --test tests/group-invitations.test.ts tests/notification-dispatch.test.ts tests/auth.middleware.test.ts tests/sync-user.test.ts tests/resource-authz.test.ts tests/outing-lifecycle.test.ts"
   },
   "keywords": [],
   "author": "",

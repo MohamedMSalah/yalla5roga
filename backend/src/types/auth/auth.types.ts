@@ -17,5 +17,7 @@ export type AuthSessionResult = {
   refreshToken: string;
   expiresIn: string;
   uid: string;
+  /** Firebase custom token for client `signInWithCustomToken`. */
+  customToken: string;
   user: PublicUser | null;
 };

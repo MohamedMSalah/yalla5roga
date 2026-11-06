@@ -70,8 +70,10 @@ export class GroupController {
 
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.uid) throw new UnauthorizedError();
       const group = await this.updateGroup.execute(
         req.params.id as string,
+        req.user.uid,
         req.body,
       );
       res.json({ success: true, data: group });
@@ -82,7 +84,11 @@ export class GroupController {
 
   remove = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const group = await this.deleteGroup.execute(req.params.id as string);
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const group = await this.deleteGroup.execute(
+        req.params.id as string,
+        req.user.uid,
+      );
       res.json({ success: true, data: group });
     } catch (error) {
       next(error);
@@ -100,7 +106,8 @@ export class GroupController {
 
   addGroupMember = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const member = await this.addMember.execute({
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const member = await this.addMember.execute(req.user.uid, {
         group_id: req.params.id as string,
         phoneNumber: req.body.phoneNumber,
         role: req.body.role,
@@ -128,6 +135,8 @@ export class GroupController {
             outcome: "member_added",
             invitation_id: null,
             whatsapp_url: null,
+            deep_link: null,
+            notification_queued: false,
             member: result.member,
           },
         });
@@ -140,6 +149,8 @@ export class GroupController {
             outcome: "invited",
             invitation_id: result.invitation.id,
             whatsapp_url: result.whatsappUrl,
+            deep_link: result.deepLink,
+            notification_queued: true,
             status: result.invitation.status,
             invited_phone: result.invitation.invited_phone,
           },
@@ -154,6 +165,8 @@ export class GroupController {
             outcome: "already_pending",
             invitation_id: result.invitation.id,
             whatsapp_url: result.whatsappUrl,
+            deep_link: result.deepLink,
+            notification_queued: false,
             status: result.invitation.status,
           },
         });
@@ -166,9 +179,12 @@ export class GroupController {
           outcome: "already_member",
           invitation_id: null,
           whatsapp_url: null,
+          deep_link: null,
+          notification_queued: false,
           member: result.member,
         },
       });
+
     } catch (error) {
       next(error);
     }
@@ -196,8 +212,10 @@ export class GroupController {
     next: NextFunction,
   ) => {
     try {
+      if (!req.user?.uid) throw new UnauthorizedError();
       const member = await this.removeMember.execute(
         req.params.id as string,
+        req.user.uid,
         req.params.userId as string,
       );
       res.json({ success: true, data: member });

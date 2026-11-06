@@ -30,9 +30,22 @@ export class CreateOutingUseCase {
 
     assertEndsAfterStart(input.scheduled_at, input.ends_at);
 
+    if (input.vote_ends_at == null && input.vote_deadline_hours == null) {
+      throw new ValidationError(
+        "voting deadline is required: provide vote_ends_at or vote_deadline_hours",
+      );
+    }
+
+    const hasLocation = Boolean(input.location_place_id || input.location_name);
+    const status =
+      input.status ??
+      (hasLocation ? "confirmed" : "draft");
+
     return this.outings.create({
       ...input,
       occasion,
+      type: hasGroup ? "group" : "special_event",
+      status,
       image_url: input.image_url ?? "",
     });
   }

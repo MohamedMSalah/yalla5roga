@@ -40,6 +40,7 @@ export class LoginUseCase {
       refreshToken: session.refreshToken,
       expiresIn: session.expiresIn,
       uid: session.uid,
+      customToken: session.customToken,
       user: toPublicUser(user),
     };
   }

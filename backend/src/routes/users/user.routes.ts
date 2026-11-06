@@ -78,10 +78,11 @@ import {
  * /api/users/sync:
  *   post:
  *     tags: [Users]
- *     summary: Sync a Firebase user into the database
+ *     summary: Sync a Firebase user into the database (canonical provisioning)
  *     description: >
- *       Called after Firebase phone, Google, or Apple sign-in. The user id is
- *       the Firebase UID from the Bearer token. Do not send a password.
+ *       CANONICAL user provisioning after any Firebase sign-in (phone, Google,
+ *       Apple, or Firebase email/password). The user id is the Firebase UID from
+ *       the Bearer token. Do not send a password.
  *       First call creates a minimal profile from trusted token claims (and
  *       optional body bootstrap fields). Later calls return the existing
  *       profile without overwriting name, email, phone, or image_url from the
@@ -90,6 +91,7 @@ import {
  *       accounts without a verified phone still receive a profile;
  *       `invitations.status` is then `phone_verification_required`. A verified
  *       phone already stored for a different user returns 409.
+ *       Profile edits after sync use `PATCH /api/users/cuser`.
  *     operationId: syncUser
  *     requestBody:
  *       $ref: "#/components/requestBodies/SyncUser"

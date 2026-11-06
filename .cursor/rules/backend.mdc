@@ -1,0 +1,17 @@
+---
+description: Backend Express architecture and API conventions
+globs: backend/**/*
+alwaysApply: false
+---
+
+# Backend rules
+
+- Read `docs/BACKEND_ARCHITECTURE.md` and `docs/API_CONTRACTS.md` for API work.
+- Preserve Route → Controller → UseCase → Repository/Datasource → Prisma.
+- Put business rules in use cases/services (`vote-resolution`, access helpers), not fat controllers.
+- Protect routes with `authMiddleware` unless intentionally public; authorize by resource (Owner = `created_by`).
+- Validate with Zod via `validate` middleware; return errors through `errorMiddleware` conventions.
+- Use transactions for voting, candidate replace, create+attendance, and lifecycle resolution.
+- Backend is source of truth for voting closure, winner, tie-break, cancel, and notification triggers.
+- Prefer extending existing endpoints over duplicate routes.
+- Update `docs/API_CONTRACTS.md` / related docs in the same task when routes or behavior change.

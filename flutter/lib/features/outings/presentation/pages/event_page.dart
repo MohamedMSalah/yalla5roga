@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/animations/flying_item_animator.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/app_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
@@ -39,18 +41,30 @@ class EventPage extends StatefulWidget {
   State<EventPage> createState() => _EventPageState();
 }
 
-class _EventPageState extends State<EventPage> {
+class _EventPageState extends State<EventPage>
+    with SingleTickerProviderStateMixin {
+  final _coverKey = GlobalKey();
+  final _bookmarkKey = GlobalKey();
+
   Animation<double>? _routeAnimation;
   AnimationStatusListener? _routeListener;
+  late final AnimationController _bookmarkBounce;
+  var _saving = false;
 
   @override
   void initState() {
     super.initState();
+    _bookmarkBounce = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAfterPush());
   }
 
   @override
   void dispose() {
+    FlyingItemAnimator.cancel();
+    _bookmarkBounce.dispose();
     _stopRouteListener();
     super.dispose();
   }
@@ -107,14 +121,38 @@ class _EventPageState extends State<EventPage> {
     ];
     final goingAvatarUrls = goingAvatars.take(3).toList();
 
+    final bounce = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 1,
+          end: 1.28,
+        ).chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 45,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(
+          begin: 1.28,
+          end: 1,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 55,
+      ),
+    ]).animate(_bookmarkBounce);
+
     return Scaffold(
       appBar: AppPageBar(
         title: live.title,
-        trailing: AppIconButton(
-          icon: saved ? Icons.bookmark : Icons.bookmark_border,
-          background: saved ? AppColors.brand600 : null,
-          foreground: saved ? Colors.white : null,
-          onTap: () => _toggleSaved(context, live),
+        trailing: ScaleTransition(
+          scale: bounce,
+          child: KeyedSubtree(
+            key: _bookmarkKey,
+            child: AppIconButton(
+              icon: saved ? Icons.bookmark : Icons.bookmark_border,
+              background: saved ? AppColors.brand600 : null,
+              foreground: saved ? Colors.white : null,
+              isLoading: _saving,
+              onTap: () => _toggleSaved(context, live),
+            ),
+          ),
         ),
       ),
       body: SafeArea(
@@ -122,16 +160,19 @@ class _EventPageState extends State<EventPage> {
         child: ListView(
           padding: Responsive.pagePadding(),
           children: [
-            AppHero(
-              tag: widget.coverHeroTag,
-              url: _coverUrl(live),
-              radius: 24.r,
-              child: AppNetworkImage(
+            KeyedSubtree(
+              key: _coverKey,
+              child: AppHero(
+                tag: widget.coverHeroTag,
                 url: _coverUrl(live),
-                width: double.infinity,
-                height: 220.h,
-                placeholderIcon: Icons.explore_outlined,
-                fade: false,
+                radius: 24.r,
+                child: AppNetworkImage(
+                  url: _coverUrl(live),
+                  width: double.infinity,
+                  height: 220.h,
+                  placeholderIcon: Icons.explore_outlined,
+                  fade: false,
+                ),
               ),
             ),
             Responsive.spaceMd.gapH,
@@ -247,17 +288,20 @@ class _EventPageState extends State<EventPage> {
                     label: switch (attendance) {
                       AttendanceStatus.going => l10n.imIn,
                       AttendanceStatus.notGoing => l10n.notIn,
-                      AttendanceStatus.notVoted => l10n.stillNotVoted,
+                      AttendanceStatus.maybe => l10n.maybe,
+                      AttendanceStatus.unset => l10n.stillNotVoted,
                     },
                     color: switch (attendance) {
                       AttendanceStatus.going => AppColors.emerald50,
                       AttendanceStatus.notGoing => AppColors.rose50,
-                      AttendanceStatus.notVoted => palette.surfaceMuted,
+                      AttendanceStatus.maybe => AppColors.amber100,
+                      AttendanceStatus.unset => palette.surfaceMuted,
                     },
                     textColor: switch (attendance) {
                       AttendanceStatus.going => const Color(0xFF059669),
                       AttendanceStatus.notGoing => AppColors.rose600,
-                      AttendanceStatus.notVoted => palette.textMuted,
+                      AttendanceStatus.maybe => AppColors.amber700,
+                      AttendanceStatus.unset => palette.textMuted,
                     },
                   ),
                 ],
@@ -298,11 +342,48 @@ class _EventPageState extends State<EventPage> {
   }
 
   Future<void> _toggleSaved(BuildContext context, Outing live) async {
+    if (_saving || FlyingItemAnimator.isFlying) return;
+    setState(() => _saving = true);
     final added = await context.read<SavedOutingsProvider>().toggle(live);
     if (!context.mounted) return;
+    setState(() => _saving = false);
+
+    if (added == null) {
+      AppSnackBar.showError(context.l10n.unexpectedError);
+      return;
+    }
+
+    if (added) {
+      final coverUrl = _coverUrl(live);
+      if (coverUrl.trim().isNotEmpty) {
+        unawaited(
+          FlyingItemAnimator.fly(
+            context: context,
+            sourceKey: _coverKey,
+            targetKey: _bookmarkKey,
+            imageUrl: coverUrl,
+            borderRadius: 24.r,
+            duration: AppMotion.reduce(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 700),
+            onArrived: _bounceBookmark,
+          ),
+        );
+      } else {
+        _bounceBookmark();
+      }
+    }
+
     AppSnackBar.show(
       added ? context.l10n.outingSaved : context.l10n.outingRemoved,
     );
+  }
+
+  void _bounceBookmark() {
+    if (!mounted) return;
+    _bookmarkBounce
+      ..stop()
+      ..forward(from: 0);
   }
 }
 

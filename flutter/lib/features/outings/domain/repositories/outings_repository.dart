@@ -21,6 +21,16 @@ class OutingSnapshot {
   final Map<String, Map<String, AttendanceStatus>> attendanceByOuting;
 }
 
+class TieBreakResult {
+  const TieBreakResult({
+    required this.snapshot,
+    required this.winningOptionId,
+  });
+
+  final OutingSnapshot snapshot;
+  final String winningOptionId;
+}
+
 abstract class OutingsRepository {
   Future<Either<Failure, OutingSnapshot>> load({bool forceRefresh = false});
 
@@ -46,6 +56,9 @@ abstract class OutingsRepository {
   );
 
   Future<Either<Failure, OutingSnapshot>> finalizeVote(String outingId);
+
+  /// Owner tie-break; returns snapshot plus server-selected winning option id.
+  Future<Either<Failure, TieBreakResult>> breakTie(String outingId);
 
   Future<Either<Failure, OutingSnapshot>> clearVotes(String outingId);
 

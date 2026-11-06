@@ -117,6 +117,17 @@ class OutingsRepositoryImpl implements OutingsRepository {
   }
 
   @override
+  Future<Either<Failure, TieBreakResult>> breakTie(String outingId) async {
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.breakTie(outingId),
+      reason: 'breakTie',
+    );
+    result.fold((_) {}, (value) => _storeSnapshot(value.snapshot));
+    return result;
+  }
+
+  @override
   Future<Either<Failure, OutingSnapshot>> clearVotes(String outingId) async {
     final result = await guardRemote(
       networkInfo,

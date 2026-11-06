@@ -72,9 +72,8 @@ class AppNetworkImage extends StatelessWidget {
     return _image(context, finiteWidth, finiteHeight);
   }
 
-  /// Decode at display size, not the source (mock Unsplash `?w=800` and live
-  /// CDN originals). Full-res decode of every home cover is what skipped
-  /// ~100 frames after `home_feed_ready`.
+  /// Decode at display size, not the source CDN original. Full-res decode of
+  /// every home cover is what skipped ~100 frames after `home_feed_ready`.
   static int? _decodePx(double? logical, double dpr) {
     if (logical == null || !logical.isFinite || logical <= 0) return null;
     return (logical * dpr).round().clamp(1, 1080);

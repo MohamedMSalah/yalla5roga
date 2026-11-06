@@ -11,10 +11,17 @@ import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/domain/repositories/groups_repository.dart';
 
 class GroupsRepositoryImpl implements GroupsRepository {
-  GroupsRepositoryImpl({required this.remote, required this.networkInfo});
+  GroupsRepositoryImpl({
+    required this.remote,
+    required this.networkInfo,
+    required this.currentUserId,
+  });
 
   final GroupsDataSource remote;
   final NetworkInfo networkInfo;
+
+  /// Firebase UID for Phase A leave via DELETE .../members/:userId.
+  final String? Function() currentUserId;
 
   static const _groupsKey = 'groups';
   final _groupsCache = TtlCache<List<Group>>(ttl: CachePolicy.groups);
@@ -111,9 +118,13 @@ class GroupsRepositoryImpl implements GroupsRepository {
 
   @override
   Future<Either<Failure, void>> leaveGroup(String groupId) async {
+    final uid = currentUserId();
+    if (uid == null || uid.isEmpty) {
+      return const Left(AuthFailure('Not signed in'));
+    }
     final result = await guardRemote(
       networkInfo,
-      () => remote.leaveGroup(groupId),
+      () => remote.leaveGroup(groupId, uid),
       reason: 'leaveGroup',
     );
     result.fold((_) {}, (_) {

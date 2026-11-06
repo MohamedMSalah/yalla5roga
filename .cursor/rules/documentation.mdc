@@ -1,0 +1,40 @@
+---
+description: Mandatory documentation synchronization with implementation
+globs: docs/**/*,AGENTS.md,.cursor/rules/**/*
+alwaysApply: true
+---
+
+# Documentation maintenance
+
+Architecture docs under `docs/`, root `AGENTS.md`, and `.cursor/rules/` are mandatory maintenance resources.
+
+## Same-task requirement
+
+Whenever implementation changes architecture, workflows, schema, APIs, auth, notifications, business rules, user journeys, or folder layout, update the corresponding documentation **in the same task**. Never postpone.
+
+## Mapping (minimum)
+
+| Change | Docs |
+|--------|------|
+| System components / flows | `SYSTEM_ARCHITECTURE.md` |
+| Technical workflows / lifecycle / voting design | `SYSTEM_DESIGN.md` |
+| User journeys / QA scenarios | `USER_SCENARIOS.md` |
+| Business rules | `BUSINESS_LOGIC.md` + affected `USER_SCENARIOS.md` |
+| Flutter structure/patterns | `FLUTTER_ARCHITECTURE.md` |
+| Backend structure/patterns | `BACKEND_ARCHITECTURE.md` |
+| Prisma/schema | `DATABASE_ARCHITECTURE.md` |
+| Endpoints/contracts | `API_CONTRACTS.md` |
+| AuthN/Z | `AUTHENTICATION_AND_AUTHORIZATION.md` |
+| Notifications | `NOTIFICATIONS.md` |
+| Decisions | `ARCHITECTURE_DECISIONS.md` |
+| Paths/folders | `PROJECT_STRUCTURE.md` |
+| Product scope | `PROJECT_OVERVIEW.md` / owner-approved `PRODUCT_SCENARIOS.md` |
+
+Update Mermaid diagrams when flows or ER relationships change.
+
+## Reality rules
+
+- Document **implemented** behavior only as implemented; label Partial / Missing / OPEN explicitly.
+- Do not invent unresolved product decisions.
+- Prefer editing affected sections over rewriting every file.
+- Final task reports must include a **Documentation Updates** section.

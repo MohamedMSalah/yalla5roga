@@ -1,0 +1,18 @@
+---
+description: Flutter app architecture and coding conventions
+globs: flutter/**/*
+alwaysApply: false
+---
+
+# Flutter rules
+
+- Read `docs/FLUTTER_ARCHITECTURE.md` (and journey sections in `docs/USER_SCENARIOS.md` when changing UX).
+- Preserve feature-first Clean Architecture: UI → Provider/ChangeNotifier → Repository → RemoteDataSource → Dio.
+- Presentation must not import Dio, `http`, or Firebase packages.
+- Keep Provider as primary state; do not replace with a new state-management pattern without an ADR.
+- Wire new app-wide providers in both `AppDependencies` and `App`.
+- Use `ApiConstants` paths; map snake_case via existing payload helpers.
+- No mock/demo data layers.
+- Localization via `L10n`; theme via existing `ThemeProvider` / palette.
+- After Flutter code changes that affect architecture or API usage, update the matching docs in the same task.
+- Prefer existing shared widgets under `lib/core/widgets/`.

@@ -6,10 +6,11 @@ import {
   NotFoundError,
 } from "../../utils/errors.js";
 
-/** Sending is allowed only while the outing has not finished or been cancelled. */
+/** Chat send is open from creation through confirmation. */
 const CHAT_OPEN_STATUSES: ReadonlySet<outing_status> = new Set<outing_status>([
-  "upcoming",
+  "draft",
   "voting",
+  "confirmed",
 ]);
 
 async function loadOutingForUser(outingId: string, uid: string) {
@@ -18,7 +19,16 @@ async function loadOutingForUser(outingId: string, uid: string) {
     select: {
       status: true,
       created_by: true,
+      group_id: true,
       outing_guests: { where: { user_id: uid }, select: { user_id: true } },
+      groups: {
+        select: {
+          group_members: {
+            where: { user_id: uid },
+            select: { user_id: true },
+          },
+        },
+      },
     },
   });
   if (!outing) throw new NotFoundError("Outing");
@@ -26,13 +36,15 @@ async function loadOutingForUser(outingId: string, uid: string) {
 }
 
 /**
- * A participant is the creator or a row in outing_guests.
+ * A participant is the creator, an outing guest, or a group member.
  * Reading history needs only this check, so finished chats stay readable.
  */
 export async function assertChatParticipant(outingId: string, uid: string) {
   const outing = await loadOutingForUser(outingId, uid);
   const isParticipant =
-    outing.created_by === uid || outing.outing_guests.length > 0;
+    outing.created_by === uid ||
+    outing.outing_guests.length > 0 ||
+    (outing.groups?.group_members.length ?? 0) > 0;
   if (!isParticipant) throw new ForbiddenError("NOT_A_PARTICIPANT");
   return outing;
 }

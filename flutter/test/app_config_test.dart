@@ -8,12 +8,10 @@ void main() {
 
   AppConfig productionConfig({
     String apiBaseUrl = 'https://api.example.com',
-    bool useMockData = false,
   }) {
     return AppConfig.testing(
       environment: AppEnvironment.production,
       apiBaseUrl: apiBaseUrl,
-      useMockData: useMockData,
     );
   }
 
@@ -58,29 +56,15 @@ void main() {
     AppConfig.reset();
     expect(() => AppConfig.instance, throwsA(isA<AppConfigException>()));
 
-    final config = AppConfig.testing(useMockData: false);
+    final config = AppConfig.testing();
     AppConfig.initialize(config);
-    expect(AppConfig.instance.useMockData, isFalse);
     expect(AppConfig.instance.apiBaseUrl, config.apiBaseUrl);
     expect(AppConfig.instance.firebase.projectId, 'test-project');
   });
 
-  test('testing() is valid mock configuration', () {
+  test('testing() is valid configuration', () {
     expect(() => AppConfig.testing(), returnsNormally);
     AppConfig.testing().validate();
-  });
-
-  test('production rejects mock data', () {
-    expect(
-      () => productionConfig(useMockData: true).validate(),
-      throwsA(
-        isA<AppConfigException>().having(
-          (error) => error.message,
-          'message',
-          contains('USE_MOCK_DATA'),
-        ),
-      ),
-    );
   });
 
   test('production rejects http and loopback hosts', () {
@@ -187,7 +171,6 @@ void main() {
       apiBaseUrl: 'http://192.168.1.10:3000',
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
-      useMockData: false,
     );
     expect(config.validate, returnsNormally);
   });

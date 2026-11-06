@@ -148,7 +148,7 @@ void main() {
       );
     }
 
-    test('mock-style matching cover stays at its gallery index', () {
+    test('matching cover stays at its gallery index', () {
       final laidOut = DiscoverPlaceDetailsPage.heroGallery(
         place: place(cover: 'cover.jpg', images: ['cover.jpg', 'menu.jpg']),
       );

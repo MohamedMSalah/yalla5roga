@@ -111,7 +111,9 @@ import {
  *   patch:
  *     tags: [Groups]
  *     summary: Update a group
- *     description: Updates group fields for the given UUID.
+ *     description: >
+ *       Updates group fields for the given UUID. Allowed only for members with
+ *       `role = owner`. Other authenticated users receive 403.
  *     operationId: updateGroup
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -128,6 +130,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -135,7 +139,9 @@ import {
  *   delete:
  *     tags: [Groups]
  *     summary: Delete a group
- *     description: Deletes the group with the given UUID.
+ *     description: >
+ *       Deletes the group with the given UUID. Allowed only for members with
+ *       `role = owner`. Other authenticated users receive 403.
  *     operationId: deleteGroup
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -150,6 +156,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -180,7 +188,10 @@ import {
  *   post:
  *     tags: [Groups]
  *     summary: Add a group member by phone number
- *     description: Adds an existing user to the group using their phone number.
+ *     description: >
+ *       Adds an existing user to the group using their phone number.
+ *       Allowed only for members with `role = owner`. Any member may still
+ *       invite via `POST /api/groups/{id}/invitations`.
  *     operationId: addGroupMember
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -197,6 +208,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -205,7 +218,9 @@ import {
  *   delete:
  *     tags: [Groups]
  *     summary: Remove a group member
- *     description: Removes the given user from the group.
+ *     description: >
+ *       Removes the given user from the group. Allowed only for members with
+ *       `role = owner`. Removing the last remaining owner is forbidden (403).
  *     operationId: removeGroupMember
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -221,6 +236,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":

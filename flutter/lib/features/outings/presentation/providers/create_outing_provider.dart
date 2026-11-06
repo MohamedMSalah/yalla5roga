@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
-import 'package:yalla_5roga/core/mock/mock_data.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
@@ -171,7 +169,6 @@ class CreateOutingProvider extends ChangeNotifier {
   String get resolvedImage {
     if (_image != null && _image!.isNotEmpty) return _image!;
     if (_specialEvent) return _specialEventImage(_occasion);
-    if (AppConfig.instance.useMockData) return MockData.defaultCoverImage;
     return '';
   }
 
@@ -281,7 +278,7 @@ class CreateOutingProvider extends ChangeNotifier {
     if (_step == 0) {
       final nameError = Validators.outingName(nameController.text, l10n);
       if (nameError != null) return nameError;
-      if (!AppConfig.instance.useMockData && !_specialEvent && _image == null) {
+      if (!_specialEvent && _image == null) {
         return l10n.photoRequired;
       }
       if (_specialEvent) {
@@ -298,9 +295,7 @@ class CreateOutingProvider extends ChangeNotifier {
         }
       } else {
         if (locationLabel.isEmpty) return l10n.locationRequired;
-        if (!AppConfig.instance.useMockData &&
-            isCustomPlace &&
-            !customPlacePinned) {
+        if (isCustomPlace && !customPlacePinned) {
           return l10n.pickLocationRequired;
         }
       }
@@ -319,7 +314,7 @@ class CreateOutingProvider extends ChangeNotifier {
   String? draftError(L10n l10n) {
     final nameError = Validators.outingName(nameController.text, l10n);
     if (nameError != null) return nameError;
-    if (!AppConfig.instance.useMockData && !_specialEvent && _image == null) {
+    if (!_specialEvent && _image == null) {
       return l10n.photoRequired;
     }
     if (multiPlaceMode) {
@@ -500,7 +495,7 @@ class CreateOutingProvider extends ChangeNotifier {
       location: voting ? null : selectedLocation,
       occasion: _occasion,
       guestIds: guests,
-      status: voting ? OutingStatus.voting : OutingStatus.upcoming,
+      status: voting ? OutingStatus.voting : OutingStatus.draft,
       votePlaces: places,
       voteDeadlineHours: voting ? _voteDeadlineHours : null,
       createdById: createdById,

@@ -25,29 +25,65 @@ class NotificationsRemoteDataSourceImpl
       final response = await _client.get<Map<String, dynamic>>(
         ApiConstants.notifications,
       );
-      return NotificationsFeedModel.fromJson(apiPayload(response.data));
+      final items = apiObjectList(
+        response.data,
+        aliases: const ['notifications', 'items'],
+      );
+      final models = [
+        for (final item in items) NotificationModel.fromJson(_normalize(item)),
+      ];
+      final unreadCount = models.where((item) => item.unread).length;
+      return NotificationsFeedModel(unreadCount: unreadCount, items: models);
     } on DioException catch (error) {
       throw _unwrap(error);
     }
   }
 
   @override
-  Future<int> markAllRead() {
-    return _postUnreadCount(ApiConstants.notificationsRead);
-  }
-
-  @override
-  Future<int> markRead(String id) {
-    return _postUnreadCount(ApiConstants.notificationRead(id));
-  }
-
-  Future<int> _postUnreadCount(String path) async {
+  Future<int> markAllRead() async {
     try {
-      final response = await _client.post<Map<String, dynamic>>(path);
-      return apiInt(apiPayload(response.data)['unreadCount']);
+      await _client.patch<Map<String, dynamic>>(
+        ApiConstants.notificationsReadAll,
+      );
+      final feed = await getNotifications();
+      return feed.unreadCount;
     } on DioException catch (error) {
       throw _unwrap(error);
     }
+  }
+
+  @override
+  Future<int> markRead(String id) async {
+    try {
+      await _client.patch<Map<String, dynamic>>(
+        ApiConstants.notificationRead(id),
+      );
+      final feed = await getNotifications();
+      return feed.unreadCount;
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
+  }
+
+  Map<String, dynamic> _normalize(Map<String, dynamic> json) {
+    final isRead = apiBool(json['is_read']) || apiBool(json['isRead']);
+    return {
+      ...json,
+      'unread': json.containsKey('unread') ? apiBool(json['unread']) : !isRead,
+      'image':
+          apiString(json['image_url']) ??
+          apiString(json['image']) ??
+          apiString(json['imageUrl']),
+      'outingId':
+          apiString(json['outing_id']) ??
+          apiString(json['outingId']) ??
+          apiString(json['eventId']),
+      'groupId': apiString(json['group_id']) ?? apiString(json['groupId']),
+      'action': apiBool(json['action_required']) || apiBool(json['action']),
+      'createdAt':
+          apiString(json['created_at']) ?? apiString(json['createdAt']),
+      'time': apiString(json['time']) ?? apiString(json['created_at']) ?? '',
+    };
   }
 
   AppException _unwrap(DioException error) {

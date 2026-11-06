@@ -6,11 +6,22 @@ import type { IUserRepository } from "../../repositories/users/i-user.repository
 import { UserRepository } from "../../repositories/users/user.repository.js";
 import { invitationExpiresAt } from "../../services/groups/invitation-policy.js";
 import {
+  buildGroupInviteDeepLinks,
+  primaryInviteDeepLink,
+} from "../../services/notifications/deep-link.js";
+import {
+  OutboxNotificationPublisher,
+  type NotificationPublisher,
+} from "../../services/notifications/notification-publisher.js";
+import {
   FirebaseVerifiedPhoneLookup,
   type VerifiedPhoneLookup,
 } from "../../services/phone/firebase-verified-phone.js";
 import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
-import { buildWhatsAppClickToChatUrl } from "../../services/whatsapp/invitation-message.js";
+import {
+  buildInvitationMessage,
+  buildWhatsAppClickToChatUrl,
+} from "../../services/whatsapp/invitation-message.js";
 import type { GroupInvitation } from "../../types/groups/group-invitation.types.js";
 import type { GroupMember } from "../../types/groups/group.types.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
@@ -28,12 +39,23 @@ export type InviteToGroupResult =
       outcome: "invited";
       invitation: GroupInvitation;
       whatsappUrl: string;
+      deepLink: string;
     }
   | {
       outcome: "already_pending";
       invitation: GroupInvitation;
       whatsappUrl: string;
+      deepLink: string;
     };
+
+type BuiltPendingInvite = {
+  invitation: GroupInvitation;
+  whatsappUrl: string;
+  deepLink: string;
+  appDeepLink: string;
+  messageBody: string;
+  inviterName: string;
+};
 
 export class InviteToGroupUseCase {
   constructor(
@@ -42,6 +64,7 @@ export class InviteToGroupUseCase {
     private readonly users: IUserRepository = new UserRepository(),
     private readonly verifiedPhones: VerifiedPhoneLookup = new FirebaseVerifiedPhoneLookup(),
     private readonly now: () => Date = () => new Date(),
+    private readonly notifications: NotificationPublisher = new OutboxNotificationPublisher(),
   ) {}
 
   async execute(input: InviteToGroupInput): Promise<InviteToGroupResult> {
@@ -67,10 +90,19 @@ export class InviteToGroupUseCase {
       }
     }
 
-    const whatsappUrl = buildWhatsAppClickToChatUrl(phone);
     const pending = await this.invitations.findPending(input.groupId, phone);
     if (pending) {
-      return { outcome: "already_pending", invitation: pending, whatsappUrl };
+      const built = await this.buildPendingInvite(
+        group.name,
+        input.invitedByUserId,
+        pending,
+      );
+      return {
+        outcome: "already_pending",
+        invitation: built.invitation,
+        whatsappUrl: built.whatsappUrl,
+        deepLink: built.deepLink,
+      };
     }
 
     const created = await this.invitations.createPending({
@@ -80,10 +112,67 @@ export class InviteToGroupUseCase {
       expires_at: invitationExpiresAt(this.now()),
     });
 
+    const built = await this.buildPendingInvite(
+      group.name,
+      input.invitedByUserId,
+      created.invitation,
+    );
+
+    if (created.created) {
+      await this.notifications.publishGroupInvite({
+        invitationId: created.invitation.id,
+        groupId: input.groupId,
+        groupName: group.name,
+        inviterUserId: input.invitedByUserId,
+        inviterName: built.inviterName,
+        invitedPhone: phone,
+        deepLink: built.deepLink,
+        appDeepLink: built.appDeepLink,
+        body: built.messageBody,
+        channel: "whatsapp",
+      });
+    }
+
     return {
       outcome: created.created ? "invited" : "already_pending",
-      invitation: created.invitation,
+      invitation: built.invitation,
+      whatsappUrl: built.whatsappUrl,
+      deepLink: built.deepLink,
+    };
+  }
+
+  private async buildPendingInvite(
+    groupName: string,
+    invitedByUserId: string,
+    invitation: GroupInvitation,
+  ): Promise<BuiltPendingInvite> {
+    const inviterUser = await this.users.findById(invitedByUserId);
+    const inviterName = inviterUser?.name?.trim() || "A friend";
+    const links = buildGroupInviteDeepLinks({
+      invitationId: invitation.id,
+      groupId: invitation.group_id,
+    });
+    const deepLink = primaryInviteDeepLink({
+      invitationId: invitation.id,
+      groupId: invitation.group_id,
+    });
+    const messageBody = buildInvitationMessage({
+      groupName,
+      inviterName,
+      deepLink,
+    });
+    const whatsappUrl = buildWhatsAppClickToChatUrl(
+      invitation.invited_phone,
+      messageBody,
+    );
+
+    return {
+      invitation,
       whatsappUrl,
+      deepLink,
+      appDeepLink: links.app,
+      messageBody,
+      inviterName,
     };
   }
 

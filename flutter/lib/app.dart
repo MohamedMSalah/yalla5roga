@@ -18,6 +18,7 @@ import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.d
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/invites/presentation/providers/invite_deep_link_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
@@ -45,6 +46,9 @@ class App extends StatelessWidget {
           value: deps.notifications,
         ),
         ChangeNotifierProvider<FcmProvider>.value(value: deps.fcm),
+        ChangeNotifierProvider<InviteDeepLinkProvider>.value(
+          value: deps.inviteDeepLinks,
+        ),
         ChangeNotifierProvider<OutingChatProvider>.value(
           value: deps.outingChat,
         ),
@@ -113,7 +117,7 @@ class App extends StatelessWidget {
   }
 }
 
-/// Wires push listeners after the first frame and opens a cold-start tap.
+/// Wires push + invite deep-link listeners after the first frame.
 ///
 /// Notification permission is requested later, once the home feed is visible.
 class _PushBootstrap extends StatefulWidget {
@@ -131,8 +135,11 @@ class _PushBootstrapState extends State<_PushBootstrap> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      // Mock/demo mode skips native push setup entirely.
-      if (AppConfig.instance.useMockData) return;
+
+      final inviteLinks = context.read<InviteDeepLinkProvider>();
+      await inviteLinks.initialize();
+
+      if (!mounted) return;
 
       final fcm = context.read<FcmProvider>();
       // Listeners and local notifications run after the first frame.

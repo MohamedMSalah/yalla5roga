@@ -1,6 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
-import 'package:yalla_5roga/core/mock/mock_repositories.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/auth_local_datasource.dart';
@@ -23,6 +22,7 @@ import 'package:yalla_5roga/features/notifications/data/repositories/notificatio
 import 'package:yalla_5roga/features/notifications/domain/repositories/notifications_repository.dart';
 import 'package:yalla_5roga/features/outings/data/datasources/outings_remote_datasource.dart';
 import 'package:yalla_5roga/features/outings/data/datasources/saved_outings_local_datasource.dart';
+import 'package:yalla_5roga/features/outings/data/datasources/saved_outings_remote_datasource.dart';
 import 'package:yalla_5roga/features/outings/data/repositories/geocoding_http_repository.dart';
 import 'package:yalla_5roga/features/outings/data/repositories/outings_repository_impl.dart';
 import 'package:yalla_5roga/features/outings/data/repositories/saved_outings_repository_impl.dart';
@@ -30,8 +30,7 @@ import 'package:yalla_5roga/features/outings/domain/repositories/location_reposi
 import 'package:yalla_5roga/features/outings/domain/repositories/outings_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/saved_outings_repository.dart';
 
-/// Builds API-backed repositories (plus local prefs for saved/drafts).
-/// When [config.useMockData] is true, returns Mockito stubs over the demo fixtures.
+/// Builds API-backed repositories (plus local prefs where used as cache only).
 class RepositoryFactory {
   const RepositoryFactory({
     required this.apiClient,
@@ -48,7 +47,6 @@ class RepositoryFactory {
   final AppConfig config;
 
   AuthRepository auth() {
-    if (config.useMockData) return createDemoMocks().auth;
     return AuthRepositoryImpl(
       remote: AuthRemoteDataSourceImpl(apiClient),
       local: AuthLocalDataSourceImpl(prefs),
@@ -58,7 +56,6 @@ class RepositoryFactory {
   }
 
   NotificationsRepository notifications() {
-    if (config.useMockData) return createDemoMocks().notifications;
     return NotificationsRepositoryImpl(
       remote: NotificationsRemoteDataSourceImpl(apiClient),
       networkInfo: networkInfo,
@@ -66,15 +63,14 @@ class RepositoryFactory {
   }
 
   GroupsRepository groups() {
-    if (config.useMockData) return createDemoMocks().groups;
     return GroupsRepositoryImpl(
       remote: GroupsRemoteDataSource(apiClient),
       networkInfo: networkInfo,
+      currentUserId: () => firebaseAuth.currentUser?.uid,
     );
   }
 
   OutingChatRepository outingChat() {
-    if (config.useMockData) return createDemoMocks().outingChat;
     return OutingChatRepositoryImpl(
       remote: OutingChatRemoteDataSourceImpl(apiClient),
       local: OutingChatLocalDataSourceImpl(prefs),
@@ -83,7 +79,6 @@ class RepositoryFactory {
   }
 
   OutingsRepository outings() {
-    if (config.useMockData) return createDemoMocks().outings;
     return OutingsRepositoryImpl(
       remote: OutingsRemoteDataSource(apiClient),
       networkInfo: networkInfo,
@@ -91,7 +86,6 @@ class RepositoryFactory {
   }
 
   DiscoverRepository discover() {
-    if (config.useMockData) return createDemoMocks().discover;
     return DiscoverRepositoryImpl(
       remote: DiscoverRemoteDataSource(apiClient),
       networkInfo: networkInfo,
@@ -99,14 +93,14 @@ class RepositoryFactory {
   }
 
   SavedOutingsRepository savedOutings() {
-    if (config.useMockData) return createDemoMocks().savedOutings;
     return SavedOutingsRepositoryImpl(
+      remote: SavedOutingsRemoteDataSource(apiClient),
       local: SavedOutingsLocalDataSourceImpl(prefs),
+      networkInfo: networkInfo,
     );
   }
 
   LocationRepository geocoding() {
-    if (config.useMockData) return createDemoMocks().location;
     return GeocodingHttpRepository(
       remote: GeocodingHttpDataSource(
         nominatimHost: config.nominatimHost,

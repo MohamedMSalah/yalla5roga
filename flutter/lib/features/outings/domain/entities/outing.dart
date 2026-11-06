@@ -15,8 +15,9 @@ class Outing {
     this.groupId,
     this.location,
     this.occasion = OutingOccasion.none,
+    this.type = OutingType.group,
     this.guestIds = const [],
-    this.status = OutingStatus.upcoming,
+    this.status = OutingStatus.draft,
     this.votePlaces = const [],
     this.voteDeadlineHours,
     this.suggestedBy,
@@ -38,6 +39,7 @@ class Outing {
   final String? groupId;
   final PlaceLocation? location;
   final OutingOccasion occasion;
+  final OutingType type;
   final List<String> guestIds;
   final OutingStatus status;
 
@@ -102,10 +104,16 @@ class Outing {
 
   /// True when the composer should lock (read-only history remains).
   bool get isChatClosed {
-    if (!hasSuggestedPlaces) return true;
-    final closesAt = chatClosesAt;
-    if (closesAt != null) return !DateTime.now().isBefore(closesAt);
-    return isPastOuting || status == OutingStatus.past;
+    if (status == OutingStatus.cancelled || status == OutingStatus.past) {
+      return true;
+    }
+    // Chat is available from creation (draft/voting/confirmed).
+    if (status == OutingStatus.draft ||
+        status == OutingStatus.voting ||
+        status == OutingStatus.confirmed) {
+      return false;
+    }
+    return isPastOuting;
   }
 
   /// Final location is hidden while place voting is still open.
@@ -136,6 +144,7 @@ class Outing {
     PlaceLocation? location,
     bool clearLocation = false,
     OutingOccasion? occasion,
+    OutingType? type,
     List<String>? guestIds,
     OutingStatus? status,
     List<Place>? votePlaces,
@@ -155,6 +164,7 @@ class Outing {
       groupId: groupId ?? this.groupId,
       location: clearLocation ? null : (location ?? this.location),
       occasion: occasion ?? this.occasion,
+      type: type ?? this.type,
       guestIds: guestIds ?? this.guestIds,
       status: status ?? this.status,
       votePlaces: votePlaces ?? this.votePlaces,

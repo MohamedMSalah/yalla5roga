@@ -5,6 +5,7 @@ import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
+import 'package:yalla_5roga/features/groups/domain/entities/group_role.dart';
 
 abstract class GroupsDataSource {
   Future<List<Group>> getGroups();
@@ -13,14 +14,18 @@ abstract class GroupsDataSource {
   Future<Group> updateGroup(Group group);
   Future<Group> addMember(String groupId, GroupMember member);
   Future<Group> removeMember(String groupId, String memberId);
-  Future<void> leaveGroup(String groupId);
+  Future<void> leaveGroup(String groupId, String userId);
+  Future<Map<String, dynamic>> inviteByPhone({
+    required String groupId,
+    required String phoneNumber,
+  });
   GroupMember? memberById(String id);
   GroupMember? memberByPhone(String phone);
   String groupsForMember(String id);
   List<GroupMember> get contacts;
 }
 
-/// Live Dio datasource. Placeholder endpoints until the Node.js backend lands.
+/// Live Dio datasource aligned with `/api/groups` OpenAPI contract.
 class GroupsRemoteDataSource implements GroupsDataSource {
   GroupsRemoteDataSource(this._client);
 
@@ -33,15 +38,13 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   Future<List<Group>> getGroups() async {
     try {
       final response = await _client.get<Map<String, dynamic>>(
-        ApiConstants.groups,
+        ApiConstants.groupsCuser,
       );
-      final payload = apiPayload(response.data);
-      final raw = payload['items'] ?? payload['groups'] ?? payload;
-      if (raw is! List) return const [];
-      return [
-        for (final item in raw)
-          if (item is Map) _groupFromJson(Map<String, dynamic>.from(item)),
-      ];
+      final items = apiObjectList(
+        response.data,
+        aliases: const ['groups', 'items'],
+      );
+      return [for (final item in items) _groupFromJson(item)];
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -53,7 +56,9 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       final response = await _client.get<Map<String, dynamic>>(
         ApiConstants.group(groupId),
       );
-      return _groupFromJson(apiPayload(response.data));
+      final group = _groupFromJson(apiPayload(response.data));
+      final members = await _fetchMembers(groupId);
+      return group.copyWith(members: members);
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -64,7 +69,11 @@ class GroupsRemoteDataSource implements GroupsDataSource {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.groups,
-        data: _groupToJson(group),
+        data: {
+          'name': group.name,
+          if (group.bio.isNotEmpty) 'bio': group.bio,
+          if (group.image.isNotEmpty) 'image_url': group.image,
+        },
       );
       return _groupFromJson(apiPayload(response.data));
     } on DioException catch (error) {
@@ -75,9 +84,9 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   Future<Group> updateGroup(Group group) async {
     try {
-      final response = await _client.put<Map<String, dynamic>>(
+      final response = await _client.patch<Map<String, dynamic>>(
         ApiConstants.group(group.id),
-        data: _groupToJson(group),
+        data: {'name': group.name, 'bio': group.bio, 'image_url': group.image},
       );
       return _groupFromJson(apiPayload(response.data));
     } on DioException catch (error) {
@@ -88,11 +97,18 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   Future<Group> addMember(String groupId, GroupMember member) async {
     try {
-      final response = await _client.post<Map<String, dynamic>>(
+      final phone = member.phone?.trim() ?? '';
+      if (phone.isEmpty) {
+        throw const ServerException('phoneNumber is required to add a member');
+      }
+      await _client.post<Map<String, dynamic>>(
         ApiConstants.groupMembers(groupId),
-        data: member.toJson(),
+        data: {
+          'phoneNumber': phone,
+          if (member.role == GroupRole.owner) 'role': 'owner',
+        },
       );
-      return _groupFromJson(apiPayload(response.data));
+      return getGroup(groupId);
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -101,21 +117,38 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   Future<Group> removeMember(String groupId, String memberId) async {
     try {
-      final response = await _client.delete<Map<String, dynamic>>(
-        '${ApiConstants.groupMembers(groupId)}/$memberId',
+      await _client.delete<Map<String, dynamic>>(
+        ApiConstants.groupMember(groupId, memberId),
       );
-      return _groupFromJson(apiPayload(response.data));
+      return getGroup(groupId);
     } on DioException catch (error) {
       throw _unwrap(error);
     }
   }
 
   @override
-  Future<void> leaveGroup(String groupId) async {
+  Future<void> leaveGroup(String groupId, String userId) async {
     try {
-      await _client.post<Map<String, dynamic>>(
-        ApiConstants.groupLeave(groupId),
+      // Phase A: no dedicated leave route — DELETE self as member.
+      await _client.delete<Map<String, dynamic>>(
+        ApiConstants.groupMember(groupId, userId),
       );
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> inviteByPhone({
+    required String groupId,
+    required String phoneNumber,
+  }) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        ApiConstants.groupInvitations(groupId),
+        data: {'phoneNumber': phoneNumber},
+      );
+      return apiPayload(response.data);
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -130,6 +163,30 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   String groupsForMember(String id) => '';
 
+  Future<List<GroupMember>> _fetchMembers(String groupId) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      ApiConstants.groupMembers(groupId),
+    );
+    final items = apiObjectList(
+      response.data,
+      aliases: const ['items', 'members'],
+    );
+    return [for (final item in items) _memberFromJson(item)];
+  }
+
+  GroupMember _memberFromJson(Map<String, dynamic> json) {
+    return GroupMember(
+      id: apiString(json['user_id']) ?? apiString(json['id']) ?? '',
+      name: apiString(json['name']) ?? apiString(json['user_id']) ?? '',
+      avatar: apiString(json['avatar']) ?? apiString(json['image_url']) ?? '',
+      role: GroupRole.values.firstWhere(
+        (role) => role.name == (apiString(json['role']) ?? 'member'),
+        orElse: () => GroupRole.member,
+      ),
+      phone: apiString(json['phone']) ?? '',
+    );
+  }
+
   Group _groupFromJson(Map<String, dynamic> json) {
     return Group.fromJson({
       ...json,
@@ -138,7 +195,11 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       'outings': apiInt(json['outings']),
       'preview': apiString(json['preview']) ?? '',
       'bio': apiString(json['bio']) ?? apiString(json['description']) ?? '',
-      'image': apiString(json['image']) ?? apiString(json['coverUrl']) ?? '',
+      'image':
+          apiString(json['image_url']) ??
+          apiString(json['image']) ??
+          apiString(json['coverUrl']) ??
+          '',
       'lastMessage': apiString(json['lastMessage']),
       'unread': apiInt(json['unread']),
       'featured': apiBool(json['featured']),
@@ -146,8 +207,6 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       'cuserRole': apiString(json['cuserRole']) ?? apiString(json['myRole']),
     });
   }
-
-  Map<String, dynamic> _groupToJson(Group group) => group.toJson();
 
   AppException _unwrap(DioException error) {
     if (error.error is AppException) return error.error as AppException;

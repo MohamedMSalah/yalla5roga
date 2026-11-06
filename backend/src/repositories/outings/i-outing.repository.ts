@@ -11,6 +11,7 @@ import type {
   OutingVote,
   OutingVoteOption,
   SavedOuting,
+  SavedPlace,
   UpdateOutingDraftInput,
   UpdateOutingInput,
   UpsertAttendanceInput,
@@ -34,14 +35,12 @@ export interface IOutingRepository {
 
   listVoteOptions(outingId: string): Promise<OutingVoteOption[]>;
   createVoteOption(data: CreateVoteOptionInput): Promise<OutingVoteOption>;
+  findVoteOptionById(id: string): Promise<OutingVoteOption | null>;
   deleteVoteOption(id: string): Promise<OutingVoteOption>;
   listVotes(outingId: string): Promise<OutingVote[]>;
   castVote(data: CastVoteInput): Promise<OutingVote>;
-  removeVote(
-    outingId: string,
-    userId: string,
-    optionId: string,
-  ): Promise<OutingVote>;
+  removeVote(outingId: string, userId: string): Promise<OutingVote>;
+  clearVotes(outingId: string): Promise<number>;
 
   findDraftById(id: string): Promise<OutingDraft | null>;
   listDraftsByUser(userId: string): Promise<OutingDraft[]>;
@@ -52,4 +51,8 @@ export interface IOutingRepository {
   listSavedByUser(userId: string): Promise<SavedOuting[]>;
   saveOuting(userId: string, outingId: string): Promise<SavedOuting>;
   unsaveOuting(userId: string, outingId: string): Promise<SavedOuting>;
+
+  listSavedPlacesByUser(userId: string): Promise<SavedPlace[]>;
+  savePlace(userId: string, placeId: string): Promise<SavedPlace>;
+  unsavePlace(userId: string, placeId: string): Promise<SavedPlace>;
 }

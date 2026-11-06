@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -75,7 +74,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final groups = context.read<GroupsProvider>();
     if (groups.isCreating) return;
     if (!_formKey.currentState!.validate()) return;
-    if (groups.createImage == null && !AppConfig.instance.useMockData) {
+    if (groups.createImage == null) {
       AppSnackBar.show(context.l10n.photoRequired);
       return;
     }

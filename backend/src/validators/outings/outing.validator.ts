@@ -1,12 +1,18 @@
 import { z } from "zod";
 
-const outingStatusSchema = z.enum(["upcoming", "voting", "past", "cancelled"]);
+const outingStatusSchema = z.enum([
+  "draft",
+  "voting",
+  "confirmed",
+  "cancelled",
+  "past",
+]);
 const outingOccasionSchema = z.enum(["none", "birthday", "wedding"]);
 const outingVibeSchema = z.enum(["food", "activity", "outdoor", "movie"]);
-const attendanceStatusSchema = z.enum(["going", "not_going", "not_voted"]);
+const attendanceStatusSchema = z.enum(["going", "not_going", "maybe"]);
 
 /**
- * DB check `outings_check`:
+ * DB check pattern:
  * - group outing: group_id set and occasion = none
  * - special event: group_id null and occasion in (birthday, wedding)
  */
@@ -56,7 +62,25 @@ export const createOutingBodySchema = z
     vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
     vote_ends_at: z.coerce.date().optional().nullable(),
   })
-  .superRefine(assertOutingGroupOccasion);
+  .superRefine(assertOutingGroupOccasion)
+  .superRefine((data, ctx) => {
+    // Product: every outing must have a voting deadline at create time.
+    if (data.vote_ends_at == null && data.vote_deadline_hours == null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["vote_ends_at"],
+        message:
+          "voting deadline is required: provide vote_ends_at or vote_deadline_hours",
+      });
+    }
+    if (data.vote_ends_at != null && data.vote_ends_at.getTime() <= Date.now()) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["vote_ends_at"],
+        message: "vote_ends_at must be in the future",
+      });
+    }
+  });
 
 export const updateOutingBodySchema = z.object({
   title: z.string().trim().min(3).max(20).optional(),
@@ -73,7 +97,6 @@ export const updateOutingBodySchema = z.object({
   location_longitude: z.number().optional().nullable(),
   vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
   vote_ends_at: z.coerce.date().optional().nullable(),
-  vote_finalized: z.boolean().optional(),
   suggested_by_user_id: z.string().min(1).optional().nullable(),
 });
 
@@ -110,6 +133,13 @@ export const createVoteOptionBodySchema = z.object({
   sort_order: z.number().int().optional(),
 });
 
+export const replaceVoteOptionsBodySchema = z.object({
+  options: z
+    .array(createVoteOptionBodySchema)
+    .min(1)
+    .max(10),
+});
+
 export const castVoteBodySchema = z.object({
   option_id: z.uuid(),
 });
@@ -142,3 +172,4 @@ export const createDraftBodySchema = z.object({
 export const updateDraftBodySchema = createDraftBodySchema;
 export const draftIdParamsSchema = z.object({ id: z.uuid() });
 export const savedOutingParamsSchema = z.object({ id: z.uuid() });
+export const savedPlaceParamsSchema = z.object({ id: z.uuid() });

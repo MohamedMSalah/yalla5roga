@@ -122,7 +122,7 @@ class Attendance {
       userId: json['userId'] as String? ?? '',
       status: AttendanceStatus.values.firstWhere(
         (item) => item.name == json['status'],
-        orElse: () => AttendanceStatus.notVoted,
+        orElse: () => AttendanceStatus.unset,
       ),
     );
   }

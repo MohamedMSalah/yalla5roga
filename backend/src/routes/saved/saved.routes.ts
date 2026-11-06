@@ -88,4 +88,20 @@ api.delete(
 const router = Router();
 router.use("/api/outings", api);
 
+// Saved places live under /api/places to keep domains separate.
+const placesApi = Router();
+placesApi.use(authMiddleware);
+placesApi.get("/saved", controller.getSavedPlaces);
+placesApi.post(
+  "/:id/save",
+  validate({ params: savedOutingParamsSchema }),
+  controller.savePlaceBookmark,
+);
+placesApi.delete(
+  "/:id/save",
+  validate({ params: savedOutingParamsSchema }),
+  controller.unsavePlaceBookmark,
+);
+router.use("/api/places", placesApi);
+
 export default router;

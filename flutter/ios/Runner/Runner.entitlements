@@ -6,5 +6,10 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:yalla5roga.com</string>
+		<string>applinks:www.yalla5roga.com</string>
+	</array>
 </dict>
 </plist>

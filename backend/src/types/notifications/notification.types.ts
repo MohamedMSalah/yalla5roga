@@ -11,6 +11,7 @@ export type CreateNotificationInput = {
   outing_id?: string | null;
   group_id?: string | null;
   action_required?: boolean;
+  event_key?: string | null;
 };
 
 export type UpdateNotificationInput = {

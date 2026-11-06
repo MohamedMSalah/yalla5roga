@@ -11,5 +11,7 @@ class ShellProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void openGroups() => setIndex(1);
+
   void openOutings() => setIndex(2);
 }

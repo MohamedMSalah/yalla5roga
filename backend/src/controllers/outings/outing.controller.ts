@@ -13,7 +13,9 @@ import {
 } from "../../usecases/outings/drafts.usecase.js";
 import { GetOutingUseCase } from "../../usecases/outings/get-outing.usecase.js";
 import {
+  AcceptOutingInvitationUseCase,
   AddGuestUseCase,
+  DeclineOutingInvitationUseCase,
   ListGuestsUseCase,
   RemoveGuestUseCase,
 } from "../../usecases/outings/guests.usecase.js";
@@ -25,13 +27,22 @@ import {
 } from "../../usecases/outings/saved.usecase.js";
 import { UpdateOutingUseCase } from "../../usecases/outings/update-outing.usecase.js";
 import {
+  CancelOutingUseCase,
   CastVoteUseCase,
   CreateVoteOptionUseCase,
   DeleteVoteOptionUseCase,
+  GetVotingStateUseCase,
   ListVoteOptionsUseCase,
   ListVotesUseCase,
   RemoveVoteUseCase,
+  ReplaceVoteOptionsUseCase,
+  TieBreakUseCase,
 } from "../../usecases/outings/voting.usecase.js";
+import {
+  ListSavedPlacesUseCase,
+  SavePlaceUseCase,
+  UnsavePlaceUseCase,
+} from "../../usecases/outings/saved-places.usecase.js";
 import { UnauthorizedError } from "../../utils/errors.js";
 
 export class OutingController {
@@ -46,12 +57,18 @@ export class OutingController {
     private readonly listGuests = new ListGuestsUseCase(),
     private readonly addGuest = new AddGuestUseCase(),
     private readonly removeGuest = new RemoveGuestUseCase(),
+    private readonly acceptInvitation = new AcceptOutingInvitationUseCase(),
+    private readonly declineInvitation = new DeclineOutingInvitationUseCase(),
     private readonly listVoteOptions = new ListVoteOptionsUseCase(),
     private readonly createVoteOption = new CreateVoteOptionUseCase(),
     private readonly deleteVoteOption = new DeleteVoteOptionUseCase(),
+    private readonly replaceVoteOptions = new ReplaceVoteOptionsUseCase(),
     private readonly listVotes = new ListVotesUseCase(),
     private readonly castVote = new CastVoteUseCase(),
     private readonly removeVote = new RemoveVoteUseCase(),
+    private readonly tieBreak = new TieBreakUseCase(),
+    private readonly votingState = new GetVotingStateUseCase(),
+    private readonly cancelOuting = new CancelOutingUseCase(),
     private readonly listDrafts = new ListDraftsUseCase(),
     private readonly createDraft = new CreateDraftUseCase(),
     private readonly updateDraft = new UpdateDraftUseCase(),
@@ -59,6 +76,9 @@ export class OutingController {
     private readonly listSaved = new ListSavedOutingsUseCase(),
     private readonly saveOuting = new SaveOutingUseCase(),
     private readonly unsaveOuting = new UnsaveOutingUseCase(),
+    private readonly listSavedPlaces = new ListSavedPlacesUseCase(),
+    private readonly savePlace = new SavePlaceUseCase(),
+    private readonly unsavePlace = new UnsavePlaceUseCase(),
   ) {}
 
   list = async (req: Request, res: Response, next: NextFunction) => {
@@ -109,8 +129,10 @@ export class OutingController {
 
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.uid) throw new UnauthorizedError();
       const outing = await this.updateOuting.execute(
         req.params.id as string,
+        req.user.uid,
         req.body,
       );
       res.json({ success: true, data: outing });
@@ -121,7 +143,11 @@ export class OutingController {
 
   remove = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const outing = await this.deleteOuting.execute(req.params.id as string);
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const outing = await this.deleteOuting.execute(
+        req.params.id as string,
+        req.user.uid,
+      );
       res.json({ success: true, data: outing });
     } catch (error) {
       next(error);
@@ -164,8 +190,10 @@ export class OutingController {
 
   inviteGuest = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.uid) throw new UnauthorizedError();
       const data = await this.addGuest.execute(
         req.params.id as string,
+        req.user.uid,
         req.body.user_id,
       );
       res.status(201).json({ success: true, data });
@@ -176,8 +204,10 @@ export class OutingController {
 
   uninviteGuest = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      if (!req.user?.uid) throw new UnauthorizedError();
       const data = await this.removeGuest.execute(
         req.params.id as string,
+        req.user.uid,
         req.params.userId as string,
       );
       res.json({ success: true, data });
@@ -198,11 +228,52 @@ export class OutingController {
 
   addVoteOption = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.createVoteOption.execute({
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.createVoteOption.execute(req.user.uid, {
         ...req.body,
         outing_id: req.params.id as string,
       });
       res.status(201).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  replaceOptions = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.replaceVoteOptions.execute(
+        req.params.id as string,
+        req.user.uid,
+        req.body.options,
+      );
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  acceptInvite = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.acceptInvitation.execute(
+        req.params.id as string,
+        req.user.uid,
+      );
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  declineInvite = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.declineInvitation.execute(
+        req.params.id as string,
+        req.user.uid,
+      );
+      res.json({ success: true, data });
     } catch (error) {
       next(error);
     }
@@ -214,8 +285,10 @@ export class OutingController {
     next: NextFunction,
   ) => {
     try {
+      if (!req.user?.uid) throw new UnauthorizedError();
       const data = await this.deleteVoteOption.execute(
         req.params.optionId as string,
+        req.user.uid,
       );
       res.json({ success: true, data });
     } catch (error) {
@@ -252,7 +325,85 @@ export class OutingController {
       const data = await this.removeVote.execute(
         req.params.id as string,
         req.user.uid,
-        req.params.optionId as string,
+      );
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  breakTie = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.tieBreak.execute(
+        req.params.id as string,
+        req.user.uid,
+      );
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getVotingState = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = await this.votingState.execute(req.params.id as string);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  cancel = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.cancelOuting.execute(
+        req.params.id as string,
+        req.user.uid,
+      );
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getSavedPlaces = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.listSavedPlaces.execute(req.user.uid);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  savePlaceBookmark = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.savePlace.execute(
+        req.user.uid,
+        req.params.id as string,
+      );
+      res.status(201).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  unsavePlaceBookmark = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.unsavePlace.execute(
+        req.user.uid,
+        req.params.id as string,
       );
       res.json({ success: true, data });
     } catch (error) {

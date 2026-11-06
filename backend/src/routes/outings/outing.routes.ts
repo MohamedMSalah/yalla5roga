@@ -13,6 +13,7 @@ import {
   guestParamsSchema,
   listOutingsQuerySchema,
   outingIdParamsSchema,
+  replaceVoteOptionsBodySchema,
   updateDraftBodySchema,
   updateOutingBodySchema,
   voteParamsSchema,
@@ -120,7 +121,9 @@ import {
  *   patch:
  *     tags: [Outings]
  *     summary: Update an outing
- *     description: Updates outing fields for the given UUID.
+ *     description: >
+ *       Updates outing fields for the given UUID. Allowed only for the outing
+ *       creator (`created_by`). Other authenticated users receive 403.
  *     operationId: updateOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -137,6 +140,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -144,7 +149,9 @@ import {
  *   delete:
  *     tags: [Outings]
  *     summary: Delete an outing
- *     description: Deletes the outing with the given UUID.
+ *     description: >
+ *       Deletes the outing with the given UUID. Allowed only for the outing
+ *       creator (`created_by`). Other authenticated users receive 403.
  *     operationId: deleteOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -159,6 +166,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -566,6 +575,16 @@ api.post(
   validate({ params: outingIdParamsSchema, body: addGuestBodySchema }),
   controller.inviteGuest,
 );
+api.post(
+  "/:id/invitations/accept",
+  validate({ params: outingIdParamsSchema }),
+  controller.acceptInvite,
+);
+api.post(
+  "/:id/invitations/decline",
+  validate({ params: outingIdParamsSchema }),
+  controller.declineInvite,
+);
 api.delete(
   "/:id/guests/:userId",
   validate({ params: guestParamsSchema }),
@@ -586,6 +605,14 @@ api.post(
   }),
   controller.addVoteOption,
 );
+api.put(
+  "/:id/vote-options",
+  validate({
+    params: outingIdParamsSchema,
+    body: replaceVoteOptionsBodySchema,
+  }),
+  controller.replaceOptions,
+);
 api.delete(
   "/:id/vote-options/:optionId",
   validate({ params: voteParamsSchema }),
@@ -604,9 +631,29 @@ api.post(
   controller.vote,
 );
 api.delete(
+  "/:id/votes",
+  validate({ params: outingIdParamsSchema }),
+  controller.unvote,
+);
+api.delete(
   "/:id/votes/:optionId",
   validate({ params: voteParamsSchema }),
   controller.unvote,
+);
+api.get(
+  "/:id/voting-state",
+  validate({ params: outingIdParamsSchema }),
+  controller.getVotingState,
+);
+api.post(
+  "/:id/tie-break",
+  validate({ params: outingIdParamsSchema }),
+  controller.breakTie,
+);
+api.post(
+  "/:id/cancel",
+  validate({ params: outingIdParamsSchema }),
+  controller.cancel,
 );
 
 api.get(

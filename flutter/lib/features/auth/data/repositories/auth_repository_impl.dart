@@ -6,6 +6,7 @@ import 'package:yalla_5roga/core/network/network_info.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/firebase_auth_service.dart';
+import 'package:yalla_5roga/features/auth/data/models/auth_session_model.dart';
 import 'package:yalla_5roga/features/auth/data/models/user_model.dart';
 import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dart';
 import 'package:yalla_5roga/features/auth/domain/entities/user.dart';
@@ -202,10 +203,10 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
   Future<Either<Failure, User>> login({
     required String email,
     required String password,
-  }) {
-    // Firebase only — subsequent Dio calls send Authorization: Bearer <ID_TOKEN>.
-    return _fromFirebaseCredential(
-      () => firebaseAuth.signInWithEmail(email: email, password: password),
+  }) async {
+    // Email/password → backend (Neon). Firebase only receives a custom token.
+    return _emailPasswordSession(
+      () => remote.login(email: email, password: password),
     );
   }
 
@@ -218,19 +219,89 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     required String verificationId,
     required String smsCode,
   }) async {
-    final created = await _fromFirebaseCredential(
-      () => firebaseAuth.registerWithEmailAfterPhone(
-        name: name,
-        email: email,
-        password: password,
-        phone: phone,
+    if (!await networkInfo.isConnected) {
+      return const Left(NetworkFailure());
+    }
+    try {
+      // OTP stays on Firebase; password account is created on the backend.
+      await firebaseAuth.verifyPhoneOtpThenSignOut(
         verificationId: verificationId,
         smsCode: smsCode,
-      ),
-      name: name,
-      fallbackPhone: phone,
-    );
-    return created.fold(Left.new, _provisionBackendUser);
+      );
+      return _emailPasswordSession(
+        () => remote.signup(
+          name: name,
+          email: email,
+          password: password,
+          phone: phone,
+        ),
+        fallbackName: name,
+        fallbackPhone: phone,
+        fallbackEmail: email,
+      );
+    } on AuthException catch (error) {
+      return Left(AuthFailure(error.message, error.code));
+    } on AppException catch (error) {
+      return Left(
+        error is NetworkException
+            ? NetworkFailure(error.message)
+            : ServerFailure(error.message),
+      );
+    } catch (_) {
+      return const Left(AuthFailure('Registration failed'));
+    }
+  }
+
+  Future<Either<Failure, User>> _emailPasswordSession(
+    Future<AuthSessionModel> Function() createSession, {
+    String? fallbackName,
+    String? fallbackPhone,
+    String? fallbackEmail,
+  }) async {
+    if (!await networkInfo.isConnected) {
+      return const Left(NetworkFailure());
+    }
+    try {
+      final session = await createSession();
+      await firebaseAuth.signInWithCustomToken(session.customToken);
+      await firebaseAuth.idToken(forceRefresh: true);
+
+      final profile = session.user;
+      final firebaseUser = firebaseAuth.currentUser;
+      final uid = firebaseUser?.uid ?? session.uid;
+      final token = await firebaseAuth.idToken() ?? session.idToken;
+
+      final merged = UserModel(
+        id: uid.isNotEmpty ? uid : (profile?.id ?? ''),
+        name: (profile != null && profile.name.isNotEmpty)
+            ? profile.name
+            : (fallbackName?.trim().isNotEmpty == true
+                  ? fallbackName!.trim()
+                  : (firebaseUser?.displayName?.trim().isNotEmpty == true
+                        ? firebaseUser!.displayName!.trim()
+                        : 'User')),
+        phone: (profile != null && profile.phone.isNotEmpty)
+            ? profile.phone
+            : (fallbackPhone ?? ''),
+        email: profile?.email ?? fallbackEmail ?? firebaseUser?.email,
+        token: token,
+        imageUrl: profile?.imageUrl ?? firebaseUser?.photoURL,
+      );
+      await local.cacheUser(merged);
+      return Right(merged);
+    } on AuthException catch (error) {
+      return Left(AuthFailure(error.message, error.code));
+    } on CacheException catch (error) {
+      return Left(CacheFailure(error.message));
+    } on AppException catch (error) {
+      return Left(
+        error is NetworkException
+            ? NetworkFailure(error.message)
+            : ServerFailure(error.message),
+      );
+    } catch (_) {
+      return const Left(AuthFailure('Authentication failed'));
+    }
   }
 
   @override
@@ -259,7 +330,7 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     }
     try {
       await firebaseAuth.idToken(forceRefresh: true);
-      final model = await remote.createUser(
+      final model = await remote.syncUser(
         name: user.name,
         email: user.email,
         phone: user.phone.isEmpty ? null : user.phone,

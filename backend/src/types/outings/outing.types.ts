@@ -4,19 +4,24 @@ import type {
   outing_guests,
   outing_occasion,
   outing_status,
+  outing_type,
   outing_vibe,
   outing_vote_options,
   outing_votes,
   outings,
   Prisma,
   saved_outings,
+  saved_places,
+  vote_close_reason,
 } from "@prisma/client";
 
 export type Outing = outings;
 export type OutingStatus = outing_status;
 export type OutingOccasion = outing_occasion;
+export type OutingType = outing_type;
 export type OutingVibe = outing_vibe;
 export type AttendanceStatus = attendance_status;
+export type VoteCloseReason = vote_close_reason;
 export type OutingAttendance = {
   outing_id: string;
   user_id: string;
@@ -28,6 +33,7 @@ export type OutingVoteOption = outing_vote_options;
 export type OutingVote = outing_votes;
 export type OutingDraft = outing_drafts;
 export type SavedOuting = saved_outings;
+export type SavedPlace = saved_places;
 
 export type CreateOutingInput = {
   title: string;
@@ -35,6 +41,7 @@ export type CreateOutingInput = {
   group_id?: string | null;
   created_by: string;
   status?: OutingStatus;
+  type?: OutingType;
   occasion?: OutingOccasion;
   scheduled_at?: Date | null;
   /** Optional end time; the completion job falls back to scheduled_at + 6h. */
@@ -52,7 +59,9 @@ export type CreateOutingInput = {
 export type UpdateOutingInput = Partial<
   Omit<CreateOutingInput, "created_by">
 > & {
-  vote_finalized?: boolean;
+  vote_closed_at?: Date | null;
+  vote_close_reason?: VoteCloseReason | null;
+  winning_option_id?: string | null;
 };
 
 export type UpsertAttendanceInput = {
@@ -64,6 +73,8 @@ export type UpsertAttendanceInput = {
 export type AddGuestInput = {
   outing_id: string;
   user_id: string;
+  /** Invitation state; pending until accept. Defaults to pending on invite. */
+  status?: "pending" | "accepted" | "declined" | "expired" | "revoked";
 };
 
 export type CreateVoteOptionInput = {

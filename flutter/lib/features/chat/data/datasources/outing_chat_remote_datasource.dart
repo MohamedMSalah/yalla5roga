@@ -30,13 +30,13 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
       final response = await _client.get<Map<String, dynamic>>(
         ApiConstants.outingChatMessages(outingId),
       );
-      final payload = apiPayload(response.data);
-      final raw = payload['items'] ?? payload['messages'] ?? payload;
-      if (raw is! List) return const [];
+      final items = apiObjectList(
+        response.data,
+        aliases: const ['messages', 'items'],
+      );
       return [
-        for (final item in raw)
-          if (item is Map)
-            ChatMessageModel.fromJson(item, outingId: outingId),
+        for (final item in items)
+          ChatMessageModel.fromJson(item, outingId: outingId),
       ];
     } on DioException catch (error) {
       throw _unwrap(error);
@@ -53,16 +53,23 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.outingChatMessages(outingId),
-        data: {'text': text, 'senderId': senderId, 'sender': senderName},
+        data: {'text': text},
       );
       final payload = apiPayload(response.data);
       return ChatMessageModel.fromJson(payload, outingId: outingId).copyWith(
-        sender: apiString(payload['sender']) ?? senderName,
+        sender: senderName,
         text: apiString(payload['text']) ?? text,
         isMine: true,
-        senderId: senderId,
+        senderId:
+            apiString(payload['sender_id']) ??
+            apiString(payload['senderId']) ??
+            senderId,
         sentAt:
-            DateTime.tryParse(apiString(payload['sentAt']) ?? '') ??
+            DateTime.tryParse(
+              apiString(payload['sent_at']) ??
+                  apiString(payload['sentAt']) ??
+                  '',
+            ) ??
             DateTime.now(),
       );
     } on DioException catch (error) {
@@ -73,13 +80,11 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
   @override
   Future<OutingChatReadResult> markRead(String outingId) async {
     try {
-      final response = await _client.post<Map<String, dynamic>>(
+      final response = await _client.patch<Map<String, dynamic>>(
         ApiConstants.outingChatRead(outingId),
       );
-      return OutingChatReadResultModel.fromJson(
-        apiPayload(response.data),
-        outingId: outingId,
-      );
+      final payload = apiPayload(response.data);
+      return OutingChatReadResultModel.fromJson(payload, outingId: outingId);
     } on DioException catch (error) {
       throw _unwrap(error);
     }

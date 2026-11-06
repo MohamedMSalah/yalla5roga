@@ -1,0 +1,14 @@
+---
+description: Prisma and Neon database change rules
+globs: backend/prisma/**/*
+alwaysApply: false
+---
+
+# Database rules
+
+- Schema source of truth: `backend/prisma/schema.prisma` documented in `docs/DATABASE_ARCHITECTURE.md`.
+- Maintain referential integrity, unique constraints (especially one vote per user per outing), and indexes for deadline/status queries.
+- Prefer additive, safe migrations; never silently run destructive production resets.
+- Preserve invariants: attendance ≠ votes; winner option belongs to same outing; Firebase UID = `users.id`.
+- After every schema change in the same task: update `docs/DATABASE_ARCHITECTURE.md` (and business/system/user docs if rules or workflows change).
+- Do not document obsolete enums (`upcoming`, `not_voted`) as current.

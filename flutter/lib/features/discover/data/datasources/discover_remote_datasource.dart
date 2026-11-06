@@ -25,13 +25,11 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
         ApiConstants.places,
         queryParameters: vibe == null ? null : {'vibe': vibe.name},
       );
-      final payload = apiPayload(response.data);
-      final raw = payload['items'] ?? payload['places'] ?? payload;
-      if (raw is! List) return const [];
-      return [
-        for (final item in raw)
-          if (item is Map) _fromJson(Map<String, dynamic>.from(item)),
-      ];
+      final items = apiObjectList(
+        response.data,
+        aliases: const ['places', 'items'],
+      );
+      return [for (final item in items) _fromJson(item)];
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -71,7 +69,10 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
         orElse: () => OutingVibe.food,
       ),
       coverImageUrl:
-          apiString(json['coverImageUrl']) ?? apiString(json['imageUrl']) ?? '',
+          apiString(json['cover_image_url']) ??
+          apiString(json['coverImageUrl']) ??
+          apiString(json['imageUrl']) ??
+          '',
       description:
           apiString(json['description']) ??
           apiString(json['descriptionKey']) ??

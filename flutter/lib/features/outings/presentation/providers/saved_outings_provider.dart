@@ -61,17 +61,25 @@ class SavedOutingsProvider extends ChangeNotifier {
 
   bool isSaved(String id) => _saved.any((outing) => outing.id == id);
 
-  Future<bool> toggle(Outing event) async {
+  /// Toggles bookmark state.
+  ///
+  /// Returns `true` when the outing was saved, `false` when it was removed,
+  /// and `null` when the repository call failed (state unchanged).
+  Future<bool?> toggle(Outing event) async {
     if (isSaved(event.id)) {
       final result = await repository.removeSaved(event.id);
-      result.fold((_) {}, (items) => _saved = List.of(items));
-      notifyListeners();
-      return false;
+      return result.fold((_) => null, (items) {
+        _saved = List.of(items);
+        notifyListeners();
+        return false;
+      });
     }
     final result = await repository.saveOuting(SavedOuting.fromEvent(event));
-    result.fold((_) {}, (items) => _saved = List.of(items));
-    notifyListeners();
-    return true;
+    return result.fold((_) => null, (items) {
+      _saved = List.of(items);
+      notifyListeners();
+      return true;
+    });
   }
 
   Future<void> removeSaved(String id) async {

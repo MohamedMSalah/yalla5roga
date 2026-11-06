@@ -1,0 +1,327 @@
+{
+  "generatedAt": "2026-11-06T17:10:22.022Z",
+  "baseUrl": "http://localhost:3000",
+  "pass": 29,
+  "fail": 0,
+  "blocked": 1,
+  "notTested": 2,
+  "results": [
+    {
+      "suite": "ENV",
+      "name": "health",
+      "endpoint": "/health",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "{\"success\":true,\"message\":\"OK\",\"database\":\"connected\"}"
+    },
+    {
+      "suite": "A",
+      "name": "email_password_login",
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "uid_present=true; customToken=true; idToken=true"
+    },
+    {
+      "suite": "A",
+      "name": "missing_bearer",
+      "endpoint": "/api/users/cuser",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 401,
+      "summary": "expect 401 without Authorization"
+    },
+    {
+      "suite": "B",
+      "name": "get_profile",
+      "endpoint": "/api/users/cuser",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "id_match=true; name_len=4"
+    },
+    {
+      "suite": "B",
+      "name": "update_profile",
+      "endpoint": "/api/users/cuser",
+      "method": "PATCH",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "name_set=true"
+    },
+    {
+      "suite": "B",
+      "name": "profile_persist",
+      "endpoint": "/api/users/cuser",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "persisted=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "G",
+      "name": "user_b_signup",
+      "endpoint": "/api/auth/signup",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "created uid_present; phone_set"
+    },
+    {
+      "suite": "G",
+      "name": "user_b_ready",
+      "endpoint": "/api/auth/login|signup",
+      "method": "—",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "uid_present; distinct=true"
+    },
+    {
+      "suite": "C",
+      "name": "create_group",
+      "endpoint": "/api/groups",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "id_present=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "C",
+      "name": "list_groups",
+      "endpoint": "/api/groups/cuser",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "count=1; created_found=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "C",
+      "name": "update_group",
+      "endpoint": "/api/groups/00b01ed7-3a66-42fe-8324-b4e497e92779",
+      "method": "PATCH",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "bio_updated=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "C",
+      "name": "add_member",
+      "endpoint": "/api/groups/00b01ed7-3a66-42fe-8324-b4e497e92779/members",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "member created",
+      "dbPersist": true
+    },
+    {
+      "suite": "C",
+      "name": "remove_member",
+      "endpoint": "/api/groups/00b01ed7-3a66-42fe-8324-b4e497e92779/members/oyaA9DLZWMTUWUqlb1TWMVolySx2",
+      "method": "DELETE",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "member removed",
+      "dbPersist": true
+    },
+    {
+      "suite": "D",
+      "name": "create_group_outing",
+      "endpoint": "/api/outings",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "type=group; id_present=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "D",
+      "name": "create_special_event",
+      "endpoint": "/api/outings",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "type=special_event; occasion=birthday",
+      "dbPersist": true
+    },
+    {
+      "suite": "D",
+      "name": "get_outing",
+      "endpoint": "/api/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "type=group"
+    },
+    {
+      "suite": "D",
+      "name": "vote_options",
+      "endpoint": "/api/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8/vote-options",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "count=1; created=201",
+      "dbPersist": true
+    },
+    {
+      "suite": "D",
+      "name": "cast_vote",
+      "endpoint": "/api/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8/votes",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "voter_match=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "D",
+      "name": "attendance",
+      "endpoint": "/api/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8/attendance",
+      "method": "PUT",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "status=going",
+      "dbPersist": true
+    },
+    {
+      "suite": "E",
+      "name": "send_message",
+      "endpoint": "/api/chat/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8/messages",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 201,
+      "summary": "sender_from_token=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "E",
+      "name": "list_messages",
+      "endpoint": "/api/chat/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8/messages",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "count=1; found=true",
+      "dbPersist": true
+    },
+    {
+      "suite": "F",
+      "name": "list_notifications",
+      "endpoint": "/api/notifications",
+      "method": "GET",
+      "status": "BLOCKED",
+      "httpStatus": 200,
+      "summary": "empty feed — mark-read NOT TESTED"
+    },
+    {
+      "suite": "F",
+      "name": "mark_notification_read",
+      "endpoint": "/api/notifications/:id/read",
+      "method": "PATCH",
+      "status": "NOT TESTED",
+      "httpStatus": null,
+      "summary": "empty feed"
+    },
+    {
+      "suite": "G",
+      "name": "unauthorized_group_update",
+      "endpoint": "/api/groups/00b01ed7-3a66-42fe-8324-b4e497e92779",
+      "method": "PATCH",
+      "status": "PASS",
+      "httpStatus": 403,
+      "summary": "expect 403 for non-owner"
+    },
+    {
+      "suite": "G",
+      "name": "unauthorized_group_delete",
+      "endpoint": "/api/groups/00b01ed7-3a66-42fe-8324-b4e497e92779",
+      "method": "DELETE",
+      "status": "PASS",
+      "httpStatus": 403,
+      "summary": "expect 403 for non-owner"
+    },
+    {
+      "suite": "G",
+      "name": "unauthorized_outing_update",
+      "endpoint": "/api/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8",
+      "method": "PATCH",
+      "status": "PASS",
+      "httpStatus": 403,
+      "summary": "expect 403 for non-creator"
+    },
+    {
+      "suite": "G",
+      "name": "unauthorized_outing_delete",
+      "endpoint": "/api/outings/9b7b3bb3-8296-4614-b567-00e53d39f1a8",
+      "method": "DELETE",
+      "status": "PASS",
+      "httpStatus": 403,
+      "summary": "expect 403 for non-creator"
+    },
+    {
+      "suite": "G",
+      "name": "notifications_isolation",
+      "endpoint": "/api/notifications",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "count=0; foreign_leak=false"
+    },
+    {
+      "suite": "G",
+      "name": "unauthorized_notification_read",
+      "endpoint": "/api/notifications/:id/read",
+      "method": "PATCH",
+      "status": "NOT TESTED",
+      "httpStatus": null,
+      "summary": "no notification id from User A"
+    },
+    {
+      "suite": "G",
+      "name": "unauthorized_chat_access",
+      "endpoint": "/api/chat/outings/b443638c-48cf-4949-8ac0-ad8c5415dc19/messages",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 403,
+      "summary": "expect 403/404 for non-participant"
+    },
+    {
+      "suite": "A",
+      "name": "login_again",
+      "endpoint": "/api/auth/login",
+      "method": "POST",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "customToken=true; idToken=true"
+    },
+    {
+      "suite": "A",
+      "name": "authenticated_api_after_relogin",
+      "endpoint": "/api/outings/cuser",
+      "method": "GET",
+      "status": "PASS",
+      "httpStatus": 200,
+      "summary": "Bearer ID token accepted after re-login"
+    }
+  ],
+  "cleanup": {
+    "groups": [
+      "00b01ed7-3a66-42fe-8324-b4e497e92779"
+    ],
+    "outings": [
+      "9b7b3bb3-8296-4614-b567-00e53d39f1a8",
+      "b443638c-48cf-4949-8ac0-ad8c5415dc19"
+    ],
+    "userBCreated": true
+  },
+  "notes": {
+    "tokens": "never stored",
+    "userA": "primary TEST_EMAIL",
+    "userBEmailDomain": "yalla5roga.test",
+    "userBCreated": true
+  }
+}

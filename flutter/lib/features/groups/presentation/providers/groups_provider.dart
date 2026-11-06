@@ -1,9 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
-import 'package:yalla_5roga/core/mock/mock_data.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
@@ -199,9 +197,7 @@ class GroupsProvider extends ChangeNotifier {
     String bio = '',
   }) async {
     if (_isCreating || name.trim().isEmpty) return null;
-    final coverImage =
-        _createImage ??
-        (AppConfig.instance.useMockData ? MockData.defaultCoverImage : null);
+    final coverImage = _createImage;
     if (coverImage == null) return null;
 
     _isCreating = true;

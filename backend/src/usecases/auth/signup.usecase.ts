@@ -69,6 +69,7 @@ export class SignupUseCase {
         refreshToken: session.refreshToken,
         expiresIn: session.expiresIn,
         uid: session.uid,
+        customToken: session.customToken,
         user: toPublicUser(user),
       };
     } catch (error) {

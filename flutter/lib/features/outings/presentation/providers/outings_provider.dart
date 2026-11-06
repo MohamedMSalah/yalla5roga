@@ -42,12 +42,24 @@ class OutingsProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   List<Outing> get filtered {
-    final status =
-        OutingStatus.values[_filter.clamp(0, OutingStatus.values.length - 1)];
+    final tab = _filter.clamp(0, 2);
     return [
       for (final outing in _outings)
-        if (outing.status == status) outing,
+        if (_matchesFilterTab(outing.status, tab)) outing,
     ];
+  }
+
+  bool _matchesFilterTab(OutingStatus status, int tab) {
+    switch (tab) {
+      case 0:
+        return status == OutingStatus.draft ||
+            status == OutingStatus.confirmed;
+      case 1:
+        return status == OutingStatus.voting;
+      default:
+        return status == OutingStatus.past ||
+            status == OutingStatus.cancelled;
+    }
   }
 
   List<Outing> get needsYourVote {
@@ -136,8 +148,8 @@ class OutingsProvider extends ChangeNotifier {
   bool canSelectPlaces(String outingId, String? userId) {
     if (!canVote(outingId)) return false;
     if (isVoteFinalized(outingId)) return false;
-    // Not In blocks place voting; I'm In / still deciding can pick places.
-    return cuserAttendance(outingId, userId) != AttendanceStatus.notGoing;
+    // Attendance is independent of place voting.
+    return userId != null && userId.isNotEmpty;
   }
 
   DateTime? voteEndsAt(String outingId) => _votesByOuting[outingId]?.endsAt;
@@ -189,11 +201,11 @@ class OutingsProvider extends ChangeNotifier {
 
   AttendanceStatus attendanceFor(String outingId, String memberId) {
     return _attendanceByOuting[outingId]?[memberId] ??
-        AttendanceStatus.notVoted;
+        AttendanceStatus.unset;
   }
 
   AttendanceStatus cuserAttendance(String outingId, String? memberId) {
-    if (memberId == null || memberId.isEmpty) return AttendanceStatus.notVoted;
+    if (memberId == null || memberId.isEmpty) return AttendanceStatus.unset;
     return attendanceFor(outingId, memberId);
   }
 
@@ -214,9 +226,44 @@ class OutingsProvider extends ChangeNotifier {
   bool canChangeAttendance(String outingId, {String? userId}) {
     final outing = findById(outingId);
     if (outing == null) return false;
-    if (outing.isPastOuting || outing.status == OutingStatus.past) return false;
-    if (isVoteFinalized(outingId)) return false;
+    if (outing.status == OutingStatus.past ||
+        outing.status == OutingStatus.cancelled) {
+      return false;
+    }
+    // Owner attendance is fixed Going on the backend.
+    if (userId != null &&
+        userId.isNotEmpty &&
+        outing.createdById == userId) {
+      return false;
+    }
     return true;
+  }
+
+  bool isTied(String outingId) {
+    final outing = findById(outingId);
+    if (outing == null) return false;
+    return outing.status == OutingStatus.voting && isVoteFinalized(outingId);
+  }
+
+  Future<String?> breakTieFor(String outingId) async {
+    final result = await repository.breakTie(outingId);
+    return result.fold(
+      (failure) {
+        _errorMessage = failure.message;
+        AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.send,
+          context: 'breakTie',
+        );
+        notifyListeners();
+        return null;
+      },
+      (snapshot) {
+        _applySnapshot(snapshot.snapshot);
+        notifyListeners();
+        return snapshot.winningOptionId;
+      },
+    );
   }
 
   Future<bool> setAttendance(
@@ -224,7 +271,7 @@ class OutingsProvider extends ChangeNotifier {
     String memberId,
     AttendanceStatus status,
   ) async {
-    if (isVoteFinalized(outingId)) return false;
+    // Attendance is independent of voting lock (product scenarios §3.10).
     final result = await repository.setAttendance(
       outingId: outingId,
       memberId: memberId,
@@ -284,24 +331,19 @@ class OutingsProvider extends ChangeNotifier {
     );
   }
 
+  /// Refresh after server-side closure (no client authority to finalize).
   Future<bool> finalizeVoteFor(String outingId) async {
-    if (!hasVoted(outingId) || isVoteFinalized(outingId)) return false;
-    final result = await repository.finalizeVote(outingId);
+    final result = await repository.refreshLifecycle();
     return result.fold(
       (failure) {
         _errorMessage = failure.message;
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'finalizeVote',
-        );
         notifyListeners();
         return false;
       },
       (snapshot) {
         _applySnapshot(snapshot);
         notifyListeners();
-        return true;
+        return isVoteFinalized(outingId);
       },
     );
   }

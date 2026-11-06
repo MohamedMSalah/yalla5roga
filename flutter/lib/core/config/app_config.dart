@@ -120,7 +120,6 @@ class AppConfig {
     required this.apiBaseUrl,
     required this.connectTimeout,
     required this.receiveTimeout,
-    required this.useMockData,
     required this.nominatimHost,
     required this.osmTileUrlTemplate,
     required this.downloadUrl,
@@ -138,7 +137,6 @@ class AppConfig {
   final String apiBaseUrl;
   final Duration connectTimeout;
   final Duration receiveTimeout;
-  final bool useMockData;
   final String nominatimHost;
   final String osmTileUrlTemplate;
   final String downloadUrl;
@@ -166,7 +164,6 @@ class AppConfig {
     String apiBaseUrl = defaultDevelopmentApiBaseUrl,
     Duration connectTimeout = const Duration(milliseconds: defaultTimeoutMs),
     Duration receiveTimeout = const Duration(milliseconds: defaultTimeoutMs),
-    bool useMockData = true,
     String nominatimHost = defaultNominatimHost,
     String osmTileUrlTemplate = defaultOsmTileUrlTemplate,
     String downloadUrl = defaultDownloadUrl,
@@ -177,7 +174,6 @@ class AppConfig {
       apiBaseUrl: apiBaseUrl,
       connectTimeout: connectTimeout,
       receiveTimeout: receiveTimeout,
-      useMockData: useMockData,
       nominatimHost: nominatimHost,
       osmTileUrlTemplate: osmTileUrlTemplate,
       downloadUrl: downloadUrl,
@@ -188,7 +184,6 @@ class AppConfig {
   /// Reads `--dart-define` / `--dart-define-from-file` values.
   factory AppConfig.fromEnvironment({bool debugMode = kDebugMode}) {
     const rawEnv = String.fromEnvironment('APP_ENV');
-    const rawMock = String.fromEnvironment('USE_MOCK_DATA');
     const rawApiBaseUrl = String.fromEnvironment('API_BASE_URL');
     const connectTimeoutMs = int.fromEnvironment(
       'API_CONNECT_TIMEOUT_MS',
@@ -244,16 +239,11 @@ class AppConfig {
       apiBaseUrl = defaultDevelopmentApiBaseUrl;
     }
 
-    final useMockData = rawMock.isEmpty
-        ? debugMode
-        : rawMock.toLowerCase() == 'true';
-
     final config = AppConfig(
       environment: environment,
       apiBaseUrl: apiBaseUrl,
       connectTimeout: Duration(milliseconds: connectTimeoutMs),
       receiveTimeout: Duration(milliseconds: receiveTimeoutMs),
-      useMockData: useMockData,
       nominatimHost: rawNominatimHost.trim().isEmpty
           ? defaultNominatimHost
           : rawNominatimHost.trim(),
@@ -345,11 +335,6 @@ class AppConfig {
     firebase.validate();
 
     if (environment == AppEnvironment.production) {
-      if (useMockData) {
-        throw const AppConfigException(
-          'USE_MOCK_DATA is not allowed in production.',
-        );
-      }
       if (uri.scheme != 'https') {
         throw const AppConfigException(
           'Production API_BASE_URL must use https.',
@@ -381,15 +366,14 @@ class AppConfig {
     final host = Uri.tryParse(config.apiBaseUrl)?.host ?? '(invalid)';
     debugPrint(
       '[AppConfig] env=${config.environment.name} '
-      'mock=${config.useMockData} apiHost=$host '
-      'firebaseProject=${config.firebase.projectId}',
+      'apiHost=$host firebaseProject=${config.firebase.projectId}',
     );
   }
 
   @override
   String toString() {
     final host = Uri.tryParse(apiBaseUrl)?.host ?? '(invalid)';
-    return 'AppConfig(${environment.name}, mock=$useMockData, '
+    return 'AppConfig(${environment.name}, '
         'host=$host, firebaseProject=${firebase.projectId})';
   }
 }

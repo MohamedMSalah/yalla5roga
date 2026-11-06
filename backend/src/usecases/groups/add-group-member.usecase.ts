@@ -2,6 +2,7 @@ import type { IGroupRepository } from "../../repositories/groups/i-group.reposit
 import { GroupRepository } from "../../repositories/groups/group.repository.js";
 import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
 import { UserRepository } from "../../repositories/users/user.repository.js";
+import { assertGroupOwner } from "../../services/groups/group-access.js";
 import type {
   AddGroupMemberByPhoneInput,
   GroupMember,
@@ -14,13 +15,15 @@ export class AddGroupMemberUseCase {
     private readonly users: IUserRepository = new UserRepository(),
   ) {}
 
-  async execute(input: AddGroupMemberByPhoneInput): Promise<GroupMember> {
+  async execute(
+    callerUid: string,
+    input: AddGroupMemberByPhoneInput,
+  ): Promise<GroupMember> {
     if (!input.group_id || !input.phoneNumber) {
       throw new ValidationError("group_id and phoneNumber are required");
     }
 
-    const group = await this.groups.findById(input.group_id);
-    if (!group) throw new NotFoundError("Group");
+    await assertGroupOwner(this.groups, input.group_id, callerUid);
 
     const user = await this.users.findByPhone(input.phoneNumber);
     if (!user) {

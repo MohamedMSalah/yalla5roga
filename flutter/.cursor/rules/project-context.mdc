@@ -11,15 +11,16 @@ Yalla 5roga is a Flutter mobile app for planning group outings in Egypt: create 
 
 - Package: `yalla_5roga` (`pubspec.yaml` name)
 - Display name: **Yalla 5roga** (`AppConstants.appName`)
-- Version: `0.1.0+1`, Dart SDK `^3.13.3`
+- Monorepo sibling: `../backend` — Node.js + Express + Prisma + Neon PostgreSQL
+- Product behavior SSoT: `../docs/PRODUCT_SCENARIOS.md` (also read `../AGENTS.md`)
 - Entry: `lib/main.dart` → `AppDependencies.create()` → `lib/app.dart` `App`
-- No Node.js backend in this repo yet; client talks to placeholder REST via Dio
-- Firebase Auth (phone OTP) + FCM are used behind repository adapters only
-- Root `index.html` is a Tailwind UI concept gallery; it is not app runtime code
+- Firebase Auth (phone OTP, Google, Apple, email) + FCM behind repository adapters
+- Neon PostgreSQL is the application data source of truth (via backend APIs)
+- **No runtime mock/demo data layers** — repositories are always live API-backed
 
 ### Main technologies
 
-Flutter + Dart, Provider (`ChangeNotifier`), GetX (`GetMaterialApp` navigation/snackbars/dialogs), Dio for the app API, `dartz` `Either` for failures, Equatable, SharedPreferences, Firebase Auth/Messaging, flutter_map + geolocator + Nominatim (`package:http` via geocoding datasource).
+Flutter + Dart, Provider (`ChangeNotifier`), GetX (`GetMaterialApp` navigation/snackbars/dialogs), Dio for the app API, `dartz` `Either` for failures, Equatable, SharedPreferences, Firebase Auth/Messaging, flutter_map + geolocator + Nominatim.
 
 ### Overall architecture
 
@@ -27,7 +28,7 @@ Feature-first Clean Architecture. **Every feature data path:**
 
 ```
 UI Screen → Provider → Repository (Either) → Remote DataSource
-  → ApiClient/Dio (live) | prefs (saved/drafts) | Firebase adapters (auth/push)
+  → ApiClient/Dio (live) | prefs cache (optional) | Firebase adapters (auth/push)
 ```
 
 - `RepositoryFactory` builds API-backed repository implementations only
@@ -35,125 +36,16 @@ UI Screen → Provider → Repository (Either) → Remote DataSource
 - Presentation must **not** import `ApiClient`, Dio, `http`, or Firebase packages
 - No seed/demo fixtures; empty/error UI until the API responds
 
----
-
-## Complete Project Structure
-
-```
-lib/
-  main.dart
-  app.dart
-  core/          # shared kernel
-  features/      # feature modules (data/domain/presentation)
-assets/branding/
-android/ ios/ web/ windows/ macos/ linux/
-index.html       # design preview only
-```
-
-### `lib/core/`
-
-| Folder | Purpose |
-|---|---|
-| `constants/` | `AppConstants`, `ApiConstants` (incl. placeholders), `AssetConstants` |
-| `di/` | `AppDependencies.create()` + `RepositoryFactory` |
-| `network/` | `ApiClient`, interceptors, `NetworkInfo`, `guardRemote` |
-| `error/` | `Failure` (domain) + `AppException` (data) |
-| `theme/` | `AppColors`, `AppPalette`, `AppTheme`, `ThemeProvider` |
-| `localization/` | Manual `L10n` (en/ar) + `LocaleProvider` |
-| `responsive/` | 375×812 scale; `.w` `.h` `.sp` `.r` |
-| `widgets/` | Shared UI |
-| `utils/` | extensions, Validators, AppLauncher, permissions helpers |
-
-### Features
-
-| Feature | Layers | Role |
-|---|---|---|
-| `splash` | presentation | Unauthenticated landing → `AuthPage` |
-| `auth` | data/domain/presentation | Firebase phone OTP behind `AuthRepository`; prefs session cache; optional REST login/register |
-| `shell` | presentation | 4-tab `MainShell` |
-| `home` | presentation | Dashboard |
-| `groups` | full stack | List/create/members via `GroupsRepository` |
-| `outings` | full stack | CRUD, votes, attendance, saved/drafts, geocoding |
-| `chat` | full stack | Outing chat messages via `OutingChatRepository`; prefs cache |
-| `discover` | full stack | Places via `DiscoverRepository` |
-| `notifications` | full stack | Feed + read + local emit; FCM via `PushMessagingRepository` |
-| `unread` | data/domain | Shared `/user/unread-counts` |
-| `setting` | presentation | Live settings tab |
-
----
-
-## Architecture
-
-### Boot
-
-1. `main()` → Firebase init (if configured) → `AppDependencies.create()`
-2. SharedPreferences, `NetworkInfo`, Dio, `RepositoryFactory`
-3. Repos for auth, groups, outings, chat, discover, saved, notifications, unread, geocoding, push
-4. `AuthProvider.restoreSession()` + FCM init before/with `runApp`
-5. `App` → `MultiProvider` → `GetMaterialApp`; `MainShell` if authenticated else `SplashPage`
-
-### Data flow
-
-```
-Widget → Provider → Repository → RemoteDataSource (ApiClient placeholders)
-                              → LocalDataSource (prefs for saved/drafts)
-AuthRepository → AuthRemote + AuthLocal + FirebaseAuthDataSource
-PushMessagingRepository → FcmMessagingService
-LocationRepository → Nominatim HTTP
-OutingChatRepository → Chat remote + prefs message cache
-```
-
-### Domain models (canonical)
-
-`Outing` (alias `HeroSlide`), `Group` (`DemoGroup`), `GroupMember`, `Place` (`OutingPlace`), `PlaceLocation`, `PlaceVote`/`VoteOption`, `Attendance`/`AttendanceStatus`, `ChatMessage` (chat feature), `SuggestedPlace`, `SavedOuting`/`OutingDraft`, `NotificationItem` (`outingId`; `eventId` alias).
-
-Display strings (`meta`, relative time) are computed getters/formatters from `scheduledAt` + place data.
-
-### Existing + placeholder API (`ApiConstants`)
-
-Live endpoints in use: auth login/register, unread counts, notifications (+ read), group/chat mark-read.
-
-Placeholders for future Node.js: groups CRUD/members, outings CRUD/votes/attendance, chat messages, discover places, saved outings, optional FCM token.
-
-Until the Node backend exists, Dio calls may fail and providers should surface empty/error states.
-
 ### Auth & push
 
-- Email/password via Firebase (`login` / `register`), folded into `AuthRepository`
-- Signup requires Egyptian phone OTP verification before linking email/password
-- Google & Apple sign-in via Firebase behind `AuthRepository` (UI uses icons only)
-- Presentation uses domain `PhoneVerification` / `AuthErrorCodes` only
-- FCM behind `PushMessagingRepository`; UI uses `PushAuthorizationStatus`
-- Optional REST login/register remain on the remote auth path for a future Node backend
-
-### Local storage keys (`AppConstants`)
-
-`auth_token`, `cached_user`, `theme_mode`, `locale`, `saved_outings`, `outing_drafts`, `outing_chat_messages`, `location_prompt_shown`.
-
-### State management
-
-App-wide providers registered in `AppDependencies` + `app.dart`. Page-scoped: `CreateOutingProvider`, `PickLocationProvider`, `PlaceSearchProvider` (receive repos via `context.read`).
-
-Theme/locale stay core prefs providers (not feature REST).
-
-### Navigation
-
-Imperative GetX (`Get.to` / `off` / `offAll` / `back`). No named route table. Deep links resolve outings via `OutingsProvider`.
-
-### Coding conventions
-
-- Strings via `L10n` / `context.l10n`
-- Layout via Responsive + `AppColors` / `context.palette`
-- Repository returns `Either`; providers fold to UI state
-- Imports: `package:yalla_5roga/...`
-- Do not invent endpoints outside `ApiConstants`
-- Do not call ApiClient/Dio/http/Firebase from widgets or feature providers
-- Prefer existing shared widgets before new one-offs
+- Firebase sign-in folded into `AuthRepository`; sync user to backend (`/api/users/sync`)
+- FCM behind `PushMessagingRepository`; register device tokens with the backend
+- Saved outings/places must use backend APIs (Neon), not prefs as sole SoT
 
 ### Modification rules
 
+- Read `AGENTS.md` + `docs/PRODUCT_SCENARIOS.md` before behavioral changes
 - Inspect and reuse existing layers before adding new ones
 - Wire new app-wide providers in **both** `AppDependencies` and `App`
 - Do not reintroduce mock/demo seed data layers
-- Live mode may hit placeholder paths that fail until the Node backend exists — acceptable
-- `flutter: generate: false` — extend `l10n.dart`, do not add gen-l10n unless asked
+- Prefer existing shared widgets before new one-offs

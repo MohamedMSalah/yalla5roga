@@ -94,7 +94,7 @@ const weekdayEnum = [
   "saturday",
   "sunday",
 ];
-const outingStatusEnum = ["upcoming", "voting", "past", "cancelled"];
+const outingStatusEnum = ["draft", "voting", "confirmed", "cancelled", "past"];
 const invitationStatusEnum = [
   "pending",
   "accepted",
@@ -103,7 +103,8 @@ const invitationStatusEnum = [
   "revoked",
 ];
 const occasionEnum = ["none", "birthday", "wedding"];
-const attendanceEnum = ["going", "not_going", "not_voted"];
+const outingTypeEnum = ["group", "special_event"];
+const attendanceEnum = ["going", "not_going", "maybe"];
 const roleEnum = ["owner", "member"];
 
 const swaggerOptions: swaggerJsdoc.OAS3Options = {
@@ -121,8 +122,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         "Protected operations require a Firebase Authentication ID token (JWT), not an FCM device token.",
         "The auth middleware reads `Authorization: Bearer <token>` and verifies it with Firebase Admin `verifyIdToken`.",
         "In Swagger UI: click Authorize, paste the ID token only, then Execute. Swagger adds the `Bearer` prefix — do not paste `Bearer ` yourself.",
-        "Email/password credentials are stored in Neon (`users.password_hash`). `POST /api/auth/signup` and `POST /api/auth/login` verify against Neon, then return a Firebase ID token via a custom-token exchange.",
-        "Firebase Auth is identity-only for Google, Apple, phone OTP, and ID token issuance — not the application profile or password database.",
+        "Email/password credentials are stored in Neon (`users.password_hash`). Canonical clients call `POST /api/auth/signup` and `POST /api/auth/login`, which return `idToken` + `customToken` (Firebase has no email password).",
+        "Firebase Auth handles Google, Apple, phone OTP, custom-token sign-in, and ID token refresh — not the email/password credential store.",
         "Mobile clients can also use Flutter `currentUser.getIdToken(true)`. ID tokens expire after one hour.",
         "A valid token that has never been synced still authenticates. Create the database row with `POST /api/users/sync` after Google, Apple, or phone sign-in; email/password signup already creates the profile.",
         "`GET /api/users/cuser` returns 404 until a profile row exists.",
@@ -471,7 +472,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         AuthSession: {
           type: "object",
-          required: ["idToken", "refreshToken", "expiresIn", "uid"],
+          required: ["idToken", "refreshToken", "expiresIn", "uid", "customToken"],
           properties: {
             idToken: {
               type: "string",
@@ -484,6 +485,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               example: "3600",
             },
             uid: firebaseUid,
+            customToken: {
+              type: "string",
+              description:
+                "Firebase custom token. Mobile clients call signInWithCustomToken so Auth can refresh ID tokens.",
+            },
             user: {
               allOf: [ref("User")],
               nullable: true,
@@ -786,6 +792,16 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         ChatMessageResponse: itemResponse("ChatMessage"),
         ChatMessageListResponse: listResponse("ChatMessage"),
+        ChatRead: {
+          type: "object",
+          required: ["outing_id", "user_id", "last_read_at"],
+          properties: {
+            outing_id: uuid,
+            user_id: firebaseUid,
+            last_read_at: dateTime,
+          },
+        },
+        ChatReadResponse: itemResponse("ChatRead"),
         Notification: {
           type: "object",
           required: [
@@ -815,6 +831,20 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         NotificationResponse: itemResponse("Notification"),
         NotificationListResponse: listResponse("Notification"),
+        MarkAllNotificationsReadResult: {
+          type: "object",
+          required: ["count"],
+          properties: {
+            count: {
+              type: "integer",
+              minimum: 0,
+              description: "Number of notifications flipped from unread to read",
+            },
+          },
+        },
+        MarkAllNotificationsReadResponse: itemResponse(
+          "MarkAllNotificationsReadResult",
+        ),
         CreateOutingRequest: {
           type: "object",
           required: ["title"],
@@ -825,6 +855,12 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             image_url: { type: "string", format: "uri", maxLength: 2048 },
             group_id: { ...uuid, nullable: true },
             status: { type: "string", enum: outingStatusEnum },
+            type: {
+              type: "string",
+              enum: outingTypeEnum,
+              description:
+                "Optional. Server derives this from group_id + occasion (group vs special_event).",
+            },
             occasion: { type: "string", enum: occasionEnum },
             scheduled_at: { ...dateTime, nullable: true },
             ends_at: {
@@ -869,7 +905,6 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_longitude: { type: "number", nullable: true },
             vote_deadline_hours: { type: "integer", nullable: true },
             vote_ends_at: { ...dateTime, nullable: true },
-            vote_finalized: { type: "boolean" },
             suggested_by_user_id: { ...firebaseUid, nullable: true },
           },
         },
@@ -882,6 +917,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             group_id: { ...uuid, nullable: true },
             created_by: firebaseUid,
             status: { type: "string", enum: outingStatusEnum },
+            type: { type: "string", enum: outingTypeEnum },
             occasion: { type: "string", enum: occasionEnum },
             scheduled_at: { ...dateTime, nullable: true },
             ends_at: { ...dateTime, nullable: true },
@@ -892,7 +928,19 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_longitude: { type: "number", nullable: true },
             vote_deadline_hours: { type: "integer", nullable: true },
             vote_ends_at: { ...dateTime, nullable: true },
-            vote_finalized: { type: "boolean" },
+            vote_closed_at: { ...dateTime, nullable: true },
+            vote_close_reason: {
+              type: "string",
+              enum: [
+                "all_voted",
+                "deadline",
+                "unique_winner",
+                "tie_break",
+                "zero_votes",
+              ],
+              nullable: true,
+            },
+            winning_option_id: { ...uuid, nullable: true },
             suggested_by_user_id: { ...firebaseUid, nullable: true },
             created_at: dateTime,
             updated_at: dateTime,

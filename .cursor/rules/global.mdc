@@ -1,0 +1,17 @@
+---
+description: Yalla 5roga project-wide AI development rules
+alwaysApply: true
+---
+
+# Global rules
+
+- Follow root `AGENTS.md` as the entry point for every task.
+- Use documentation-first development: read only the docs relevant to the task (see selective strategy in `AGENTS.md`).
+- Locate code via `docs/PROJECT_STRUCTURE.md`; avoid unnecessary full-repository scans.
+- Preserve existing architecture (Flutter Provider Clean Architecture; Express use cases; Neon + Prisma; Firebase Auth only for identity).
+- Verify assumptions in source before implementing; never invent APIs, tables, or product rules.
+- Consider cross-layer impacts (Flutter ↔ API ↔ DB ↔ notifications) before changing contracts.
+- Update affected `docs/*` in the **same task** when architecture, schema, APIs, business rules, or structure change.
+- Run relevant tests after implementation.
+- Product authority: `docs/PRODUCT_SCENARIOS.md`. Conflicts are compliance issues until the product owner updates that doc.
+- Details live in `docs/`; keep this rule concise.

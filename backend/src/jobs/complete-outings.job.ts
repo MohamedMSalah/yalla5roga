@@ -3,17 +3,14 @@ import { prisma } from "../config/database.js";
 const INTERVAL_MS = 60 * 1000;
 
 /**
- * Marks upcoming outings as past once they have ended. An outing without an
+ * Marks confirmed outings as past once they have ended. An outing without an
  * explicit ends_at is treated as lasting six hours after scheduled_at.
- * `WHERE status = 'upcoming'` keeps the statement idempotent, and the raw
- * UPDATE sets updated_at itself because @updatedAt does not run for raw SQL.
- * The partial index idx_outings_upcoming_due serves this query.
  */
 export async function completeFinishedOutings(): Promise<string[]> {
   const finished = await prisma.$queryRaw<{ id: string }[]>`
     UPDATE outings
     SET status = 'past', updated_at = now()
-    WHERE status = 'upcoming'
+    WHERE status = 'confirmed'
       AND COALESCE(ends_at, scheduled_at + interval '6 hours') <= now()
     RETURNING id
   `;

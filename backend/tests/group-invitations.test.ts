@@ -16,6 +16,8 @@ import {
   normalizePhoneNumber,
   tryNormalizePhoneNumber,
 } from "../src/services/phone/normalize-phone.js";
+import { buildGroupInviteDeepLinks } from "../src/services/notifications/deep-link.js";
+import { NoopNotificationPublisher } from "../src/services/notifications/notification-publisher.js";
 import {
   buildInvitationMessage,
   buildWhatsAppClickToChatUrl,
@@ -67,7 +69,7 @@ function invitation(overrides: Partial<InvitationRecord> = {}): InvitationRecord
 }
 
 class FakeGroups implements IGroupRepository {
-  group: Group | null = { id: GROUP_ID } as Group;
+  group: Group | null = { id: GROUP_ID, name: "Friday Squad" } as Group;
   members: GroupMember[] = [member(GROUP_ID, INVITER_ID, "owner")];
   added: Array<{ groupId: string; userId: string }> = [];
 
@@ -241,22 +243,26 @@ function inviteUseCase(options?: {
   invitations?: FakeInvitations;
   users?: FakeUsers;
   phones?: FakeVerifiedPhones;
+  notifications?: NoopNotificationPublisher;
 }) {
   const groups = options?.groups ?? new FakeGroups();
   const invitations = options?.invitations ?? new FakeInvitations();
   const users = options?.users ?? new FakeUsers();
   const phones = options?.phones ?? new FakeVerifiedPhones();
+  const notifications = options?.notifications ?? new NoopNotificationPublisher();
   return {
     groups,
     invitations,
     users,
     phones,
+    notifications,
     useCase: new InviteToGroupUseCase(
       groups,
       invitations,
       users,
       phones,
       () => NOW,
+      notifications,
     ),
   };
 }
@@ -395,11 +401,40 @@ describe("WhatsApp click-to-chat", () => {
     assert.match(withLinks, /https:\/\/example.com\/play/);
     assert.match(withLinks, /https:\/\/example.com\/app-store/);
   });
+
+  it("embeds the Flutter group deep link in the invitation message", () => {
+    const deepLink = "https://yalla5roga.com/invite/abc?groupId=g1";
+    const message = buildInvitationMessage({
+      groupName: "Friday Squad",
+      inviterName: "Mona",
+      deepLink,
+    });
+    assert.match(message, /Friday Squad/);
+    assert.match(message, /Mona/);
+    assert.match(message, /Open your invite here:/);
+    assert.match(message, /https:\/\/yalla5roga\.com\/invite\/abc\?groupId=g1/);
+  });
+});
+
+describe("group invite deep links", () => {
+  it("builds web and app scheme links for Flutter", () => {
+    const links = buildGroupInviteDeepLinks({
+      invitationId: "invite-1",
+      groupId: GROUP_ID,
+    });
+    assert.equal(
+      links.web,
+      `https://yalla5roga.com/invite/invite-1?groupId=${GROUP_ID}`,
+    );
+    assert.match(links.app, /^yalla5roga:\/\/invite\?/);
+    assert.match(links.app, /invitationId=invite-1/);
+    assert.match(links.app, new RegExp(`groupId=${GROUP_ID}`));
+  });
 });
 
 describe("invite to group", () => {
   it("saves a pending invitation when no account has that verified phone", async () => {
-    const { useCase, invitations, groups } = inviteUseCase();
+    const { useCase, invitations, groups, notifications } = inviteUseCase();
 
     const result = await useCase.execute({
       groupId: GROUP_ID,
@@ -413,8 +448,16 @@ describe("invite to group", () => {
     assert.equal(result.invitation.status, "pending");
     assert.equal(result.invitation.user_id, null);
     assert.match(result.whatsappUrl, /^https:\/\/wa\.me\/201001234567\?text=/);
+    assert.match(
+      result.deepLink,
+      new RegExp(`^https://yalla5roga.com/invite/${result.invitation.id}\\?groupId=${GROUP_ID}$`),
+    );
     assert.equal(invitations.rows.length, 1);
     assert.equal(groups.added.length, 0);
+    assert.equal(notifications.published.length, 1);
+    assert.equal(notifications.published[0]?.channel, "whatsapp");
+    assert.equal(notifications.published[0]?.deepLink, result.deepLink);
+    assert.match(notifications.published[0]?.body ?? "", /Open your invite here:/);
   });
 
   it("adds an existing user whose Firebase phone is verified", async () => {

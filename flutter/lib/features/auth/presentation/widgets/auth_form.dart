@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -82,7 +81,7 @@ class _AuthFormState extends State<AuthForm> {
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
-    if (!AppConfig.instance.useMockData && !auth.agreeTerms) {
+    if (!auth.agreeTerms) {
       AppSnackBar.showError(context.l10n.termsRequired);
       return;
     }
@@ -117,11 +116,11 @@ class _AuthFormState extends State<AuthForm> {
     if (auth.isLoading) return;
     if (!_formKey.currentState!.validate()) return;
     final l10n = context.l10n;
-    if (!AppConfig.instance.useMockData && !auth.agreeTerms) {
+    if (!auth.agreeTerms) {
       AppSnackBar.showError(l10n.termsRequired);
       return;
     }
-    if (!AppConfig.instance.useMockData && !auth.otpSent) {
+    if (!auth.otpSent) {
       AppSnackBar.showError(l10n.verifyPhoneFirst);
       return;
     }
@@ -132,9 +131,7 @@ class _AuthFormState extends State<AuthForm> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
       phone: Validators.normalizePhone(_phoneController.text),
-      smsCode: AppConfig.instance.useMockData
-          ? '123456'
-          : Validators.normalizeOtp(_otpController.text),
+      smsCode: Validators.normalizeOtp(_otpController.text),
     );
 
     if (!mounted) return;
@@ -279,16 +276,10 @@ class _AuthFormState extends State<AuthForm> {
             )
           else
             CustomButton(
-              label: AppConfig.instance.useMockData || otpSent
-                  ? l10n.register
-                  : l10n.sendOtp,
-              icon: AppConfig.instance.useMockData || otpSent
-                  ? Icons.person_add_alt_1
-                  : Icons.sms_outlined,
+              label: otpSent ? l10n.register : l10n.sendOtp,
+              icon: otpSent ? Icons.person_add_alt_1 : Icons.sms_outlined,
               isLoading: auth.isLoading,
-              onPressed: AppConfig.instance.useMockData || otpSent
-                  ? _submitRegister
-                  : _sendOtp,
+              onPressed: otpSent ? _submitRegister : _sendOtp,
             ),
           Responsive.spaceLg.gapH,
           const AuthSocialButtons(),

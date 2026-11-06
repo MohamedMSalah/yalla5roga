@@ -18,7 +18,10 @@ class UserModel extends User {
       phone: apiString(json['phone']) ?? '',
       email: apiString(json['email']),
       token: apiString(json['token']) ?? apiString(json['accessToken']),
-      imageUrl: apiString(json['imageUrl']) ?? apiString(json['avatar']),
+      imageUrl:
+          apiString(json['image_url']) ??
+          apiString(json['imageUrl']) ??
+          apiString(json['avatar']),
     );
   }
 

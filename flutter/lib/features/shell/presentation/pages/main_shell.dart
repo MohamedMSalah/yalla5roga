@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/monitoring/startup_trace.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -12,6 +11,7 @@ import 'package:yalla_5roga/features/discover/presentation/providers/discover_pr
 import 'package:yalla_5roga/features/groups/presentation/pages/groups_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/home/presentation/pages/home_page.dart';
+import 'package:yalla_5roga/features/invites/presentation/providers/invite_deep_link_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/outings_page.dart';
@@ -76,12 +76,16 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
-    unawaited(context.read<GroupsProvider>().refresh());
+    await context.read<GroupsProvider>().refresh();
+    if (!mounted) return;
     unawaited(context.read<NotificationsProvider>().refresh());
     unawaited(context.read<SavedOutingsProvider>().load());
 
+    // After sync claim, open a stashed invite deep link into the group.
+    await context.read<InviteDeepLinkProvider>().flushPendingNavigation();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || AppConfig.instance.useMockData) return;
+      if (!mounted) return;
       if (await AppPermissions.isNotificationGranted) return;
       if (!mounted) return;
       await AppPermissions.promptNotificationsOnLaunch(context.l10n);

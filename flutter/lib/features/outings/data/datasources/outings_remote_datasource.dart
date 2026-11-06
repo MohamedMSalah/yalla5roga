@@ -26,6 +26,7 @@ abstract class OutingsDataSource {
   });
   Future<OutingSnapshot> selectVote(String outingId, int optionIndex);
   Future<OutingSnapshot> finalizeVote(String outingId);
+  Future<TieBreakResult> breakTie(String outingId);
   Future<OutingSnapshot> clearVotes(String outingId);
   Future<OutingSnapshot> setAttendance({
     required String outingId,
@@ -43,6 +44,9 @@ class OutingsRemoteDataSource implements OutingsDataSource {
 
   final ApiClient _client;
 
+  /// Cached vote options by outing for index → option_id mapping.
+  final _optionsByOuting = <String, List<Map<String, dynamic>>>{};
+
   @override
   List<Place> get catalogPlaces => const [];
 
@@ -56,20 +60,30 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   Future<OutingSnapshot> load() async {
     try {
       final response = await _client.get<Map<String, dynamic>>(
-        ApiConstants.outings,
+        ApiConstants.outingsCuser,
       );
-      final payload = apiPayload(response.data);
-      final raw = payload['items'] ?? payload['outings'] ?? payload;
+      final items = apiObjectList(
+        response.data,
+        aliases: const ['outings', 'items'],
+      );
       final outings = <Outing>[
-        if (raw is List)
-          for (final item in raw)
-            if (item is Map) _outingFromJson(Map<String, dynamic>.from(item)),
+        for (final item in items) _outingFromJson(item),
       ];
+
+      final votesByOuting = <String, PlaceVote>{};
+      final attendanceByOuting = <String, Map<String, AttendanceStatus>>{};
+
+      for (final outing in outings) {
+        if (outing.id.isEmpty) continue;
+        votesByOuting[outing.id] = await _loadVotes(outing.id);
+        attendanceByOuting[outing.id] = await _loadAttendance(outing.id);
+      }
+
       return OutingSnapshot(
         outings: outings,
         suggestions: const [],
-        votesByOuting: _votesFromJson(payload['votesByOuting']),
-        attendanceByOuting: _attendanceFromJson(payload['attendanceByOuting']),
+        votesByOuting: votesByOuting,
+        attendanceByOuting: attendanceByOuting,
       );
     } on DioException catch (error) {
       throw _unwrap(error);
@@ -79,10 +93,55 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   @override
   Future<OutingSnapshot> add(Outing outing, {String? creatorId}) async {
     try {
-      await _client.post<Map<String, dynamic>>(
+      final body = <String, dynamic>{
+        'title': outing.title,
+        if (outing.image.isNotEmpty) 'image_url': outing.image,
+        'group_id': outing.groupId,
+        'status': outing.status.name,
+        'occasion': outing.occasion.name,
+        if (outing.scheduledAt != null)
+          'scheduled_at': outing.scheduledAt!.toIso8601String(),
+        if (outing.location != null) ...{
+          'location_name': outing.location!.name,
+          'location_area': outing.location!.area,
+          'location_latitude': outing.location!.latitude,
+          'location_longitude': outing.location!.longitude,
+        },
+        if (outing.voteDeadlineHours != null)
+          'vote_deadline_hours': outing.voteDeadlineHours,
+      };
+
+      final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.outings,
-        data: _outingToJson(outing),
+        data: body,
       );
+      final created = apiPayload(response.data);
+      final outingId = apiString(created['id']) ?? '';
+
+      for (var i = 0; i < outing.votePlaces.length; i++) {
+        final place = outing.votePlaces[i];
+        await _client.post<Map<String, dynamic>>(
+          ApiConstants.outingVoteOptions(outingId),
+          data: {
+            if (place.id.isNotEmpty) 'place_id': place.id,
+            'label': place.name,
+            if (place.area.isNotEmpty) 'area': place.area,
+            if (place.imageUrl.isNotEmpty) 'image_url': place.imageUrl,
+            'vibe': place.vibe.name,
+            'latitude': place.latitude,
+            'longitude': place.longitude,
+            'sort_order': i,
+          },
+        );
+      }
+
+      for (final guestId in outing.guestIds) {
+        await _client.post<Map<String, dynamic>>(
+          ApiConstants.outingGuests(outingId),
+          data: {'user_id': guestId},
+        );
+      }
+
       return await load();
     } on DioException catch (error) {
       throw _unwrap(error);
@@ -99,34 +158,41 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     String? createdById,
     String? image,
     DateTime? scheduledAt,
-  }) async {
-    try {
-      await _client.post<Map<String, dynamic>>(
-        ApiConstants.outings,
-        data: {
-          'groupId': groupId,
-          'title': title,
-          'places': [for (final place in places) place.toJson()],
-          'deadlineHours': deadlineHours,
-          'createdBy': createdBy,
-          'createdById': createdById,
-          'image': image,
-          'scheduledAt': scheduledAt?.toIso8601String(),
-          'status': OutingStatus.voting.name,
-        },
-      );
-      return await load();
-    } on DioException catch (error) {
-      throw _unwrap(error);
-    }
+  }) {
+    return add(
+      Outing(
+        id: '',
+        image: image ?? '',
+        title: title,
+        meta: '',
+        date: '',
+        time: '',
+        going: 0,
+        groupId: groupId,
+        status: OutingStatus.voting,
+        votePlaces: places,
+        voteDeadlineHours: deadlineHours,
+        suggestedBy: createdBy,
+        scheduledAt: scheduledAt,
+        createdById: createdById,
+      ),
+    );
   }
 
   @override
   Future<OutingSnapshot> selectVote(String outingId, int optionIndex) async {
     try {
+      final options = await _ensureOptions(outingId);
+      if (optionIndex < 0 || optionIndex >= options.length) {
+        throw const ServerException('Invalid vote option');
+      }
+      final optionId = apiString(options[optionIndex]['id']);
+      if (optionId == null || optionId.isEmpty) {
+        throw const ServerException('Missing vote option id');
+      }
       await _client.post<Map<String, dynamic>>(
         ApiConstants.outingVotes(outingId),
-        data: {'optionIndex': optionIndex, 'toggle': true},
+        data: {'option_id': optionId},
       );
       return await load();
     } on DioException catch (error) {
@@ -136,12 +202,26 @@ class OutingsRemoteDataSource implements OutingsDataSource {
 
   @override
   Future<OutingSnapshot> finalizeVote(String outingId) async {
+    // Closure is server-authoritative; clients only refresh state.
+    return load();
+  }
+
+  @override
+  Future<TieBreakResult> breakTie(String outingId) async {
     try {
-      await _client.post<Map<String, dynamic>>(
-        ApiConstants.outingVotes(outingId),
-        data: {'finalize': true},
+      final response = await _client.post<Map<String, dynamic>>(
+        ApiConstants.outingTieBreak(outingId),
       );
-      return await load();
+      final payload = apiPayload(response.data);
+      final winning =
+          apiString(payload['winningOptionId']) ??
+          apiString(payload['winning_option_id']) ??
+          '';
+      final snapshot = await load();
+      return TieBreakResult(
+        snapshot: snapshot,
+        winningOptionId: winning,
+      );
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -150,10 +230,12 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   @override
   Future<OutingSnapshot> clearVotes(String outingId) async {
     try {
-      await _client.post<Map<String, dynamic>>(
-        ApiConstants.outingVotes(outingId),
-        data: {'clear': true},
-      );
+      final vote = await _loadVotes(outingId);
+      for (final optionId in vote.cuserOptionIds) {
+        await _client.delete<Map<String, dynamic>>(
+          '${ApiConstants.outingVotes(outingId)}/$optionId',
+        );
+      }
       return await load();
     } on DioException catch (error) {
       throw _unwrap(error);
@@ -167,9 +249,10 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     required AttendanceStatus status,
   }) async {
     try {
-      await _client.post<Map<String, dynamic>>(
+      // Backend binds attendance to the Bearer token user; memberId is ignored.
+      await _client.put<Map<String, dynamic>>(
         ApiConstants.outingAttendance(outingId),
-        data: {'userId': memberId, 'status': status.name},
+        data: {'status': attendanceStatusToApi(status.name)},
       );
       return await load();
     } on DioException catch (error) {
@@ -180,110 +263,174 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   @override
   Future<OutingSnapshot> refreshLifecycle() => load();
 
+  Future<List<Map<String, dynamic>>> _ensureOptions(String outingId) async {
+    final cached = _optionsByOuting[outingId];
+    if (cached != null) return cached;
+    final response = await _client.get<Map<String, dynamic>>(
+      ApiConstants.outingVoteOptions(outingId),
+    );
+    final items = apiObjectList(response.data, aliases: const ['items']);
+    _optionsByOuting[outingId] = items;
+    return items;
+  }
 
-  Map<String, PlaceVote> _votesFromJson(dynamic raw) {
-    if (raw is! Map) return const {};
-    final result = <String, PlaceVote>{};
-    raw.forEach((key, value) {
-      if (value is! Map) return;
-      final map = Map<String, dynamic>.from(value);
-      final optionsRaw = map['options'];
-      final options = <VoteOption>[
-        if (optionsRaw is List)
-          for (final item in optionsRaw)
-            if (item is Map)
-              VoteOption.fromJson(Map<String, dynamic>.from(item)),
-      ];
-      result['$key'] = PlaceVote(
-        outingId: apiString(map['outingId']) ?? '$key',
-        options: options,
-        endsAt: DateTime.tryParse(apiString(map['endsAt']) ?? ''),
-        cuserOptionIds: [
-          for (final id in map['cuserOptionIds'] as List? ?? const [])
-            if (id is String) id,
-        ],
-        suggestedById: apiString(map['suggestedById']),
-        finalized: apiBool(map['finalized']),
+  Future<PlaceVote> _loadVotes(String outingId) async {
+    final options = await _ensureOptions(outingId);
+    final votesResponse = await _client.get<Map<String, dynamic>>(
+      ApiConstants.outingVotes(outingId),
+    );
+    final voteRows = apiObjectList(votesResponse.data, aliases: const ['items']);
+
+    var finalized = false;
+    DateTime? endsAt;
+    try {
+      final stateResponse = await _client.get<Map<String, dynamic>>(
+        ApiConstants.outingVotingState(outingId),
       );
-    });
+      final state = apiPayload(stateResponse.data);
+      finalized = apiBool(state['isClosed']) || apiBool(state['is_closed']);
+      final outingMap = state['outing'];
+      if (outingMap is Map) {
+        endsAt = DateTime.tryParse(
+          apiString(outingMap['vote_ends_at']) ?? '',
+        );
+        finalized =
+            finalized ||
+            apiString(outingMap['vote_closed_at']) != null ||
+            apiString(outingMap['status']) == 'confirmed';
+      }
+    } catch (_) {
+      // Voting-state is best-effort; counts still load from votes.
+    }
+
+    final countByOption = <String, int>{};
+    for (final row in voteRows) {
+      final optionId = apiString(row['option_id']) ?? '';
+      if (optionId.isEmpty) continue;
+      countByOption[optionId] = (countByOption[optionId] ?? 0) + 1;
+    }
+    final total = voteRows.length;
+
+    final voteOptions = <VoteOption>[
+      for (final option in options)
+        VoteOption(
+          apiString(option['place_id']) ?? apiString(option['id']) ?? '',
+          apiString(option['label']) ?? '',
+          countByOption[apiString(option['id']) ?? ''] ?? 0,
+          total == 0
+              ? 0
+              : (((countByOption[apiString(option['id']) ?? ''] ?? 0) / total) *
+                        100)
+                    .round(),
+        ),
+    ];
+
+    return PlaceVote(
+      outingId: outingId,
+      options: voteOptions,
+      cuserOptionIds: const [],
+      finalized: finalized,
+      endsAt: endsAt,
+    );
+  }
+
+  Future<Map<String, AttendanceStatus>> _loadAttendance(String outingId) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      ApiConstants.outingAttendance(outingId),
+    );
+    final rows = apiObjectList(response.data, aliases: const ['items']);
+    final result = <String, AttendanceStatus>{};
+    for (final row in rows) {
+      final userId = apiString(row['user_id']) ?? '';
+      if (userId.isEmpty) continue;
+      final wire = attendanceStatusFromApi(apiString(row['status']));
+      result[userId] = AttendanceStatus.values.firstWhere(
+        (item) => item.name == wire,
+        orElse: () => AttendanceStatus.unset,
+      );
+    }
     return result;
   }
 
-  Map<String, Map<String, AttendanceStatus>> _attendanceFromJson(dynamic raw) {
-    if (raw is! Map) return const {};
-    final result = <String, Map<String, AttendanceStatus>>{};
-    raw.forEach((outingId, value) {
-      if (value is! Map) return;
-      final members = <String, AttendanceStatus>{};
-      value.forEach((userId, status) {
-        members['$userId'] = AttendanceStatus.values.firstWhere(
-          (item) => item.name == '$status',
-          orElse: () => AttendanceStatus.notVoted,
-        );
-      });
-      result['$outingId'] = members;
-    });
-    return result;
-  }
   Outing _outingFromJson(Map<String, dynamic> json) {
-    final votePlacesRaw = json['votePlaces'];
+    final votePlacesRaw = json['votePlaces'] ?? json['vote_places'];
+    final locationName = apiString(json['location_name']);
+    final locationArea = apiString(json['location_area']);
+    PlaceLocation? location;
+    if (locationName != null ||
+        locationArea != null ||
+        json['location_latitude'] != null) {
+      location = PlaceLocation(
+        name: locationName ?? '',
+        area: locationArea ?? '',
+        latitude: (json['location_latitude'] as num?)?.toDouble() ?? 0,
+        longitude: (json['location_longitude'] as num?)?.toDouble() ?? 0,
+      );
+    } else if (json['location'] is Map) {
+      location = PlaceLocation.fromJson(
+        Map<String, dynamic>.from(json['location'] as Map),
+      );
+    }
+
+    final statusWire = apiString(json['status']) ?? 'draft';
+    final normalizedStatus =
+        statusWire == 'upcoming' ? 'confirmed' : statusWire;
+    final occasionWire = apiString(json['occasion']) ?? 'none';
+    final typeWire = apiString(json['type']) ?? 'group';
+    final parsedType = switch (typeWire) {
+      'special_event' || 'specialEvent' => OutingType.specialEvent,
+      _ => OutingType.group,
+    };
+
     return Outing(
       id: apiString(json['id']) ?? '',
-      image: apiString(json['image']) ?? apiString(json['coverUrl']) ?? '',
+      image:
+          apiString(json['image_url']) ??
+          apiString(json['image']) ??
+          apiString(json['coverUrl']) ??
+          '',
       title: apiString(json['title']) ?? '',
       meta: apiString(json['meta']) ?? '',
       date: apiString(json['date']) ?? '',
       time: apiString(json['time']) ?? '',
       going: apiInt(json['going']),
-      groupId: apiString(json['groupId']),
-      location: json['location'] is Map
-          ? PlaceLocation.fromJson(
-              Map<String, dynamic>.from(json['location'] as Map),
-            )
-          : null,
+      groupId: apiString(json['group_id']) ?? apiString(json['groupId']),
+      location: location,
       occasion: OutingOccasion.values.firstWhere(
-        (item) => item.name == json['occasion'],
+        (item) => item.name == occasionWire,
         orElse: () => OutingOccasion.none,
       ),
+      type: parsedType,
       guestIds: [
-        for (final item in json['guestIds'] as List? ?? const [])
+        for (final item in json['guestIds'] as List? ??
+            json['guest_ids'] as List? ??
+            const [])
           if (item is String) item,
       ],
       status: OutingStatus.values.firstWhere(
-        (item) => item.name == json['status'],
-        orElse: () => OutingStatus.upcoming,
+        (item) => item.name == normalizedStatus,
+        orElse: () => OutingStatus.draft,
       ),
       votePlaces: [
         if (votePlacesRaw is List)
           for (final item in votePlacesRaw)
             if (item is Map) Place.fromJson(Map<String, dynamic>.from(item)),
       ],
-      voteDeadlineHours: json['voteDeadlineHours'] as int?,
-      suggestedBy: apiString(json['suggestedBy']),
-      scheduledAt: DateTime.tryParse(apiString(json['scheduledAt']) ?? ''),
-      createdById: apiString(json['createdById']),
+      voteDeadlineHours:
+          json['vote_deadline_hours'] as int? ??
+          json['voteDeadlineHours'] as int?,
+      suggestedBy:
+          apiString(json['suggested_by_user_id']) ??
+          apiString(json['suggestedBy']),
+      scheduledAt: DateTime.tryParse(
+        apiString(json['scheduled_at']) ??
+            apiString(json['scheduledAt']) ??
+            '',
+      ),
+      createdById:
+          apiString(json['created_by']) ?? apiString(json['createdById']),
     );
   }
-
-  Map<String, dynamic> _outingToJson(Outing outing) => {
-    'id': outing.id,
-    'title': outing.title,
-    'image': outing.image,
-    'meta': outing.meta,
-    'date': outing.date,
-    'time': outing.time,
-    'going': outing.going,
-    'groupId': outing.groupId,
-    'location': outing.location?.toJson(),
-    'occasion': outing.occasion.name,
-    'guestIds': outing.guestIds,
-    'status': outing.status.name,
-    'votePlaces': [for (final place in outing.votePlaces) place.toJson()],
-    'voteDeadlineHours': outing.voteDeadlineHours,
-    'suggestedBy': outing.suggestedBy,
-    'scheduledAt': outing.scheduledAt?.toIso8601String(),
-    'createdById': outing.createdById,
-  };
 
   AppException _unwrap(DioException error) {
     if (error.error is AppException) return error.error as AppException;

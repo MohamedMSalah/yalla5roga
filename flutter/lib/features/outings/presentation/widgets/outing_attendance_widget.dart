@@ -118,7 +118,7 @@ class _OutingAttendanceWidgetState extends State<OutingAttendanceWidget> {
                 ),
               ],
             ),
-            if (mine == AttendanceStatus.notVoted) ...[
+            if (mine == AttendanceStatus.unset) ...[
               8.gapH,
               Text(
                 '؟ ${l10n.stillNotVoted}',
@@ -240,7 +240,8 @@ class AttendanceDisplay {
     return switch (status) {
       AttendanceStatus.going => Icons.check,
       AttendanceStatus.notGoing => Icons.close,
-      AttendanceStatus.notVoted => Icons.help_outline,
+      AttendanceStatus.maybe => Icons.help_outline,
+      AttendanceStatus.unset => Icons.help_outline,
     };
   }
 
@@ -248,7 +249,8 @@ class AttendanceDisplay {
     return switch (status) {
       AttendanceStatus.going => const Color(0xFF059669),
       AttendanceStatus.notGoing => AppColors.rose600,
-      AttendanceStatus.notVoted => muted,
+      AttendanceStatus.maybe => AppColors.amber700,
+      AttendanceStatus.unset => muted,
     };
   }
 
@@ -256,7 +258,8 @@ class AttendanceDisplay {
     return switch (status) {
       AttendanceStatus.going => '✓ ${l10n.imIn}',
       AttendanceStatus.notGoing => '✕ ${l10n.notIn}',
-      AttendanceStatus.notVoted => '? ${l10n.stillNotVoted}',
+      AttendanceStatus.maybe => '? ${l10n.maybe}',
+      AttendanceStatus.unset => '? ${l10n.stillNotVoted}',
     };
   }
 }

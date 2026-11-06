@@ -28,8 +28,8 @@ class AppHero extends StatelessWidget {
   final double? radius;
 
   /// Artwork URL on this surface. Empty/missing URLs skip the Hero so a
-  /// placeholder on mock data cannot fly into a photo that the live API
-  /// later hydrates (or the reverse).
+  /// placeholder cannot fly into a photo that the API later hydrates
+  /// (or the reverse).
   final String? url;
 
   @override

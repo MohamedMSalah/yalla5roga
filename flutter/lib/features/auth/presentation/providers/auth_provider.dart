@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
-import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
@@ -103,8 +102,7 @@ class AuthProvider extends ChangeNotifier {
     if (_isLoading) return false;
 
     final e164 = Validators.normalizePhone(phone);
-    if (!AppConfig.instance.useMockData &&
-        !Validators.isValidEgyptianPhone(e164)) {
+    if (!Validators.isValidEgyptianPhone(e164)) {
       _errorCode = AuthErrorCodes.invalidPhone;
       _errorMessage = 'Enter a valid Egyptian phone number';
       notifyListeners();
@@ -204,12 +202,8 @@ class AuthProvider extends ChangeNotifier {
     required String smsCode,
   }) async {
     final e164 = Validators.normalizePhone(phone);
-    final verificationId = AppConfig.instance.useMockData
-        ? (_verificationId ?? 'mock-verification-id')
-        : _verificationId;
-    final pendingPhone = AppConfig.instance.useMockData
-        ? (_pendingPhone ?? e164)
-        : _pendingPhone;
+    final verificationId = _verificationId;
+    final pendingPhone = _pendingPhone;
     if (verificationId == null ||
         pendingPhone == null ||
         pendingPhone != e164) {

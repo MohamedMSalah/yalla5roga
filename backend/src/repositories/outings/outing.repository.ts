@@ -5,13 +5,6 @@ import type {
   CreateOutingDraftInput,
   CreateOutingInput,
   CreateVoteOptionInput,
-  Outing,
-  OutingAttendance,
-  OutingDraft,
-  OutingGuest,
-  OutingVote,
-  OutingVoteOption,
-  SavedOuting,
   UpdateOutingDraftInput,
   UpdateOutingInput,
   UpsertAttendanceInput,
@@ -66,6 +59,9 @@ export class OutingRepository implements IOutingRepository {
   createVoteOption(data: CreateVoteOptionInput) {
     return this.datasource.createVoteOption(data);
   }
+  findVoteOptionById(id: string) {
+    return this.datasource.findVoteOptionById(id);
+  }
   deleteVoteOption(id: string) {
     return this.datasource.deleteVoteOption(id);
   }
@@ -75,8 +71,11 @@ export class OutingRepository implements IOutingRepository {
   castVote(data: CastVoteInput) {
     return this.datasource.castVote(data);
   }
-  removeVote(outingId: string, userId: string, optionId: string) {
-    return this.datasource.removeVote(outingId, userId, optionId);
+  removeVote(outingId: string, userId: string) {
+    return this.datasource.removeVote(outingId, userId);
+  }
+  clearVotes(outingId: string) {
+    return this.datasource.clearVotes(outingId);
   }
 
   findDraftById(id: string) {
@@ -103,5 +102,15 @@ export class OutingRepository implements IOutingRepository {
   }
   unsaveOuting(userId: string, outingId: string) {
     return this.datasource.unsaveOuting(userId, outingId);
+  }
+
+  listSavedPlacesByUser(userId: string) {
+    return this.datasource.listSavedPlacesByUser(userId);
+  }
+  savePlace(userId: string, placeId: string) {
+    return this.datasource.savePlace(userId, placeId);
+  }
+  unsavePlace(userId: string, placeId: string) {
+    return this.datasource.unsavePlace(userId, placeId);
   }
 }

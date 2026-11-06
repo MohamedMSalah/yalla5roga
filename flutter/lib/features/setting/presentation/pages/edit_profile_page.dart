@@ -3,11 +3,19 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
+import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/image_source_sheet.dart';
+import 'package:yalla_5roga/features/auth/presentation/pages/auth_page.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
+import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
+import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
+import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
+import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_avatar_section.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_fields_section.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_password_section.dart';
@@ -169,6 +177,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ? l10n.phoneVerified
           : l10n.otpSent(l10n.digits(phone)),
     );
+  }
+
+  Future<void> _deleteAccount() async {
+    final l10n = context.l10n;
+    final confirmed = await AppAlert.confirm(
+      title: l10n.deleteAccountTitle,
+      message: l10n.deleteAccountBody,
+      confirmText: l10n.deleteAccount,
+      cancelText: l10n.cancel,
+    );
+    if (!confirmed || !mounted) return;
+
+    context.read<NotificationsProvider>().clear();
+    context.read<OutingChatProvider>().clear();
+    context.read<GroupsProvider>().clear();
+    context.read<OutingsProvider>().clear();
+    context.read<DiscoverProvider>().clear();
+    context.read<SavedOutingsProvider>().clear();
+    // TODO: POST a delete-account endpoint when one exists in ApiConstants.
+    await context.read<AuthProvider>().logout();
+    if (!mounted) return;
+    AppSnackBar.show(l10n.accountDeleted);
+    Get.offAll(() => const AuthPage());
   }
 
   Future<void> _save() async {
@@ -394,6 +425,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       ),
                     ),
                   ],
+                  Responsive.spaceLg.gapH,
+                  CustomButton(
+                    label: l10n.deleteAccount,
+                    icon: Icons.delete_outline,
+                    variant: AppButtonVariant.danger,
+                    onPressed: auth.isLoading ? null : _deleteAccount,
+                  ),
                   Responsive.spaceXl.gapH,
                 ],
               ),

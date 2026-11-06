@@ -15,6 +15,8 @@ import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.d
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/invites/presentation/providers/invite_deep_link_provider.dart';
+import 'package:yalla_5roga/features/notifications/data/datasources/fcm_token_remote_datasource.dart';
 import 'package:yalla_5roga/features/notifications/data/repositories/push_messaging_repository_impl.dart';
 import 'package:yalla_5roga/features/notifications/data/services/fcm_messaging_service.dart';
 import 'package:yalla_5roga/features/notifications/data/services/local_notifications_service.dart';
@@ -34,6 +36,7 @@ class AppDependencies {
     required this.auth,
     required this.notifications,
     required this.fcm,
+    required this.inviteDeepLinks,
     required this.outingChat,
     required this.outings,
     required this.savedOutings,
@@ -51,6 +54,7 @@ class AppDependencies {
   final AuthProvider auth;
   final NotificationsProvider notifications;
   final FcmProvider fcm;
+  final InviteDeepLinkProvider inviteDeepLinks;
   final OutingChatProvider outingChat;
   final OutingsProvider outings;
   final SavedOutingsProvider savedOutings;
@@ -93,8 +97,9 @@ class AppDependencies {
       ErrorInterceptor(),
     ]);
 
+    final apiClient = ApiClient(dio);
     final repos = RepositoryFactory(
-      apiClient: ApiClient(dio),
+      apiClient: apiClient,
       networkInfo: networkInfo,
       prefs: prefs,
       firebaseAuth: firebaseAuth,
@@ -117,7 +122,10 @@ class AppDependencies {
       prefs: prefs,
       localNotifications: localNotifications,
     );
-    final pushMessaging = PushMessagingRepositoryImpl(messaging: fcmMessaging);
+    final pushMessaging = PushMessagingRepositoryImpl(
+      messaging: fcmMessaging,
+      tokenRemote: FcmTokenRemoteDataSource(apiClient),
+    );
     // FCM (local notifications + getToken) is deferred until after first frame.
     final fcm = FcmProvider(messaging: pushMessaging);
 
@@ -129,6 +137,12 @@ class AppDependencies {
     final savedOutings = SavedOutingsProvider(
       repository: savedOutingsRepository,
     );
+    final inviteDeepLinks = InviteDeepLinkProvider(
+      prefs: prefs,
+      isAuthenticated: () => auth.isAuthenticated,
+      groups: groups,
+      shell: shell,
+    );
 
     return AppDependencies(
       config: appConfig,
@@ -137,6 +151,7 @@ class AppDependencies {
       auth: auth,
       notifications: NotificationsProvider(repository: repos.notifications()),
       fcm: fcm,
+      inviteDeepLinks: inviteDeepLinks,
       outingChat: OutingChatProvider(repository: repos.outingChat()),
       outings: outings,
       savedOutings: savedOutings,
