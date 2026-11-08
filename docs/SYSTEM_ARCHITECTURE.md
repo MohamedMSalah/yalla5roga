@@ -35,6 +35,7 @@ flowchart TB
 
   subgraph Backend
     Express[Express app.ts]
+    IO[Socket.IO realtime]
     MW[authMiddleware + validate]
     Ctrl[Controllers]
     UC[Use cases]
@@ -54,10 +55,12 @@ flowchart TB
   end
 
   UI --> Providers --> Repos --> Dio --> Express
+  Providers --> IO
   FA --> FAuth
   Providers --> FA
   FM --> FCM
   Express --> MW --> Ctrl --> UC --> Svc --> DS --> Neon
+  UC --> IO
   Jobs --> UC
   Jobs --> Svc
   Svc --> FAuth
@@ -67,10 +70,10 @@ flowchart TB
 
 ## 3. Flutter ↔ backend communication
 
-- Protocol: HTTPS JSON REST under `/api/*`.
-- Auth header: `Authorization: Bearer <Firebase ID token>` via Flutter `AuthInterceptor`.
+- Protocol: HTTPS JSON REST under `/api/*`, plus Socket.IO on the same host/port (`/socket.io`) for outing chat delivery.
+- Auth header: `Authorization: Bearer <Firebase ID token>` via Flutter `AuthInterceptor`; sockets use handshake `auth.token` (same ID token).
 - Envelope convention (backend): `{ success: boolean, data?: T, message?: string }` (errors via `errorMiddleware`).
-- Flutter paths are defined in `flutter/lib/core/constants/api_constants.dart` and include the `/api` prefix; `API_BASE_URL` is host-only.
+- Flutter paths are defined in `flutter/lib/core/constants/api_constants.dart` and include the `/api` prefix; `API_BASE_URL` is host-only (also the Socket.IO base URL).
 
 ```mermaid
 sequenceDiagram

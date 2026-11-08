@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-08 (AUTH-07 settings profile / password) |
 | Documentation version | 1.0.0 |
 | Product authority | [`PRODUCT_SCENARIOS.md`](PRODUCT_SCENARIOS.md) |
 | Technical companion | [`SYSTEM_DESIGN.md`](SYSTEM_DESIGN.md) |
@@ -56,6 +56,12 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 - **Must not:** auto-create membership before accept.  
 - **Status:** Partial (group flow stronger than outing)  
 
+### AUTH-07 Settings profile / change password
+
+- **Actions:** Open Settings → see member-since date from Neon `created_at`; phone row shows Verified/Not verified chip (not tappable); header shows name (+ phone) without email; Edit profile → Edit password for Neon `has_password` accounts.  
+- **Backend:** `GET /api/users/cuser`; `POST /api/auth/change-password` / `verify-password`.  
+- **Status:** Implemented  
+
 ---
 
 ## 14.3 Outing creation
@@ -63,10 +69,17 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### OUT-01 Create Group Outing
 
 - **Preconditions:** Authenticated; group exists; user allowed.  
-- **Actions:** Enter title, schedule, **voting deadline**, candidates (optional at create), submit.  
-- **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going.  
-- **DB:** `outings`, `outing_attendance`.  
-- **Status:** Implemented (API/tests); Flutter must send deadline fields  
+- **Actions:** Enter title, schedule, optional cover photo; optionally tap **Add places for voting** (deadline + 2–5 places via Add place), or pick a single location; submit.  
+- **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going; `image_url` optional http(s) only; vote options posted when multi-place.  
+- **DB:** `outings`, `outing_attendance`, optional `outing_vote_options`.  
+- **Flutter:** Shared `CreateOutingPage` for create + suggest; always sends `vote_deadline_hours`; omits local file paths from `image_url` (no upload pipeline yet).  
+- **Status:** Implemented (API/tests); Flutter sends deadline fields  
+
+### OUT-01b Suggest / multi-place vote (same page)
+
+- **Actions:** From group details **Add places for voting** or create form button → `CreateOutingPage(group, letVote: true)` → add 2–5 places → publish voting outing.  
+- **Status:** Implemented (merged into create outing; no separate suggest sheet)  
+
 
 ### OUT-02 Create Special Event
 
@@ -82,6 +95,12 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 
 ## 14.4 Invitation and membership
 
+### GRP-01 Create group — creator is first member
+
+- **API:** `POST /api/groups` → creator row in `group_members` with `role=owner`; response `member_count` starts at **1**
+- **Flutter:** After create, members are reloaded; Group Info / Details call `ensureGroupLoaded` so the creator card appears in the members list
+- **Status:** Implemented
+
 ### INV-01 Owner invites existing user (outing)
 
 - **API:** `POST /api/outings/:id/guests`  
@@ -92,7 +111,8 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### INV-02 Group invite via WhatsApp / deep link
 
 - **API:** `POST /api/groups/:id/invitations`  
-- **Flutter:** parse link → auth if needed → claim/join flow  
+- **Flutter:** Create-group member picker loads device contacts (`PickDeviceContactsPage` + `READ_CONTACTS`); manual phone still supported. Create/add flows call invitations (not `…/members`); open returned `whatsapp_url` for non-users; after invitee installs + verifies that phone, `POST /api/users/sync` claims pending `group_invitations` into `group_members`. Group cover `image_url` is optional.  
+- **Note:** Non-users are **not** written to `outing_guests` — phone invites are group-scoped. Outing guests require an existing user id (`INV-01`).  
 - **Status:** Implemented  
 
 ### INV-03 Explicit accept outing invite
@@ -174,7 +194,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### CHAT-04 Mark read — `PATCH …/read` — Implemented  
 ### CHAT-05 Offline failure — Flutter error state — Requires Verification  
 ### CHAT-06 Unauthorized / cancelled — 403 — Implemented  
-### CHAT-07 Realtime WebSocket — **Not Implemented** (HTTP only)  
+### CHAT-07 Realtime Socket.IO — Implemented (REST write + socket delivery; probe verified)  
 ### CHAT-08 New message push — fan-out path Implemented; device delivery NOT RUN  
 
 ---
@@ -269,8 +289,10 @@ Additional journey diagrams for vote change, candidate reset, attendance, chat, 
 | AUTH-02 | Auth | Login | `POST /api/auth/login` | users | Session | Implemented |
 | AUTH-03 | Auth | Social/OTP | `POST /api/users/sync` | users | Upsert | Implemented |
 | AUTH-06 | Invites | Open link unauth | deep link + auth | — | Restore then accept | Partial |
+| AUTH-07 | Settings | Profile / password | `GET /api/users/cuser`, `POST /api/auth/change-password` | users | Profile UI | Implemented |
 | OUT-01 | Outings | Create group | `POST /api/outings` | outings, outing_attendance | Owner Going | Implemented |
 | OUT-02 | Outings | Create special | `POST /api/outings` | outings, outing_attendance | Created | Implemented |
+| GRP-01 | Groups | Create group | `POST /api/groups` | groups, group_members | Creator owner; count 1 | Implemented |
 | INV-02 | Groups | Phone invite | `POST /api/groups/:id/invitations` | group_invitations | Pending invite | Implemented |
 | INV-03 | Outings | Accept invite | `POST /api/outings/:id/invitations/accept` | outing_guests | Member | Partial UI |
 | VOT-05 | Voting | Cast vote | `POST /api/outings/:id/votes` | outing_votes | Upsert | Implemented |
@@ -281,7 +303,7 @@ Additional journey diagrams for vote change, candidate reset, attendance, chat, 
 | VOT-18 | Voting | Zero close | resolution | outings | Cancelled | Implemented |
 | ATT-02 | Attendance | Set status | `PUT /api/outings/:id/attendance` | outing_attendance | Updated | Implemented |
 | LIFE-05 | Lifecycle | Cancel | `POST /api/outings/:id/cancel` | outings | Cancelled | Implemented |
-| CHAT-02 | Chat | Send | `POST /api/chat/outings/:id/messages` | chat_messages | Stored | Implemented |
+| CHAT-02 | Chat | Send | `POST /api/outings/:outingId/messages` | chat_messages | Stored | Implemented |
 | SAVE-01 | Saved | Save outing | `POST /api/outings/:id/save` | saved_outings | Row | Implemented |
 | SAVE-04 | Saved | Save place | `POST /api/places/:id/save` | saved_places | Row | Partial UI |
 | DIS-01 | Discover | Browse | `GET /api/places` | places | List | Implemented |

@@ -19,4 +19,6 @@ abstract class DiscoverRepository {
   });
 
   List<Place> catalogPlaces();
+
+  void clearCache();
 }

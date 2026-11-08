@@ -32,7 +32,7 @@ Reduce the friction of “where should we go?” by giving a group:
 | Outings | Group outings and special events (birthday / wedding) |
 | Place voting | Owner-managed candidates; one active vote per member; server closure / winner / tie-break |
 | Attendance | Separate from voting |
-| Chat | HTTP-polled outing chat (not WebSockets) |
+| Chat | Hybrid REST persistence + Socket.IO live delivery (ADR-013) |
 | Discover | Places catalog from Neon (`places`) |
 | Saved items | Saved outings + saved places in Neon |
 | Notifications | In-app rows + outbox worker → FCM / WhatsApp |
@@ -56,7 +56,7 @@ A user opens the app, lands on a tabbed shell (home / groups / discover / settin
 
 ```mermaid
 flowchart LR
-  Flutter[Flutter app] -->|HTTPS REST + Bearer ID token| API[Express API]
+  Flutter[Flutter app] -->|HTTPS REST + Socket.IO + Bearer ID token| API[Express API]
   API --> Prisma[Prisma]
   Prisma --> Neon[(Neon PostgreSQL)]
   Flutter --> FirebaseAuth[Firebase Auth]

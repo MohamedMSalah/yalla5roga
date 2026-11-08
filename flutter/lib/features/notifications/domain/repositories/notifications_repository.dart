@@ -10,4 +10,6 @@ abstract class NotificationsRepository {
   Future<Either<Failure, int>> markAllRead();
 
   Future<Either<Failure, int>> markRead(String id);
+
+  void clearCache();
 }

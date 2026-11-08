@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-08 |
 | Documentation version | 1.0.0 |
 | Needs verification | Apple Sign-In production entitlements on each store build |
 
@@ -24,17 +24,23 @@ There is **no** global app role of Admin/Guest for outings. Outing Owner is `out
 - Phone OTP
 - Email/password via backend (`POST /api/auth/signup|login`) then `signInWithCustomToken`
 
-Firebase holds identities. Neon `users.id` = Firebase UID.
+Firebase Auth is **identity-only** (UID + ID tokens). It is **not** the application database — profiles, passwords, groups, outings, and related data live in Neon only. Neon `users.id` = Firebase UID.
 
 ## Email/password (backend-canonical)
 
-1. Signup: hash password into `users.password_hash`, create Firebase user **without** Firebase password, return `idToken` + `customToken`.
+1. Signup: store name/email/phone/`password_hash` in Neon; create a **bare** Firebase Auth UID (no email, displayName, or password written to Firebase); return `idToken` + `customToken`.
 2. Login: verify Neon hash, mint Firebase session the same way.
 3. Client stores Firebase session; Dio uses refreshed ID tokens.
+4. Change password: authenticated `POST /api/auth/change-password` verifies `currentPassword` against Neon and stores a new bcrypt hash (Firebase Auth is not updated).
+5. Confirm password: authenticated `POST /api/auth/verify-password` checks the Neon hash without changing it (edit-profile confirmation).
 
-Google / Apple / phone skip password endpoints and call `POST /api/users/sync` after Firebase sign-in.
+Public user JSON exposes `has_password` (never the hash) so Flutter can show edit-password UI for Neon accounts. Phone verification for the settings chip is Firebase `phoneNumber` on the signed-in identity (OTP-linked), not merely a Neon `phone` profile value.
+
+Google / Apple / phone skip password endpoints and call `POST /api/users/sync` after Firebase sign-in (Neon profile upsert).
 
 ## ID token verification
+
+Socket.IO chat connections (`backend/src/realtime/socket-auth.ts`) verify the same Firebase ID token from handshake `auth.token` (or `Authorization` / `?token=`). Socket identity is always `decoded.uid`; `outing:join` still runs `assertChatParticipant`.
 
 `authMiddleware` (`backend/src/middleware/auth.middleware.ts`):
 

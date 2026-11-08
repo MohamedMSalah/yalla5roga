@@ -1,9 +1,7 @@
 import { Router } from "express";
 import { UserController } from "../../controllers/users/user.controller.js";
-import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
-  syncUserBodySchema,
   updateUserBodySchema,
   userIdParamsSchema,
 } from "../../validators/users/user.validator.js";
@@ -75,45 +73,6 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
- * /api/users/sync:
- *   post:
- *     tags: [Users]
- *     summary: Sync a Firebase user into the database (canonical provisioning)
- *     description: >
- *       CANONICAL user provisioning after any Firebase sign-in (phone, Google,
- *       Apple, or Firebase email/password). The user id is the Firebase UID from
- *       the Bearer token. Do not send a password.
- *       First call creates a minimal profile from trusted token claims (and
- *       optional body bootstrap fields). Later calls return the existing
- *       profile without overwriting name, email, phone, or image_url from the
- *       body. A verified token phone may update the stored phone and claim
- *       invitations. Body phone is never treated as verified. Google and Apple
- *       accounts without a verified phone still receive a profile;
- *       `invitations.status` is then `phone_verification_required`. A verified
- *       phone already stored for a different user returns 409.
- *       Profile edits after sync use `PATCH /api/users/cuser`.
- *     operationId: syncUser
- *     requestBody:
- *       $ref: "#/components/requestBodies/SyncUser"
- *     responses:
- *       "200":
- *         description: Existing or newly created profile, plus invitation claim state
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/SyncUserResponse"
- *       "400":
- *         $ref: "#/components/responses/BadRequest"
- *       "401":
- *         $ref: "#/components/responses/Unauthorized"
- *       "409":
- *         description: The verified phone number belongs to another account
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
  * /api/users:
  *   get:
  *     tags: [Users]
@@ -179,37 +138,27 @@ import {
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */
-const api = Router();
+const router = Router();
 const controller = new UserController();
 
-api.use(authMiddleware);
-
-// Static paths before /:id so "cuser" and "sync" are never treated as user ids.
-api.get("/cuser", controller.getCuser);
-api.patch(
+// Static `/cuser` before `/:id`.
+router.get("/cuser", controller.getCuser);
+router.patch(
   "/cuser",
   validate({ body: updateUserBodySchema }),
   controller.updateCuser,
 );
-api.delete("/cuser", controller.deleteCuser);
-api.post(
-  "/sync",
-  validate({ body: syncUserBodySchema }),
-  controller.sync,
-);
-api.get("/", controller.list);
-api.get(
+router.delete("/cuser", controller.deleteCuser);
+router.get("/", controller.list);
+router.get(
   "/:id",
   validate({ params: userIdParamsSchema }),
   controller.getById,
 );
-api.delete(
+router.delete(
   "/:id",
   validate({ params: userIdParamsSchema }),
   controller.deleteById,
 );
-
-const router = Router();
-router.use("/api/users", api);
 
 export default router;

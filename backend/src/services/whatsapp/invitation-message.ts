@@ -1,6 +1,6 @@
 /**
  * Invitation copy for WhatsApp (server-sent or click-to-chat fallback).
- * Replace the download line when the app is published. Do not invent store URLs.
+ * Prefer store URLs when published; otherwise use `downloadUrl` (APP_DOWNLOAD_URL).
  */
 export const invitationStoreLinks = {
   googlePlay: "",
@@ -14,6 +14,8 @@ export type InvitationMessageInput = {
   groupName?: string;
   inviterName?: string;
   deepLink?: string;
+  /** Landing / store page when Play/App Store URLs are not set yet. */
+  downloadUrl?: string;
   googlePlay?: string;
   appStore?: string;
 };
@@ -28,8 +30,13 @@ export function buildInvitationMessage(
   const published = [links.googlePlay, links.appStore].filter(
     (link): link is string => Boolean(link),
   );
+  const downloadUrl = input.downloadUrl?.trim() ?? "";
   const downloadLine =
-    published.length > 0 ? published.join("\n") : DOWNLOAD_LINE_BEFORE_RELEASE;
+    published.length > 0
+      ? published.join("\n")
+      : downloadUrl
+        ? `Download the app:\n${downloadUrl}`
+        : DOWNLOAD_LINE_BEFORE_RELEASE;
 
   const groupLine = input.groupName
     ? `You've been invited to join "${input.groupName}" on Yalla 5roga!`

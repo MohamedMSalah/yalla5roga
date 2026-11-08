@@ -114,7 +114,7 @@ class FakeGroups implements IGroupRepository {
   removeMember(): Promise<GroupMember> {
     throw new Error("not used");
   }
-  listMembers(): Promise<GroupMember[]> {
+  listMembers() {
     throw new Error("not used");
   }
 }
@@ -394,6 +394,12 @@ describe("WhatsApp click-to-chat", () => {
     assert.equal(message.includes("apps.apple.com"), false);
     assert.equal(message.includes("http"), false);
 
+    const withDownload = buildInvitationMessage({
+      downloadUrl: "https://yalla5roga.com",
+    });
+    assert.match(withDownload, /Download the app:/);
+    assert.match(withDownload, /https:\/\/yalla5roga\.com/);
+
     const withLinks = buildInvitationMessage({
       googlePlay: "https://example.com/play",
       appStore: "https://example.com/app-store",
@@ -408,11 +414,13 @@ describe("WhatsApp click-to-chat", () => {
       groupName: "Friday Squad",
       inviterName: "Mona",
       deepLink,
+      downloadUrl: "https://yalla5roga.com",
     });
     assert.match(message, /Friday Squad/);
     assert.match(message, /Mona/);
     assert.match(message, /Open your invite here:/);
     assert.match(message, /https:\/\/yalla5roga\.com\/invite\/abc\?groupId=g1/);
+    assert.match(message, /Download the app:/);
   });
 });
 
@@ -983,20 +991,34 @@ describe("invitation feature boundaries", () => {
   });
 
   it("places invitation and account sync routes behind Firebase authentication", () => {
-    const groups = fs.readFileSync(
-      path.join(process.cwd(), "src", "routes", "groups", "group.routes.ts"),
+    const groupsIndex = fs.readFileSync(
+      path.join(process.cwd(), "src", "routes", "groups", "index.ts"),
       "utf8",
     );
-    const groupAuth = groups.indexOf("api.use(authMiddleware)");
-    const inviteAt = groups.indexOf('"/:id/invitations"');
-    assert.equal(groupAuth > -1 && inviteAt > groupAuth, true);
+    const groupAuth = groupsIndex.indexOf("api.use(authMiddleware)");
+    const inviteRoutes = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "src",
+        "routes",
+        "groups",
+        "group.invitations.routes.ts",
+      ),
+      "utf8",
+    );
+    const inviteAt = inviteRoutes.indexOf('"/:id/invitations"');
+    assert.equal(groupAuth > -1 && inviteAt > -1, true);
 
-    const users = fs.readFileSync(
-      path.join(process.cwd(), "src", "routes", "users", "user.routes.ts"),
+    const usersIndex = fs.readFileSync(
+      path.join(process.cwd(), "src", "routes", "users", "index.ts"),
       "utf8",
     );
-    const userAuth = users.indexOf("api.use(authMiddleware)");
-    const syncAt = users.indexOf('"/sync"');
-    assert.equal(userAuth > -1 && syncAt > userAuth, true);
+    const userAuth = usersIndex.indexOf("api.use(authMiddleware)");
+    const syncRoutes = fs.readFileSync(
+      path.join(process.cwd(), "src", "routes", "users", "user.sync.routes.ts"),
+      "utf8",
+    );
+    const syncAt = syncRoutes.indexOf('"/sync"');
+    assert.equal(userAuth > -1 && syncAt > -1, true);
   });
 });

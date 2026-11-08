@@ -19,7 +19,7 @@ flowchart LR
   Worker --> WA[WhatsAppChannel]
   Worker --> Logs[notification_delivery_logs]
   Push --> FCM[Firebase Cloud Messaging]
-  FlutterReg[Flutter FcmProvider] --> TokenAPI[POST /api/user/fcm-token]
+  FlutterReg[Flutter FcmProvider] --> TokenAPI[POST /api/users/cuser/fcm-token]
   TokenAPI --> Tokens[user_fcm_tokens]
   Tokens --> Push
 ```
@@ -29,8 +29,8 @@ flowchart LR
 | Step | Component |
 |------|-----------|
 | Request permission / getToken | `FcmMessagingService` |
-| Register with API | `FcmTokenRemoteDataSource` → `POST /api/user/fcm-token` |
-| Unregister | `DELETE /api/user/fcm-token` |
+| Register with API | `FcmTokenRemoteDataSource` → `POST /api/users/cuser/fcm-token` |
+| Unregister | `DELETE /api/users/cuser/fcm-token` |
 | Persist | `user_fcm_tokens` unique per user+token and per token |
 
 Invalid tokens should be deleted on FCM errors (Push channel behavior).
@@ -51,7 +51,7 @@ From Prisma `notification_event_type`:
 
 | Event | Typical trigger | Status |
 |-------|-----------------|--------|
-| `group_invite` | Group invitation | Implemented (WhatsApp path) |
+| `group_invite` | Group invitation (non-user phone) | Implemented — outbox WhatsApp + click-to-chat `whatsapp_url`; message includes invite deep link + `APP_DOWNLOAD_URL` / store links |
 | `outing_invite` | Outing guest invite | Implemented path |
 | `outing_updated` | Candidate changes / outing updates | Implemented (vote reset messages) |
 | `attendance_changed` | Member attendance upsert | Implemented (owner notified) |

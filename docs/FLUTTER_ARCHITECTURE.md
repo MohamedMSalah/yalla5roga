@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-08 (API request optimization: diagnostics, dedupe, selective outings hydrate) |
 | Documentation version | 1.0.0 |
 | Package | `yalla_5roga` (`flutter/pubspec.yaml`) |
 | Needs verification | Full device E2E; outing invite accept UI completeness |
@@ -17,7 +17,7 @@ Data path for every feature:
 UI → Provider → Repository (dartz Either) → RemoteDataSource → ApiClient/Dio → Backend
 ```
 
-Presentation must not import Dio, `http`, or Firebase packages directly.
+Outing chat additionally: `OutingChatProvider` ↔ `OutingChatSocketClient` (Socket.IO) for live `outing:message` / room join; sends remain REST. Presentation must not import Dio, `http`, Firebase, or `socket_io_client` directly.
 
 ## 2. Entry and boot
 
@@ -68,13 +68,13 @@ Each full-stack feature typically has `data/`, `domain/`, `presentation/`.
 |---------|-----------|-------|
 | `auth` | `AuthProvider`, `AuthRepositoryImpl`, `FirebaseAuthService`, `AuthRemoteDataSource` | Email/password via `/api/auth/*`; social/OTP via Firebase then `/api/users/sync` |
 | `shell` | `MainShell`, `ShellProvider` | Tab shell |
-| `groups` | `GroupsProvider`, `GroupsRemoteDataSource` | Groups + phone invites |
-| `outings` | `OutingsProvider`, `CreateOutingProvider`, vote/attendance widgets | Core product |
-| `chat` | `OutingChatProvider`, `OutingChatRemoteDataSource` | HTTP list/send/read |
+| `groups` | `GroupsProvider`, `GroupsRemoteDataSource`, `GroupInviteResult`, `PickDeviceContactsPage` | Create-group: optional cover photo; members from device contacts (or manual phone); invites via `POST …/invitations` (WhatsApp for non-users); `…/members` is existing-user only. After create / on details+info, members reload so creator count starts at 1 and owner card shows. Uses API `member_count` / `my_role` on list payloads. Local gallery paths are never sent as `image_url` |
+| `outings` | `OutingsProvider`, `CreateOutingProvider`, vote/attendance widgets | Core product; create + multi-place suggest share `CreateOutingPage` (`letVote` / Add place) |
+| `chat` | `OutingChatProvider`, `OutingChatRemoteDataSource`, `OutingChatSocketClient` | REST list/send/read + Socket.IO; page resume recovery; id/`local_*` upsert dedupe |
 | `discover` | `DiscoverProvider`, places remote + saved places DS | Neon places |
 | `notifications` | `NotificationsProvider`, `FcmProvider`, `PushMessagingRepositoryImpl` | Feed + FCM |
 | `invites` | `InviteDeepLinkProvider`, `InviteLinkParser` | Group deep links primarily |
-| `setting` | `SettingsProvider`, profile pages | Theme/locale via core providers |
+| `setting` | `SettingsProvider`, profile pages | Account tiles: member-since from Neon `created_at`; phone row shows verified chip (Firebase phone) and is not tappable; edit profile includes Neon password change via `/api/auth/change-password`. Theme/locale via core providers |
 
 ## 5. State management
 
@@ -96,9 +96,12 @@ Page-scoped: `CreateOutingProvider` (and similar) constructed with repos from `c
 ## 7. Networking
 
 - `ApiClient` wraps Dio.
-- Interceptors: `AuthInterceptor` (Firebase ID token), `AppLogInterceptor`, `PerformanceInterceptor`, `ErrorInterceptor`.
+- Interceptors: `AuthInterceptor` (Firebase ID token), `AppLogInterceptor`, debug-only `RequestDiagnosticsInterceptor`, `PerformanceInterceptor`, `ErrorInterceptor`.
 - Paths: `ApiConstants` — all include `/api` prefix.
 - Payload helpers: `lib/core/network/api_payload.dart` (snake ↔ domain).
+- Repository GET helpers use `cachedRemote` (`core/cache/`) with short TTLs (`CachePolicy`) plus in-flight `RequestDeduper` coalescing.
+- Outings list hydrates **voting** outings only (parallel, concurrency-limited); Event/Chat/mutations call `refreshLifecycle(outingId: …)` / `reloadOutingDetails` instead of re-fan-out of the full feed.
+- Debug summary: `RequestDiagnostics.instance.formatSummary()` (no tokens/bodies). See [`audit/FLUTTER_API_REQUEST_OPTIMIZATION_REPORT.md`](audit/FLUTTER_API_REQUEST_OPTIMIZATION_REPORT.md).
 
 ## 8. Models and DTOs
 
@@ -112,9 +115,31 @@ Imperative GetX — no named route table. Deep links handled by `InviteDeepLinkP
 
 ## 10. Error handling
 
-- Data layer throws / maps to `AppException`.
-- Repositories return `Either<Failure, T>`.
-- Providers fold failures into UI error/empty states.
+```
+Dio / Firebase / Socket
+  → AppException (+ status/code/endpoint metadata)
+  → guardRemote / auth boundary
+      → Failure (Either)
+      → debug ErrorBlueprintLogger (once)
+      → Crashlytics (unexpected/server)
+  → Provider → AppErrorFeedback / FailureMessageMapper → L10n SnackBar
+```
+
+| Piece | Path | Role |
+|-------|------|------|
+| `ErrorInterceptor` | `core/network/dio_interceptors.dart` | Maps Dio → typed `AppException` with HTTP metadata |
+| `ExceptionMapper` | `core/error/exception_mapper.dart` | Dio/AppException ↔ `Failure` |
+| `guardRemote` | `core/network/remote_guard.dart` | Single remote catch site; blueprint + Crashlytics |
+| `ErrorBlueprintLogger` | `core/error/error_blueprint_logger.dart` | Debug-only structured console dump (sanitized) |
+| `FailureMessageMapper` | `core/error/failure_message_mapper.dart` | Failure → short EN/AR user copy |
+| `AppErrorFeedback` | `core/error/app_error_feedback.dart` | SnackBar / network alert only (no duplicate logs) |
+
+Rules:
+
+- Presentation never shows raw `exception.toString()`, HTTP codes, or backend stack text.
+- Meaningful product conflicts (e.g. vote locked) may map to existing L10n phrases.
+- Secrets (tokens, passwords, Authorization) are redacted by `ErrorSanitizer` before logging.
+- Auth (no `guardRemote`) logs blueprints once from `AuthProvider._reportFailure`.
 
 ## 11. Localization and theme
 
@@ -130,7 +155,7 @@ Imperative GetX — no named route table. Deep links handled by `InviteDeepLinkP
 
 ## 13. Notifications (client)
 
-- Register/unregister token via `FcmTokenRemoteDataSource` → `POST|DELETE /api/user/fcm-token`.
+- Register/unregister token via `FcmTokenRemoteDataSource` → `POST|DELETE /api/users/cuser/fcm-token`.
 - Foreground: local notifications service.
 - In-app feed: `NotificationsRemoteDataSource` → `/api/notifications`.
 

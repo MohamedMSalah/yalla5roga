@@ -37,6 +37,12 @@ class OutingsRepositoryImpl implements OutingsRepository {
       remote.membersForOuting(outing);
 
   @override
+  void clearCache() {
+    _snapshotCache.invalidate();
+    remote.clearCache();
+  }
+
+  @override
   Future<Either<Failure, OutingSnapshot>> load({bool forceRefresh = false}) {
     return cachedRemote(
       networkInfo: networkInfo,
@@ -44,6 +50,8 @@ class OutingsRepositoryImpl implements OutingsRepository {
       key: _snapshotKey,
       forceRefresh: forceRefresh,
       reason: 'loadOutings',
+      feature: 'outings',
+      source: 'OutingsRepositoryImpl',
       fetch: remote.load,
     );
   }
@@ -158,14 +166,30 @@ class OutingsRepositoryImpl implements OutingsRepository {
   }
 
   @override
-  Future<Either<Failure, OutingSnapshot>> refreshLifecycle() async {
-    // Lifecycle depends on clocks / deadlines — always hit network, then refresh cache.
-    final result = await guardRemote(
-      networkInfo,
-      remote.refreshLifecycle,
+  Future<Either<Failure, OutingSnapshot>> refreshLifecycle({
+    String? outingId,
+    bool forceRefresh = false,
+  }) async {
+    if (outingId != null && outingId.isNotEmpty) {
+      final result = await guardRemote(
+        networkInfo,
+        () => remote.refreshLifecycle(outingId: outingId),
+        reason: 'refreshLifecycleOuting',
+      );
+      result.fold((_) {}, _storeSnapshot);
+      return result;
+    }
+
+    // Full feed refresh respects TTL unless forced.
+    return cachedRemote(
+      networkInfo: networkInfo,
+      cache: _snapshotCache,
+      key: _snapshotKey,
+      forceRefresh: forceRefresh,
       reason: 'refreshLifecycle',
+      feature: 'outings',
+      source: 'OutingsRepositoryImpl',
+      fetch: () => remote.refreshLifecycle(),
     );
-    result.fold((_) {}, _storeSnapshot);
-    return result;
   }
 }

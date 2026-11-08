@@ -46,7 +46,7 @@ class _OutingAttendanceWidgetState extends State<OutingAttendanceWidget> {
     if (!mounted) return;
     setState(() => _saving = false);
     if (!ok) {
-      AppSnackBar.show(context.l10n.attendanceClosed);
+      // AppErrorFeedback already showed the localized failure.
       return;
     }
     AppSnackBar.show(context.l10n.attendanceUpdated);

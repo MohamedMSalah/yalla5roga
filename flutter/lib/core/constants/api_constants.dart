@@ -15,11 +15,16 @@ class ApiConstants {
   /// Canonical email/password signup (Neon hash + Firebase identity, no Firebase password).
   static const String signup = '/api/auth/signup';
 
+  /// Change Neon `password_hash` (authenticated).
+  static const String changePassword = '/api/auth/change-password';
+
+  /// Confirm Neon password without changing it (authenticated).
+  static const String verifyPassword = '/api/auth/verify-password';
+
   // User
   static const String profile = '/api/users/cuser';
-  static const String unreadCounts = '/api/user/unread-counts';
   static const String savedOutings = '/api/outings/saved';
-  static const String fcmToken = '/api/user/fcm-token';
+  static const String fcmToken = '/api/users/cuser/fcm-token';
 
   static String savedOuting(String id) => '/api/outings/$id/save';
 
@@ -82,12 +87,12 @@ class ApiConstants {
 
   static String savedPlace(String id) => '/api/places/$id/save';
 
-  // Chat
+  // Chat (outing sub-resource)
   static String outingChatMessages(String outingId) =>
-      '/api/chat/outings/$outingId/messages';
+      '/api/outings/$outingId/messages';
 
   static String outingChatRead(String outingId) =>
-      '/api/chat/outings/$outingId/read';
+      '/api/outings/$outingId/read';
 
   // Discover / places
   static const String places = '/api/places';

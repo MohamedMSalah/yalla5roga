@@ -59,7 +59,7 @@ UUID PK (`gen_random_uuid()`). Fields: `name`, `bio`, `image_url`, `created_by` 
 
 ### `group_members`
 
-Composite PK `(group_id, user_id)`. `role` enum `group_role` default `member`. Cascade delete from group/user. Index on `user_id`.
+Composite PK `(group_id, user_id)`. `role` enum `group_role` default `member`. Cascade delete from group/user. Index on `user_id`. On group create, the creator is inserted immediately as `owner` so membership count starts at 1.
 
 ### `group_invitations`
 

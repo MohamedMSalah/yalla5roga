@@ -27,10 +27,25 @@ import 'package:yalla_5roga/features/setting/presentation/widgets/profile_stats.
 import 'package:yalla_5roga/features/outings/presentation/pages/saved_outings_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/lists/settings_list.dart';
+import 'package:yalla_5roga/features/setting/presentation/widgets/phone_verification_chip.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/settings_tile.dart';
 
-class SettingsPage extends StatelessWidget {
+class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AuthProvider>().refreshProfile();
+    });
+  }
 
   Future<void> _logout(BuildContext context) async {
     final l10n = context.l10n;
@@ -125,7 +140,6 @@ class SettingsPage extends StatelessWidget {
                     subtitle: user?.email ?? l10n.digits(user?.phone ?? ''),
                     background: AppColors.brand50,
                     foreground: AppColors.brand600,
-                    trailing: _chevron(context),
                     onTap: () => _openEditProfile(context),
                   ),
                   SettingsTile(
@@ -134,12 +148,16 @@ class SettingsPage extends StatelessWidget {
                     subtitle: l10n.digits(user?.phone ?? ''),
                     background: const Color(0xFFEDE9FE),
                     foreground: const Color(0xFF7C3AED),
-                    trailing: _chevron(context),
-                    onTap: () => _openEditProfile(context),
+                    trailing: PhoneVerificationChip(
+                      verified: user?.phoneVerified ?? false,
+                    ),
                   ),
                   SettingsTile(
                     icon: Icons.calendar_today_outlined,
                     title: l10n.memberSince,
+                    subtitle: user?.createdAt != null
+                        ? l10n.formatMemberSince(user!.createdAt!)
+                        : null,
                     background: AppColors.amber100,
                     foreground: AppColors.amber700,
                   ),

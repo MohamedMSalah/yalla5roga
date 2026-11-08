@@ -94,7 +94,7 @@ class OutingsProvider extends ChangeNotifier {
   Future<void> load({bool forceRefresh = false}) async {
     final result = await repository.load(forceRefresh: forceRefresh);
     result.fold((failure) {
-      _errorMessage = failure.message;
+      _errorMessage = AppErrorFeedback.messageOf(failure);
       AppErrorFeedback.report(
         failure,
         kind: AppErrorKind.load,
@@ -249,7 +249,7 @@ class OutingsProvider extends ChangeNotifier {
     final result = await repository.breakTie(outingId);
     return result.fold(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.send,
@@ -279,7 +279,7 @@ class OutingsProvider extends ChangeNotifier {
     );
     return result.fold(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.send,
@@ -313,7 +313,7 @@ class OutingsProvider extends ChangeNotifier {
     final result = await repository.selectVote(outingId, value);
     return result.fold(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.send,
@@ -333,10 +333,10 @@ class OutingsProvider extends ChangeNotifier {
 
   /// Refresh after server-side closure (no client authority to finalize).
   Future<bool> finalizeVoteFor(String outingId) async {
-    final result = await repository.refreshLifecycle();
+    final result = await repository.refreshLifecycle(outingId: outingId);
     return result.fold(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         notifyListeners();
         return false;
       },
@@ -357,7 +357,7 @@ class OutingsProvider extends ChangeNotifier {
     final result = await repository.add(outing, creatorId: creatorId);
     result.fold(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.send,
@@ -402,7 +402,7 @@ class OutingsProvider extends ChangeNotifier {
     Outing? created;
     result.fold(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.send,
@@ -421,6 +421,7 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   void clear() {
+    repository.clearCache();
     _outings = [];
     _suggestions = [];
     _votesByOuting = {};
@@ -433,13 +434,21 @@ class OutingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> refreshLifecycle() async {
-    final result = await repository.refreshLifecycle();
+  /// Refresh outing lifecycle. Prefer [outingId] on detail screens.
+  Future<bool> refreshLifecycle({
+    String? outingId,
+    bool forceRefresh = false,
+  }) async {
+    final result = await repository.refreshLifecycle(
+      outingId: outingId,
+      forceRefresh: forceRefresh,
+    );
     var changed = false;
     result.fold(
       (failure) {
-        changed = _errorMessage != failure.message;
-        _errorMessage = failure.message;
+        final message = AppErrorFeedback.messageOf(failure);
+        changed = _errorMessage != message;
+        _errorMessage = message;
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.load,

@@ -25,6 +25,7 @@ class _OutingsPageState extends State<OutingsPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      // Respect snapshot TTL — avoid unconditional N+1 fan-out on tab open.
       context.read<OutingsProvider>().refreshLifecycle();
     });
   }

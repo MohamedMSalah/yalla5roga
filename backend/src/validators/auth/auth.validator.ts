@@ -12,6 +12,15 @@ export const loginBodySchema = z.object({
   password: z.string().min(6).max(128),
 });
 
+export const changePasswordBodySchema = z.object({
+  currentPassword: z.string().min(6).max(128),
+  newPassword: z.string().min(6).max(128),
+});
+
+export const verifyPasswordBodySchema = z.object({
+  password: z.string().min(6).max(128),
+});
+
 export const signupBodySchema = z
   .object({
     name: z.string().trim().min(1).max(30),

@@ -99,7 +99,9 @@ class _EventPageState extends State<EventPage>
 
   Future<void> _refreshLifecycle() async {
     if (!mounted) return;
-    await context.read<OutingsProvider>().refreshLifecycle();
+    await context.read<OutingsProvider>().refreshLifecycle(
+      outingId: widget.event.id,
+    );
   }
 
   @override

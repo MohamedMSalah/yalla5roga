@@ -68,7 +68,14 @@ abstract class OutingsRepository {
     required AttendanceStatus status,
   });
 
-  Future<Either<Failure, OutingSnapshot>> refreshLifecycle();
+  /// Refresh lifecycle. When [outingId] is set, only that outing is reloaded.
+  /// When unset, uses the snapshot TTL unless [forceRefresh] is true.
+  Future<Either<Failure, OutingSnapshot>> refreshLifecycle({
+    String? outingId,
+    bool forceRefresh = false,
+  });
+
+  void clearCache();
 
   List<Place> get catalogPlaces;
 

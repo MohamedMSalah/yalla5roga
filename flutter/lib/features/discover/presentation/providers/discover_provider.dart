@@ -72,23 +72,46 @@ class DiscoverProvider extends ChangeNotifier {
   }
 
   Future<void> load({bool forceRefresh = false}) async {
-    final featured = await repository.getFeaturedPlaces(
+    final featuredFuture = repository.getFeaturedPlaces(
       forceRefresh: forceRefresh,
     );
+    final placesFuture = repository.getPlaces(
+      vibe: vibe,
+      forceRefresh: forceRefresh,
+    );
+    final featured = await featuredFuture;
+    final places = await placesFuture;
+
     featured.fold((failure) {
-      _errorMessage = failure.message;
+      _errorMessage = AppErrorFeedback.messageOf(failure);
       AppErrorFeedback.report(
         failure,
         kind: AppErrorKind.load,
         context: 'discoverFeatured',
       );
     }, (items) => _featuredAll = List.of(items));
-    await _reloadPlaces(notify: false, forceRefresh: forceRefresh);
+
+    places.fold(
+      (failure) {
+        _errorMessage = AppErrorFeedback.messageOf(failure);
+        AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.load,
+          context: 'discoverPlaces',
+        );
+      },
+      (items) {
+        _places = List.of(items);
+        _errorMessage = null;
+      },
+    );
+
     _hasLoaded = true;
     notifyListeners();
   }
 
   void clear() {
+    repository.clearCache();
     _filter = 0;
     _places = [];
     _featuredAll = [];
@@ -113,7 +136,7 @@ class DiscoverProvider extends ChangeNotifier {
     );
     result.fold(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.load,

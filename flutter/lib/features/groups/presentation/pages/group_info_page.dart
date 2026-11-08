@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
@@ -10,10 +11,27 @@ import 'package:yalla_5roga/features/groups/presentation/widgets/group_info_head
 import 'package:yalla_5roga/features/groups/presentation/widgets/group_members_section.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
-class GroupInfoPage extends StatelessWidget {
+class GroupInfoPage extends StatefulWidget {
   const GroupInfoPage({super.key, required this.groupId});
 
   final String groupId;
+
+  @override
+  State<GroupInfoPage> createState() => _GroupInfoPageState();
+}
+
+class _GroupInfoPageState extends State<GroupInfoPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await context.read<GroupsProvider>().ensureGroupLoaded(widget.groupId);
+      if (!mounted) return;
+      await MemberDisplayName.ensureLoaded();
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +44,7 @@ class GroupInfoPage extends StatelessWidget {
       );
     }
 
-    final group = groups.findById(groupId);
+    final group = groups.findById(widget.groupId);
     if (group == null) {
       return Scaffold(
         appBar: AppPageBar(title: l10n.groupInfo),
@@ -54,22 +72,22 @@ class GroupInfoPage extends StatelessWidget {
             group: group,
             outingCount: outingCount,
             canManage: canManage,
-            onChangeImage: () => groups.changeImage(groupId),
+            onChangeImage: () => groups.changeImage(widget.groupId),
           ),
           Responsive.spaceLg.gapH,
           GroupMembersSection(
             members: group.members,
             canManage: canManage,
-            onAddMember: () => groups.promptAddMember(groupId),
+            onAddMember: () => groups.promptAddMember(widget.groupId),
             onRemoveMember: (person) =>
-                groups.confirmRemoveMember(groupId, person),
+                groups.confirmRemoveMember(widget.groupId, person),
           ),
           Responsive.spaceLg.gapH,
           GroupInfoActionsSection(
             leaving: leaving,
             onLeaveGroup: leaving
                 ? null
-                : () => groups.confirmLeaveGroup(groupId),
+                : () => groups.confirmLeaveGroup(widget.groupId),
           ),
           Responsive.spaceLg.gapH,
         ],

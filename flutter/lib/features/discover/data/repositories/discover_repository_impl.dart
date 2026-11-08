@@ -38,6 +38,8 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
       key: _placesKey(vibe),
       forceRefresh: forceRefresh,
       reason: 'discoverPlaces',
+      feature: 'discover',
+      source: 'DiscoverRepositoryImpl',
       fetch: () => remote.getPlaces(vibe: vibe),
     );
   }
@@ -52,6 +54,8 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
       key: _featuredKey,
       forceRefresh: forceRefresh,
       reason: 'discoverFeatured',
+      feature: 'discover',
+      source: 'DiscoverRepositoryImpl',
       fetch: remote.getFeaturedPlaces,
     );
   }
@@ -67,10 +71,19 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
       key: placeId,
       forceRefresh: forceRefresh,
       reason: 'discoverPlace',
+      feature: 'discover',
+      source: 'DiscoverRepositoryImpl',
       fetch: () => remote.getPlace(placeId),
     );
   }
 
   @override
   List<Place> catalogPlaces() => remote.catalogPlaces();
+
+  @override
+  void clearCache() {
+    _placesCache.invalidate();
+    _featuredCache.invalidate();
+    _placeCache.invalidate();
+  }
 }

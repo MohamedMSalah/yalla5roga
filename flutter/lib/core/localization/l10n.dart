@@ -57,6 +57,11 @@ class L10n {
     return digits(_ar ? text : text.toUpperCase());
   }
 
+  /// Join date for profile “Member since” (e.g. 8 Nov 2026 / ٨ نوفمبر ٢٠٢٦).
+  String formatMemberSince(DateTime date) {
+    return digits(DateFormat.yMMMd(_dateLocale).format(date));
+  }
+
   /// Clock time in the active locale (e.g. 8:00 PM / ٨:٠٠ م).
   String formatTime(DateTime date) =>
       digits(DateFormat.jm(_dateLocale).format(date));
@@ -319,8 +324,8 @@ class L10n {
   String get socialSignInCancelled =>
       _t('Sign in cancelled', 'تم إلغاء تسجيل الدخول');
   String get googleSignInFailed => _t(
-    'Google Sign-In is not set up for this app build. Add the SHA-1 fingerprint in Firebase.',
-    'تسجيل الدخول بجوجل غير مُعد لهذا الإصدار. أضف بصمة SHA-1 في Firebase.',
+    'We couldn’t sign you in with Google. Please try again.',
+    'تعذّر تسجيل الدخول بجوجل. حاول مرة أخرى.',
   );
   String get appleSignInUnavailable => _t(
     'Apple Sign In is not available on this device',
@@ -348,13 +353,21 @@ class L10n {
     ),
   );
   String get passwordTooShort => passwordRequirements;
-  String get loginFailed => _t('Login failed', 'فشل تسجيل الدخول');
-  String get registerFailed => _t('Registration failed', 'فشل إنشاء الحساب');
+  String get loginFailed => _t(
+    'We couldn’t sign you in. Please check your details.',
+    'تعذّر تسجيل الدخول. راجع بياناتك.',
+  );
+  String get registerFailed => _t(
+    'We couldn’t create your account. Please try again.',
+    'تعذّر إنشاء الحساب. حاول مرة أخرى.',
+  );
   String get welcomeBack => _t('Welcome back', 'أهلاً بعودتك');
   String get welcomeNew => _t('Welcome', 'أهلاً بك');
   String get guestFallback => _t('Guest', 'ضيف');
-  String get noInternet =>
-      _t('No internet connection', 'لا يوجد اتصال بالإنترنت');
+  String get noInternet => _t(
+    'Couldn’t connect. Please check your internet.',
+    'تعذّر الاتصال. تحقق من الإنترنت.',
+  );
   String get connectionErrorTitle => _t('Connection error', 'خطأ في الاتصال');
   String get connectionErrorHint => _t(
     'Please check your Wi‑Fi or mobile data and try again.',
@@ -362,13 +375,43 @@ class L10n {
   );
   String get unexpectedError =>
       _t('Something went wrong. Please try again.', 'حدث خطأ. حاول مرة أخرى.');
+  String get errorNoInternet => noInternet;
+  String get errorTimeout =>
+      _t('Something went wrong. Please try again.', 'حدث خطأ. حاول مرة أخرى.');
+  String get errorSessionExpired => _t(
+    'Your session has expired. Please log in again.',
+    'انتهت جلستك. سجّل الدخول مرة أخرى.',
+  );
+  String get errorForbidden => _t(
+    'You don’t have permission to do this.',
+    'ليس لديك صلاحية لهذا الإجراء.',
+  );
+  String get errorNotFound =>
+      _t('This item is no longer available.', 'هذا العنصر لم يعد متاحاً.');
+  String get errorConflict => _t(
+    'This action can’t be completed right now.',
+    'لا يمكن إتمام هذا الإجراء الآن.',
+  );
+  String get errorValidation => _t(
+    'Please check your information and try again.',
+    'راجع بياناتك وحاول مرة أخرى.',
+  );
+  String get errorServer => _t(
+    'Something went wrong on our side. Please try again later.',
+    'حدث خطأ من جهتنا. حاول لاحقاً.',
+  );
+  String get errorSocket => _t(
+    'Live connection lost. Reconnecting…',
+    'انقطع الاتصال المباشر. جارٍ إعادة الاتصال…',
+  );
+  String get errorUnexpected => unexpectedError;
   String get dataLoadFailed => _t(
-    'Could not load data. Please try again.',
-    'تعذّر تحميل البيانات. حاول مرة أخرى.',
+    'Couldn’t load this. Please try again.',
+    'تعذّر التحميل. حاول مرة أخرى.',
   );
   String get dataSendFailed => _t(
-    'Could not send data. Please try again.',
-    'تعذّر إرسال البيانات. حاول مرة أخرى.',
+    'Couldn’t complete that. Please try again.',
+    'تعذّر إتمام العملية. حاول مرة أخرى.',
   );
   String get letsGetYouOut => _t('Let’s get you out.', 'يلا نخرج.');
   String get joinTheFun => _t('Join the fun.', 'انضم للمتعة.');
@@ -482,8 +525,8 @@ class L10n {
     'انتهت مهلة انتظار رمز التحقق.',
   );
   String get otpAppNotConfigured => _t(
-    'App verification failed. Check Firebase Phone Auth setup (SHA keys).',
-    'فشل التحقق من التطبيق. راجع إعدادات Firebase Phone Auth (مفاتيح SHA).',
+    'We couldn’t verify this device. Please try again later.',
+    'تعذّر التحقق من هذا الجهاز. حاول لاحقاً.',
   );
   String get otpMissingSession =>
       _t('Request a verification code first.', 'اطلب رمز التحقق أولاً.');
@@ -493,14 +536,19 @@ class L10n {
       authError(code, fallback: fallback);
 
   /// Maps Firebase / local auth error codes to localized copy.
+  ///
+  /// [fallback] is used only when it does not look technical (no exception
+  /// names, status codes, or stack-like text).
   String authError(String? code, {String? fallback}) {
     return switch (code) {
       'invalid-phone-number' => invalidPhone,
       'invalid-verification-code' => otpIncorrect,
       'session-expired' || 'invalid-verification-id' => otpExpired,
+      'unauthorized' => errorSessionExpired,
       'too-many-requests' => otpTooManyRequests,
       'quota-exceeded' => otpQuotaExceeded,
-      'network-request-failed' => noInternet,
+      'network-request-failed' || 'network' => noInternet,
+      'timeout' => errorTimeout,
       'verification-timeout' => otpTimedOut,
       'missing-verification' => otpMissingSession,
       'app-not-authorized' ||
@@ -524,11 +572,24 @@ class L10n {
       'google-sign-in-failed' || 'sign_in_failed' => googleSignInFailed,
       'apple-unavailable' => appleSignInUnavailable,
       'requires-recent-login' => requiresRecentLogin,
-      _ =>
-        fallback?.trim().isNotEmpty == true
-            ? fallback!.trim()
-            : unexpectedError,
+      'forbidden' => errorForbidden,
+      _ => _safeAuthFallback(fallback),
     };
+  }
+
+  String _safeAuthFallback(String? fallback) {
+    final text = fallback?.trim();
+    if (text == null || text.isEmpty) return unexpectedError;
+    final lower = text.toLowerCase();
+    if (lower.contains('exception') ||
+        lower.contains('firebase') ||
+        lower.contains('dio') ||
+        lower.contains('status') ||
+        lower.contains('stack') ||
+        RegExp(r'\b[45]\d{2}\b').hasMatch(text)) {
+      return unexpectedError;
+    }
+    return text;
   }
 
   String get useThisIdea => _t('Use this idea', 'استخدم الفكرة');
@@ -631,21 +692,51 @@ class L10n {
   String get addByPhone =>
       _t('Add people by phone number', 'إضافة أشخاص برقم الهاتف');
   String get addPhone => _t('Add', 'إضافة');
+  String get selectFromContacts =>
+      _t('Select from contacts', 'اختر من جهات الاتصال');
+  String get searchContactsHint =>
+      _t('Search by name or number', 'ابحث بالاسم أو الرقم');
+  String get noDeviceContacts => _t(
+    'No Egyptian phone numbers found in your contacts.',
+    'لا توجد أرقام مصرية في جهات اتصالك.',
+  );
+  String addSelectedContacts(int count) {
+    final n = this.n(count);
+    return _t('Add $n contact(s)', 'إضافة $n جهة اتصال');
+  }
+
   String get phoneAlreadyAdded =>
       _t('This number is already added', 'هذا الرقم مضاف بالفعل');
   String get changeGroupImage =>
       _t('Choose a group photo', 'اختر صورة المجموعة');
+  String get groupPhotoOptional =>
+      _t('Group photo (optional)', 'صورة المجموعة (اختياري)');
+  String get outingPhotoOptional =>
+      _t('Outing photo (optional)', 'صورة الخروجة (اختياري)');
   String get groupImageUpdated =>
       _t('Group photo updated', 'تم تحديث صورة المجموعة');
   String memberAdded(String name) =>
       _t('$name added to the group', 'تمت إضافة $name إلى المجموعة');
+  String inviteSentWhatsApp(String phone) => _t(
+    'Invite ready for $phone. Opening WhatsApp…',
+    'الدعوة جاهزة لـ $phone. جارٍ فتح واتساب…',
+  );
+  String invitesQueued(int count) {
+    final n = this.n(count);
+    return _t(
+      '$n WhatsApp invite(s) created. They’ll join after installing and verifying that number.',
+      'تم إنشاء $n دعوة واتساب. سينضمون بعد تثبيت التطبيق والتحقق من الرقم.',
+    );
+  }
+
   String memberRemoved(String name) =>
       _t('$name removed from the group', 'تمت إزالة $name من المجموعة');
   String get noMorePeople => _t(
     'Everyone you know is already in this group',
     'كل من تعرفه موجود بالفعل في هذه المجموعة',
   );
-  String get groupCreated => _t('Group created', 'تم إنشاء المجموعة');
+  String get groupCreated =>
+      _t('Group created successfully.', 'تم إنشاء المجموعة بنجاح.');
   String get groupOutings => _t('Group outings', 'خروجات المجموعة');
   String get noGroupOutings => _t(
     'No outings yet. Create the first one.',
@@ -751,25 +842,33 @@ class L10n {
     return _t('Vote closes in $h hours', 'يغلق التصويت خلال $h ساعات');
   }
 
-  String get suggestPlaces => _t('Suggest places', 'اقتراح أماكن');
+  String get suggestPlaces => _t('Place votes', 'تصويت الأماكن');
   String get suggest => _t('Suggest', 'اقترح');
   String get suggestPlacesHint => _t(
-    'Share place options and set a voting countdown for the group.',
-    'شارك خيارات الأماكن وحدد عدّاد التصويت للمجموعة.',
+    'Create an outing and tap Add places so the group can vote.',
+    'أنشئ خروجة واضغط أضف أماكن لتصوّت المجموعة.',
   );
   String get suggestPlacesSheetHint => _t(
-    'Pick places and how many hours the vote stays open.',
-    'اختر الأماكن وعدد ساعات بقاء التصويت مفتوحاً.',
+    'Add 2–5 places, then set how many hours the vote stays open.',
+    'أضف من 2 إلى 5 أماكن، ثم حدد ساعات بقاء التصويت مفتوحاً.',
   );
   String get noPlaceSuggestions => _t(
-    'No place suggestions yet. Be the first to add options.',
-    'لا توجد اقتراحات أماكن بعد. كن أول من يضيف خيارات.',
+    'No place votes yet. Create an outing and add places.',
+    'لا يوجد تصويت أماكن بعد. أنشئ خروجة وأضف أماكن.',
   );
   String get publishSuggestion => _t('Publish suggestion', 'نشر الاقتراح');
   String get placesSuggested => _t(
     'Places suggested — group can vote now',
     'تم اقتراح الأماكن — المجموعة يمكنها التصويت الآن',
   );
+  String get addPlace => _t('Add place', 'أضف مكاناً');
+  String get addAnotherPlace => _t('Add another place', 'أضف مكاناً آخر');
+  String get removePlace => _t('Remove place', 'إزالة المكان');
+  String get noPlacesAddedYet => _t('No places added yet', 'لم تُضف أماكن بعد');
+  String get useSingleLocation =>
+      _t('Use a single location instead', 'استخدم مكاناً واحداً بدلاً من ذلك');
+  String get continueToPlaces =>
+      _t('Continue to places', 'متابعة لاختيار الأماكن');
   String suggestedBy(String name) => _t('Suggested by $name', 'اقترحه $name');
   String placesCount(int count) {
     final c = n(count);
@@ -818,8 +917,8 @@ class L10n {
       _t('Add places for voting', 'أضف أماكن للتصويت');
   String get addPlacesForVotingHint => digits(
     _t(
-      'Optional. Add 2–5 places so the group can vote.',
-      'اختياري. أضف من 2 إلى 5 أماكن لتصوّت عليها المجموعة.',
+      'Add 2–5 places on the next step so the group can vote.',
+      'أضف من 2 إلى 5 أماكن في الخطوة التالية لتصوّت عليها المجموعة.',
     ),
   );
   String get everyoneCanSuggest => _t(
@@ -855,10 +954,9 @@ class L10n {
   String get letYallaDecide =>
       _t('Let Yalla 5roga Decide!', 'خلّي يلا خروج تقرر!');
   String get pickingWinner => _t('Picking a place…', 'جاري اختيار المكان…');
-  String winnerIs(String place) =>
-      _t('Winner: $place', 'الفائز: $place');
+  String winnerIs(String place) => _t('Winner: $place', 'الفائز: $place');
   String get done => _t('Done', 'تم');
-  String get attendanceUpdated => _t('Attendance updated', 'تم تحديث الحضور');
+  String get attendanceUpdated => _t('Attendance updated.', 'تم تحديث الحضور.');
   String get attendanceClosed =>
       _t('Attendance voting is closed', 'تصويت الحضور مغلق');
   String get attendanceTitle => _t('Are you going?', 'هل ستحضر؟');
@@ -875,7 +973,7 @@ class L10n {
   String get allowContacts => _t('Allow', 'السماح');
   String get continueToLocation =>
       _t('Continue to location', 'متابعة لاختيار المكان');
-  String get draftSaved => _t('Draft saved', 'تم حفظ المسودة');
+  String get draftSaved => _t('Draft saved.', 'تم حفظ المسودة.');
   String get outingSaved => _t('Outing saved', 'تم حفظ الخروجة');
   String get outingRemoved =>
       _t('Removed from saved', 'تمت الإزالة من المحفوظات');
@@ -972,7 +1070,7 @@ class L10n {
   String get notVotedYet => _t('Not voted yet', 'لم يصوّت بعد');
   // Prefer stillNotVoted / imIn / notIn for attendance UI.
   String get openingChat => _t('Opening outing chat', 'فتح محادثة الخروجة');
-  String get voteUpdated => _t('Your vote has been updated', 'تم تحديث تصويتك');
+  String get voteUpdated => _t('Vote saved.', 'تم حفظ التصويت.');
   String get chooseLocationNext =>
       _t('Great! Let’s choose the location', 'رائع! لنختار المكان الآن');
   String get outingChat => _t('Outing chat', 'محادثة الخروجة');
@@ -997,7 +1095,11 @@ class L10n {
     'راجع الخطة ثم انشرها للمجموعة.',
   );
   String get createAndGo => _t('Create outing', 'إنشاء الخروجة');
-  String get outingCreated => _t('Outing created', 'تم إنشاء الخروجة');
+  String get outingCreated =>
+      _t('Outing created successfully.', 'تم إنشاء الخروجة بنجاح.');
+  String get changesSaved => _t('Changes saved.', 'تم حفظ التغييرات.');
+  String get messageSent => _t('Message sent.', 'تم إرسال الرسالة.');
+  String get invitationSent => _t('Invitation sent.', 'تم إرسال الدعوة.');
   String get photoRequired =>
       _t('Please upload an outing photo', 'ارفع صورة للخروجة');
   String get nameRequired => _t('Please add an outing name', 'أضف اسم الخروجة');
@@ -1101,6 +1203,8 @@ class L10n {
     'باستخدام يلا خروجة بتوافق تستخدم التطبيق باحترام، وتدعو ناس تعرفهم، وتحافظ على المحادثات والصور بشكل لائق. الخطط والتصويت للتنسيق على الخروجات مش للإعلانات.',
   );
   String get memberSince => _t('Member since', 'عضو منذ');
+  String get verified => _t('Verified', 'موثّق');
+  String get notVerified => _t('Not verified', 'غير موثّق');
   String get preferences => _t('Preferences', 'التفضيلات');
   String get pushNotifications => _t('Push notifications', 'الإشعارات');
   String get votesPlansReminders =>
@@ -1160,7 +1264,7 @@ class L10n {
   String get changeProfileImage =>
       _t('Choose a profile photo', 'اختر صورة الملف');
   String get saveChanges => _t('Save changes', 'حفظ التغييرات');
-  String get profileUpdated => _t('Profile updated', 'تم تحديث الملف');
+  String get profileUpdated => _t('Changes saved.', 'تم حفظ التغييرات.');
   String get requiresRecentLogin => _t(
     'Please sign in again to change this info',
     'سجّل الدخول مرة أخرى لتغيير هذه البيانات',

@@ -22,7 +22,6 @@ class ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final avatar = Responsive.avatarLg;
-    final email = (user?.email ?? '').trim();
     final phone = (user?.phone ?? '').trim();
 
     return Column(
@@ -52,17 +51,7 @@ class ProfileHeader extends StatelessWidget {
             fontWeight: FontWeight.w800,
           ),
         ),
-        if (email.isNotEmpty) ...[
-          4.gapH,
-          Text(
-            email,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.brand100,
-              fontSize: Responsive.fontSm,
-            ),
-          ),
-        ] else if (phone.isNotEmpty) ...[
+        if (phone.isNotEmpty) ...[
           4.gapH,
           Text(
             l10n.digits(phone),

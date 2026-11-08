@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
+import 'package:yalla_5roga/core/error/error_blueprint_logger.dart';
+import 'package:yalla_5roga/core/error/error_context.dart';
+import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
 import 'package:yalla_5roga/core/monitoring/crashlytics_service.dart';
@@ -93,6 +96,7 @@ class AuthProvider extends ChangeNotifier {
         }
         _user = user;
         unawaited(repository.debugPrintSwaggerIdToken());
+        unawaited(refreshProfile());
       },
     );
     notifyListeners();
@@ -128,11 +132,7 @@ class AuthProvider extends ChangeNotifier {
             ? (failure.code ?? AuthErrorCodes.verificationFailed)
             : AuthErrorCodes.verificationFailed;
         _errorMessage = failure.message;
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'sendOtp',
-        );
+        _reportFailure(failure, context: 'sendOtp');
         notifyListeners();
         return false;
       },
@@ -150,9 +150,8 @@ class AuthProvider extends ChangeNotifier {
           _isLoading = false;
           _errorCode = AuthErrorCodes.verificationFailed;
           _errorMessage = 'Phone verification failed';
-          AppErrorFeedback.report(
+          _reportFailure(
             const AuthFailure('Phone verification failed'),
-            kind: AppErrorKind.send,
             context: 'sendOtp',
           );
           notifyListeners();
@@ -279,6 +278,22 @@ class AuthProvider extends ChangeNotifier {
 
   bool get hasPasswordProvider => repository.hasPasswordProvider;
 
+  /// Neon password accounts or legacy Firebase password provider.
+  bool get hasPassword =>
+      (_user?.hasPassword ?? false) || repository.hasPasswordProvider;
+
+  Future<void> refreshProfile() async {
+    if (_user == null) return;
+    final result = await repository.refreshProfile();
+    result.fold(
+      (failure) => _reportFailure(failure, context: 'refreshProfile'),
+      (user) {
+        _user = user;
+        notifyListeners();
+      },
+    );
+  }
+
   Future<bool> updateProfile({
     String? phone,
     String? imageUrl,
@@ -297,11 +312,7 @@ class AuthProvider extends ChangeNotifier {
         (failure) {
           _errorMessage = failure.message;
           _errorCode = failure is AuthFailure ? failure.code : null;
-          AppErrorFeedback.report(
-            failure,
-            kind: AppErrorKind.send,
-            context: 'updateProfile',
-          );
+          _reportFailure(failure, context: 'updateProfile');
           notifyListeners();
           return false;
         },
@@ -327,11 +338,7 @@ class AuthProvider extends ChangeNotifier {
         _isLoading = false;
         _errorMessage = failure.message;
         _errorCode = failure is AuthFailure ? failure.code : null;
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'updateProfile',
-        );
+        _reportFailure(failure, context: 'updateProfile');
         notifyListeners();
         return false;
       },
@@ -356,11 +363,7 @@ class AuthProvider extends ChangeNotifier {
         _isLoading = false;
         _errorMessage = failure.message;
         _errorCode = failure is AuthFailure ? failure.code : null;
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'confirmPassword',
-        );
+        _reportFailure(failure, context: 'confirmPassword');
         notifyListeners();
         return false;
       },
@@ -387,11 +390,7 @@ class AuthProvider extends ChangeNotifier {
     return result.fold(
       (failure) {
         // Backend may be a placeholder; keep Firebase/local success intact.
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'syncProfileToBackend',
-        );
+        _reportFailure(failure, context: 'syncProfileToBackend');
         return false;
       },
       (user) {
@@ -420,11 +419,7 @@ class AuthProvider extends ChangeNotifier {
         _isLoading = false;
         _errorMessage = failure.message;
         _errorCode = failure is AuthFailure ? failure.code : null;
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'requestEmailChange',
-        );
+        _reportFailure(failure, context: 'requestEmailChange');
         notifyListeners();
         return false;
       },
@@ -454,11 +449,7 @@ class AuthProvider extends ChangeNotifier {
         _isLoading = false;
         _errorMessage = failure.message;
         _errorCode = failure is AuthFailure ? failure.code : null;
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'changePassword',
-        );
+        _reportFailure(failure, context: 'changePassword');
         notifyListeners();
         return false;
       },
@@ -499,11 +490,7 @@ class AuthProvider extends ChangeNotifier {
         _isLoading = false;
         _errorMessage = failure.message;
         _errorCode = failure is AuthFailure ? failure.code : null;
-        AppErrorFeedback.report(
-          failure,
-          kind: AppErrorKind.send,
-          context: 'changePhoneNumber',
-        );
+        _reportFailure(failure, context: 'changePhoneNumber');
         notifyListeners();
         return false;
       },
@@ -525,16 +512,28 @@ class AuthProvider extends ChangeNotifier {
     final result = await repository.logout();
     result.fold((failure) {
       _errorMessage = failure.message;
-      AppErrorFeedback.report(
-        failure,
-        kind: AppErrorKind.send,
-        context: 'logout',
-      );
+      _reportFailure(failure, context: 'logout');
     }, (_) {});
     _user = null;
     await CrashlyticsService.instance.setUserId(null);
     await AnalyticsService.instance.setUserId(null);
     resetAuthForm();
+  }
+
+  /// Auth does not use [guardRemote], so blueprint logging happens here once.
+  void _reportFailure(Failure failure, {required String context}) {
+    ErrorBlueprintLogger.log(
+      error: failure is AuthFailure
+          ? AuthException(failure.message, failure.code, failure.statusCode)
+          : ServerException(failure.message, failure.code, failure.statusCode),
+      context: ErrorContext(
+        feature: 'Auth',
+        layer: 'Provider',
+        operation: context,
+        statusCode: failure.statusCode,
+      ),
+    );
+    AppErrorFeedback.report(failure, kind: AppErrorKind.send, context: context);
   }
 
   Future<bool> _run(
@@ -558,11 +557,7 @@ class AuthProvider extends ChangeNotifier {
               : AuthErrorCodes.verificationFailed;
           // Cancelled social sign-in is not an error worth reporting.
           if (_errorCode != AuthErrorCodes.cancelled) {
-            AppErrorFeedback.report(
-              failure,
-              kind: AppErrorKind.send,
-              context: context,
-            );
+            _reportFailure(failure, context: context);
             unawaited(AnalyticsService.instance.loginFailed(code: _errorCode));
           }
           notifyListeners();
@@ -598,6 +593,15 @@ class AuthProvider extends ChangeNotifier {
       _isLoading = false;
       _errorCode = AuthErrorCodes.verificationFailed;
       _errorMessage = 'Unexpected error';
+      ErrorBlueprintLogger.log(
+        error: error,
+        stackTrace: stack,
+        context: ErrorContext(
+          feature: 'Auth',
+          layer: 'Provider',
+          operation: context,
+        ),
+      );
       AppErrorFeedback.report(
         const AuthFailure('Unexpected error'),
         kind: AppErrorKind.send,

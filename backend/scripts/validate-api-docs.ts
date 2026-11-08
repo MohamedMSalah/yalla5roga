@@ -134,6 +134,7 @@ const critical = [
   "/api/users/cuser",
   "/api/users/:id",
   "/api/users/sync",
+  "/api/users/cuser/fcm-token",
   "/api/groups/cuser",
   "/api/groups/:id",
   "/api/groups/invitations/:invitationId/decline",
@@ -141,7 +142,10 @@ const critical = [
   "/api/outings/drafts",
   "/api/outings/saved",
   "/api/outings/:id",
+  "/api/outings/:outingId/messages",
+  "/api/outings/:outingId/read",
   "/api/places/nearby",
+  "/api/places/saved",
   "/api/places/:id",
 ];
 
@@ -172,7 +176,18 @@ const checks: Array<[string, string, string]> = [
   ["outings cuser before :id", "/api/outings/cuser", "/api/outings/:id"],
   ["outings drafts before :id", "/api/outings/drafts", "/api/outings/:id"],
   ["outings saved before :id", "/api/outings/saved", "/api/outings/:id"],
+  [
+    "outings messages before bare :id",
+    "/api/outings/:outingId/messages",
+    "/api/outings/:id",
+  ],
   ["places nearby before :id", "/api/places/nearby", "/api/places/:id"],
+  ["places saved before :id", "/api/places/saved", "/api/places/:id"],
+  [
+    "users fcm before :id",
+    "/api/users/cuser/fcm-token",
+    "/api/users/:id",
+  ],
 ];
 
 for (const [label, a, b] of checks) {

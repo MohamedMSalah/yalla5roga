@@ -24,6 +24,7 @@ class CreateOutingProvider extends ChangeNotifier {
     this.saved,
     this.draft,
     bool specialEvent = false,
+    bool letVote = false,
   }) : _group = group,
        _groupLocked = group != null,
        _specialEvent = specialEvent || (draft?.specialEvent ?? false),
@@ -35,10 +36,17 @@ class CreateOutingProvider extends ChangeNotifier {
     customPlaceController = TextEditingController();
     customPlaceController.addListener(_onCustomPlaceChanged);
     if (_specialEvent) _occasion = OutingOccasion.birthday;
+    // Multi-place voting is group-outing only (suggest + create share one form).
+    _letVote = !_specialEvent && letVote;
     if (suggestedPlace != null) {
-      _place = suggestedPlace.toOutingPlace();
+      final place = suggestedPlace.toOutingPlace();
       _vibe = suggestedPlace.vibe.index;
       _image = suggestedPlace.coverImageUrl;
+      if (_letVote) {
+        _selectedPlaces.add(place);
+      } else {
+        _place = place;
+      }
     }
     if (saved != null) {
       nameController.text = saved!.title;
@@ -64,7 +72,9 @@ class CreateOutingProvider extends ChangeNotifier {
       _applyLocation(draft!.location);
       if (draft!.letVote) {
         _letVote = true;
-        _selectedPlaces.addAll(draft!.selectedPlaces);
+        _selectedPlaces
+          ..clear()
+          ..addAll(draft!.selectedPlaces);
         _voteDeadlineHours = draft!.voteDeadlineHours ?? 3;
       }
     }
@@ -278,9 +288,7 @@ class CreateOutingProvider extends ChangeNotifier {
     if (_step == 0) {
       final nameError = Validators.outingName(nameController.text, l10n);
       if (nameError != null) return nameError;
-      if (!_specialEvent && _image == null) {
-        return l10n.photoRequired;
-      }
+      // Cover photo is optional until a remote upload pipeline exists.
       if (_specialEvent) {
         if (_guestIds.isEmpty) return l10n.guestsRequired;
       } else if (_group == null) {
@@ -314,9 +322,6 @@ class CreateOutingProvider extends ChangeNotifier {
   String? draftError(L10n l10n) {
     final nameError = Validators.outingName(nameController.text, l10n);
     if (nameError != null) return nameError;
-    if (!_specialEvent && _image == null) {
-      return l10n.photoRequired;
-    }
     if (multiPlaceMode) {
       if (_selectedPlaces.length < 2) return l10n.pickAtLeastTwoPlaces;
       if (_selectedPlaces.length > OutingsProvider.maxVotePlaces) {
@@ -373,19 +378,35 @@ class CreateOutingProvider extends ChangeNotifier {
     return _selectedPlaces.any((item) => item == place);
   }
 
+  bool get canAddMorePlaces =>
+      multiPlaceMode && _selectedPlaces.length < OutingsProvider.maxVotePlaces;
+
+  void addSelectedPlace(Place place) {
+    if (!multiPlaceMode) {
+      setCatalogPlace(place);
+      return;
+    }
+    if (isPlaceSelected(place)) return;
+    if (_selectedPlaces.length >= OutingsProvider.maxVotePlaces) return;
+    _selectedPlaces.add(place);
+    notifyListeners();
+  }
+
+  void removeSelectedPlace(Place place) {
+    _selectedPlaces.removeWhere((item) => item == place);
+    notifyListeners();
+  }
+
   void togglePlace(Place place) {
     if (!multiPlaceMode) {
       setCatalogPlace(place);
       return;
     }
-    final index = _selectedPlaces.indexWhere((item) => item == place);
-    if (index >= 0) {
-      _selectedPlaces.removeAt(index);
+    if (isPlaceSelected(place)) {
+      removeSelectedPlace(place);
     } else {
-      if (_selectedPlaces.length >= OutingsProvider.maxVotePlaces) return;
-      _selectedPlaces.add(place);
+      addSelectedPlace(place);
     }
-    notifyListeners();
   }
 
   void setGroup(Group value) {
@@ -497,7 +518,8 @@ class CreateOutingProvider extends ChangeNotifier {
       guestIds: guests,
       status: voting ? OutingStatus.voting : OutingStatus.draft,
       votePlaces: places,
-      voteDeadlineHours: voting ? _voteDeadlineHours : null,
+      // Backend create requires a deadline even when voting UI is off.
+      voteDeadlineHours: _voteDeadlineHours,
       createdById: createdById,
       scheduledAt: scheduled,
     );

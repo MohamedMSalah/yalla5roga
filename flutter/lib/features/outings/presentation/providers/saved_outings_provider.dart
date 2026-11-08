@@ -37,9 +37,11 @@ class SavedOutingsProvider extends ChangeNotifier {
   bool get hasLoaded => _hasLoaded;
 
   Future<void> load() async {
-    final savedResult = await repository.getSaved();
+    final savedFuture = repository.getSaved();
+    final draftFuture = repository.getDrafts();
+    final savedResult = await savedFuture;
+    final draftResult = await draftFuture;
     savedResult.fold((_) {}, (items) => _saved = List.of(items));
-    final draftResult = await repository.getDrafts();
     draftResult.fold((_) {}, (items) => _drafts = List.of(items));
     _hasLoaded = true;
     notifyListeners();

@@ -5,6 +5,7 @@ import 'package:yalla_5roga/core/cache/ttl_cache.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
 import 'package:yalla_5roga/core/network/remote_guard.dart';
+import 'package:yalla_5roga/core/network/request_deduper.dart';
 import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_local_datasource.dart';
 import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_remote_datasource.dart';
 import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
@@ -16,11 +17,13 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     required this.remote,
     required this.local,
     required this.networkInfo,
-  });
+    RequestDeduper? deduper,
+  }) : _deduper = deduper ?? RequestDeduper();
 
   final OutingChatRemoteDataSourceImpl remote;
   final OutingChatLocalDataSource local;
   final NetworkInfo networkInfo;
+  final RequestDeduper _deduper;
 
   final _memory = TtlCache<List<ChatMessage>>(ttl: CachePolicy.outingChat);
 
@@ -39,30 +42,48 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
       if (fresh != null) return Right(fresh);
     }
 
-    final disk = local.getMessages(outingId);
-    final result = await guardRemote(
-      networkInfo,
-      () => remote.getMessages(outingId),
-      reason: 'loadOutingChat',
-    );
-
-    return await result.fold<Future<Either<Failure, List<ChatMessage>>>>(
-      (failure) async {
-        final fallback = disk.isNotEmpty
-            ? disk
-            : _memory.getStale(outingId) ?? const <ChatMessage>[];
-        if (fallback.isNotEmpty) {
-          _memory.set(outingId, fallback);
-          return Right(fallback);
+    return _deduper.run(
+      RequestDeduper.keyFor(
+        method: 'GET',
+        path: 'chat:$outingId',
+        query: {'force': forceRefresh},
+      ),
+      () async {
+        if (!forceRefresh) {
+          final fresh = _memory.get(outingId);
+          if (fresh != null) return Right(fresh);
         }
-        return Left(failure);
+
+        final disk = local.getMessages(outingId);
+        final result = await guardRemote(
+          networkInfo,
+          () => remote.getMessages(outingId),
+          reason: 'loadOutingChat',
+        );
+
+        return await result.fold<Future<Either<Failure, List<ChatMessage>>>>(
+          (failure) async {
+            final fallback = disk.isNotEmpty
+                ? disk
+                : _memory.getStale(outingId) ?? const <ChatMessage>[];
+            if (fallback.isNotEmpty) {
+              _memory.set(outingId, fallback);
+              return Right(fallback);
+            }
+            return Left(failure);
+          },
+          (remoteMessages) async {
+            final merged = _merge(disk, remoteMessages);
+            _memory.set(outingId, merged);
+            await local.saveMessages(outingId, merged);
+            return Right(merged);
+          },
+        );
       },
-      (remoteMessages) async {
-        final merged = _merge(disk, remoteMessages);
-        _memory.set(outingId, merged);
-        await local.saveMessages(outingId, merged);
-        return Right(merged);
-      },
+      feature: 'chat',
+      source: 'OutingChatRepositoryImpl',
+      operation: 'getMessages',
+      endpoint: 'chat:$outingId',
     );
   }
 
@@ -131,6 +152,7 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
   @override
   Future<void> clearCache() async {
     _memory.invalidate();
+    _deduper.clear();
     await local.clear();
   }
 

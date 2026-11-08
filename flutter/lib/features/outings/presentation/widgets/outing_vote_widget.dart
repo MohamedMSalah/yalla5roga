@@ -51,9 +51,11 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final ok = await outings.setAttendance(widget.outing.id, userId, status);
     if (!mounted) return;
     setState(() => _saving = false);
-    AppSnackBar.show(
-      ok ? context.l10n.attendanceUpdated : context.l10n.attendanceClosed,
-    );
+    if (!ok) {
+      // AppErrorFeedback already showed the localized failure.
+      return;
+    }
+    AppSnackBar.show(context.l10n.attendanceUpdated);
   }
 
   Future<void> _togglePlace(int index) async {
@@ -85,7 +87,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
 
     if (winnerId == null || winnerId.isEmpty) {
       setState(() => _breakingTie = false);
-      AppSnackBar.show(context.l10n.voteUpdated);
+      // Failure path already reported via AppErrorFeedback.
       return;
     }
 

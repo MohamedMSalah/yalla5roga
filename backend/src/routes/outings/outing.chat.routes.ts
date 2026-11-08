@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { ChatController } from "../../controllers/chat/chat.controller.js";
-import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   outingIdParamsSchema,
@@ -9,13 +8,14 @@ import {
 
 /**
  * @openapi
- * /api/chat/outings/{outingId}/messages:
+ * /api/outings/{outingId}/messages:
  *   get:
- *     tags: [Chat]
+ *     tags: [Outing Chat]
  *     summary: List outing messages
  *     description: >
  *       The caller must be the outing creator or an outing guest. History stays
- *       readable after the outing ends.
+ *       readable after the outing ends. Authorization is unchanged from the
+ *       previous `/api/chat/outings/{outingId}/messages` mount.
  *     operationId: listOutingMessages
  *     parameters:
  *       - $ref: "#/components/parameters/ChatOutingId"
@@ -37,7 +37,7 @@ import {
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *   post:
- *     tags: [Chat]
+ *     tags: [Outing Chat]
  *     summary: Send an outing message
  *     description: >
  *       The sender is the authenticated Firebase UID and must be the creator or a guest.
@@ -71,9 +71,9 @@ import {
  *               $ref: "#/components/schemas/ErrorResponse"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
- * /api/chat/outings/{outingId}/read:
+ * /api/outings/{outingId}/read:
  *   patch:
- *     tags: [Chat]
+ *     tags: [Outing Chat]
  *     summary: Mark outing chat as read
  *     description: >
  *       Upserts a `chat_reads` row for the authenticated participant so
@@ -100,31 +100,27 @@ import {
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */
-const api = Router();
+const router = Router();
 const controller = new ChatController();
 
-api.use(authMiddleware);
-
-api.get(
-  "/outings/:outingId/messages",
+// Keep `:outingId` so ChatController / chat.validator stay unchanged.
+router.get(
+  "/:outingId/messages",
   validate({ params: outingIdParamsSchema }),
   controller.listByOuting,
 );
-api.post(
-  "/outings/:outingId/messages",
+router.post(
+  "/:outingId/messages",
   validate({
     params: outingIdParamsSchema,
     body: sendMessageBodySchema,
   }),
   controller.send,
 );
-api.patch(
-  "/outings/:outingId/read",
+router.patch(
+  "/:outingId/read",
   validate({ params: outingIdParamsSchema }),
   controller.markAsRead,
 );
-
-const router = Router();
-router.use("/api/chat", api);
 
 export default router;

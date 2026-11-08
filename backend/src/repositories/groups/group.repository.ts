@@ -4,6 +4,7 @@ import type {
   CreateGroupInput,
   Group,
   GroupMember,
+  GroupMemberView,
   UpdateGroupInput,
 } from "../../types/groups/group.types.js";
 import type { IGroupRepository } from "./i-group.repository.js";
@@ -54,7 +55,7 @@ export class GroupRepository implements IGroupRepository {
     return this.datasource.removeMember(groupId, userId);
   }
 
-  listMembers(groupId: string): Promise<GroupMember[]> {
+  listMembers(groupId: string): Promise<GroupMemberView[]> {
     return this.datasource.listMembers(groupId);
   }
 }

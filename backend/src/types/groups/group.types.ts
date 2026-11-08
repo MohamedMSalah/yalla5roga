@@ -1,8 +1,22 @@
 import type { group_members, group_role, groups } from "@prisma/client";
 
-export type Group = groups;
+/** Persisted group row plus list/detail stats for API responses. */
+export type Group = groups & {
+  /** Accepted members in `group_members` (creator included from create). */
+  member_count?: number;
+  /** Caller's role when listed via `/cuser` or similar scoped queries. */
+  my_role?: group_role;
+};
+
 export type GroupMember = group_members;
 export type GroupRole = group_role;
+
+/** Membership row enriched with profile fields for list/UI cards. */
+export type GroupMemberView = GroupMember & {
+  name: string;
+  phone: string | null;
+  image_url: string | null;
+};
 
 export type CreateGroupInput = {
   name: string;

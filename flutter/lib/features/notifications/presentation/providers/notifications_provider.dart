@@ -74,7 +74,7 @@ class NotificationsProvider extends ChangeNotifier {
     }
     feedResult.fold<void>(
       (failure) {
-        _errorMessage = failure.message;
+        _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.load,
@@ -103,7 +103,7 @@ class NotificationsProvider extends ChangeNotifier {
       final result = await repository.markAllRead();
       return result.fold(
         (failure) {
-          _errorMessage = failure.message;
+          _errorMessage = AppErrorFeedback.messageOf(failure);
           AppErrorFeedback.report(
             failure,
             kind: AppErrorKind.send,
@@ -126,7 +126,7 @@ class NotificationsProvider extends ChangeNotifier {
       final result = await repository.markRead(id);
       return result.fold(
         (failure) {
-          _errorMessage = failure.message;
+          _errorMessage = AppErrorFeedback.messageOf(failure);
           AppErrorFeedback.report(
             failure,
             kind: AppErrorKind.send,
@@ -148,6 +148,7 @@ class NotificationsProvider extends ChangeNotifier {
 
   void clear() {
     _epoch++;
+    repository.clearCache();
     _items = [];
     _unreadCount = 0;
     _filter = 0;

@@ -9,6 +9,9 @@ class UserModel extends User {
     super.email,
     super.token,
     super.imageUrl,
+    super.createdAt,
+    super.hasPassword,
+    super.phoneVerified,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -22,6 +25,15 @@ class UserModel extends User {
           apiString(json['image_url']) ??
           apiString(json['imageUrl']) ??
           apiString(json['avatar']),
+      createdAt: _parseDate(
+        json['created_at'] ?? json['createdAt'],
+      ),
+      hasPassword: apiBool(
+        json['has_password'] ?? json['hasPassword'] ?? false,
+      ),
+      phoneVerified: apiBool(
+        json['phone_verified'] ?? json['phoneVerified'] ?? false,
+      ),
     );
   }
 
@@ -33,6 +45,9 @@ class UserModel extends User {
       'email': email,
       'token': token,
       'imageUrl': imageUrl,
+      'created_at': createdAt?.toIso8601String(),
+      'has_password': hasPassword,
+      'phone_verified': phoneVerified,
     };
   }
 
@@ -44,6 +59,15 @@ class UserModel extends User {
       email: user.email,
       token: user.token,
       imageUrl: user.imageUrl,
+      createdAt: user.createdAt,
+      hasPassword: user.hasPassword,
+      phoneVerified: user.phoneVerified,
     );
+  }
+
+  static DateTime? _parseDate(dynamic value) {
+    final text = apiString(value);
+    if (text == null) return null;
+    return DateTime.tryParse(text)?.toLocal();
   }
 }

@@ -3,7 +3,9 @@ import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
+import 'package:yalla_5roga/core/utils/remote_image_url.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
+import 'package:yalla_5roga/features/groups/domain/entities/group_invite_result.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_role.dart';
 
@@ -15,7 +17,7 @@ abstract class GroupsDataSource {
   Future<Group> addMember(String groupId, GroupMember member);
   Future<Group> removeMember(String groupId, String memberId);
   Future<void> leaveGroup(String groupId, String userId);
-  Future<Map<String, dynamic>> inviteByPhone({
+  Future<GroupInviteResult> inviteByPhone({
     required String groupId,
     required String phoneNumber,
   });
@@ -67,15 +69,24 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   Future<Group> createGroup(Group group) async {
     try {
+      final imageUrl = remoteImageUrlOrNull(group.image);
       final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.groups,
         data: {
           'name': group.name,
           if (group.bio.isNotEmpty) 'bio': group.bio,
-          if (group.image.isNotEmpty) 'image_url': group.image,
+          if (imageUrl != null) 'image_url': imageUrl,
         },
       );
-      return _groupFromJson(apiPayload(response.data));
+      final created = _groupFromJson(apiPayload(response.data));
+      // Reload members so the creator/owner card is present immediately.
+      final withMembers = await getGroup(created.id);
+      return withMembers.copyWith(
+        cuserRole: GroupRole.owner,
+        listedMemberCount: withMembers.memberCount > 0
+            ? withMembers.memberCount
+            : (created.listedMemberCount ?? 1),
+      );
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -84,9 +95,15 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   Future<Group> updateGroup(Group group) async {
     try {
+      final imageUrl = remoteImageUrlOrNull(group.image);
       final response = await _client.patch<Map<String, dynamic>>(
         ApiConstants.group(group.id),
-        data: {'name': group.name, 'bio': group.bio, 'image_url': group.image},
+        data: {
+          'name': group.name,
+          'bio': group.bio,
+          // Local paths are preview-only until an upload pipeline exists.
+          if (imageUrl != null) 'image_url': imageUrl,
+        },
       );
       return _groupFromJson(apiPayload(response.data));
     } on DioException catch (error) {
@@ -139,7 +156,7 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   }
 
   @override
-  Future<Map<String, dynamic>> inviteByPhone({
+  Future<GroupInviteResult> inviteByPhone({
     required String groupId,
     required String phoneNumber,
   }) async {
@@ -148,10 +165,27 @@ class GroupsRemoteDataSource implements GroupsDataSource {
         ApiConstants.groupInvitations(groupId),
         data: {'phoneNumber': phoneNumber},
       );
-      return apiPayload(response.data);
+      return GroupInviteResult.fromJson(apiPayload(response.data));
     } on DioException catch (error) {
+      // already_pending / already_member return 409 with invite payload.
+      final conflict = _inviteConflict(error);
+      if (conflict != null) return conflict;
       throw _unwrap(error);
     }
+  }
+
+  GroupInviteResult? _inviteConflict(DioException error) {
+    if (error.response?.statusCode != 409) return null;
+    final body = error.response?.data;
+    if (body is! Map) return null;
+    final nested = body['data'];
+    if (nested is! Map) return null;
+    final payload = Map<String, dynamic>.from(nested);
+    final outcome = payload['outcome'] as String?;
+    if (outcome != 'already_pending' && outcome != 'already_member') {
+      return null;
+    }
+    return GroupInviteResult.fromJson(payload);
   }
 
   @override
@@ -204,7 +238,12 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       'unread': apiInt(json['unread']),
       'featured': apiBool(json['featured']),
       'decision': apiString(json['decision']),
-      'cuserRole': apiString(json['cuserRole']) ?? apiString(json['myRole']),
+      if (json['member_count'] != null)
+        'member_count': apiInt(json['member_count']),
+      'cuserRole':
+          apiString(json['cuserRole']) ??
+          apiString(json['myRole']) ??
+          apiString(json['my_role']),
     });
   }
 

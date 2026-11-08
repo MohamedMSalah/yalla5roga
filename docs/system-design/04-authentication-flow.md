@@ -74,8 +74,8 @@ sequenceDiagram
     API->>UC: SignupUseCase
     UC->>Neon: ensure email/phone unique
     UC->>UC: bcrypt hashPassword
-    UC->>Admin: createUser email+displayName (no password)
-    UC->>Neon: insert users row with password_hash
+    UC->>Admin: createUser {} (bare UID only — no email/displayName/password)
+    UC->>Neon: insert users row with name/email/phone/password_hash
     UC->>Admin: createCustomToken(uid)
     UC->>ClientSDK: signInWithCustomToken → idToken
     API-->>C: {idToken, refreshToken, expiresIn, uid, user}

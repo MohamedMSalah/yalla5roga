@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { OutingController } from "../../controllers/outings/outing.controller.js";
-import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { savedOutingParamsSchema } from "../../validators/outings/outing.validator.js";
 
@@ -67,41 +66,20 @@ import { savedOutingParamsSchema } from "../../validators/outings/outing.validat
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */
-const api = Router();
+const router = Router();
 const controller = new OutingController();
 
-api.use(authMiddleware);
-
-// Static `/saved` before `/:id/save` so "saved" is never treated as an outing id.
-api.get("/saved", controller.getSaved);
-api.post(
+// Static `/saved` before `/:id` so "saved" is never treated as an outing id.
+router.get("/saved", controller.getSaved);
+router.post(
   "/:id/save",
   validate({ params: savedOutingParamsSchema }),
   controller.save,
 );
-api.delete(
+router.delete(
   "/:id/save",
   validate({ params: savedOutingParamsSchema }),
   controller.unsave,
 );
-
-const router = Router();
-router.use("/api/outings", api);
-
-// Saved places live under /api/places to keep domains separate.
-const placesApi = Router();
-placesApi.use(authMiddleware);
-placesApi.get("/saved", controller.getSavedPlaces);
-placesApi.post(
-  "/:id/save",
-  validate({ params: savedOutingParamsSchema }),
-  controller.savePlaceBookmark,
-);
-placesApi.delete(
-  "/:id/save",
-  validate({ params: savedOutingParamsSchema }),
-  controller.unsavePlaceBookmark,
-);
-router.use("/api/places", placesApi);
 
 export default router;

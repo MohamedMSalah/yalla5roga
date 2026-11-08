@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-08 |
 | Documentation version | 1.0.0 |
 | Entry | `backend/src/server.ts` → `app.ts` |
 | Needs verification | Production logging/monitoring exporters; WhatsApp provider credentials per env |
@@ -44,10 +44,13 @@ backend/tests/           # lifecycle, authz, concurrency, etc.
 
 1. `dotenv/config`
 2. `prisma.$connect()`
-3. `app.listen(PORT)` (default 3000)
-4. `startOutingCompletionJob()`, `startVotingDeadlineJob()`, `startNotificationWorker()`
+3. `http.createServer(app)` + `attachRealtime(httpServer)` (Socket.IO on `/socket.io`)
+4. `httpServer.listen(PORT, HOST)` (default `0.0.0.0:3000`)
+5. `startOutingCompletionJob()`, `startVotingDeadlineJob()`, `startNotificationWorker()`
 
 `app.ts` middleware stack: CORS → `express.json()` → `/` + `/health` → `/api-docs` → mounted routes → `errorMiddleware`.
+
+Realtime modules: `src/realtime/` (`socket-server`, `socket-auth`, `chat.gateway`, `chat-emitter`, `rooms`). In-memory Socket.IO adapter only (single Node process; no Redis).
 
 ## 4. Request lifecycle
 
@@ -76,18 +79,18 @@ sequenceDiagram
 
 ## 5. Routes (modules)
 
-Mounted from `routes/index.ts` (saved outing routes before outing `:id`):
+Mounted from `routes/index.ts`. Feature folders compose responsibility routers; each index preserves static-before-dynamic order (`cuser`, `drafts`, `saved`, `nearby`, `sync`, FCM).
 
-| Mount | File |
-|-------|------|
-| `/api/auth` | `auth/auth.routes.ts` |
-| `/api/users` | `users/user.routes.ts` |
-| `/api/user/fcm-token` | `users/fcm-token.routes.ts` |
-| `/api/groups` | `groups/group.routes.ts` |
-| `/api/outings` | `outings/outing.routes.ts` + `saved/saved.routes.ts` |
-| `/api/places` | `places/place.routes.ts` + saved places from saved routes |
-| `/api/notifications` | `notifications/notification.routes.ts` |
-| `/api/chat` | `chat/chat.routes.ts` |
+| Mount | Folder / modules |
+|-------|------------------|
+| `/api/auth` | `auth/index.ts` |
+| `/api/users` | `users/` — profile, sync, FCM (`/cuser/fcm-token`) |
+| `/api/groups` | `groups/` — crud, members, invitations |
+| `/api/outings` | `outings/` — crud, drafts, saved, participants, voting, chat |
+| `/api/places` | `places/` — crud, meta (hours/images/prices), saved |
+| `/api/notifications` | `notifications/` — inbox |
+
+Chat lives under `/api/outings/:outingId/messages` and `/read` (not a separate `/api/chat` mount).
 
 Full endpoint list: [`API_CONTRACTS.md`](API_CONTRACTS.md).
 

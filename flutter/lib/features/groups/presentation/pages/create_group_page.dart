@@ -16,6 +16,7 @@ import 'package:yalla_5roga/core/widgets/image_source_sheet.dart';
 import 'package:yalla_5roga/core/widgets/phone_text_field.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_details_page.dart';
+import 'package:yalla_5roga/features/groups/presentation/pages/pick_device_contacts_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 
 class CreateGroupPage extends StatefulWidget {
@@ -58,6 +59,17 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     context.read<GroupsProvider>().setCreateImage(path);
   }
 
+  Future<void> _pickContacts() async {
+    final groups = context.read<GroupsProvider>();
+    final selected = await Get.to<List<String>>(
+      () => PickDeviceContactsPage(
+        initialSelectedPhones: groups.createPhones.toSet(),
+      ),
+    );
+    if (!mounted || selected == null) return;
+    groups.setCreatePhones(selected);
+  }
+
   void _addPhone() {
     final error = context.read<GroupsProvider>().addCreatePhone(
       _phoneController.text,
@@ -74,10 +86,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final groups = context.read<GroupsProvider>();
     if (groups.isCreating) return;
     if (!_formKey.currentState!.validate()) return;
-    if (groups.createImage == null) {
-      AppSnackBar.show(context.l10n.photoRequired);
-      return;
-    }
     final user = context.read<AuthProvider>().user;
     final l10n = context.l10n;
     final group = await groups.createGroup(
@@ -100,7 +108,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final phones = groups.createPhones;
 
     return Scaffold(
-      // AppPageBar — create group
       appBar: AppPageBar(title: l10n.createGroup, backIcon: Icons.close),
       body: SafeArea(
         top: false,
@@ -139,7 +146,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                                   ),
                                   8.gapH,
                                   Text(
-                                    l10n.uploadPhoto,
+                                    l10n.groupPhotoOptional,
                                     style: TextStyle(
                                       color: AppColors.brand600,
                                       fontWeight: FontWeight.w800,
@@ -197,6 +204,23 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       ],
                     ),
                     Responsive.spaceLg.gapH,
+                    Text(
+                      l10n.invitePeople,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: Responsive.fontSm,
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                    Responsive.spaceSm.gapH,
+                    CustomButton(
+                      label: l10n.selectFromContacts,
+                      icon: Icons.contacts_outlined,
+                      size: AppButtonSize.medium,
+                      variant: AppButtonVariant.outlined,
+                      onPressed: groups.isCreating ? null : _pickContacts,
+                    ),
+                    Responsive.spaceMd.gapH,
                     Text(
                       l10n.addByPhone,
                       style: TextStyle(

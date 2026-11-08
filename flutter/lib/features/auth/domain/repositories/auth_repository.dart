@@ -25,6 +25,9 @@ abstract class AuthRepository {
 
   Future<Either<Failure, User>> getCachedUser();
 
+  /// Refreshes Neon profile fields (`created_at`, `has_password`, …).
+  Future<Either<Failure, User>> refreshProfile();
+
   Future<Either<Failure, User>> saveUser(User user);
 
   /// Updates display name and/or local profile image path, then refreshes cache.
@@ -61,7 +64,11 @@ abstract class AuthRepository {
     required String phone,
   });
 
+  /// Legacy Firebase email/password provider (rare; Neon is canonical).
   bool get hasPasswordProvider;
+
+  /// True when Neon has a password hash, or Firebase still has a password provider.
+  bool get hasPassword;
 
   Future<Either<Failure, void>> logout();
 

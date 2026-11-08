@@ -5,6 +5,7 @@ import { GroupRepository } from "../../repositories/groups/group.repository.js";
 import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
 import { UserRepository } from "../../repositories/users/user.repository.js";
 import { invitationExpiresAt } from "../../services/groups/invitation-policy.js";
+import { getNotificationConfig } from "../../config/notifications.js";
 import {
   buildGroupInviteDeepLinks,
   primaryInviteDeepLink,
@@ -156,10 +157,12 @@ export class InviteToGroupUseCase {
       invitationId: invitation.id,
       groupId: invitation.group_id,
     });
+    const downloadUrl = getNotificationConfig().deepLinkBaseUrl;
     const messageBody = buildInvitationMessage({
       groupName,
       inviterName,
       deepLink,
+      downloadUrl,
     });
     const whatsappUrl = buildWhatsAppClickToChatUrl(
       invitation.invited_phone,

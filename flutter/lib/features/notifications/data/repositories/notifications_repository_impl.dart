@@ -33,8 +33,15 @@ class NotificationsRepositoryImpl implements NotificationsRepository {
       key: _feedKey,
       forceRefresh: forceRefresh,
       reason: 'getNotifications',
+      feature: 'notifications',
+      source: 'NotificationsRepositoryImpl',
       fetch: remote.getNotifications,
     );
+  }
+
+  @override
+  void clearCache() {
+    _feedCache.invalidate();
   }
 
   @override

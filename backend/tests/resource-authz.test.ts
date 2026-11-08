@@ -34,7 +34,8 @@ import {
   NotFoundError,
 } from "../src/utils/errors.js";
 
-const NOW = new Date("2026-11-06T00:00:00.000Z");
+// Keep fixture clocks relative to wall time so vote deadline checks stay open.
+const NOW = new Date();
 const CREATOR = "creator-uid";
 const OTHER = "other-uid";
 const OWNER = "owner-uid";
@@ -229,7 +230,14 @@ class FakeGroups implements IGroupRepository {
   }
   listMembers(groupId: string) {
     return Promise.resolve(
-      this.members.filter((m) => m.group_id === groupId),
+      this.members
+        .filter((m) => m.group_id === groupId)
+        .map((m) => ({
+          ...m,
+          name: m.user_id,
+          phone: null,
+          image_url: null,
+        })),
     );
   }
 }

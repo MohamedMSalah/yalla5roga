@@ -1,26 +1,19 @@
 import { Router } from "express";
-import authRoutes from "./auth/auth.routes.js";
-import chatRoutes from "./chat/chat.routes.js";
-import groupRoutes from "./groups/group.routes.js";
-import notificationRoutes from "./notifications/notification.routes.js";
-import outingRoutes from "./outings/outing.routes.js";
-import placeRoutes from "./places/place.routes.js";
-import savedOutingRoutes from "./saved/saved.routes.js";
-import fcmTokenRoutes from "./users/fcm-token.routes.js";
-import userRoutes from "./users/user.routes.js";
+import authRoutes from "./auth/index.js";
+import groupRoutes from "./groups/index.js";
+import notificationRoutes from "./notifications/index.js";
+import outingRoutes from "./outings/index.js";
+import placeRoutes from "./places/index.js";
+import userRoutes from "./users/index.js";
 
 const router = Router();
 
-// Mount order follows Swagger sections. Saved outings are registered before
-// outing CRUD so `/api/outings/saved` is never captured by `/api/outings/:id`.
+// Mount order: feature indexes own static-before-dynamic registration.
 router.use(authRoutes);
 router.use(userRoutes);
-router.use(fcmTokenRoutes);
 router.use(groupRoutes);
-router.use(savedOutingRoutes);
 router.use(outingRoutes);
 router.use(placeRoutes);
 router.use(notificationRoutes);
-router.use(chatRoutes);
 
 export default router;

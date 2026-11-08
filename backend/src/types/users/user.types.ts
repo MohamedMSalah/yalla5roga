@@ -3,7 +3,10 @@ import type { users } from "@prisma/client";
 export type User = users;
 
 /** API-safe user profile — never includes credential columns. */
-export type PublicUser = Omit<User, "password_hash" | "password_updated_at">;
+export type PublicUser = Omit<User, "password_hash" | "password_updated_at"> & {
+  /** True when Neon stores a password_hash (email/password accounts). */
+  has_password: boolean;
+};
 
 export type CreateUserInput = {
   id: string;

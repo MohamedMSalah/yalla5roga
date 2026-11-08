@@ -41,8 +41,8 @@
 
 - **Status:** Accepted
 - **Context:** Mobile social/phone auth + secure API calls.
-- **Decision:** Firebase Auth for identity; backend verifies ID tokens; email/password hashes live in Neon with Firebase custom-token sessions.
-- **Consequences:** All protected routes use `authMiddleware`; user rows keyed by Firebase UID.
+- **Decision:** Firebase Auth for identity (UID + ID tokens) only; Neon is the sole application data store. Email/password signup creates a bare Firebase UID with no profile fields; name/email/phone/`password_hash` live in Neon. Backend verifies ID tokens and mints custom-token sessions for email/password.
+- **Consequences:** All protected routes use `authMiddleware`; user rows keyed by Firebase UID. Do not use Firestore/Realtime DB (or Firebase Auth profile fields) as the app database.
 
 ## ADR-006: Backend authority for voting lifecycle
 
@@ -82,9 +82,9 @@
 
 ## ADR-011: HTTP chat (no WebSocket)
 
-- **Status:** Accepted (current)
+- **Status:** Superseded by ADR-013
 - **Context:** Outing chat needed; realtime infra not introduced.
-- **Decision:** REST list/send/read under `/api/chat`.
+- **Decision:** REST list/send/read under `/api/outings/:outingId/messages` and `/read` (outing sub-resource; previously `/api/chat`).
 - **Consequences:** Polling/refresh UX; do not document SignalR/WebSockets as implemented.
 
 ## ADR-012: Images as URL strings
@@ -93,6 +93,19 @@
 - **Context:** No verified object-storage pipeline in-repo.
 - **Decision:** Persist URL fields only.
 - **Consequences:** Upload service would be a new ADR if added.
+
+## ADR-013: Hybrid REST + Socket.IO outing chat
+
+- **Status:** Accepted (current)
+- **Context:** ADR-011 HTTP chat lacked live delivery; product approved Socket.IO after audit.
+- **Decision:**
+  - REST remains the canonical write/history/read path (`POST/GET …/messages`, `PATCH …/read`).
+  - Socket.IO (same HTTP server, path `/socket.io`) delivers `outing:message` / `outing:read` to room `outing:{outingId}` after successful persistence.
+  - Handshake auth = Firebase ID token (`auth.token`); identity is `decoded.uid` only.
+  - `outing:join` requires server-side `assertChatParticipant`; never trust client room claims or sender IDs.
+  - Flutter uses `socket_io_client` for delivery; sends via existing REST; dedupes by message `id`; recovers gaps with REST on reconnect.
+  - No Redis adapter while the API remains a single long-lived Node process (current hosting). Multi-instance sticky sessions would need a new ADR.
+- **Consequences:** Real-time UX without duplicate persistence; serverless hosts that cannot keep WebSockets are incompatible without topology change. Supersedes ADR-011.
 
 ---
 

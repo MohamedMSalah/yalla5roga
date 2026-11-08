@@ -7,6 +7,7 @@ import 'package:yalla_5roga/core/network/network_info.dart';
 import 'package:yalla_5roga/core/network/remote_guard.dart';
 import 'package:yalla_5roga/features/groups/data/datasources/groups_remote_datasource.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
+import 'package:yalla_5roga/features/groups/domain/entities/group_invite_result.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/domain/repositories/groups_repository.dart';
 
@@ -35,7 +36,12 @@ class GroupsRepositoryImpl implements GroupsRepository {
       key: _groupsKey,
       forceRefresh: forceRefresh,
       reason: 'getGroups',
-      fetch: remote.getGroups,
+      feature: 'groups',
+      source: 'GroupsRepositoryImpl',
+      fetch: () async {
+        final groups = await remote.getGroups();
+        return [for (final group in groups) _withCallerRole(group)];
+      },
     );
   }
 
@@ -50,8 +56,21 @@ class GroupsRepositoryImpl implements GroupsRepository {
       key: groupId,
       forceRefresh: forceRefresh,
       reason: 'getGroup',
-      fetch: () => remote.getGroup(groupId),
+      feature: 'groups',
+      source: 'GroupsRepositoryImpl',
+      fetch: () async {
+        final group = await remote.getGroup(groupId);
+        return _withCallerRole(group);
+      },
     );
+  }
+
+  Group _withCallerRole(Group group) {
+    final uid = currentUserId();
+    if (uid == null || uid.isEmpty) return group;
+    final me = group.memberById(uid);
+    if (me == null) return group;
+    return group.copyWith(cuserRole: me.role);
   }
 
   @override
@@ -96,6 +115,23 @@ class GroupsRepositoryImpl implements GroupsRepository {
       _groupCache.set(updated.id, updated);
       _groupsCache.invalidate(_groupsKey);
     });
+    return result;
+  }
+
+  @override
+  Future<Either<Failure, GroupInviteResult>> inviteByPhone({
+    required String groupId,
+    required String phoneNumber,
+  }) async {
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.inviteByPhone(groupId: groupId, phoneNumber: phoneNumber),
+      reason: 'inviteByPhone',
+    );
+    if (result.isRight()) {
+      _groupCache.invalidate(groupId);
+      _groupsCache.invalidate(_groupsKey);
+    }
     return result;
   }
 
@@ -145,4 +181,10 @@ class GroupsRepositoryImpl implements GroupsRepository {
 
   @override
   List<GroupMember> get contacts => remote.contacts;
+
+  @override
+  void clearCache() {
+    _groupsCache.invalidate();
+    _groupCache.invalidate();
+  }
 }

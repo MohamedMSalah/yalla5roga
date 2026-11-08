@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
+import 'package:yalla_5roga/core/error/exception_mapper.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
@@ -39,6 +40,18 @@ abstract class AuthRemoteDataSource {
     String? email,
     String? phone,
     String? imageUrl,
+  });
+
+  /// GET current Neon profile (`created_at`, `has_password`, …).
+  Future<UserModel> getProfile();
+
+  /// Confirm Neon password without changing it.
+  Future<void> verifyPassword({required String password});
+
+  /// Change Neon `password_hash`.
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
   });
 }
 
@@ -115,6 +128,48 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     }
   }
 
+  @override
+  Future<UserModel> getProfile() async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        ApiConstants.profile,
+      );
+      return UserModel.fromJson(apiPayload(response.data));
+    } on DioException catch (error) {
+      throw _mapDio(error);
+    }
+  }
+
+  @override
+  Future<void> verifyPassword({required String password}) async {
+    try {
+      await _client.post<Map<String, dynamic>>(
+        ApiConstants.verifyPassword,
+        data: {'password': password},
+      );
+    } on DioException catch (error) {
+      throw _mapDio(error, authCredentials: true);
+    }
+  }
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      await _client.post<Map<String, dynamic>>(
+        ApiConstants.changePassword,
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+    } on DioException catch (error) {
+      throw _mapDio(error, authCredentials: true);
+    }
+  }
+
   Future<AuthSessionModel> _postSession(
     String path,
     Map<String, dynamic> data,
@@ -147,38 +202,23 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   Never _mapDio(DioException error, {bool authCredentials = false}) {
-    if (error.error is AppException) {
-      final app = error.error as AppException;
-      if (authCredentials &&
-          (error.response?.statusCode == 401 || app is AuthException)) {
-        throw AuthException(
-          app.message.isNotEmpty
-              ? app.message
-              : 'Incorrect email or password. Check your details and try again.',
-          AuthErrorCodes.invalidCredential,
-        );
-      }
-      throw app;
-    }
-    final status = error.response?.statusCode;
-    final message = _messageFromBody(error) ?? error.message ?? 'Server error';
-    if (authCredentials && status == 401) {
-      throw AuthException(message, AuthErrorCodes.invalidCredential);
-    }
-    if (status == 401 || status == 403) {
-      throw AuthException(message);
-    }
-    if (status == 409) {
-      throw ServerException(message);
-    }
-    throw ServerException(message);
-  }
+    final app = error.error is AppException
+        ? error.error as AppException
+        : ExceptionMapper.appExceptionFromDio(error);
 
-  String? _messageFromBody(DioException error) {
-    final data = error.response?.data;
-    if (data is Map && data['message'] is String) {
-      return data['message'] as String;
+    if (authCredentials &&
+        (error.response?.statusCode == 401 ||
+            app is AuthException ||
+            app.statusCode == 401)) {
+      throw AuthException(
+        app.message.isNotEmpty ? app.message : 'Incorrect email or password',
+        AuthErrorCodes.invalidCredential,
+        app.statusCode ?? 401,
+        app.httpMethod,
+        app.endpoint,
+        app.responseBody,
+      ); // preserves Dio metadata for blueprint logging
     }
-    return null;
+    throw app;
   }
 }

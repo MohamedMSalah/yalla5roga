@@ -12,6 +12,17 @@ export type SignupInput = {
   phone: string;
 };
 
+export type ChangePasswordInput = {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type VerifyPasswordInput = {
+  userId: string;
+  password: string;
+};
+
 export type AuthSessionResult = {
   idToken: string;
   refreshToken: string;

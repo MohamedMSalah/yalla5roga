@@ -97,8 +97,8 @@ Group vs special event discriminated by `group_id` / `occasion` / `type`. Deadli
 
 | Path | Components | Status |
 |------|------------|--------|
-| Group phone invite | `InviteToGroupUseCase`, WhatsApp outbox, Flutter `InviteDeepLinkProvider` | Implemented |
-| Outing invite | `guests.usecase` + accept/decline routes | API Implemented; Flutter deep-link UI **Partial** |
+| Group phone invite | `InviteToGroupUseCase` → `group_invitations` + WhatsApp outbox/`whatsapp_url`; Flutter `GroupsProvider.inviteMember` / create-group phones; claim on verified-phone `users/sync`; deep-link restore via `InviteDeepLinkProvider` | Implemented |
+| Outing invite | `guests.usecase` + accept/decline routes (registered `user_id` only — no phone/`outing_guests` for non-users) | API Implemented; Flutter deep-link UI **Partial** |
 
 Pending ≠ Member. Accept creates/updates accepted membership.
 
@@ -116,7 +116,9 @@ See §13.5. Core services: `voting.usecase.ts`, `vote-resolution.ts`, `outing-pa
 
 ### Outing chat
 
-`SendMessageUseCase`, list/read routes under `/api/chat`. Access via `chat-access.ts`. No WebSocket.
+`SendMessageUseCase`, list/read routes under `/api/outings/:outingId/messages` and `/read`. Access via `chat-access.ts`.
+
+**Hybrid realtime (ADR-013):** REST persists; after success, Socket.IO emits `outing:message` to room `outing:{outingId}`. Mark-read emits `outing:read`. Clients authenticate sockets with Firebase ID tokens and must pass `assertChatParticipant` on `outing:join`. Flutter recovers missed messages with REST after reconnect.
 
 ### Saved outings / places
 
@@ -132,8 +134,8 @@ Saved outing use cases + place bookmark endpoints; Neon composite PKs.
 
 ### Create outing (Group)
 
-1. Trigger: Owner submits create form.  
-2. Flutter: `CreateOutingProvider` → repository → `POST /api/outings`.  
+1. Trigger: Owner submits create form (`CreateOutingPage`), optionally with multi-place voting via **Add places for voting** / Add place (same page as former suggest-places sheet).  
+2. Flutter: `CreateOutingProvider` → repository → `POST /api/outings` (+ vote-option posts when `votePlaces` set).  
 3. Controller: `OutingController.create`.  
 4. Use case: `CreateOutingUseCase` validates type/deadline/window.  
 5. DB txn: insert `outings` + owner `outing_attendance=going`.  

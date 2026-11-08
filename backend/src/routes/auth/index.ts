@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { AuthController } from "../../controllers/auth/auth.controller.js";
+import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
+  changePasswordBodySchema,
   loginBodySchema,
   signupBodySchema,
+  verifyPasswordBodySchema,
 } from "../../validators/auth/auth.validator.js";
 
 /**
@@ -47,11 +50,12 @@ import {
  *     tags: [Authentication]
  *     summary: Sign up with name, email, password, and phone
  *     description: >
- *       Canonical email/password signup. Hashes the password into Neon
- *       (`users.password_hash`), creates a Firebase Auth identity without a
- *       Firebase password, and returns `idToken` + `customToken` for the client
- *       session. Phone OTP may be verified on the client before calling this
- *       endpoint; Google/Apple continue to use Firebase then `POST /api/users/sync`.
+ *       Canonical email/password signup. Stores name, email, phone, and
+ *       `password_hash` in Neon only. Creates a bare Firebase Auth UID (no
+ *       email, displayName, or password in Firebase) so the API can mint
+ *       ID tokens, then returns `idToken` + `customToken`. Phone OTP may be
+ *       verified on the client before calling this endpoint; Google/Apple
+ *       continue to use Firebase then `POST /api/users/sync`.
  *     operationId: signupWithEmailPassword
  *     security: []
  *     requestBody:
@@ -79,6 +83,59 @@ import {
  *               $ref: "#/components/schemas/ErrorResponse"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ * /api/auth/change-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Change Neon email/password
+ *     description: >
+ *       Authenticated. Verifies `currentPassword` against Neon `password_hash`
+ *       and stores a new bcrypt hash. Firebase Auth is not updated (identity-only).
+ *     operationId: changePassword
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string, minLength: 6, maxLength: 128 }
+ *               newPassword: { type: string, minLength: 6, maxLength: 128 }
+ *     responses:
+ *       "200":
+ *         description: Password updated
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ * /api/auth/verify-password:
+ *   post:
+ *     tags: [Authentication]
+ *     summary: Confirm current Neon password
+ *     description: >
+ *       Authenticated. Verifies the caller's Neon password without changing it.
+ *       Used by profile flows that require recent password confirmation.
+ *     operationId: verifyPassword
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [password]
+ *             properties:
+ *               password: { type: string, minLength: 6, maxLength: 128 }
+ *     responses:
+ *       "200":
+ *         description: Password verified
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
  */
 const api = Router();
 const controller = new AuthController();
@@ -92,6 +149,18 @@ api.post(
   "/signup",
   validate({ body: signupBodySchema }),
   controller.signupHandler,
+);
+api.post(
+  "/change-password",
+  authMiddleware,
+  validate({ body: changePasswordBodySchema }),
+  controller.changePasswordHandler,
+);
+api.post(
+  "/verify-password",
+  authMiddleware,
+  validate({ body: verifyPasswordBodySchema }),
+  controller.verifyPasswordHandler,
 );
 
 const router = Router();

@@ -11,11 +11,20 @@ class CreateOutingStepHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final titles = [l10n.theBasics, l10n.chooseLocation, l10n.reviewOuting];
-    final headlines = [l10n.whatAreWeDoing, l10n.pickAPlace, l10n.reviewOuting];
+    final multi = form.multiPlaceMode;
+    final titles = [
+      l10n.theBasics,
+      multi ? l10n.addPlacesForVoting : l10n.chooseLocation,
+      l10n.reviewOuting,
+    ];
+    final headlines = [
+      l10n.whatAreWeDoing,
+      multi ? l10n.pickMultiplePlaces : l10n.pickAPlace,
+      l10n.reviewOuting,
+    ];
     final bodies = [
       l10n.addEssentials,
-      l10n.chooseLocationNext,
+      multi ? l10n.suggestPlacesSheetHint : l10n.chooseLocationNext,
       l10n.almostThere,
     ];
     final step = form.step;

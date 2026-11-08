@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { NotificationController } from "../../controllers/notifications/notification.controller.js";
-import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { notificationIdParamsSchema } from "../../validators/notifications/notification.validator.js";
 
@@ -71,20 +70,16 @@ import { notificationIdParamsSchema } from "../../validators/notifications/notif
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */
-const api = Router();
+const router = Router();
 const controller = new NotificationController();
 
-api.use(authMiddleware);
-
-api.get("/", controller.list);
-api.patch("/read", controller.markAllAsRead);
-api.patch(
+// Static `/read` before `/:id/read`.
+router.get("/", controller.list);
+router.patch("/read", controller.markAllAsRead);
+router.patch(
   "/:id/read",
   validate({ params: notificationIdParamsSchema }),
   controller.markAsRead,
 );
-
-const router = Router();
-router.use("/api/notifications", api);
 
 export default router;

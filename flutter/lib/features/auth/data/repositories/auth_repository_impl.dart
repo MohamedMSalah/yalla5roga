@@ -116,6 +116,8 @@ mixin _AuthFirebaseMixin on AuthRepository {
     String? name,
     String? imageUrl,
     bool forceRefreshToken = false,
+    DateTime? createdAt,
+    bool? hasPassword,
   }) async {
     final token =
         await firebaseAuth.idToken(forceRefresh: forceRefreshToken) ?? '';
@@ -128,27 +130,67 @@ mixin _AuthFirebaseMixin on AuthRepository {
                     ? firebaseUser.email!.trim()
                     : (phone.isNotEmpty ? phone : 'User')));
 
+    UserModel? cached;
+    try {
+      cached = await local.getCachedUser();
+    } catch (_) {}
+
     String? resolvedImage = imageUrl ?? firebaseUser.photoURL;
-    if (resolvedImage == null || resolvedImage.isEmpty) {
-      try {
-        final cached = await local.getCachedUser();
-        final localImage = cached.imageUrl?.trim();
-        if (localImage != null && localImage.isNotEmpty) {
-          resolvedImage = localImage;
-        }
-      } catch (_) {}
+    if ((resolvedImage == null || resolvedImage.isEmpty) &&
+        cached?.imageUrl?.trim().isNotEmpty == true) {
+      resolvedImage = cached!.imageUrl;
     }
+
+    final phoneVerified = (firebaseUser.phoneNumber ?? '').trim().isNotEmpty;
 
     final user = UserModel(
       id: firebaseUser.uid,
       name: resolvedName,
-      phone: phone,
-      email: firebaseUser.email,
+      phone: phone.isNotEmpty ? phone : (cached?.phone ?? ''),
+      email: firebaseUser.email ?? cached?.email,
       token: token,
       imageUrl: resolvedImage,
+      createdAt: createdAt ?? cached?.createdAt,
+      hasPassword: hasPassword ?? cached?.hasPassword ?? false,
+      phoneVerified: phoneVerified,
     );
     await local.cacheUser(user);
     return user;
+  }
+
+  Future<UserModel> _mergeBackendProfile(
+    UserModel profile, {
+    String? token,
+    String? fallbackPhone,
+    bool? phoneVerified,
+  }) async {
+    UserModel? cached;
+    try {
+      cached = await local.getCachedUser();
+    } catch (_) {}
+
+    final firebasePhone = firebaseAuth.currentUser?.phoneNumber?.trim() ?? '';
+    final verified =
+        phoneVerified ??
+        (firebasePhone.isNotEmpty || (cached?.phoneVerified ?? false));
+
+    final merged = UserModel(
+      id: profile.id.isNotEmpty
+          ? profile.id
+          : (firebaseAuth.currentUser?.uid ?? cached?.id ?? ''),
+      name: profile.name.isNotEmpty ? profile.name : (cached?.name ?? 'User'),
+      phone: profile.phone.isNotEmpty
+          ? profile.phone
+          : (fallbackPhone ?? cached?.phone ?? ''),
+      email: profile.email ?? cached?.email,
+      token: token ?? cached?.token,
+      imageUrl: profile.imageUrl ?? cached?.imageUrl,
+      createdAt: profile.createdAt ?? cached?.createdAt,
+      hasPassword: profile.hasPassword || (cached?.hasPassword ?? false),
+      phoneVerified: verified,
+    );
+    await local.cacheUser(merged);
+    return merged;
   }
 
   Future<Either<Failure, User>> _fromFirebaseCredential(
@@ -271,23 +313,29 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       final uid = firebaseUser?.uid ?? session.uid;
       final token = await firebaseAuth.idToken() ?? session.idToken;
 
-      final merged = UserModel(
-        id: uid.isNotEmpty ? uid : (profile?.id ?? ''),
-        name: (profile != null && profile.name.isNotEmpty)
-            ? profile.name
-            : (fallbackName?.trim().isNotEmpty == true
-                  ? fallbackName!.trim()
-                  : (firebaseUser?.displayName?.trim().isNotEmpty == true
-                        ? firebaseUser!.displayName!.trim()
-                        : 'User')),
-        phone: (profile != null && profile.phone.isNotEmpty)
-            ? profile.phone
-            : (fallbackPhone ?? ''),
-        email: profile?.email ?? fallbackEmail ?? firebaseUser?.email,
+      final merged = await _mergeBackendProfile(
+        UserModel(
+          id: uid.isNotEmpty ? uid : (profile?.id ?? ''),
+          name: (profile != null && profile.name.isNotEmpty)
+              ? profile.name
+              : (fallbackName?.trim().isNotEmpty == true
+                    ? fallbackName!.trim()
+                    : (firebaseUser?.displayName?.trim().isNotEmpty == true
+                          ? firebaseUser!.displayName!.trim()
+                          : 'User')),
+          phone: (profile != null && profile.phone.isNotEmpty)
+              ? profile.phone
+              : (fallbackPhone ?? ''),
+          email: profile?.email ?? fallbackEmail ?? firebaseUser?.email,
+          token: token,
+          imageUrl: profile?.imageUrl ?? firebaseUser?.photoURL,
+          createdAt: profile?.createdAt,
+          hasPassword: profile?.hasPassword ?? true,
+          phoneVerified: (firebaseUser?.phoneNumber ?? '').trim().isNotEmpty,
+        ),
         token: token,
-        imageUrl: profile?.imageUrl ?? firebaseUser?.photoURL,
+        fallbackPhone: fallbackPhone,
       );
-      await local.cacheUser(merged);
       return Right(merged);
     } on AuthException catch (error) {
       return Left(AuthFailure(error.message, error.code));
@@ -338,15 +386,23 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       );
       final token = await firebaseAuth.idToken() ?? user.token;
       final uid = firebaseAuth.currentUser?.uid ?? user.id;
-      final merged = UserModel(
-        id: uid,
-        name: model.name.isNotEmpty ? model.name : user.name,
-        phone: model.phone.isNotEmpty ? model.phone : user.phone,
-        email: model.email ?? user.email,
+      final merged = await _mergeBackendProfile(
+        UserModel(
+          id: uid,
+          name: model.name.isNotEmpty ? model.name : user.name,
+          phone: model.phone.isNotEmpty ? model.phone : user.phone,
+          email: model.email ?? user.email,
+          token: token,
+          imageUrl: model.imageUrl ?? user.imageUrl,
+          createdAt: model.createdAt ?? user.createdAt,
+          hasPassword: model.hasPassword || user.hasPassword,
+          phoneVerified: user.phoneVerified,
+        ),
         token: token,
-        imageUrl: model.imageUrl ?? user.imageUrl,
+        phoneVerified:
+            (firebaseAuth.currentUser?.phoneNumber ?? '').trim().isNotEmpty ||
+            user.phoneVerified,
       );
-      await local.cacheUser(merged);
       return Right(merged);
     } on AppException {
       // Keep the Firebase session; placeholder backends may fail until Node is live.
@@ -366,6 +422,39 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
   }
 
   @override
+  Future<Either<Failure, User>> refreshProfile() async {
+    if (!await networkInfo.isConnected) {
+      return getCachedUser();
+    }
+    try {
+      await firebaseAuth.idToken(forceRefresh: true);
+      final model = await remote.getProfile();
+      final token = await firebaseAuth.idToken();
+      return Right(
+        await _mergeBackendProfile(
+          model,
+          token: token,
+          phoneVerified: (firebaseAuth.currentUser?.phoneNumber ?? '')
+              .trim()
+              .isNotEmpty,
+        ),
+      );
+    } on AppException catch (error) {
+      final cached = await getCachedUser();
+      return cached.fold(
+        (_) => Left(
+          error is NetworkException
+              ? NetworkFailure(error.message)
+              : ServerFailure(error.message),
+        ),
+        Right.new,
+      );
+    } catch (_) {
+      return getCachedUser();
+    }
+  }
+
+  @override
   Future<Either<Failure, User>> saveUser(User user) async {
     try {
       final model = UserModel.fromEntity(user);
@@ -378,6 +467,9 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
 
   @override
   bool get hasPasswordProvider => firebaseAuth.hasPasswordProvider;
+
+  @override
+  bool get hasPassword => firebaseAuth.hasPasswordProvider;
 
   @override
   Future<Either<Failure, User>> updateProfileData({
@@ -414,10 +506,24 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     required String password,
   }) async {
     try {
-      await firebaseAuth.reauthenticateWithPassword(password: password);
+      if (firebaseAuth.hasPasswordProvider) {
+        await firebaseAuth.reauthenticateWithPassword(password: password);
+        return const Right(null);
+      }
+      if (!await networkInfo.isConnected) {
+        return const Left(NetworkFailure());
+      }
+      await firebaseAuth.idToken(forceRefresh: true);
+      await remote.verifyPassword(password: password);
       return const Right(null);
     } on AuthException catch (error) {
       return Left(AuthFailure(error.message, error.code));
+    } on AppException catch (error) {
+      return Left(
+        error is NetworkException
+            ? NetworkFailure(error.message)
+            : AuthFailure(error.message, AuthErrorCodes.invalidCredential),
+      );
     } catch (_) {
       return const Left(AuthFailure('Incorrect password'));
     }
@@ -446,17 +552,15 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
         phone: phone,
         imageUrl: imageUrl,
       );
-      final uid = firebaseAuth.currentUser?.uid;
-      final merged = UserModel(
-        id: uid ?? model.id,
-        name: model.name,
-        phone: model.phone,
-        email: model.email,
-        token: token ?? model.token,
-        imageUrl: model.imageUrl,
+      return Right(
+        await _mergeBackendProfile(
+          model,
+          token: token,
+          phoneVerified: (firebaseAuth.currentUser?.phoneNumber ?? '')
+              .trim()
+              .isNotEmpty,
+        ),
       );
-      await local.cacheUser(merged);
-      return Right(merged);
     } on CacheException catch (error) {
       return Left(CacheFailure(error.message));
     } on AppException catch (error) {
@@ -494,15 +598,37 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     required String newPassword,
   }) async {
     try {
-      final firebaseUser = await firebaseAuth.updatePassword(
+      if (firebaseAuth.hasPasswordProvider) {
+        final firebaseUser = await firebaseAuth.updatePassword(
+          currentPassword: currentPassword,
+          newPassword: newPassword,
+        );
+        return Right(await _cacheFirebaseUser(firebaseUser));
+      }
+      if (!await networkInfo.isConnected) {
+        return const Left(NetworkFailure());
+      }
+      await firebaseAuth.idToken(forceRefresh: true);
+      await remote.changePassword(
         currentPassword: currentPassword,
         newPassword: newPassword,
       );
-      return Right(await _cacheFirebaseUser(firebaseUser));
+      final cached = await getCachedUser();
+      return cached.fold(Left.new, (user) async {
+        final updated = UserModel.fromEntity(user.copyWith(hasPassword: true));
+        await local.cacheUser(updated);
+        return Right(updated);
+      });
     } on AuthException catch (error) {
       return Left(AuthFailure(error.message, error.code));
     } on CacheException catch (error) {
       return Left(CacheFailure(error.message));
+    } on AppException catch (error) {
+      return Left(
+        error is NetworkException
+            ? NetworkFailure(error.message)
+            : AuthFailure(error.message, AuthErrorCodes.invalidCredential),
+      );
     } catch (_) {
       return const Left(AuthFailure('Could not update password'));
     }

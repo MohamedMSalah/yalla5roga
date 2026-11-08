@@ -4,16 +4,10 @@ import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   createPlaceBodySchema,
-  createPlaceImageBodySchema,
-  createPlacePriceBodySchema,
   listPlacesQuerySchema,
   nearbyPlacesQuerySchema,
-  placeHourIdParamsSchema,
   placeIdParamsSchema,
-  placeImageIdParamsSchema,
-  placePriceIdParamsSchema,
   updatePlaceBodySchema,
-  upsertPlaceHourBodySchema,
 } from "../../validators/places/place.validator.js";
 
 /**
@@ -383,108 +377,42 @@ import {
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */
-const api = Router();
+const router = Router();
 const controller = new PlaceController();
 
 // Static `/nearby` before `/:id` so "nearby" is never treated as a place id.
-api.get(
+router.get(
   "/nearby",
   validate({ query: nearbyPlacesQuerySchema }),
   controller.nearby,
 );
-api.get(
+router.get(
   "/",
   validate({ query: listPlacesQuerySchema }),
   controller.list,
 );
-api.post(
+router.post(
   "/",
   authMiddleware,
   validate({ body: createPlaceBodySchema }),
   controller.create,
 );
-api.get(
+router.get(
   "/:id",
   validate({ params: placeIdParamsSchema }),
   controller.getById,
 );
-api.patch(
+router.patch(
   "/:id",
   authMiddleware,
   validate({ params: placeIdParamsSchema, body: updatePlaceBodySchema }),
   controller.update,
 );
-api.delete(
+router.delete(
   "/:id",
   authMiddleware,
   validate({ params: placeIdParamsSchema }),
   controller.remove,
 );
-
-// Hours
-api.get(
-  "/:id/hours",
-  validate({ params: placeIdParamsSchema }),
-  controller.getHours,
-);
-api.put(
-  "/:id/hours",
-  authMiddleware,
-  validate({ params: placeIdParamsSchema, body: upsertPlaceHourBodySchema }),
-  controller.setHour,
-);
-api.delete(
-  "/:id/hours/:hourId",
-  authMiddleware,
-  validate({ params: placeHourIdParamsSchema }),
-  controller.removeHour,
-);
-
-// Images
-api.get(
-  "/:id/images",
-  validate({ params: placeIdParamsSchema }),
-  controller.getImages,
-);
-api.post(
-  "/:id/images",
-  authMiddleware,
-  validate({
-    params: placeIdParamsSchema,
-    body: createPlaceImageBodySchema,
-  }),
-  controller.addImage,
-);
-api.delete(
-  "/:id/images/:imageId",
-  authMiddleware,
-  validate({ params: placeImageIdParamsSchema }),
-  controller.removeImage,
-);
-
-// Prices
-api.get(
-  "/:id/prices",
-  validate({ params: placeIdParamsSchema }),
-  controller.getPrices,
-);
-api.post(
-  "/:id/prices",
-  authMiddleware,
-  validate({
-    params: placeIdParamsSchema,
-    body: createPlacePriceBodySchema,
-  }),
-  controller.addPrice,
-);
-api.delete(
-  "/:id/prices/:priceId",
-  authMiddleware,
-  validate({ params: placePriceIdParamsSchema }),
-  controller.removePrice,
-);
-
-const router = Router();
-router.use("/api/places", api);
 
 export default router;

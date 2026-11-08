@@ -2,6 +2,7 @@ import type { IChatRepository } from "../../repositories/chat/i-chat.repository.
 import { ChatRepository } from "../../repositories/chat/chat.repository.js";
 import { assertCanChat } from "../../services/chat/chat-access.js";
 import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
+import { emitOutingMessage } from "../../realtime/chat-emitter.js";
 import { prisma } from "../../config/database.js";
 import type {
   ChatMessage,
@@ -22,12 +23,16 @@ export class SendMessageUseCase {
 
     await this.guard(input.outing_id, input.sender_id);
 
+    // REST is the sole persistence path. Socket clients never write messages.
     const message = await this.chat.createMessage({
       outing_id: input.outing_id,
       sender_id: input.sender_id,
       text: input.text,
       client_message_id: input.client_message_id ?? null,
     });
+
+    // Real-time delivery after durable write (idempotent retries reuse same id).
+    emitOutingMessage(input.outing_id, message);
 
     const outing = await prisma.outings.findUnique({
       where: { id: input.outing_id },

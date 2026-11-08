@@ -37,6 +37,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
+      await context.read<GroupsProvider>().ensureGroupLoaded(groupId);
+      if (!mounted) return;
       await AppPermissions.promptContactsAccess(context.l10n);
       if (!mounted) return;
       await MemberDisplayName.ensureLoaded();

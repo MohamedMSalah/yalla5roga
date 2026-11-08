@@ -1,0 +1,82 @@
+[
+  {
+    "Name": "root",
+    "Expect": 200,
+    "Status": 200,
+    "Ms": 30,
+    "Result": "PASS",
+    "Body": "{\"success\":true,\"message\":\"Yalla 5roga API is running\"}"
+  },
+  {
+    "Name": "health",
+    "Expect": 200,
+    "Status": 200,
+    "Ms": 160,
+    "Result": "PASS",
+    "Body": "{\"success\":true,\"message\":\"OK\",\"database\":\"connected\"}"
+  },
+  {
+    "Name": "users_cuser_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 16,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  },
+  {
+    "Name": "groups_cuser_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 4,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  },
+  {
+    "Name": "outings_cuser_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 6,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  },
+  {
+    "Name": "saved_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 2,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  },
+  {
+    "Name": "notifications_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 3,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  },
+  {
+    "Name": "chat_messages_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 3,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  },
+  {
+    "Name": "votes_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 4,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  },
+  {
+    "Name": "voting_state_unauth",
+    "Expect": 401,
+    "Status": 401,
+    "Ms": 3,
+    "Result": "PASS",
+    "Body": "\r\n{\r\n  \"success\": false,\r\n  \"message\": \"Missing Bearer token\"\r\n}"
+  }
+]

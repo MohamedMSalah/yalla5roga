@@ -1,10 +1,14 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yalla_5roga/core/cache/cached_remote.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/di/repository_factory.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics_interceptor.dart';
 import 'package:yalla_5roga/core/network/dio_interceptors.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
 import 'package:yalla_5roga/core/network/performance_interceptor.dart';
@@ -12,6 +16,7 @@ import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/firebase_auth_service.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_socket_client.dart';
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
@@ -93,9 +98,14 @@ class AppDependencies {
     dio.interceptors.addAll([
       authInterceptor,
       AppLogInterceptor(),
+      if (kDebugMode) RequestDiagnosticsInterceptor(),
       PerformanceInterceptor(),
       ErrorInterceptor(),
     ]);
+    if (kDebugMode) {
+      RequestDiagnostics.instance.clear();
+      cachedRemoteDeduper.clear();
+    }
 
     final apiClient = ApiClient(dio);
     final repos = RepositoryFactory(
@@ -144,6 +154,12 @@ class AppDependencies {
       shell: shell,
     );
 
+    final outingChatSocket = OutingChatSocketClient(
+      baseUrl: appConfig.apiBaseUrl,
+      tokenProvider: ({bool forceRefresh = false}) =>
+          firebaseAuth.idToken(forceRefresh: forceRefresh),
+    );
+
     return AppDependencies(
       config: appConfig,
       theme: ThemeProvider(prefs),
@@ -152,7 +168,10 @@ class AppDependencies {
       notifications: NotificationsProvider(repository: repos.notifications()),
       fcm: fcm,
       inviteDeepLinks: inviteDeepLinks,
-      outingChat: OutingChatProvider(repository: repos.outingChat()),
+      outingChat: OutingChatProvider(
+        repository: repos.outingChat(),
+        socketClient: outingChatSocket,
+      ),
       outings: outings,
       savedOutings: savedOutings,
       shell: shell,

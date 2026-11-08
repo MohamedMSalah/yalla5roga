@@ -46,10 +46,8 @@ export class SignupUseCase {
     }
 
     const passwordHash = await hashPassword(input.password);
-    const identity = await createFirebaseIdentityUser({
-      email,
-      displayName,
-    });
+    // Firebase gets a UID only; Neon stores name/email/phone/password.
+    const identity = await createFirebaseIdentityUser();
 
     try {
       const now = new Date();

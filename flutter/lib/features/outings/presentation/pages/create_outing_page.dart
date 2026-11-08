@@ -15,6 +15,7 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/invite_guests_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/pick_location_page.dart';
@@ -34,6 +35,7 @@ class CreateOutingPage extends StatelessWidget {
     this.saved,
     this.draft,
     this.specialEvent = false,
+    this.letVote = false,
   });
 
   final Group? group;
@@ -41,6 +43,10 @@ class CreateOutingPage extends StatelessWidget {
   final SavedOuting? saved;
   final OutingDraft? draft;
   final bool specialEvent;
+
+  /// Opens the shared create form in multi-place voting mode (replaces the
+  /// old separate "suggest places" sheet).
+  final bool letVote;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +70,7 @@ class CreateOutingPage extends StatelessWidget {
           saved: saved,
           draft: draft,
           specialEvent: specialEvent,
+          letVote: letVote,
         );
         form.applySuggestionTitle(l10n);
         return form;
@@ -133,6 +140,103 @@ class _CreateOutingView extends StatelessWidget {
     );
     if (picked == null || !context.mounted) return;
     form.applyPickedPlace(picked);
+  }
+
+  Future<void> _addVotePlace(
+    BuildContext context,
+    CreateOutingProvider form,
+  ) async {
+    if (!form.canAddMorePlaces) {
+      AppSnackBar.show(context.l10n.pickAtMostFivePlaces);
+      return;
+    }
+    final places = form.suggestedPlaces
+        .where((place) => !form.isPlaceSelected(place))
+        .toList();
+    if (places.isEmpty) {
+      AppSnackBar.show(context.l10n.noPlaces);
+      return;
+    }
+    final selected = await Get.bottomSheet<Place>(
+      SafeArea(
+        child: Builder(
+          builder: (context) {
+            final palette = context.palette;
+            final l10n = context.l10n;
+            final maxHeight = MediaQuery.sizeOf(context).height * 0.7;
+            return Material(
+              color: palette.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
+              clipBehavior: Clip.antiAlias,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: Padding(
+                  padding: Responsive.padding(all: 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.addPlace,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: Responsive.fontMd,
+                        ),
+                      ),
+                      Responsive.spaceXs.gapH,
+                      Text(
+                        l10n.placesSelectedMax(
+                          form.selectedPlaces.length,
+                          OutingsProvider.maxVotePlaces,
+                        ),
+                        style: TextStyle(
+                          color: AppColors.brand600,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 10.sp,
+                        ),
+                      ),
+                      Responsive.spaceMd.gapH,
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: places.length,
+                          itemBuilder: (context, index) {
+                            final place = places[index];
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: AppNetworkImage(
+                                url: place.imageUrl,
+                                width: 40.w,
+                                height: 40.w,
+                                radius: 12.r,
+                              ),
+                              title: Text(
+                                place.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(place.area),
+                              onTap: () => Get.back(result: place),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      enterBottomSheetDuration: AppMotion.sheetEnter,
+      exitBottomSheetDuration: AppMotion.sheetExit,
+    );
+    if (selected == null || !context.mounted) return;
+    form.addSelectedPlace(selected);
   }
 
   Future<void> _pickDate(
@@ -301,7 +405,7 @@ class _CreateOutingView extends StatelessWidget {
     final form = context.watch<CreateOutingProvider>()..syncLocale(l10n);
     final creating = context.watch<OutingsProvider>().isCreating;
     final actions = [
-      l10n.continueToLocation,
+      form.multiPlaceMode ? l10n.continueToPlaces : l10n.continueToLocation,
       l10n.continueToReview,
       l10n.createAndGo,
     ];
@@ -312,6 +416,8 @@ class _CreateOutingView extends StatelessWidget {
         title: form.specialEvent ? l10n.createSpecialEvent : l10n.createOuting,
         subtitle: form.specialEvent
             ? l10n.specialEventSubtitle
+            : form.multiPlaceMode
+            ? l10n.suggestPlacesHint
             : l10n.funStartsHere,
         backIcon: form.step == 0 ? Icons.close : Icons.chevron_left,
         onBack: creating
@@ -361,6 +467,7 @@ class _CreateOutingView extends StatelessWidget {
                         form: form,
                         onPickCustomLocation: () =>
                             _pickCustomLocation(context, form),
+                        onAddVotePlace: () => _addVotePlace(context, form),
                       ),
                       _ => CreateOutingReviewStep(
                         key: const ValueKey(2),

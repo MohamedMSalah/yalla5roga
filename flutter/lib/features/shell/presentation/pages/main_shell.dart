@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/monitoring/startup_trace.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_bottom_nav.dart';
@@ -32,6 +34,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   /// previously inflated all four tabs on first frame and janked cold start.
   final Set<int> _builtTabs = {0};
   final Map<int, Widget> _pageCache = {};
+  Timer? _resumeDebounce;
 
   @override
   void initState() {
@@ -44,6 +47,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _resumeDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -51,7 +55,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
-      _refreshUnread();
+      _resumeDebounce?.cancel();
+      _resumeDebounce = Timer(const Duration(seconds: 2), () {
+        if (mounted) _refreshUnread();
+      });
     }
   }
 
@@ -84,6 +91,10 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     // After sync claim, open a stashed invite deep link into the group.
     await context.read<InviteDeepLinkProvider>().flushPendingNavigation();
 
+    if (kDebugMode) {
+      debugPrint(RequestDiagnostics.instance.formatSummary());
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       if (await AppPermissions.isNotificationGranted) return;
@@ -95,6 +106,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   }
 
   void _refreshUnread() {
+    // TTL-aware — do not force network on every brief resume.
     context.read<NotificationsProvider>().refresh();
     context.read<GroupsProvider>().refresh();
   }

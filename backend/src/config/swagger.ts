@@ -122,11 +122,13 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         "Protected operations require a Firebase Authentication ID token (JWT), not an FCM device token.",
         "The auth middleware reads `Authorization: Bearer <token>` and verifies it with Firebase Admin `verifyIdToken`.",
         "In Swagger UI: click Authorize, paste the ID token only, then Execute. Swagger adds the `Bearer` prefix — do not paste `Bearer ` yourself.",
-        "Email/password credentials are stored in Neon (`users.password_hash`). Canonical clients call `POST /api/auth/signup` and `POST /api/auth/login`, which return `idToken` + `customToken` (Firebase has no email password).",
-        "Firebase Auth handles Google, Apple, phone OTP, custom-token sign-in, and ID token refresh — not the email/password credential store.",
+        "Neon PostgreSQL is the only application data store (profiles, passwords, groups, outings, etc.).",
+        "Email/password credentials are stored in Neon (`users.password_hash`). Canonical clients call `POST /api/auth/signup` and `POST /api/auth/login`, which return `idToken` + `customToken`.",
+        "Firebase Auth is identity-only: a UID plus ID tokens. Email/password signup creates a bare Firebase UID with no email, displayName, or password in Firebase.",
+        "Google, Apple, and phone OTP still use Firebase Auth on the client for those provider sessions, then `POST /api/users/sync` writes the Neon profile.",
         "Mobile clients can also use Flutter `currentUser.getIdToken(true)`. ID tokens expire after one hour.",
-        "A valid token that has never been synced still authenticates. Create the database row with `POST /api/users/sync` after Google, Apple, or phone sign-in; email/password signup already creates the profile.",
-        "`GET /api/users/cuser` returns 404 until a profile row exists.",
+        "A valid token that has never been synced still authenticates. Create the database row with `POST /api/users/sync` after Google, Apple, or phone sign-in; email/password signup already creates the Neon profile.",
+        "`GET /api/users/cuser` returns 404 until a Neon profile row exists.",
         "",
         "Successful responses use `{ success: true, data }`.",
         "Handled errors use `{ success: false, message }`.",
@@ -151,34 +153,52 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
       {
         name: "Users",
         description:
-          "Authenticated user operations, Firebase user synchronization, and user listing/management",
+          "Authenticated user operations, Firebase sync, FCM device tokens, and user listing/management",
       },
       {
         name: "Groups",
-        description:
-          "My groups, group CRUD, members, and invitations",
+        description: "My groups and group CRUD",
+      },
+      {
+        name: "Group Members",
+        description: "Group membership list, add, and remove",
+      },
+      {
+        name: "Group Invitations",
+        description: "Invite by phone and decline pending invitations",
       },
       {
         name: "Outings",
-        description:
-          "My outings, outing CRUD, drafts, attendance, guests, voting options, and votes",
+        description: "My outings, outing CRUD, and cancel",
+      },
+      {
+        name: "Outing Drafts",
+        description: "Create, list, update, and delete outing drafts",
       },
       {
         name: "Saved Outings",
         description: "List, save, and unsave outings for the authenticated user",
       },
       {
+        name: "Outing Participants",
+        description: "Attendance, guests, and outing invitation accept/decline",
+      },
+      {
+        name: "Outing Voting",
+        description: "Vote options, votes, voting state, and tie-break",
+      },
+      {
+        name: "Outing Chat",
+        description: "Outing messages and mark-read under /api/outings/{outingId}",
+      },
+      {
         name: "Places",
         description:
-          "Nearby places, place CRUD, opening hours, images, and prices",
+          "Nearby places, place CRUD, saved places, opening hours, images, and prices",
       },
       {
         name: "Notifications",
         description: "List notifications and mark them as read",
-      },
-      {
-        name: "Chat",
-        description: "Outing messages and sending messages",
       },
     ],
     security: [{ bearerAuth: [] }],
@@ -657,6 +677,17 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             created_by: firebaseUid,
             created_at: dateTime,
             updated_at: dateTime,
+            member_count: {
+              type: "integer",
+              minimum: 0,
+              description:
+                "Accepted group_members count. Starts at 1 after create (creator/owner).",
+            },
+            my_role: {
+              type: "string",
+              enum: roleEnum,
+              description: "Caller's membership role when returned from scoped list/create.",
+            },
           },
         },
         GroupResponse: itemResponse("Group"),
@@ -669,6 +700,9 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             user_id: firebaseUid,
             role: { type: "string", enum: roleEnum },
             joined_at: dateTime,
+            name: { type: "string", description: "Profile display name" },
+            phone: { type: "string", nullable: true },
+            image_url: { type: "string", nullable: true },
           },
         },
         GroupMemberResponse: itemResponse("GroupMember"),

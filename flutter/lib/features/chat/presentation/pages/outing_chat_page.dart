@@ -27,7 +27,8 @@ class OutingChatPage extends StatefulWidget {
   State<OutingChatPage> createState() => _OutingChatPageState();
 }
 
-class _OutingChatPageState extends State<OutingChatPage> {
+class _OutingChatPageState extends State<OutingChatPage>
+    with WidgetsBindingObserver {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 
@@ -36,30 +37,50 @@ class _OutingChatPageState extends State<OutingChatPage> {
   int? _mentionStart;
   var _ignoreMentionUpdates = false;
   Timer? _closeTimer;
+  OutingChatProvider? _chat;
 
   String get _outingId => widget.event.id;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _controller.addListener(_onTextChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      context.read<OutingsProvider>().refreshLifecycle();
+      _chat = context.read<OutingChatProvider>();
+      final outings = context.read<OutingsProvider>();
+      final groups = context.read<GroupsProvider>();
       final userId = context.read<AuthProvider>().user?.id;
-      context.read<OutingChatProvider>().load(_outingId, userId: userId);
-      context.read<OutingChatProvider>().markRead(_outingId);
+      unawaited(outings.refreshLifecycle(outingId: _outingId));
+      await _chat!.subscribe(_outingId, userId: userId);
+      if (!mounted) return;
       final groupId = widget.event.groupId;
       if (groupId != null && groupId.isNotEmpty) {
-        await context.read<GroupsProvider>().ensureGroupLoaded(groupId);
+        await groups.ensureGroupLoaded(groupId);
       }
       if (mounted) _scheduleCloseCheck();
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final chat = _chat;
+    if (chat == null) return;
+    // Avoid BuildContext here — provider already tracks the subscribed user.
+    unawaited(chat.recoverAfterResume());
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _closeTimer?.cancel();
+    // Fire-and-forget leave; provider outlives this page.
+    final chat = _chat;
+    if (chat != null) {
+      unawaited(chat.unsubscribe(_outingId));
+    }
     _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _focusNode.dispose();

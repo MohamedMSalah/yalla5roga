@@ -66,7 +66,7 @@ class CreateOutingBasicsStep extends StatelessWidget {
                       ),
                       8.gapH,
                       Text(
-                        l10n.uploadPhoto,
+                        l10n.outingPhotoOptional,
                         style: TextStyle(
                           color: AppColors.brand600,
                           fontWeight: FontWeight.w800,
@@ -323,46 +323,49 @@ class CreateOutingBasicsStep extends StatelessWidget {
         ),
         if (!form.specialEvent) ...[
           12.gapH,
-          AppCard(
-            color: context.palette.brandSoft,
-            onTap: form.toggleLetVote,
-            child: Row(
-              children: [
-                Checkbox(
-                  value: form.letVote,
-                  activeColor: AppColors.brand600,
-                  onChanged: (value) => form.setLetVote(value ?? false),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.addPlacesForVoting,
-                        style: TextStyle(
-                          color: context.palette.brandStrong,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12.sp,
-                        ),
-                      ),
-                      Text(
-                        l10n.addPlacesForVotingHint,
-                        style: TextStyle(
-                          color: AppColors.brand500,
-                          fontSize: 10.sp,
-                        ),
-                      ),
-                    ],
+          if (!form.letVote)
+            CustomButton(
+              label: l10n.addPlacesForVoting,
+              icon: Icons.add_location_alt_outlined,
+              variant: AppButtonVariant.outlined,
+              onPressed: () => form.setLetVote(true),
+            )
+          else ...[
+            AppCard(
+              color: context.palette.brandSoft,
+              child: Row(
+                children: [
+                  const IconCircle(
+                    icon: Icons.how_to_vote_outlined,
+                    background: AppColors.brand600,
+                    foreground: Colors.white,
                   ),
-                ),
-                const Icon(
-                  Icons.how_to_vote_outlined,
-                  color: AppColors.brand600,
-                ),
-              ],
+                  12.gapW,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.addPlacesForVoting,
+                          style: TextStyle(
+                            color: context.palette.brandStrong,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12.sp,
+                          ),
+                        ),
+                        Text(
+                          l10n.addPlacesForVotingHint,
+                          style: TextStyle(
+                            color: AppColors.brand500,
+                            fontSize: 10.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          if (form.letVote) ...[
             12.gapH,
             AppCard(
               child: Row(
@@ -415,6 +418,20 @@ class CreateOutingBasicsStep extends StatelessWidget {
                     color: AppColors.brand600,
                   ),
                 ],
+              ),
+            ),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                onPressed: () => form.setLetVote(false),
+                child: Text(
+                  l10n.useSingleLocation,
+                  style: TextStyle(
+                    color: AppColors.brand600,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12.sp,
+                  ),
+                ),
               ),
             ),
           ],

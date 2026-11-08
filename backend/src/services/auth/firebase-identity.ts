@@ -3,30 +3,20 @@ import { signInWithCustomTokenSession } from "../../config/firebase-client.js";
 import type { EmailPasswordSession } from "../../config/firebase-client.js";
 import { mapFirebaseAuthError } from "./firebase-auth-errors.js";
 
-export type CreateIdentityUserInput = {
-  email: string;
-  displayName: string;
-};
-
 export type IdentityUser = {
   uid: string;
-  email: string | null;
 };
 
 /**
- * Creates a Firebase Auth identity record without a password.
- * Email/password credentials are stored only in Neon.
+ * Creates a bare Firebase Auth UID for ID-token sessions.
+ *
+ * Application profile and credentials (name, email, phone, password_hash)
+ * live only in Neon. Do not write email/displayName/password into Firebase.
  */
-export async function createFirebaseIdentityUser(
-  input: CreateIdentityUserInput,
-): Promise<IdentityUser> {
+export async function createFirebaseIdentityUser(): Promise<IdentityUser> {
   try {
-    const record = await getFirebaseAuth().createUser({
-      email: input.email,
-      displayName: input.displayName,
-      emailVerified: false,
-    });
-    return { uid: record.uid, email: record.email ?? null };
+    const record = await getFirebaseAuth().createUser({});
+    return { uid: record.uid };
   } catch (error) {
     throw mapFirebaseAuthError(error);
   }

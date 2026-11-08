@@ -58,7 +58,7 @@ stateDiagram-v2
 
 | Transition | Authority | Status |
 |------------|-----------|--------|
-| Create → draft/confirmed | `CreateOutingUseCase` | Implemented (location → may start confirmed; else draft; voting via options) |
+| Create → draft/confirmed/voting | `CreateOutingUseCase` | Implemented (single location → draft/confirmed path; **Add places** on shared create page → voting + options; former suggest sheet removed) |
 | draft → voting | Adding options | Implemented |
 | Early close all voted | `tryCloseIfAllVoted` | Implemented |
 | Deadline close | `close-voting-deadline.job` | Implemented |
@@ -113,7 +113,9 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 
 | Flow | Status |
 |------|--------|
-| Group phone invite + deep link + claim | Implemented (Flutter `InviteDeepLinkProvider`) |
+| Create group → creator is first member | Implemented — `CreateGroupUseCase` inserts `group_members` owner for `created_by`; `member_count` starts at 1; members list includes the creator card (`name`/`phone`/`image_url` from `users`) |
+| Group phone invite + deep link + claim | Implemented — Flutter create-group selects device contacts (or manual phone) → `GroupsProvider.inviteMember` / create-group phones → `POST …/invitations` + WhatsApp URL; claim on verified-phone `users/sync` (`InviteDeepLinkProvider` for link restore). Group/outing cover photos are optional; only http(s) `image_url` values are accepted |
+| Non-user → `outing_guests` by phone | **Not a product path** — use group phone invite; outing guests require registered `user_id` |
 | Outing invite accept/decline APIs | Implemented (`…/invitations/accept|decline`) |
 | Outing deep-link accept UI restore | **Partial** |
 
@@ -121,7 +123,7 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 
 ## Chat
 
-Open in draft / voting / confirmed. Blocked for cancelled (unless product later adds read-only). HTTP only — no WebSocket verified.
+Open in draft / voting / confirmed. Blocked for cancelled (unless product later adds read-only). REST persists; Socket.IO delivers to participants in `outing:{id}` after write (ADR-013).
 
 ---
 

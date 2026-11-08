@@ -3,6 +3,7 @@ import type {
   CreateGroupInput,
   Group,
   GroupMember,
+  GroupMemberView,
   UpdateGroupInput,
 } from "../../types/groups/group.types.js";
 
@@ -20,5 +21,5 @@ export interface IGroupRepository {
   ): Promise<{ member: GroupMember; created: boolean }>;
   findMember(groupId: string, userId: string): Promise<GroupMember | null>;
   removeMember(groupId: string, userId: string): Promise<GroupMember>;
-  listMembers(groupId: string): Promise<GroupMember[]>;
+  listMembers(groupId: string): Promise<GroupMemberView[]>;
 }

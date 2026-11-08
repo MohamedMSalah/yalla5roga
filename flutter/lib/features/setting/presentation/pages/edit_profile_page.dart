@@ -206,7 +206,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (!_formKey.currentState!.validate()) return;
     final l10n = context.l10n;
     final auth = context.read<AuthProvider>();
-    final hasPassword = auth.hasPasswordProvider;
+    final hasPassword = auth.hasPassword;
 
     if (!_hasAnyChange) {
       Get.back();
@@ -267,7 +267,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       changedSomething = true;
     }
 
-    if (_emailChanged && hasPassword) {
+    if (_emailChanged && auth.hasPasswordProvider) {
       final ok = await auth.requestEmailChange(
         newEmail: _emailController.text.trim(),
         currentPassword: _currentPasswordController.text,
@@ -278,7 +278,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         return;
       }
       syncedEmail = _emailController.text.trim();
-      AppSnackBar.show(l10n.emailChangeSent);
+      changedSomething = true;
+    } else if (_emailChanged && hasPassword) {
+      syncedEmail = _emailController.text.trim();
       changedSomething = true;
     }
 
@@ -292,7 +294,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         AppSnackBar.showError(_authError(auth));
         return;
       }
-      AppSnackBar.show(l10n.passwordUpdated);
       changedSomething = true;
     }
 
@@ -311,7 +312,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
         return;
       }
       syncedPhone = phone;
-      AppSnackBar.show(l10n.phoneUpdated);
       changedSomething = true;
     }
 
@@ -329,21 +329,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     if (!mounted) return;
-    if (!changedSomething) {
-      Get.back();
-      return;
-    }
-    if (!_emailChanged && !_wantsPasswordChange && !_phoneChanged) {
+    Get.back();
+    if (changedSomething) {
       AppSnackBar.show(l10n.profileUpdated);
     }
-    Get.back();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final auth = context.watch<AuthProvider>();
-    final hasPassword = auth.hasPasswordProvider;
+    final hasPassword = auth.hasPassword;
 
     return Scaffold(
       appBar: AppPageBar(

@@ -54,4 +54,18 @@ class AppLauncher {
       return false;
     }
   }
+
+  /// Opens a server-built `https://wa.me/<digits>?text=...` click-to-chat URL.
+  static Future<bool> openWhatsAppUrl(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return false;
+    try {
+      if (await canLaunchUrl(uri)) {
+        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return await open(url);
+    } catch (_) {
+      return false;
+    }
+  }
 }

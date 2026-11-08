@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-08 |
 | Documentation version | 1.0.0 |
 | OpenAPI UI | `GET /api-docs` (generated from route JSDoc + `config/swagger.ts`) |
 | Flutter paths | `flutter/lib/core/constants/api_constants.dart` |
@@ -25,14 +25,18 @@ Convention: JSON, snake_case bodies for most write APIs. Auth: `Authorization: B
 |--------|------|------|------|---------|---------|
 | POST | `/api/auth/login` | No | email, password | Neon hash verify → Firebase session tokens | `ApiConstants.login` |
 | POST | `/api/auth/signup` | No | name, email, password, phone | Neon user + Firebase identity | `ApiConstants.signup` |
+| POST | `/api/auth/change-password` | Yes | currentPassword, newPassword | Update Neon `password_hash` | `ApiConstants.changePassword` |
+| POST | `/api/auth/verify-password` | Yes | password | Confirm Neon password (no change) | `ApiConstants.verifyPassword` |
 
 Errors: 400 validation, 401 bad credentials, 409 conflict, 429 rate limit (when configured).
+
+Public user payloads include `has_password` (boolean; credential hash never returned) plus profile fields such as `created_at`.
 
 ## Users — `/api/users`
 
 | Method | Path | Auth | Purpose | Flutter |
 |--------|------|------|---------|---------|
-| GET | `/api/users/cuser` | Yes | Current Neon user | profile flows |
+| GET | `/api/users/cuser` | Yes | Current Neon user (`created_at`, `has_password`, …) | settings / `AuthProvider.refreshProfile` |
 | PATCH | `/api/users/cuser` | Yes | Update profile | settings |
 | DELETE | `/api/users/cuser` | Yes | Delete self | optional |
 | POST | `/api/users/sync` | Yes | Upsert Neon user from Firebase claims | `ApiConstants.syncUser` |
@@ -42,13 +46,13 @@ Errors: 400 validation, 401 bad credentials, 409 conflict, 429 rate limit (when 
 
 Entities: `users`.
 
-## FCM — `/api/user/fcm-token`
+## FCM — `/api/users/cuser/fcm-token`
 
 | Method | Path | Auth | Body | Purpose | Flutter |
 |--------|------|------|------|---------|---------|
-| POST | `/api/user/fcm-token` | Yes | token, platform? | Register | `ApiConstants.fcmToken` |
-| DELETE | `/api/user/fcm-token` | Yes | token | Unregister | same |
-| DELETE | `/api/user/fcm-token/:token` | Yes | — | Unregister via path | — |
+| POST | `/api/users/cuser/fcm-token` | Yes | token, platform? | Register (UID from Bearer token only) | `ApiConstants.fcmToken` |
+| DELETE | `/api/users/cuser/fcm-token` | Yes | token | Unregister | same |
+| DELETE | `/api/users/cuser/fcm-token/:token` | Yes | — | Unregister via path | — |
 
 Entities: `user_fcm_tokens`.
 
@@ -56,19 +60,19 @@ Entities: `user_fcm_tokens`.
 
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
-| GET | `/api/groups/cuser` | Yes | My groups |
-| GET | `/api/groups` | Yes | List (query filters) |
-| POST | `/api/groups` | Yes | Create |
-| GET | `/api/groups/:id` | Yes | Get |
-| PATCH | `/api/groups/:id` | Yes | Update (owner) |
+| GET | `/api/groups/cuser` | Yes | My groups (`member_count`, `my_role`) |
+| GET | `/api/groups` | Yes | List (query filters; includes `member_count`) |
+| POST | `/api/groups` | Yes | Create (`image_url` optional; omit or `""` for default cover). Creator is inserted as `group_members` owner; response includes `member_count: 1`, `my_role: owner` |
+| GET | `/api/groups/:id` | Yes | Get (includes `member_count`) |
+| PATCH | `/api/groups/:id` | Yes | Update (owner; `image_url` optional) |
 | DELETE | `/api/groups/:id` | Yes | Delete (owner) |
-| GET | `/api/groups/:id/members` | Yes | Members |
+| GET | `/api/groups/:id/members` | Yes | Members (enriched with `name`, `phone`, `image_url`; creator included from create) |
 | POST | `/api/groups/:id/members` | Yes | Add member |
 | DELETE | `/api/groups/:id/members/:userId` | Yes | Remove member |
 | POST | `/api/groups/:id/invitations` | Yes | Invite by phone (+ WhatsApp outbox) |
 | POST | `/api/groups/invitations/:invitationId/decline` | Yes | Decline invite |
 
-Flutter: `ApiConstants.groups*`. Entities: `groups`, `group_members`, `group_invitations`.
+Flutter: `ApiConstants.groups*`. Entities: `groups`, `group_members`, `group_invitations`. Create/details reload members so the owner card and count ≥ 1 appear immediately.
 
 ## Outings — `/api/outings`
 
@@ -76,7 +80,7 @@ Flutter: `ApiConstants.groups*`. Entities: `groups`, `group_members`, `group_inv
 |--------|------|------|---------|-------|
 | GET | `/api/outings/cuser` | Yes | My outings | created / invited / group |
 | GET | `/api/outings` | Yes | List | query groupId/userId |
-| POST | `/api/outings` | Yes | Create | requires deadline; owner Going |
+| POST | `/api/outings` | Yes | Create | requires deadline; `image_url` optional http(s); owner Going |
 | GET | `/api/outings/:id` | Yes | Get | |
 | PATCH | `/api/outings/:id` | Yes | Update | Owner; confirmed location locked |
 | DELETE | `/api/outings/:id` | Yes | Delete | Owner |
@@ -140,15 +144,27 @@ Flutter Discover uses list/detail (+ saved places). Nearby may be unused by Flut
 | PATCH | `/api/notifications/read` | Yes | Mark all read | `notificationsReadAll` |
 | PATCH | `/api/notifications/:id/read` | Yes | Mark one | `notificationRead` |
 
-## Chat — `/api/chat`
+## Chat — outing sub-resource `/api/outings/:outingId/...`
 
 | Method | Path | Auth | Purpose | Flutter |
 |--------|------|------|---------|---------|
-| GET | `/api/chat/outings/:outingId/messages` | Yes | List messages | `outingChatMessages` |
-| POST | `/api/chat/outings/:outingId/messages` | Yes | Send `{ text, clientMessageId? }` | same |
-| PATCH | `/api/chat/outings/:outingId/read` | Yes | Mark read | `outingChatRead` |
+| GET | `/api/outings/:outingId/messages` | Yes | List messages | `outingChatMessages` |
+| POST | `/api/outings/:outingId/messages` | Yes | Send `{ text, clientMessageId? }` | same |
+| PATCH | `/api/outings/:outingId/read` | Yes | Mark read | `outingChatRead` |
 
-Open for outing statuses draft/voting/confirmed (backend `chat-access`). Cancelled blocked.
+Open for outing statuses draft/voting/confirmed (backend `chat-access`). Cancelled blocked. Same authZ as before the path move (creator or guest).
+
+### Socket.IO realtime (same origin/port, path `/socket.io`)
+
+| Direction | Event | AuthZ | Payload |
+|-----------|-------|-------|---------|
+| Handshake | — | Firebase ID token in `auth.token` | uid from Admin `verifyIdToken` only |
+| C→S | `outing:join` | Participant (`assertChatParticipant`) | `{ outingId }` → ack `{ ok, room? }` / `{ ok:false, error }` |
+| C→S | `outing:leave` | Authenticated | `{ outingId }` |
+| S→C | `outing:message` | Room members only | Same shape as REST Prisma message (`id`, `outing_id`, `sender_id`, `text`, `sent_at`, …) |
+| S→C | `outing:read` | Room members only | `{ outing_id, user_id, last_read_at }` |
+
+Room name: `outing:{outingId}`. Persistence is REST-only; sockets never create chat rows.
 
 ## Related
 

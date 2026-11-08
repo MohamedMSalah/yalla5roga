@@ -9,7 +9,7 @@ class Group {
     required this.image,
     required this.members,
     this.bio = '',
-
+    this.listedMemberCount,
     this.cuserRole = GroupRole.member,
   });
 
@@ -18,16 +18,23 @@ class Group {
   final int outings;
   final String image;
 
-  /// Canonical membership list. Count and avatars are derived from this.
+  /// Canonical membership list. Count and avatars are derived from this when loaded.
   final List<GroupMember> members;
 
   /// Optional group description / bio from the API.
   final String bio;
+
+  /// `member_count` from list/create payloads when the full members list is not loaded yet.
+  final int? listedMemberCount;
+
   final GroupRole cuserRole;
 
   String get coverUrl => image;
 
-  int get memberCount => members.length;
+  int get memberCount {
+    if (members.isNotEmpty) return members.length;
+    return listedMemberCount ?? 0;
+  }
 
   int get outingCount => outings;
 
@@ -73,6 +80,7 @@ class Group {
     String? image,
     List<GroupMember>? members,
     String? bio,
+    int? listedMemberCount,
     String? lastMessage,
     int? unread,
     bool? featured,
@@ -86,6 +94,7 @@ class Group {
       image: image ?? this.image,
       members: members ?? this.members,
       bio: bio ?? this.bio,
+      listedMemberCount: listedMemberCount ?? this.listedMemberCount,
       cuserRole: cuserRole ?? this.cuserRole,
     );
   }
@@ -97,6 +106,7 @@ class Group {
     'image': image,
     'bio': bio,
     'cuserRole': cuserRole.name,
+    'member_count': memberCount,
     'members': memberCount,
     'people': [for (final member in members) member.toJson()],
     'avatars': avatars,
@@ -104,7 +114,8 @@ class Group {
 
   factory Group.fromJson(Map<String, dynamic> json) {
     final peopleRaw = json['people'] ?? json['membersList'];
-    final membersRaw = peopleRaw ?? json['members'];
+    final membersField = json['members'];
+    final membersRaw = peopleRaw ?? (membersField is List ? membersField : null);
     final parsedMembers = <GroupMember>[
       if (membersRaw is List)
         for (final item in membersRaw)
@@ -126,6 +137,11 @@ class Group {
               GroupMember(id: 'preview_$i', name: '', avatar: avatarUrls[i]),
           ];
 
+    final listedMemberCount = _readOptionalInt(json['member_count']) ??
+        (membersField is num || membersField is String
+            ? _readOptionalInt(membersField)
+            : null);
+
     return Group(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
@@ -133,14 +149,23 @@ class Group {
       bio: json['bio'] as String? ?? json['description'] as String? ?? '',
       image: json['image'] as String? ?? json['coverUrl'] as String? ?? '',
       members: members,
-      cuserRole: GroupRole.fromApi(json['cuserRole'] as String?),
+      listedMemberCount: listedMemberCount,
+      cuserRole: GroupRole.fromApi(
+        json['cuserRole'] as String? ??
+            json['myRole'] as String? ??
+            json['my_role'] as String?,
+      ),
     );
   }
 
   static int _readInt(Object? value) {
+    return _readOptionalInt(value) ?? 0;
+  }
+
+  static int? _readOptionalInt(Object? value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value) ?? 0;
-    return 0;
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 }

@@ -1,6 +1,6 @@
 import type { IGroupRepository } from "../../repositories/groups/i-group.repository.js";
 import { GroupRepository } from "../../repositories/groups/group.repository.js";
-import type { GroupMember } from "../../types/groups/group.types.js";
+import type { GroupMemberView } from "../../types/groups/group.types.js";
 import { NotFoundError } from "../../utils/errors.js";
 
 export class ListGroupMembersUseCase {
@@ -8,7 +8,7 @@ export class ListGroupMembersUseCase {
     private readonly groups: IGroupRepository = new GroupRepository(),
   ) {}
 
-  async execute(groupId: string): Promise<GroupMember[]> {
+  async execute(groupId: string): Promise<GroupMemberView[]> {
     const group = await this.groups.findById(groupId);
     if (!group) throw new NotFoundError("Group");
     return this.groups.listMembers(groupId);

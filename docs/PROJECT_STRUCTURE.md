@@ -2,7 +2,7 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-08 (API request optimization) |
 | Documentation version | 1.0.0 |
 | Purpose | Help agents locate files without full-repo scans |
 
@@ -14,6 +14,7 @@ yalla5roga/
   README.md
   docs/                     # Canonical architecture + product docs
   .cursor/rules/            # Cursor modular rules
+  scripts/                  # Dev helpers (e.g. physical Android)
   flutter/                  # Mobile app
   backend/                  # Express API + Prisma
 ```
@@ -63,14 +64,16 @@ flutter/lib/
   main.dart, app.dart, firebase_options.dart
   core/
     di/app_dependencies.dart, repository_factory.dart
-    network/api_client.dart, dio_interceptors.dart, api_payload.dart
+    network/api_client.dart, dio_interceptors.dart, api_payload.dart,
+      request_deduper.dart, diagnostics/, performance_interceptor.dart
+    cache/cache_policy.dart, cached_remote.dart, ttl_cache.dart
     constants/api_constants.dart
     theme/, localization/, widgets/, monitoring/, config/
   features/
     auth/          # login/signup/social/OTP
     groups/        # groups CRUD + members
     outings/       # create, list, vote, attendance, saved, drafts UI
-    chat/          # outing chat
+    chat/          # outing chat (REST + Socket.IO)
     discover/      # places + saved places DS
     notifications/ # inbox + FCM
     invites/       # deep links
@@ -86,15 +89,41 @@ flutter/lib/
 | Concern | Path |
 |---------|------|
 | Boot DI | `lib/core/di/app_dependencies.dart` |
+| Error handling | `lib/core/error/` (`failures`, `exceptions`, `exception_mapper`, `failure_message_mapper`, `error_blueprint_logger`, `app_error_feedback`) |
+| Remote guard | `lib/core/network/remote_guard.dart` |
+| Request dedupe / diagnostics | `lib/core/network/request_deduper.dart`, `lib/core/network/diagnostics/` |
+| TTL cache helpers | `lib/core/cache/` |
 | API paths | `lib/core/constants/api_constants.dart` |
 | Outing API | `features/outings/data/datasources/outings_remote_datasource.dart` |
+| API request audit | `docs/audit/FLUTTER_API_REQUEST_OPTIMIZATION_REPORT.md` |
 | Vote UI | `features/outings/presentation/widgets/outing_vote_widget.dart` |
 | Attendance UI | `…/outing_attendance_widget.dart` |
-| Create outing | `…/providers/create_outing_provider.dart` |
+| Create outing (+ multi-place suggest) | `…/pages/create_outing_page.dart`, `…/providers/create_outing_provider.dart` |
+| Create group | `features/groups/presentation/pages/create_group_page.dart` |
+| Device contacts picker | `features/groups/presentation/pages/pick_device_contacts_page.dart` |
+| Remote image_url helper | `lib/core/utils/remote_image_url.dart` |
 | Auth | `features/auth/presentation/providers/auth_provider.dart` |
 | Deep links | `features/invites/presentation/providers/invite_deep_link_provider.dart` |
+| Outing chat REST | `features/chat/data/datasources/outing_chat_remote_datasource.dart` |
+| Outing chat Socket.IO | `features/chat/data/datasources/outing_chat_socket_client.dart` |
+| Chat message upsert/dedupe | `features/chat/domain/outing_chat_message_merge.dart` |
 
 Tests: `flutter/test/` (when present). Project-local Cursor notes: `flutter/.cursor/rules/project-context.mdc` (may lag root docs — prefer root `docs/` + `AGENTS.md`).
+
+### Physical Android device (local backend)
+
+| Concern | Path |
+|---------|------|
+| Emulator env (default) | `flutter/.env` via `--dart-define-from-file=.env` (`API_BASE_URL=http://10.0.2.2:3000`) |
+| Device env (gitignored) | `flutter/.env.device` — generated; use launch config **Yalla 5roga (physical device)** |
+| Device env example | `flutter/.env.device.example` |
+| Root IDE launch | `.vscode/launch.json` — **Yalla 5roga (dev)** / **(physical device)**; must pass `--dart-define-from-file` (do not use a bare `flutter` launch) |
+| Flutter IDE launch | `flutter/.vscode/launch.json` — same configs when the Flutter folder is the workspace |
+| LAN IP helper | `scripts/dev-physical-android.ps1` (`-PrepareOnly` or full `flutter run`) |
+| Debug cleartext HTTP | `flutter/android/app/src/debug/AndroidManifest.xml` (`usesCleartextTraffic`) |
+| Device testing report | `docs/audit/PHYSICAL_DEVICE_TESTING_REPORT.md` |
+
+Backend binds with `HOST` (default `0.0.0.0`) in `backend/src/server.ts` so LAN devices can reach `PORT` (default 3000).
 
 ---
 
@@ -107,6 +136,7 @@ backend/src/
   controllers/
   usecases/
   services/         # vote-resolution, access, notifiers, channels
+  realtime/         # Socket.IO auth, chat gateway, emitters
   repositories/, datasources/
   middleware/       # auth, validate, error
   validators/       # Zod
@@ -114,6 +144,7 @@ backend/src/
   config/           # prisma, firebase, swagger, notifications
 backend/prisma/schema.prisma
 backend/tests/
+backend/scripts/    # probes (flutter-client-scenario, outing-chat-realtime-audit)
 ```
 
 ### Key backend files
@@ -121,13 +152,16 @@ backend/tests/
 | Concern | Path |
 |---------|------|
 | Route index | `src/routes/index.ts` |
-| Outing routes | `src/routes/outings/outing.routes.ts` |
+| Outing routes | `src/routes/outings/` (crud, drafts, saved, participants, voting, chat) |
+| Group routes | `src/routes/groups/` (crud, members, invitations) |
+| User routes | `src/routes/users/` (profile, sync, fcm) |
 | Voting logic | `src/usecases/outings/voting.usecase.ts` |
 | Resolution | `src/services/outings/vote-resolution.ts` |
 | Eligibility | `src/services/outings/outing-participants.ts` |
 | Create outing | `src/usecases/outings/create-outing.usecase.ts` |
 | Attendance | `src/usecases/outings/attendance.usecase.ts` |
 | Auth middleware | `src/middleware/auth.middleware.ts` |
+| Outing chat realtime | `src/realtime/` (`socket-server`, `chat.gateway`, `chat-emitter`) |
 | Schema | `prisma/schema.prisma` |
 
 ---

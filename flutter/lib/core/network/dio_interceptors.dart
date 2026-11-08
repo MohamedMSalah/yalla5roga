@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:yalla_5roga/core/error/exception_mapper.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 
 typedef IdTokenProvider = Future<String?> Function({bool forceRefresh});
@@ -40,16 +41,18 @@ class AppLogInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     if (kDebugMode) {
-      debugPrint('[DIO] ${options.method} ${options.uri}');
+      debugPrint('[DIO] ${options.method} ${options.uri.path}');
     }
     handler.next(options);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    // Detailed blueprint is logged once in [guardRemote] to avoid duplicates.
     if (kDebugMode) {
       debugPrint(
-        '[DIO] Error ${err.response?.statusCode} ${err.requestOptions.uri}',
+        '[DIO] Error ${err.response?.statusCode} '
+        '${err.requestOptions.method} ${err.requestOptions.uri.path}',
       );
     }
     handler.next(err);
@@ -59,18 +62,7 @@ class AppLogInterceptor extends Interceptor {
 class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    final message = _extractMessage(err);
-
-    final AppException exception = switch (err.type) {
-      DioExceptionType.connectionTimeout ||
-      DioExceptionType.sendTimeout ||
-      DioExceptionType.receiveTimeout ||
-      DioExceptionType.connectionError => NetworkException(message),
-      _ => switch (err.response?.statusCode) {
-        401 || 403 => AuthException(message),
-        _ => ServerException(message),
-      },
-    };
+    final AppException exception = ExceptionMapper.appExceptionFromDio(err);
 
     handler.next(
       DioException(
@@ -81,13 +73,5 @@ class ErrorInterceptor extends Interceptor {
         message: exception.message,
       ),
     );
-  }
-
-  String _extractMessage(DioException err) {
-    final data = err.response?.data;
-    if (data is Map && data['message'] is String) {
-      return data['message'] as String;
-    }
-    return err.message ?? 'Unexpected error';
   }
 }

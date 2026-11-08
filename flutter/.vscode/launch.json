@@ -9,6 +9,15 @@
       "toolArgs": [
         "--dart-define-from-file=.env"
       ]
+    },
+    {
+      "name": "Yalla 5roga (physical device)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=.env.device"
+      ]
     }
   ]
 }
