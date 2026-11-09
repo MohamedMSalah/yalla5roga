@@ -4,6 +4,12 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
 abstract class DiscoverRepository {
+  Future<Either<Failure, List<SuggestedPlace>>> getNearbyPlaces({
+    required double latitude,
+    required double longitude,
+    OutingVibe? vibe,
+  });
+
   Future<Either<Failure, List<SuggestedPlace>>> getPlaces({
     OutingVibe? vibe,
     bool forceRefresh = false,

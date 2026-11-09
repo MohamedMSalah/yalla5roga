@@ -9,11 +9,15 @@ typedef IdTokenProvider = Future<String?> Function({bool forceRefresh});
 ///
 /// The backend must verify this token and derive the user UID from it —
 /// never trust a client-supplied identity field.
-class AuthInterceptor extends Interceptor {
+class AuthInterceptor extends QueuedInterceptor {
   AuthInterceptor({IdTokenProvider? tokenProvider})
     : _tokenProvider = tokenProvider;
 
   IdTokenProvider? _tokenProvider;
+  Dio? _dio;
+
+  /// Must be called once after the owning Dio instance is constructed.
+  void bind(Dio dio) => _dio = dio;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
@@ -31,9 +35,40 @@ class AuthInterceptor extends Interceptor {
           handler.next(options);
         })
         .catchError((Object error, StackTrace stackTrace) {
-          // Proceed without a token rather than blocking the request pipeline.
+          if (kDebugMode) {
+            debugPrint('[DIO] Firebase ID token unavailable: $error');
+          }
+          // Public endpoints can still proceed. Authenticated endpoints will
+          // return a 401, which this interceptor handles below.
           handler.next(options);
         });
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) async {
+    final statusCode = err.response?.statusCode;
+    final alreadyRetried = err.requestOptions.extra['_authRetried'] == true;
+    final provider = _tokenProvider;
+    final dio = _dio;
+    if (statusCode != 401 || alreadyRetried || provider == null || dio == null) {
+      handler.next(err);
+      return;
+    }
+
+    try {
+      final token = await provider(forceRefresh: true);
+      if (token == null || token.isEmpty) {
+        handler.next(err);
+        return;
+      }
+      final options = err.requestOptions;
+      options.extra['_authRetried'] = true;
+      options.headers['Authorization'] = 'Bearer $token';
+      final response = await dio.fetch<dynamic>(options);
+      handler.resolve(response);
+    } catch (_) {
+      handler.next(err);
+    }
   }
 }
 

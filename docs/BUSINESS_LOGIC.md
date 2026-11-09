@@ -154,3 +154,7 @@ See PRODUCT_SCENARIOS §13. Backend enforces; Flutter visibility is not authZ.
 ## Conflicts tracker
 
 Use [`docs/audit/FINAL_COMPLIANCE_REPORT.md`](audit/FINAL_COMPLIANCE_REPORT.md) for live compliance. Historical pre-fix conflicts (multi-vote PK, client finalize, etc.) were resolved in schema rebuild — do not reintroduce.
+
+### Creator deletes an outing
+
+The existing DELETE endpoint authorizes against `created_by` and permanently removes the outing. Flutter offers the action in outing details to the creator, requires confirmation, and removes the outing from in-memory lists and Saved after success. Cancellation retains a terminal outing record.

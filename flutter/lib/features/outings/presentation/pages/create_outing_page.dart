@@ -6,6 +6,7 @@ import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
@@ -115,8 +116,31 @@ class _StepSwitcherState extends State<_StepSwitcher> {
   }
 }
 
-class _CreateOutingView extends StatelessWidget {
+class _CreateOutingView extends StatefulWidget {
   const _CreateOutingView();
+
+  @override
+  State<_CreateOutingView> createState() => _CreateOutingViewState();
+}
+
+class _CreateOutingViewState extends State<_CreateOutingView> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _goBack(CreateOutingProvider form) {
+    if (form.step == 0) {
+      Get.back();
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    form.back();
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
 
   Future<void> _uploadPhoto(
     BuildContext context,
@@ -319,8 +343,9 @@ class _CreateOutingView extends StatelessWidget {
                             final group = form.groups[index];
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
-                              leading: AppNetworkImage(
+                              leading: PlanningCover(
                                 url: group.image,
+                                art: PlanningCoverArt.group,
                                 width: 40.w,
                                 height: 40.w,
                                 radius: 12.r,
@@ -365,7 +390,12 @@ class _CreateOutingView extends StatelessWidget {
 
   void _next(BuildContext context, CreateOutingProvider form) {
     final error = form.next(context.l10n);
-    if (error != null) AppSnackBar.show(error);
+    if (error != null) {
+      AppSnackBar.show(error);
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   Future<void> _create(BuildContext context, CreateOutingProvider form) async {
@@ -414,86 +444,87 @@ class _CreateOutingView extends StatelessWidget {
       // AppPageBar — create outing / special event
       appBar: AppPageBar(
         title: form.specialEvent ? l10n.createSpecialEvent : l10n.createOuting,
-        subtitle: form.specialEvent
-            ? l10n.specialEventSubtitle
-            : form.multiPlaceMode
-            ? l10n.suggestPlacesHint
-            : l10n.funStartsHere,
-        backIcon: form.step == 0 ? Icons.close : Icons.chevron_left,
-        onBack: creating
-            ? () {}
-            : () => form.step == 0 ? Get.back() : form.back(),
-        trailing: form.step == 2
-            ? TextButton(
-                onPressed: creating ? null : () => _saveDraft(context, form),
-                child: Text(
-                  l10n.saveDraft,
-                  style: TextStyle(
-                    color: AppColors.brand600,
-                    fontWeight: FontWeight.w800,
-                    fontSize: Responsive.fontSm,
-                  ),
-                ),
-              )
-            : null,
+        backIcon: form.step == 0 ? Icons.close : context.chevronBack,
+        onBack: creating ? () {} : () => _goBack(form),
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            Expanded(
-              child: ListView(
-                padding: Responsive.padding(
-                  horizontal: 20,
-                  top: 16,
-                  bottom: 20,
-                ),
-                children: [
-                  CreateOutingStepHeader(form: form),
-                  _StepSwitcher(
-                    step: form.step,
-                    child: switch (form.step) {
-                      0 => CreateOutingBasicsStep(
-                        key: const ValueKey(0),
-                        form: form,
-                        onUploadPhoto: () => _uploadPhoto(context, form),
-                        onInviteGuests: () => _inviteGuests(context, form),
-                        onPickGroup: () => _pickGroup(context, form),
-                        onPickDate: () => _pickDate(context, form),
-                        onPickTime: () => _pickTime(context, form),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    controller: _scroll,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: Responsive.pagePadding(),
+                    children: [
+                      CreateOutingStepHeader(form: form),
+                      _StepSwitcher(
+                        step: form.step,
+                        child: switch (form.step) {
+                          0 => CreateOutingBasicsStep(
+                            key: const ValueKey(0),
+                            form: form,
+                            onUploadPhoto: () => _uploadPhoto(context, form),
+                            onInviteGuests: () => _inviteGuests(context, form),
+                            onPickGroup: () => _pickGroup(context, form),
+                            onPickDate: () => _pickDate(context, form),
+                            onPickTime: () => _pickTime(context, form),
+                          ),
+                          1 => CreateOutingLocationStep(
+                            key: const ValueKey(1),
+                            form: form,
+                            onPickCustomLocation: () =>
+                                _pickCustomLocation(context, form),
+                            onAddVotePlace: () => _addVotePlace(context, form),
+                          ),
+                          _ => CreateOutingReviewStep(
+                            key: const ValueKey(2),
+                            form: form,
+                          ),
+                        },
                       ),
-                      1 => CreateOutingLocationStep(
-                        key: const ValueKey(1),
-                        form: form,
-                        onPickCustomLocation: () =>
-                            _pickCustomLocation(context, form),
-                        onAddVotePlace: () => _addVotePlace(context, form),
-                      ),
-                      _ => CreateOutingReviewStep(
-                        key: const ValueKey(2),
-                        form: form,
-                      ),
-                    },
+                    ],
                   ),
-                ],
-              ),
+                ),
+                Material(
+                  color: context.palette.background,
+                  child: Padding(
+                    padding: Responsive.pagePadding(top: 8, bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        CustomButton(
+                          label: form.step == 2 && form.specialEvent
+                              ? l10n.createSpecialEvent
+                              : actions[form.step],
+                          icon: form.step == 2
+                              ? Icons.check
+                              : context.chevronForward,
+                          isLoading: form.step == 2 && creating,
+                          onPressed: creating
+                              ? null
+                              : form.step == 2
+                              ? () => _create(context, form)
+                              : () => _next(context, form),
+                        ),
+                        if (form.step == 2)
+                          TextButton(
+                            onPressed: creating
+                                ? null
+                                : () => _saveDraft(context, form),
+                            child: Text(l10n.saveDraft),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-            Padding(
-              padding: Responsive.padding(horizontal: 20, top: 8, bottom: 16),
-              child: CustomButton(
-                label: form.step == 2 && form.specialEvent
-                    ? l10n.createSpecialEvent
-                    : actions[form.step],
-                icon: Icons.arrow_forward,
-                isLoading: form.step == 2 && creating,
-                onPressed: creating
-                    ? null
-                    : form.step == 2
-                    ? () => _create(context, form)
-                    : () => _next(context, form),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

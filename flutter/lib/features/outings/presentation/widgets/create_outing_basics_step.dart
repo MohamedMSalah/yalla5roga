@@ -5,7 +5,8 @@ import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/input_formatters.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/custom_textfield.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
@@ -34,80 +35,57 @@ class CreateOutingBasicsStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final preview =
-        form.image ?? (form.specialEvent ? form.resolvedImage : null);
+    final preview = form.image ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: onUploadPhoto,
-          child: preview == null
-              ? Container(
+        Material(
+          borderRadius: BorderRadius.circular(22.r),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onUploadPhoto,
+            child: Stack(
+              alignment: AlignmentDirectional.bottomEnd,
+              children: [
+                PlanningCover(
+                  url: preview,
+                  art: form.occasion.coverArt,
+                  width: double.infinity,
                   height: 140.h,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: context.palette.surfaceMuted,
-                    borderRadius: BorderRadius.circular(22.r),
-                    boxShadow: [
-                      BoxShadow(
-                        color: context.palette.shadow,
-                        blurRadius: 14.w,
-                        offset: Offset(0, 6.h),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo_outlined,
-                        color: AppColors.brand600,
-                        size: 28.w,
-                      ),
-                      8.gapH,
-                      Text(
-                        l10n.outingPhotoOptional,
-                        style: TextStyle(
-                          color: AppColors.brand600,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : Stack(
-                  children: [
-                    AppNetworkImage(
-                      url: preview,
-                      width: double.infinity,
-                      height: 140.h,
-                      radius: 22.r,
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: context.palette.surface,
+                      borderRadius: BorderRadius.circular(999),
                     ),
-                    if (form.specialEvent && form.image == null)
-                      Positioned(
-                        right: 12.w,
-                        bottom: 12.h,
-                        child: Container(
-                          padding: Responsive.padding(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.55),
-                            borderRadius: BorderRadius.circular(999.r),
-                          ),
-                          child: Text(
-                            l10n.uploadPhoto,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 10.sp,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.add_a_photo_outlined, size: 18),
+                          Responsive.spaceSm.gapW,
+                          Flexible(
+                            child: Text(
+                              preview.isEmpty
+                                  ? l10n.outingPhotoOptional
+                                  : l10n.changePhoto,
+                              style: context.texts.labelLarge,
                             ),
                           ),
-                        ),
+                        ],
                       ),
-                  ],
+                    ),
+                  ),
                 ),
+              ],
+            ),
+          ),
         ),
         Responsive.spaceMd.gapH,
         CustomTextField(
@@ -137,8 +115,8 @@ class CreateOutingBasicsStep extends StatelessWidget {
           Responsive.spaceSm.gapH,
           VibePicker(
             options: [
-              VibeOption('🎂', l10n.birthday),
-              VibeOption('💍', l10n.wedding),
+              VibeOption(Icons.cake_outlined, l10n.birthday),
+              VibeOption(Icons.favorite_border, l10n.wedding),
             ],
             index: form.occasion == OutingOccasion.wedding ? 1 : 0,
             onChanged: (index) => form.setOccasion(
@@ -178,10 +156,10 @@ class CreateOutingBasicsStep extends StatelessWidget {
           Responsive.spaceSm.gapH,
           VibePicker(
             options: [
-              VibeOption('🍽️', l10n.food),
-              VibeOption('🎳', l10n.activity),
-              VibeOption('🌿', l10n.outdoor),
-              VibeOption('🎬', l10n.movie),
+              VibeOption(Icons.restaurant_outlined, l10n.food),
+              VibeOption(Icons.sports_esports_outlined, l10n.activity),
+              VibeOption(Icons.park_outlined, l10n.outdoor),
+              VibeOption(Icons.movie_outlined, l10n.movie),
             ],
             index: form.vibe,
             onChanged: form.setVibe,
@@ -321,121 +299,6 @@ class CreateOutingBasicsStep extends StatelessWidget {
             ),
           ],
         ),
-        if (!form.specialEvent) ...[
-          12.gapH,
-          if (!form.letVote)
-            CustomButton(
-              label: l10n.addPlacesForVoting,
-              icon: Icons.add_location_alt_outlined,
-              variant: AppButtonVariant.outlined,
-              onPressed: () => form.setLetVote(true),
-            )
-          else ...[
-            AppCard(
-              color: context.palette.brandSoft,
-              child: Row(
-                children: [
-                  const IconCircle(
-                    icon: Icons.how_to_vote_outlined,
-                    background: AppColors.brand600,
-                    foreground: Colors.white,
-                  ),
-                  12.gapW,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.addPlacesForVoting,
-                          style: TextStyle(
-                            color: context.palette.brandStrong,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12.sp,
-                          ),
-                        ),
-                        Text(
-                          l10n.addPlacesForVotingHint,
-                          style: TextStyle(
-                            color: AppColors.brand500,
-                            fontSize: 10.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            12.gapH,
-            AppCard(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.voteDeadlineHours,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 12.sp,
-                          ),
-                        ),
-                        Text(
-                          l10n.voteDeadlineHint,
-                          style: TextStyle(
-                            color: context.palette.textMuted,
-                            fontSize: 10.sp,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: form.voteDeadlineHours <= 1
-                        ? null
-                        : () => form.setVoteDeadlineHours(
-                            form.voteDeadlineHours - 1,
-                          ),
-                    icon: const Icon(Icons.remove_circle_outline),
-                    color: AppColors.brand600,
-                  ),
-                  Text(
-                    l10n.hoursCount(form.voteDeadlineHours),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13.sp,
-                      color: AppColors.brand700,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: form.voteDeadlineHours >= 72
-                        ? null
-                        : () => form.setVoteDeadlineHours(
-                            form.voteDeadlineHours + 1,
-                          ),
-                    icon: const Icon(Icons.add_circle_outline),
-                    color: AppColors.brand600,
-                  ),
-                ],
-              ),
-            ),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton(
-                onPressed: () => form.setLetVote(false),
-                child: Text(
-                  l10n.useSingleLocation,
-                  style: TextStyle(
-                    color: AppColors.brand600,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.sp,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
       ],
     );
   }

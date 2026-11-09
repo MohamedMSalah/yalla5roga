@@ -8,12 +8,13 @@ import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/app_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/app_icon_button.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/avatar_stack.dart';
@@ -50,6 +51,7 @@ class _EventPageState extends State<EventPage>
   AnimationStatusListener? _routeListener;
   late final AnimationController _bookmarkBounce;
   var _saving = false;
+  var _deleting = false;
 
   @override
   void initState() {
@@ -104,6 +106,29 @@ class _EventPageState extends State<EventPage>
     );
   }
 
+  Future<void> _delete(Outing outing) async {
+    if (_deleting) return;
+    final l10n = context.l10n;
+    final confirmed = await AppAlert.confirm(
+      title: l10n.deleteOutingTitle,
+      message: l10n.deleteOutingBody,
+      confirmText: l10n.deleteOuting,
+      cancelText: l10n.cancel,
+      destructive: true,
+    );
+    if (!mounted || !confirmed || _deleting) return;
+    final saved = context.read<SavedOutingsProvider>();
+    setState(() => _deleting = true);
+    final deleted = await context.read<OutingsProvider>().delete(outing.id);
+    if (deleted) saved.removeDeletedOuting(outing.id);
+    if (!mounted) return;
+    setState(() => _deleting = false);
+    if (deleted) {
+      Navigator.of(context).pop();
+      AppSnackBar.show(l10n.outingDeleted);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -140,7 +165,7 @@ class _EventPageState extends State<EventPage>
       ),
     ]).animate(_bookmarkBounce);
 
-    return Scaffold(
+    final page = Scaffold(
       appBar: AppPageBar(
         title: live.title,
         trailing: ScaleTransition(
@@ -152,7 +177,9 @@ class _EventPageState extends State<EventPage>
               background: saved ? AppColors.brand600 : null,
               foreground: saved ? Colors.white : null,
               isLoading: _saving,
-              onTap: () => _toggleSaved(context, live),
+              onTap: () {
+                if (!_deleting) _toggleSaved(context, live);
+              },
             ),
           ),
         ),
@@ -168,12 +195,11 @@ class _EventPageState extends State<EventPage>
                 tag: widget.coverHeroTag,
                 url: _coverUrl(live),
                 radius: 24.r,
-                child: AppNetworkImage(
+                child: PlanningCover(
                   url: _coverUrl(live),
+                  art: live.occasion.coverArt,
                   width: double.infinity,
                   height: 220.h,
-                  placeholderIcon: Icons.explore_outlined,
-                  fade: false,
                 ),
               ),
             ),
@@ -318,12 +344,23 @@ class _EventPageState extends State<EventPage>
               label: l10n.outingChat,
               icon: Icons.chat_bubble_outline,
               variant: AppButtonVariant.outlined,
-              onPressed: () => _openChat(context, live),
+              onPressed: _deleting ? null : () => _openChat(context, live),
             ),
+            if (userId != null && userId == live.createdById) ...[
+              Responsive.spaceXl.gapH,
+              CustomButton(
+                label: l10n.deleteOuting,
+                icon: Icons.delete_outline,
+                variant: AppButtonVariant.danger,
+                isLoading: _deleting,
+                onPressed: _deleting || _saving ? null : () => _delete(live),
+              ),
+            ],
           ],
         ),
       ),
     );
+    return PopScope(canPop: !_deleting, child: page);
   }
 
   /// Prefer the cover the user tapped so a live refresh cannot swap the

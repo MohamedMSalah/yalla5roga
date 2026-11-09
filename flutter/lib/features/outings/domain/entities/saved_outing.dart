@@ -10,18 +10,21 @@ class SavedOuting {
     required this.title,
     required this.image,
     required this.location,
+    this.occasion = OutingOccasion.none,
   });
 
   final String id;
   final String title;
   final String image;
   final PlaceLocation location;
+  final OutingOccasion occasion;
 
   factory SavedOuting.fromEvent(Outing event) {
     return SavedOuting(
       id: event.id,
       title: event.title,
       image: event.image,
+      occasion: event.occasion,
       location:
           event.location ??
           PlaceLocation(name: event.meta.split('·').first.trim()),
@@ -33,6 +36,10 @@ class SavedOuting {
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
       image: json['image'] as String? ?? '',
+      occasion: OutingOccasion.values.firstWhere(
+        (item) => item.name == json['occasion'],
+        orElse: () => OutingOccasion.none,
+      ),
       location: PlaceLocation.fromJson(
         (json['location'] as Map?)?.cast<String, dynamic>() ?? const {},
       ),
@@ -44,6 +51,7 @@ class SavedOuting {
     'title': title,
     'image': image,
     'location': location.toJson(),
+    'occasion': occasion.name,
   };
 }
 
@@ -152,6 +160,8 @@ class SavedItem {
   String get title => draft?.title ?? outing!.title;
 
   String get image => draft?.image ?? outing!.image;
+
+  OutingOccasion get occasion => draft?.occasion ?? outing!.occasion;
 
   PlaceLocation get location => draft?.location ?? outing!.location;
 }

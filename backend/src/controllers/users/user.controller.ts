@@ -56,10 +56,8 @@ export class UserController {
         id: req.user.uid,
         name: req.body.name,
         phone: req.body.phone,
-        email: req.body.email,
         image_url: req.body.image_url ?? null,
         verifiedPhone: req.user.phone ?? null,
-        tokenEmail: req.user.email ?? null,
         tokenName: req.user.name ?? null,
         signInProvider: req.user.signInProvider ?? null,
       });

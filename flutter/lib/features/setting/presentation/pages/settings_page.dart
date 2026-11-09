@@ -10,13 +10,7 @@ import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/app_switch.dart';
 import 'package:yalla_5roga/core/widgets/language_choice.dart';
-import 'package:yalla_5roga/features/auth/presentation/pages/auth_page.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
-import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
-import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
-import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
-import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
-import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/pages/about_developer_page.dart';
 import 'package:yalla_5roga/features/setting/presentation/providers/settings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/pages/edit_profile_page.dart';
@@ -28,6 +22,8 @@ import 'package:yalla_5roga/features/outings/presentation/pages/saved_outings_pa
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/lists/settings_list.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/phone_verification_chip.dart';
+import 'package:yalla_5roga/features/setting/presentation/widgets/profile_phone_sheet.dart';
+import 'package:yalla_5roga/features/setting/presentation/widgets/sign_out_to_login.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/settings_tile.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -38,6 +34,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  bool _loggingOut = false;
   @override
   void initState() {
     super.initState();
@@ -48,6 +45,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _logout(BuildContext context) async {
+    if (_loggingOut) return;
+    _loggingOut = true;
     final l10n = context.l10n;
     final confirmed = await AppAlert.confirm(
       title: l10n.logoutConfirmTitle,
@@ -55,24 +54,15 @@ class _SettingsPageState extends State<SettingsPage> {
       confirmText: l10n.logOut,
       cancelText: l10n.cancel,
     );
-    if (!confirmed || !context.mounted) return;
-    _clearUnread(context);
-    await context.read<AuthProvider>().logout();
-    AppSnackBar.show(l10n.signedOut);
-    Get.offAll(() => const AuthPage());
+    if (!confirmed || !context.mounted) {
+      _loggingOut = false;
+      return;
+    }
+    await signOutToLogin(context);
   }
 
   void _openEditProfile(BuildContext context) {
     Get.to(() => const EditProfilePage());
-  }
-
-  void _clearUnread(BuildContext context) {
-    context.read<NotificationsProvider>().clear();
-    context.read<OutingChatProvider>().clear();
-    context.read<GroupsProvider>().clear();
-    context.read<OutingsProvider>().clear();
-    context.read<DiscoverProvider>().clear();
-    context.read<SavedOutingsProvider>().clear();
   }
 
   Future<void> _openLink(BuildContext context, String url) async {
@@ -137,7 +127,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   SettingsTile(
                     icon: Icons.manage_accounts_outlined,
                     title: l10n.editProfile,
-                    subtitle: user?.email ?? l10n.digits(user?.phone ?? ''),
+                    subtitle: l10n.digits(user?.phone ?? ''),
                     background: AppColors.brand50,
                     foreground: AppColors.brand600,
                     onTap: () => _openEditProfile(context),
@@ -150,6 +140,15 @@ class _SettingsPageState extends State<SettingsPage> {
                     foreground: const Color(0xFF7C3AED),
                     trailing: PhoneVerificationChip(
                       verified: user?.phoneVerified ?? false,
+                      onVerify:
+                          user != null &&
+                              user.phone.trim().isNotEmpty &&
+                              !user.phoneVerified
+                          ? () => ProfilePhoneSheet.open(
+                              context,
+                              phone: user.phone,
+                            )
+                          : null,
                     ),
                   ),
                   SettingsTile(

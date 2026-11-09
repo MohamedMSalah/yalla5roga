@@ -7,6 +7,12 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
 abstract class DiscoverDataSource {
+  Future<List<SuggestedPlace>> getNearbyPlaces({
+    required double latitude,
+    required double longitude,
+    OutingVibe? vibe,
+  });
+
   Future<List<SuggestedPlace>> getPlaces({OutingVibe? vibe});
   Future<List<SuggestedPlace>> getFeaturedPlaces();
   Future<SuggestedPlace> getPlace(String placeId);
@@ -17,6 +23,33 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
   DiscoverRemoteDataSource(this._client);
 
   final ApiClient _client;
+
+  @override
+  Future<List<SuggestedPlace>> getNearbyPlaces({
+    required double latitude,
+    required double longitude,
+    OutingVibe? vibe,
+  }) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        ApiConstants.nearbyPlaces,
+        queryParameters: {
+          'lat': latitude,
+          'lng': longitude,
+          if (vibe != null) 'vibe': vibe.name,
+        },
+      );
+      return [
+        for (final item in apiObjectList(
+          response.data,
+          aliases: const ['places', 'items'],
+        ))
+          _fromJson(item),
+      ];
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
+  }
 
   @override
   Future<List<SuggestedPlace>> getPlaces({OutingVibe? vibe}) async {
@@ -80,6 +113,7 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       featured: apiBool(json['featured']),
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
     );
   }
 

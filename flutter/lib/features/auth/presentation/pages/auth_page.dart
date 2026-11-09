@@ -40,7 +40,10 @@ class _AuthPageState extends State<AuthPage> {
           children: [
             Row(
               children: [
-                AppIconButton(icon: context.chevronBack, onTap: Get.back),
+                if (ModalRoute.of(context)?.canPop ?? false)
+                  AppIconButton(icon: context.chevronBack, onTap: Get.back)
+                else
+                  SizedBox(width: 40.w),
                 const Spacer(),
                 Icon(Icons.auto_awesome, color: AppColors.brand600, size: 16.w),
                 6.gapW,

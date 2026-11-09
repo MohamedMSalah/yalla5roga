@@ -7,7 +7,6 @@ import 'package:yalla_5roga/core/widgets/section_header.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/lists/discover_section.dart';
 import 'package:yalla_5roga/features/home/presentation/widgets/cards/featured_outing_card.dart';
 import 'package:yalla_5roga/features/home/presentation/widgets/home_header.dart';
-import 'package:yalla_5roga/features/home/presentation/widgets/lists/happening_now_list.dart';
 import 'package:yalla_5roga/features/home/presentation/widgets/quick_actions.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -19,61 +18,44 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final outingsReady = context.watch<OutingsProvider>().hasLoaded;
-
+    final ready = context.select<OutingsProvider, bool>((p) => p.hasLoaded);
     return SafeArea(
-      child: ListView(
-        padding: Responsive.pagePadding(),
-        children: [
-          const HomeHeader(),
-          Responsive.spaceMd.gapH,
-          // Shimmer -> content reveals once; keyed on hasLoaded so later
-          // refreshes never replay it.
-          AppFadeSwitcher(
-            child: outingsReady
-                ? const FeaturedOutingCard(key: ValueKey('featured'))
-                : const _HomeFeedPlaceholder(
-                    key: ValueKey('featured-skeleton'),
-                    height: 176,
-                  ),
-          ),
-          Responsive.spaceLg.gapH,
-          SectionHeader(title: l10n.quickActions, subtitle: l10n.makeItHappen),
-          12.gapH,
-          const QuickActions(),
-          Responsive.spaceLg.gapH,
-          const DiscoverSection(
-            showPlaces: true,
-            limit: 3,
-            heroSurface: 'home',
-          ),
-          Responsive.spaceLg.gapH,
-          AppFadeSwitcher(
-            child: outingsReady
-                ? HappeningNowList(
-                    key: const ValueKey('happening'),
-                    onSeeAll: onSeeAllOutings,
-                  )
-                : const _HomeFeedPlaceholder(
-                    key: ValueKey('happening-skeleton'),
-                    height: 88,
-                  ),
-          ),
-        ],
+      child: RefreshIndicator(
+        onRefresh: () =>
+            context.read<OutingsProvider>().load(forceRefresh: true),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: Responsive.pagePadding(),
+          children: [
+            const HomeHeader(),
+            Responsive.spaceXl.gapH,
+            SectionHeader(
+              title: l10n.nextUp,
+              actionLabel: l10n.seeAll,
+              onAction: onSeeAllOutings,
+            ),
+            Responsive.spaceSm.gapH,
+            AppFadeSwitcher(
+              child: ready
+                  ? const FeaturedOutingCard(key: ValueKey('upcoming'))
+                  : AppShimmer(
+                      key: const ValueKey('loading'),
+                      child: ShimmerBone(
+                        width: double.infinity,
+                        height: 120.h,
+                        radius: 16,
+                      ),
+                    ),
+            ),
+            Responsive.spaceXl.gapH,
+            SectionHeader(title: l10n.quickActions),
+            Responsive.spaceSm.gapH,
+            const QuickActions(),
+            Responsive.spaceXl.gapH,
+            const DiscoverSection(limit: 3, heroSurface: 'home'),
+          ],
+        ),
       ),
-    );
-  }
-}
-
-class _HomeFeedPlaceholder extends StatelessWidget {
-  const _HomeFeedPlaceholder({super.key, required this.height});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppShimmer(
-      child: ShimmerBone(width: double.infinity, height: height.h, radius: 24),
     );
   }
 }

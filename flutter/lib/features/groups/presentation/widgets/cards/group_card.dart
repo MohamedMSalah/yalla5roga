@@ -4,7 +4,7 @@ import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -30,12 +30,11 @@ class GroupCard extends StatelessWidget {
             tag: HeroTags.groupCover(group.id),
             url: group.image,
             radius: 16.r,
-            child: AppNetworkImage(
+            child: PlanningCover(
               url: group.image,
+              art: PlanningCoverArt.group,
               width: 56.w,
               height: 56.w,
-              placeholderIcon: Icons.groups_outlined,
-              fade: false,
             ),
           ),
           12.gapW,

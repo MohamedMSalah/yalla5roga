@@ -4,6 +4,7 @@ import 'package:yalla_5roga/core/cache/cached_remote.dart';
 import 'package:yalla_5roga/core/cache/ttl_cache.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
+import 'package:yalla_5roga/core/network/remote_guard.dart';
 import 'package:yalla_5roga/features/discover/data/datasources/discover_remote_datasource.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
@@ -26,6 +27,23 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
   static const _featuredKey = 'featured';
 
   String _placesKey(OutingVibe? vibe) => 'places:${vibe?.name ?? 'all'}';
+
+  @override
+  Future<Either<Failure, List<SuggestedPlace>>> getNearbyPlaces({
+    required double latitude,
+    required double longitude,
+    OutingVibe? vibe,
+  }) {
+    return guardRemote(
+      networkInfo,
+      () => remote.getNearbyPlaces(
+        latitude: latitude,
+        longitude: longitude,
+        vibe: vibe,
+      ),
+      reason: 'discoverNearbyPlaces',
+    );
+  }
 
   @override
   Future<Either<Failure, List<SuggestedPlace>>> getPlaces({

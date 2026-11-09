@@ -15,6 +15,15 @@ class OutingSnapshot {
     required this.attendanceByOuting,
   });
 
+  OutingSnapshot withoutOuting(String id) {
+    return OutingSnapshot(
+      outings: outings.where((outing) => outing.id != id).toList(),
+      suggestions: suggestions.where((item) => item.outingId != id).toList(),
+      votesByOuting: Map.of(votesByOuting)..remove(id),
+      attendanceByOuting: Map.of(attendanceByOuting)..remove(id),
+    );
+  }
+
   final List<Outing> outings;
   final List<GroupPlaceSuggestion> suggestions;
   final Map<String, PlaceVote> votesByOuting;
@@ -22,10 +31,7 @@ class OutingSnapshot {
 }
 
 class TieBreakResult {
-  const TieBreakResult({
-    required this.snapshot,
-    required this.winningOptionId,
-  });
+  const TieBreakResult({required this.snapshot, required this.winningOptionId});
 
   final OutingSnapshot snapshot;
   final String winningOptionId;
@@ -33,6 +39,8 @@ class TieBreakResult {
 
 abstract class OutingsRepository {
   Future<Either<Failure, OutingSnapshot>> load({bool forceRefresh = false});
+
+  Future<Either<Failure, void>> delete(String outingId);
 
   Future<Either<Failure, OutingSnapshot>> add(
     Outing outing, {

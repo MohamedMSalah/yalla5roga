@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/input_formatters.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
@@ -119,64 +118,22 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 child: ListView(
                   padding: Responsive.pagePadding(),
                   children: [
-                    GestureDetector(
-                      onTap: groups.isCreating ? null : _pickImage,
-                      child: image == null
-                          ? Container(
-                              height: 160.h,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: palette.surfaceMuted,
-                                borderRadius: BorderRadius.circular(22.r),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: palette.shadow,
-                                    blurRadius: 14.w,
-                                    offset: Offset(0, 6.h),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_a_photo_outlined,
-                                    color: AppColors.brand600,
-                                    size: 28.w,
-                                  ),
-                                  8.gapH,
-                                  Text(
-                                    l10n.groupPhotoOptional,
-                                    style: TextStyle(
-                                      color: AppColors.brand600,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Stack(
-                              children: [
-                                AppNetworkImage(
-                                  url: image,
-                                  width: double.infinity,
-                                  height: 160.h,
-                                  radius: 22.r,
-                                ),
-                                Positioned(
-                                  right: 12.w,
-                                  bottom: 12.h,
-                                  child: CircleAvatar(
-                                    backgroundColor: AppColors.brand600,
-                                    child: Icon(
-                                      Icons.camera_alt_outlined,
-                                      color: Colors.white,
-                                      size: 18.w,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                    Material(
+                      color: palette.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      clipBehavior: Clip.antiAlias,
+                      child: ListTile(
+                        onTap: groups.isCreating ? null : _pickImage,
+                        leading: PlanningCover(
+                          url: image ?? '',
+                          art: PlanningCoverArt.group,
+                          width: 54,
+                          height: 54,
+                          radius: 10,
+                        ),
+                        title: Text(l10n.groupPhotoOptional),
+                        trailing: const Icon(Icons.add_a_photo_outlined),
+                      ),
                     ),
                     Responsive.spaceLg.gapH,
                     CustomTextField(

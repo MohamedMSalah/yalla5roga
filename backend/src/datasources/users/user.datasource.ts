@@ -10,10 +10,6 @@ export class UserDatasource {
     return prisma.users.findUnique({ where: { id } });
   }
 
-  findByEmail(email: string): Promise<User | null> {
-    return prisma.users.findUnique({ where: { email } });
-  }
-
   findByPhone(phone: string): Promise<User | null> {
     return prisma.users.findUnique({ where: { phone } });
   }

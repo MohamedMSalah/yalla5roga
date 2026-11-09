@@ -19,7 +19,6 @@ export function serializeChatMessage(message: ChatMessage) {
     outing_id: message.outing_id,
     sender_id: message.sender_id,
     text: message.text,
-    delivery_status: message.delivery_status,
     sent_at:
       message.sent_at instanceof Date
         ? message.sent_at.toISOString()

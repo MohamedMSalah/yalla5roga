@@ -1,18 +1,19 @@
 {
-  "name": "yallaBack",
+  "name": "yalla5roga-backend",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Yalla 5roga Express API",
+  "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
-    "start": "node dist/server.js",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && tsc",
+    "start": "prisma migrate deploy && node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "test": "tsx --test tests/create-group.test.ts tests/group-invitations.test.ts tests/notification-dispatch.test.ts tests/auth.middleware.test.ts tests/sync-user.test.ts tests/resource-authz.test.ts tests/outing-lifecycle.test.ts"
+    "test": "tsx --test tests/*.test.ts"
   },
   "keywords": [],
-  "author": "",
+  "author": "Yalla 5roga",
   "license": "ISC",
   "devEngines": {
     "packageManager": {

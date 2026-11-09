@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
+import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/firebase_auth_service.dart';
@@ -162,7 +163,6 @@ mixin _AuthFirebaseMixin on AuthRepository {
     UserModel profile, {
     String? token,
     String? fallbackPhone,
-    bool? phoneVerified,
   }) async {
     UserModel? cached;
     try {
@@ -170,18 +170,20 @@ mixin _AuthFirebaseMixin on AuthRepository {
     } catch (_) {}
 
     final firebasePhone = firebaseAuth.currentUser?.phoneNumber?.trim() ?? '';
+    final profilePhone = profile.phone.isNotEmpty
+        ? profile.phone
+        : (fallbackPhone ?? cached?.phone ?? '');
     final verified =
-        phoneVerified ??
-        (firebasePhone.isNotEmpty || (cached?.phoneVerified ?? false));
+        firebasePhone.isNotEmpty &&
+        Validators.normalizePhone(firebasePhone) ==
+            Validators.normalizePhone(profilePhone);
 
     final merged = UserModel(
       id: profile.id.isNotEmpty
           ? profile.id
           : (firebaseAuth.currentUser?.uid ?? cached?.id ?? ''),
       name: profile.name.isNotEmpty ? profile.name : (cached?.name ?? 'User'),
-      phone: profile.phone.isNotEmpty
-          ? profile.phone
-          : (fallbackPhone ?? cached?.phone ?? ''),
+      phone: profilePhone,
       email: profile.email ?? cached?.email,
       token: token ?? cached?.token,
       imageUrl: profile.imageUrl ?? cached?.imageUrl,
@@ -243,19 +245,18 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
 
   @override
   Future<Either<Failure, User>> login({
-    required String email,
+    required String phone,
     required String password,
   }) async {
-    // Email/password → backend (Neon). Firebase only receives a custom token.
+    // Phone/password → backend (Neon). Firebase only receives a custom token.
     return _emailPasswordSession(
-      () => remote.login(email: email, password: password),
+      () => remote.login(phone: phone, password: password),
     );
   }
 
   @override
   Future<Either<Failure, User>> register({
     required String name,
-    required String email,
     required String password,
     required String phone,
     required String verificationId,
@@ -271,15 +272,9 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
         smsCode: smsCode,
       );
       return _emailPasswordSession(
-        () => remote.signup(
-          name: name,
-          email: email,
-          password: password,
-          phone: phone,
-        ),
+        () => remote.signup(name: name, password: password, phone: phone),
         fallbackName: name,
         fallbackPhone: phone,
-        fallbackEmail: email,
       );
     } on AuthException catch (error) {
       return Left(AuthFailure(error.message, error.code));
@@ -298,7 +293,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     Future<AuthSessionModel> Function() createSession, {
     String? fallbackName,
     String? fallbackPhone,
-    String? fallbackEmail,
   }) async {
     if (!await networkInfo.isConnected) {
       return const Left(NetworkFailure());
@@ -326,7 +320,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
           phone: (profile != null && profile.phone.isNotEmpty)
               ? profile.phone
               : (fallbackPhone ?? ''),
-          email: profile?.email ?? fallbackEmail ?? firebaseUser?.email,
           token: token,
           imageUrl: profile?.imageUrl ?? firebaseUser?.photoURL,
           createdAt: profile?.createdAt,
@@ -352,23 +345,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     }
   }
 
-  @override
-  Future<Either<Failure, User>> signInWithGoogle() async {
-    final signedIn = await _fromFirebaseCredential(
-      firebaseAuth.signInWithGoogle,
-    );
-    // Upsert application user on first social sign-in (backend keys by token UID).
-    return signedIn.fold(Left.new, _provisionBackendUser);
-  }
-
-  @override
-  Future<Either<Failure, User>> signInWithApple() async {
-    final signedIn = await _fromFirebaseCredential(
-      firebaseAuth.signInWithApple,
-    );
-    return signedIn.fold(Left.new, _provisionBackendUser);
-  }
-
   /// Creates / upserts the PostgreSQL `users` row. Identity is the verified
   /// Firebase UID from the Bearer token — never sent as a trusted body field.
   /// Passwords are never sent; Firebase owns credentials.
@@ -380,7 +356,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       await firebaseAuth.idToken(forceRefresh: true);
       final model = await remote.syncUser(
         name: user.name,
-        email: user.email,
         phone: user.phone.isEmpty ? null : user.phone,
         imageUrl: user.imageUrl,
       );
@@ -391,7 +366,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
           id: uid,
           name: model.name.isNotEmpty ? model.name : user.name,
           phone: model.phone.isNotEmpty ? model.phone : user.phone,
-          email: model.email ?? user.email,
           token: token,
           imageUrl: model.imageUrl ?? user.imageUrl,
           createdAt: model.createdAt ?? user.createdAt,
@@ -399,9 +373,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
           phoneVerified: user.phoneVerified,
         ),
         token: token,
-        phoneVerified:
-            (firebaseAuth.currentUser?.phoneNumber ?? '').trim().isNotEmpty ||
-            user.phoneVerified,
       );
       return Right(merged);
     } on AppException {
@@ -430,15 +401,7 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       await firebaseAuth.idToken(forceRefresh: true);
       final model = await remote.getProfile();
       final token = await firebaseAuth.idToken();
-      return Right(
-        await _mergeBackendProfile(
-          model,
-          token: token,
-          phoneVerified: (firebaseAuth.currentUser?.phoneNumber ?? '')
-              .trim()
-              .isNotEmpty,
-        ),
-      );
+      return Right(await _mergeBackendProfile(model, token: token));
     } on AppException catch (error) {
       final cached = await getCachedUser();
       return cached.fold(
@@ -532,11 +495,10 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
   @override
   Future<Either<Failure, User>> syncProfileToBackend({
     String? name,
-    String? email,
     String? phone,
     String? imageUrl,
   }) async {
-    if (name == null && email == null && phone == null && imageUrl == null) {
+    if (name == null && phone == null && imageUrl == null) {
       final cached = await getCachedUser();
       return cached;
     }
@@ -548,19 +510,10 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       final token = await firebaseAuth.idToken(forceRefresh: true);
       final model = await remote.updateProfile(
         name: name,
-        email: email,
         phone: phone,
         imageUrl: imageUrl,
       );
-      return Right(
-        await _mergeBackendProfile(
-          model,
-          token: token,
-          phoneVerified: (firebaseAuth.currentUser?.phoneNumber ?? '')
-              .trim()
-              .isNotEmpty,
-        ),
-      );
+      return Right(await _mergeBackendProfile(model, token: token));
     } on CacheException catch (error) {
       return Left(CacheFailure(error.message));
     } on AppException catch (error) {
@@ -571,24 +524,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       );
     } catch (_) {
       return const Left(ServerFailure('Could not sync profile'));
-    }
-  }
-
-  @override
-  Future<Either<Failure, void>> requestEmailChange({
-    required String newEmail,
-    required String currentPassword,
-  }) async {
-    try {
-      await firebaseAuth.requestEmailChange(
-        newEmail: newEmail,
-        currentPassword: currentPassword,
-      );
-      return const Right(null);
-    } on AuthException catch (error) {
-      return Left(AuthFailure(error.message, error.code));
-    } catch (_) {
-      return const Left(AuthFailure('Could not update email'));
     }
   }
 

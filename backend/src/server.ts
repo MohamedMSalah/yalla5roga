@@ -27,6 +27,12 @@ function detectLanIPv4Addresses(): string[] {
 
 async function start() {
   try {
+    if (process.env.NODE_ENV === "production" && process.env.WHATSAPP_PROVIDER === "stub") {
+      throw new Error("WHATSAPP_PROVIDER=stub is not allowed in production");
+    }
+    if (process.env.NODE_ENV === "production" && !process.env.CORS_ORIGINS) {
+      throw new Error("CORS_ORIGINS must be set in production");
+    }
     await prisma.$connect();
     console.log("Database connected successfully");
 

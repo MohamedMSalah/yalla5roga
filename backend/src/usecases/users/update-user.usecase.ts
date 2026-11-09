@@ -28,10 +28,6 @@ export class UpdateUserUseCase {
       patch.name = name;
     }
 
-    if (data.email !== undefined) {
-      patch.email = data.email;
-    }
-
     if (data.image_url !== undefined) {
       patch.image_url = data.image_url;
     }

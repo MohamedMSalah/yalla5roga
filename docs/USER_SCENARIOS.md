@@ -41,7 +41,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 
 ### AUTH-04 Session restore / logout
 
-- **Actions:** `AuthProvider.restoreSession()`; logout clears Firebase session + UI shell.  
+- **Actions:** `AuthProvider.restoreSession()`; logout clears the Firebase session and account-scoped UI state, then opens the original login form as the only route.
 - **Status:** Implemented  
 
 ### AUTH-05 Invalid/expired token
@@ -58,7 +58,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 
 ### AUTH-07 Settings profile / change password
 
-- **Actions:** Open Settings → see member-since date from Neon `created_at`; phone row shows Verified/Not verified chip (not tappable); header shows name (+ phone) without email; Edit profile → Edit password for Neon `has_password` accounts.  
+- **Actions:** Settings shows the Neon member-since date and phone verification status. Tap Verify phone on an unverified number to send and enter an SMS code in a bottom sheet. Edit Profile shows name and phone as text buttons that open bottom sheets. Save name/photo changes after password confirmation for password accounts. Edit password opens its own page with current password, new password and confirmation. Successful saves show a checkmark dialog.
 - **Backend:** `GET /api/users/cuser`; `POST /api/auth/change-password` / `verify-password`.  
 - **Status:** Implemented  
 
@@ -69,15 +69,17 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### OUT-01 Create Group Outing
 
 - **Preconditions:** Authenticated; group exists; user allowed.  
-- **Actions:** Enter title, schedule, optional cover photo; optionally tap **Add places for voting** (deadline + 2–5 places via Add place), or pick a single location; submit.  
+- **Actions:** Enter title, schedule and an optional cover photo. In step 2, pick a single location or tap **Add places for voting** to set the deadline and add 2–5 places. Review and submit.
 - **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going; `image_url` optional http(s) only; vote options posted when multi-place.  
 - **DB:** `outings`, `outing_attendance`, optional `outing_vote_options`.  
 - **Flutter:** Shared `CreateOutingPage` for create + suggest; always sends `vote_deadline_hours`; omits local file paths from `image_url` (no upload pipeline yet).  
 - **Status:** Implemented (API/tests); Flutter sends deadline fields  
 
+**Create Outing UI:** The form starts with a full-width optional photo cover, followed by the outing name and rounded category choices. The progress header and footer guide users through location and review. Group and outing screens use a local illustration when the cover photo is absent. Birthday and wedding events have distinct default covers.
+
 ### OUT-01b Suggest / multi-place vote (same page)
 
-- **Actions:** From group details **Add places for voting** or create form button → `CreateOutingPage(group, letVote: true)` → add 2–5 places → publish voting outing.  
+- **Actions:** In step 2 of Create Outing, choose **Add places for voting**, set the deadline and add 2–5 places, then review and publish.
 - **Status:** Implemented (merged into create outing; no separate suggest sheet)  
 
 
@@ -94,6 +96,8 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ---
 
 ## 14.4 Invitation and membership
+
+Group Details puts the group name, role, and Create outing action together. A single Active Votes section shows open votes or an empty state above Group Outings. Start a new place vote from step 2 of Create Outing.
 
 ### GRP-01 Create group — creator is first member
 
@@ -214,7 +218,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### DIS-01 Browse places — `GET /api/places` — Implemented  
 ### DIS-02 Search/filter vibe — query params — Implemented/Partial UX  
 ### DIS-03 Place details — Implemented  
-### DIS-04 Nearby backend — API exists; Flutter may use Nominatim for picker — Partial coupling  
+### DIS-04 Find nearby places — Tap Find places near me to request foreground location and show nearest-first catalog results and distance. Category filters update the nearby query. General catalog browsing is available before searching or if location/search fails. — Implemented
 ### DIS-05 Empty results / location denied — UI empty/error — Requires Verification  
 ### DIS-06 Add discovered place to outing — via owner candidate flows — Partial UX  
 
@@ -302,6 +306,7 @@ Additional journey diagrams for vote change, candidate reset, attendance, chat, 
 | VOT-15 | Voting | Tie-break | `POST /api/outings/:id/tie-break` | outings | Confirmed | Implemented |
 | VOT-18 | Voting | Zero close | resolution | outings | Cancelled | Implemented |
 | ATT-02 | Attendance | Set status | `PUT /api/outings/:id/attendance` | outing_attendance | Updated | Implemented |
+| LIFE-11 | Lifecycle | Creator confirms permanent delete | `DELETE /api/outings/:id` | outings and dependents | Removed from outing lists and Saved | Implemented |
 | LIFE-05 | Lifecycle | Cancel | `POST /api/outings/:id/cancel` | outings | Cancelled | Implemented |
 | CHAT-02 | Chat | Send | `POST /api/outings/:outingId/messages` | chat_messages | Stored | Implemented |
 | SAVE-01 | Saved | Save outing | `POST /api/outings/:id/save` | saved_outings | Row | Implemented |
@@ -315,3 +320,7 @@ Additional journey diagrams for vote change, candidate reset, attendance, chat, 
 ## 14.14 Consistency
 
 Keep this file aligned with BUSINESS_LOGIC, SYSTEM_DESIGN, SYSTEM_ARCHITECTURE, API_CONTRACTS, DATABASE_ARCHITECTURE, AUTH, NOTIFICATIONS whenever journeys or rules change in the same task.
+
+### Home entry journey
+
+After shell data loads, Home presents the earliest future dated outing that is neither past nor cancelled, with a link to the outings tab. Undated outings remain available in the full list. Create outing is the primary action. Special event and New group use secondary tonal buttons. Discover opens nearby search. Pull-to-refresh reloads outings; an initial failure offers retry. The Home status does not infer outstanding attendance or voting actions from partially hydrated data. See `UI_UX_AUDIT_AND_HOME_REDESIGN.md` for validation limits.

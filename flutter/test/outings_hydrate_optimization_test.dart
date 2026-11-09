@@ -5,6 +5,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
+import 'package:yalla_5roga/core/network/network_info.dart';
+import 'package:yalla_5roga/features/outings/data/repositories/outings_repository_impl.dart';
+import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/data/datasources/outings_remote_datasource.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 
@@ -67,7 +70,47 @@ ApiClient _clientFor(_MockAdapter adapter) {
   return ApiClient(dio);
 }
 
+class _Online implements NetworkInfo {
+  @override
+  Future<bool> get isConnected async => true;
+}
+
 void main() {
+  test(
+    'confirmed deletion removes the outing even if a stale list arrives',
+    () async {
+      const id = 'to-delete';
+      final adapter = _MockAdapter({
+        'GET ${ApiConstants.outingsCuser}': () => {
+          'success': true,
+          'data': [
+            _outingJson(id: id, status: 'draft'),
+            _outingJson(id: 'keep', status: 'draft'),
+          ],
+        },
+        'DELETE ${ApiConstants.outing(id)}': () => {
+          'success': true,
+          'data': _outingJson(id: id, status: 'draft'),
+        },
+      });
+      final provider = OutingsProvider(
+        repository: OutingsRepositoryImpl(
+          remote: OutingsRemoteDataSource(_clientFor(adapter)),
+          networkInfo: _Online(),
+        ),
+      );
+      addTearDown(provider.dispose);
+      await provider.load();
+      expect(provider.findById(id), isNotNull);
+
+      expect(await provider.delete(id), isTrue);
+      expect(adapter.calls, contains('DELETE ${ApiConstants.outing(id)}'));
+      expect(provider.findById(id), isNull);
+      await provider.load(forceRefresh: true);
+      expect(provider.outings.map((outing) => outing.id), ['keep']);
+    },
+  );
+
   test('load hydrates only voting outings and skips past/draft', () async {
     const votingId = 'vote-1';
     const pastId = 'past-1';

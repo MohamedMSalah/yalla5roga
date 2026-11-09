@@ -173,6 +173,7 @@ Owner auto Going; Owner cannot change away. Members update own status. Independe
 | Add / modify candidates before deadline | Yes | No |
 | Tie-breaker | Yes | No |
 | Cancel outing | Yes | No |
+| Permanently delete outing | Yes, with confirmation | No |
 | Own attendance | Remains Going | Yes |
 | Vote (if eligible) | Yes | Yes |
 | Send chat | Yes | Yes |
@@ -200,7 +201,7 @@ Backend enforces all rows; Flutter visibility is not authorization.
 
 ## 16. Authentication and deep links
 
-**Approved:** Firebase ID token verified on backend; Neon user row via sync. Deep-link destination must survive auth. See §3.
+**Approved:** Login and registration use phone number and password. Registration includes phone OTP in the client. Google, Apple, and email login are removed. Firebase ID tokens are verified by the backend. Deep-link destinations must survive auth. The backend does not yet verify signup OTP independently.
 
 ---
 

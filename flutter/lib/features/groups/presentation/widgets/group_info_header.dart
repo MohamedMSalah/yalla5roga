@@ -3,7 +3,7 @@ import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/presentation/widgets/cards/group_bio_card.dart';
 
@@ -42,12 +42,11 @@ class GroupInfoHeader extends StatelessWidget {
                 tag: HeroTags.groupCover(group.id),
                 url: group.image,
                 radius: 22.r,
-                child: AppNetworkImage(
+                child: PlanningCover(
                   url: group.image,
+                  art: PlanningCoverArt.group,
                   width: double.infinity,
                   height: headerHeight,
-                  placeholderIcon: Icons.groups_outlined,
-                  fade: false,
                 ),
               ),
               if (canManage)

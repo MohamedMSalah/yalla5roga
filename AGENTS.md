@@ -118,3 +118,53 @@ Critical distinctions:
 - Firebase Auth ≠ application database.
 - Owner is outing-scoped (`created_by`), not a global role.
 - Backend owns winner / closure / tie-break / cancel / authZ / notification triggers.
+
+## 8. UI/UX quality workflow (Flutter)
+
+For any Flutter presentation change, treat the existing application as the
+design authority before proposing or writing UI. Do not redesign a screen,
+replace the visual language, or add a dependency without explicit approval.
+
+1. Read the relevant journey in `docs/USER_SCENARIOS.md`, this file, and
+   `docs/FLUTTER_ARCHITECTURE.md`; then inspect the target screen and the
+   reusable widgets/tokens it already uses.
+2. Reuse `AppTheme`, `AppPalette`, `AppColors`, `Responsive`, and
+   `core/widgets/` before creating local colors, spacing, controls, or motion.
+   Preserve Material 3, Inter (English), Cairo (Arabic), light/dark themes,
+   and the current provider/feature-first architecture.
+3. Preserve both English and Arabic behavior. Use `L10n`, logical directional
+   APIs, and `Directionality`; verify RTL ordering, Arabic-Indic numbers where
+   existing formatters require them, and mirrored navigation/animations.
+4. Design task flows for loading, empty, error, offline, keyboard, long-text,
+   and narrow/wide/foldable states. Use `Responsive` and its content-width
+   limits rather than device-specific constants.
+5. Meet mobile usability basics: semantic labels for non-text controls,
+   readable contrast, focus order, `textScaler` resilience, and at least a
+   48dp effective touch target unless an established component documents an
+   intentional exception.
+6. Keep hierarchy purposeful: one primary action per task state, clear
+   heading/body contrast, token-based spacing, and concise localized copy.
+   Avoid generic AI visual tropes, arbitrary gradients, duplicate cards, and
+   decorative motion.
+7. Motion must clarify a state or navigation change, respect platform motion
+   settings where supported, and use the existing transition/animation widgets
+   before adding a new pattern.
+8. Before completion, run the relevant analyzer/tests and visually inspect the
+   target at phone, wide/foldable, light/dark, and English/Arabic states when
+   practical. Report any states that could not be exercised.
+
+### Agent tools
+
+- Use the installed Flutter/Dart skills selectively. Do not apply the
+  localization or declarative-routing setup skills to this established app:
+  it uses manual `L10n` and imperative GetX navigation by design.
+- Use the Dart MCP server for analyzer diagnostics, package-aware symbol
+  lookup, test execution, and running-app inspection when connected.
+- If a Figma design is provided, authenticate the Figma MCP server and inspect
+  its variables/components before translating a frame. Do not infer a Figma
+  design system from a screenshot alone.
+- Use Refero research only to inform patterns, never to copy product content
+  or replace the app's established design language.
+- Use `$impeccable` for a focused UI critique, audit, polish, responsive,
+  accessibility, or motion task. It must preserve the existing design unless
+  the user has explicitly approved a redesign.

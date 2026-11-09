@@ -10,17 +10,15 @@ import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dar
 
 /// Backend auth/profile APIs.
 ///
-/// Email/password goes here (Neon). Google / Apple / phone OTP use Firebase on
-/// the client, then [syncUser] with a Bearer Firebase ID token.
+/// Phone/password sessions are established by Neon, then exchanged for Firebase tokens.
 abstract class AuthRemoteDataSource {
   Future<AuthSessionModel> login({
-    required String email,
+    required String phone,
     required String password,
   });
 
   Future<AuthSessionModel> signup({
     required String name,
-    required String email,
     required String password,
     required String phone,
   });
@@ -29,7 +27,6 @@ abstract class AuthRemoteDataSource {
   /// Body is optional bootstrap fields; UID is taken from the Bearer token.
   Future<UserModel> syncUser({
     String? name,
-    String? email,
     String? phone,
     String? imageUrl,
   });
@@ -37,7 +34,6 @@ abstract class AuthRemoteDataSource {
   /// PATCH profile with only the fields that changed.
   Future<UserModel> updateProfile({
     String? name,
-    String? email,
     String? phone,
     String? imageUrl,
   });
@@ -62,11 +58,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   @override
   Future<AuthSessionModel> login({
-    required String email,
+    required String phone,
     required String password,
   }) {
     return _postSession(ApiConstants.login, {
-      'email': email.trim(),
+      'phone': phone.trim(),
       'password': password,
     });
   }
@@ -74,13 +70,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<AuthSessionModel> signup({
     required String name,
-    required String email,
     required String password,
     required String phone,
   }) {
     return _postSession(ApiConstants.signup, {
       'name': name.trim(),
-      'email': email.trim(),
       'password': password,
       'phone': phone.trim(),
     });
@@ -89,13 +83,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> syncUser({
     String? name,
-    String? email,
     String? phone,
     String? imageUrl,
   }) {
     return _postUser(ApiConstants.syncUser, {
       'name': ?name,
-      'email': ?email,
       'phone': ?phone,
       'image_url': ?imageUrl,
     });
@@ -104,13 +96,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   @override
   Future<UserModel> updateProfile({
     String? name,
-    String? email,
     String? phone,
     String? imageUrl,
   }) async {
     final data = <String, dynamic>{
       'name': ?name,
-      'email': ?email,
       'phone': ?phone,
       'image_url': ?imageUrl,
     };
@@ -211,7 +201,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             app is AuthException ||
             app.statusCode == 401)) {
       throw AuthException(
-        app.message.isNotEmpty ? app.message : 'Incorrect email or password',
+        app.message.isNotEmpty ? app.message : 'Incorrect phone number or password',
         AuthErrorCodes.invalidCredential,
         app.statusCode ?? 401,
         app.httpMethod,

@@ -47,9 +47,15 @@ export const listPlacesQuerySchema = z.object({
 });
 
 /** radiusKm is clamped to 0.5..50 and limit to at most 50 by the datasource. */
+const coordinate = (min: number, max: number) =>
+  z.preprocess(
+    (value) => typeof value === "string" && value.trim() !== "" ? Number(value) : value,
+    z.number().min(min).max(max),
+  );
+
 export const nearbyPlacesQuerySchema = z.object({
-  lat: z.coerce.number().min(-90).max(90),
-  lng: z.coerce.number().min(-180).max(180),
+  lat: coordinate(-90, 90),
+  lng: coordinate(-180, 180),
   radiusKm: z.coerce.number().positive().optional(),
   vibe: vibeSchema.optional(),
   limit: z.coerce.number().int().positive().optional(),

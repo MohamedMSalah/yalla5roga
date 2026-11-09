@@ -1,15 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:yalla_5roga/core/constants/app_constants.dart';
-import 'package:yalla_5roga/core/localization/l10n.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/create_group_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
-import 'package:yalla_5roga/core/utils/app_launcher.dart';
-import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
-import 'package:yalla_5roga/core/widgets/icon_circle.dart';
-import 'package:yalla_5roga/core/widgets/marquee_text.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -17,172 +10,83 @@ class QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final actions = [
-      _Action(
-        l10n.newOuting,
-        Icons.add,
-        AppColors.brand600,
-        Colors.white,
-        context.palette.brandSoft,
-        () {
-          Get.to(() => const CreateOutingPage());
-        },
-        highlighted: true,
-      ),
-      _Action(
-        l10n.specialEvent,
-        Icons.celebration_outlined,
-        const Color(0xFFDB2777),
-        const Color(0xFFFCE7F3),
-        context.palette.surface,
-        () {
-          Get.to(() => const CreateOutingPage(specialEvent: true));
-        },
-      ),
-      _Action(
-        l10n.newGroup,
-        Icons.groups_2_outlined,
-        const Color(0xFF7C3AED),
-        const Color(0xFFEDE9FE),
-        context.palette.surface,
-        () {
-          Get.to(() => const CreateGroupPage());
-        },
-      ),
-    ];
-
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            for (final action in actions)
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 3.w),
-                  child: _ActionTile(action: action),
-                ),
-              ),
-          ],
+        FilledButton.icon(
+          onPressed: () => Get.to(() => const CreateOutingPage()),
+          icon: const Icon(Icons.add),
+          label: Text(l10n.newOuting),
+          style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
         ),
-        8.gapH,
-        GestureDetector(
-          onTap: () => _shareInvite(context, l10n),
-          child: Container(
-            width: double.infinity,
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-            decoration: BoxDecoration(
-              color: const Color(0xFFD1FAE5),
-              borderRadius: BorderRadius.circular(16.r),
-              border: Border.all(color: context.palette.border),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+        Responsive.spaceSm.gapH,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.25;
+            final gap = Responsive.spaceSm;
+            final width = constraints.maxWidth < 300 || largeText
+                ? constraints.maxWidth
+                : (constraints.maxWidth - gap) / 2;
+            return Wrap(
+              spacing: gap,
+              runSpacing: gap,
               children: [
-                IconCircle(
-                  icon: Icons.person_add_alt_1_outlined,
-                  size: 36,
-                  radius: 12,
-                  background: const Color(0xFF059669),
-                  foreground: Colors.white,
+                SizedBox(
+                  width: width,
+                  child: _SecondaryAction(
+                    icon: Icons.celebration_outlined,
+                    label: l10n.specialEvent,
+                    onPressed: () => Get.to(
+                      () => const CreateOutingPage(specialEvent: true),
+                    ),
+                  ),
                 ),
-                10.gapW,
-                Text(
-                  l10n.inviteFriends,
-                  style: TextStyle(
-                    fontSize: Responsive.fontSm,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF047857),
+                SizedBox(
+                  width: width,
+                  child: _SecondaryAction(
+                    icon: Icons.group_add_outlined,
+                    label: l10n.newGroup,
+                    onPressed: () => Get.to(() => const CreateGroupPage()),
                   ),
                 ),
               ],
-            ),
-          ),
+            );
+          },
         ),
       ],
     );
   }
-
-  static Future<void> _shareInvite(BuildContext context, L10n l10n) async {
-    final opened = await AppLauncher.shareOnWhatsApp(
-      l10n.inviteDownloadMessage(AppConstants.downloadUrl),
-    );
-    if (!opened && context.mounted) {
-      AppSnackBar.show(l10n.couldNotOpenWhatsApp);
-    }
-  }
 }
 
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({required this.action});
+class _SecondaryAction extends StatelessWidget {
+  const _SecondaryAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
 
-  final _Action action;
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: action.onTap,
-      child: Container(
-        padding: EdgeInsets.fromLTRB(6.w, 12.h, 6.w, 12.h),
-        decoration: BoxDecoration(
-          color: action.cardColor,
-          borderRadius: BorderRadius.circular(16.r),
-          border: Border.all(
-            color: action.highlighted
-                ? context.palette.brandSoftBorder
-                : context.palette.border,
-          ),
-        ),
-        child: Column(
-          children: [
-            IconCircle(
-              icon: action.icon,
-              size: 36,
-              radius: 12.r,
-              background: action.highlighted
-                  ? action.foreground
-                  : action.background,
-              foreground: action.highlighted ? Colors.white : action.foreground,
-            ),
-            Responsive.spaceSm.gapH,
-            SizedBox(
-              width: double.infinity,
-              child: MarqueeText(
-                text: action.label,
-                style: TextStyle(
-                  fontSize: Localizations.localeOf(context).languageCode == 'en'
-                      ? Responsive.fontCaption
-                      : Responsive.sp(8.5),
-                  fontWeight: FontWeight.w800,
-                  height: 1.2,
-                  color: action.highlighted
-                      ? context.palette.brandStrong
-                      : context.palette.textSecondary,
-                ),
-              ),
-            ),
-          ],
-        ),
+    return FilledButton.tonal(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(0, 52),
+        padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 8),
+        backgroundColor: context.palette.brandSoft,
+        foregroundColor: context.palette.brandStrong,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 20),
+          Responsive.spaceSm.gapW,
+          Expanded(child: Text(label)),
+        ],
       ),
     );
   }
-}
-
-class _Action {
-  const _Action(
-    this.label,
-    this.icon,
-    this.foreground,
-    this.background,
-    this.cardColor,
-    this.onTap, {
-    this.highlighted = false,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color foreground;
-  final Color background;
-  final Color cardColor;
-  final VoidCallback onTap;
-  final bool highlighted;
 }

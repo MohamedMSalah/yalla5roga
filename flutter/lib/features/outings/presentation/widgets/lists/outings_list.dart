@@ -79,6 +79,7 @@ class OutingsList extends StatelessWidget {
                     l10n.goingCount(outing.going),
                   ].where((part) => part.trim().isNotEmpty).join(' · '),
                   image: outing.image,
+                  occasion: outing.occasion,
                   heroTag: heroTag,
                   onTap: () => Get.to(
                     () => EventPage(event: outing, coverHeroTag: heroTag),

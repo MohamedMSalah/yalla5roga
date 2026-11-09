@@ -74,7 +74,7 @@ Each full-stack feature typically has `data/`, `domain/`, `presentation/`.
 | `discover` | `DiscoverProvider`, places remote + saved places DS | Neon places |
 | `notifications` | `NotificationsProvider`, `FcmProvider`, `PushMessagingRepositoryImpl` | Feed + FCM |
 | `invites` | `InviteDeepLinkProvider`, `InviteLinkParser` | Group deep links primarily |
-| `setting` | `SettingsProvider`, profile pages | Account tiles: member-since from Neon `created_at`; phone row shows verified chip (Firebase phone) and is not tappable; edit profile includes Neon password change via `/api/auth/change-password`. Theme/locale via core providers |
+| `setting` | `SettingsProvider`, profile pages | Account tiles: member-since from Neon `created_at`; unverified phone status opens a Firebase OTP sheet. Edit Profile uses field sheets, a separate password route, and reduced-motion-aware save confirmation. Logout resets the shell index and replaces the full route stack with login. Theme/locale via core providers |
 
 ## 5. State management
 
@@ -96,7 +96,7 @@ Page-scoped: `CreateOutingProvider` (and similar) constructed with repos from `c
 ## 7. Networking
 
 - `ApiClient` wraps Dio.
-- Interceptors: `AuthInterceptor` (Firebase ID token), `AppLogInterceptor`, debug-only `RequestDiagnosticsInterceptor`, `PerformanceInterceptor`, `ErrorInterceptor`.
+- Interceptors: `AuthInterceptor` (Firebase ID token; retries one 401 with a forced refresh), `AppLogInterceptor`, debug-only `RequestDiagnosticsInterceptor`, `PerformanceInterceptor`, `ErrorInterceptor`. Firebase tokens are never persisted in preferences.
 - Paths: `ApiConstants` — all include `/api` prefix.
 - Payload helpers: `lib/core/network/api_payload.dart` (snake ↔ domain).
 - Repository GET helpers use `cachedRemote` (`core/cache/`) with short TTLs (`CachePolicy`) plus in-flight `RequestDeduper` coalescing.
@@ -127,6 +127,7 @@ Dio / Firebase / Socket
 
 | Piece | Path | Role |
 |-------|------|------|
+| `AuthInterceptor` | `core/network/dio_interceptors.dart` | Adds the in-memory Firebase token; refreshes and retries a 401 once |
 | `ErrorInterceptor` | `core/network/dio_interceptors.dart` | Maps Dio → typed `AppException` with HTTP metadata |
 | `ExceptionMapper` | `core/error/exception_mapper.dart` | Dio/AppException ↔ `Failure` |
 | `guardRemote` | `core/network/remote_guard.dart` | Single remote catch site; blueprint + Crashlytics |
@@ -162,7 +163,7 @@ Rules:
 ## 14. Images / files
 
 - Display via `AppNetworkImage` and URL fields.
-- No verified binary upload pipeline; pickers may produce local paths but API expects URL strings.
+- No verified binary upload pipeline; pickers may produce local paths but API expects URL strings. Chat’s preference cache retains at most 100 messages for each of 20 recent outings and coalesces burst writes.
 
 ## 15. Typical feature flow (vote)
 
@@ -197,3 +198,13 @@ Flutter may animate tie-break / winner reveal only after server confirms (`break
 - [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md)
 - [`API_CONTRACTS.md`](API_CONTRACTS.md)
 - [`USER_SCENARIOS.md`](USER_SCENARIOS.md)
+
+### Home presentation
+
+`HomePage` observes outings readiness; `FeaturedOutingCard` derives the next dated non-terminal outing from the existing `OutingsProvider` snapshot. Initial loading remains owned by `MainShell`; explicit Home refresh/retry calls the provider, with no network request in build. The Home creation buttons use existing routes. Discover uses `DiscoverProvider` and the nearby places endpoint when the user requests a location search. See `UI_UX_AUDIT_AND_HOME_REDESIGN.md` for selection and validation limitations.
+
+### Planning covers and form layout
+
+`PlanningCover` shows the supplied photo when available and uses themed SVG artwork from `flutter/assets/covers/` for missing or unreadable group, outing, birthday, and wedding covers. Fallbacks are rendered locally and are never written into `image_url`. The Saved list reads the outing occasion from its existing response envelope, with a generic outing fallback for older payloads.
+
+Group Details shows one Active Votes section above Group Outings. Create Outing uses a full-width optional cover, responsive rounded category choices, and a review footer. Group outings can opt in to place voting in step 2, where the deadline and candidate controls appear.

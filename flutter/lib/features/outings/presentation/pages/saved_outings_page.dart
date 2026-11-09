@@ -64,6 +64,7 @@ class SavedOutingsPage extends StatelessWidget {
                             title: item.title,
                             subtitle: item.location.label,
                             image: item.image,
+                            occasion: item.occasion,
                             onTap: () {
                               final draft = item.draft;
                               if (draft != null) {

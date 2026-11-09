@@ -23,7 +23,7 @@ class GroupVotingList extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          l10n.activeVoting,
+          l10n.activeVotes,
           style: TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: Responsive.fontMd,

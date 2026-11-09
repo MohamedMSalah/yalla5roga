@@ -56,6 +56,7 @@ class SuggestedPlace {
     this.currency = 'EGP',
     this.latitude,
     this.longitude,
+    this.distanceKm,
     this.featured = false,
     this.images = const [],
     this.hours = const [],
@@ -74,6 +75,7 @@ class SuggestedPlace {
   final String currency;
   final double? latitude;
   final double? longitude;
+  final double? distanceKm;
   final bool featured;
   final List<DiscoverPlaceImage> images;
   final List<DiscoverPlaceHours> hours;

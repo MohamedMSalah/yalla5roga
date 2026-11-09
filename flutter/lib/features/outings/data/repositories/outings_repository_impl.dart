@@ -57,6 +57,17 @@ class OutingsRepositoryImpl implements OutingsRepository {
   }
 
   @override
+  Future<Either<Failure, void>> delete(String outingId) async {
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.delete(outingId),
+      reason: 'deleteOuting',
+    );
+    if (result.isRight()) _snapshotCache.invalidate();
+    return result;
+  }
+
+  @override
   Future<Either<Failure, OutingSnapshot>> add(
     Outing outing, {
     String? creatorId,

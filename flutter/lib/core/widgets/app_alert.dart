@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
+import 'package:yalla_5roga/core/widgets/animated_checkmark.dart';
 
 class AppAlert {
   const AppAlert._();
@@ -56,6 +57,23 @@ class AppAlert {
       barrierDismissible: true,
     );
     return result ?? false;
+  }
+
+  static Future<void> success(BuildContext context, {required String message}) {
+    final l10n = context.l10n;
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const AnimatedCheckmark(),
+        title: Text(message, textAlign: TextAlign.center),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
   }
 
   static Future<void> info({

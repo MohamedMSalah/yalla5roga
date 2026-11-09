@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 
 class OutingListTile extends StatelessWidget {
   const OutingListTile({
@@ -10,6 +12,7 @@ class OutingListTile extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.image,
+    this.occasion = OutingOccasion.none,
     this.onTap,
     this.trailing,
     this.heroTag,
@@ -18,6 +21,7 @@ class OutingListTile extends StatelessWidget {
   final String title;
   final String subtitle;
   final String image;
+  final OutingOccasion occasion;
   final VoidCallback? onTap;
   final Widget? trailing;
 
@@ -33,12 +37,11 @@ class OutingListTile extends StatelessWidget {
           tag: heroTag,
           url: image,
           radius: 12.r,
-          child: AppNetworkImage(
+          child: PlanningCover(
             url: image,
+            art: occasion.coverArt,
             width: 48.w,
             height: 48.w,
-            placeholderIcon: Icons.explore_outlined,
-            fade: false,
           ),
         ),
         12.gapW,

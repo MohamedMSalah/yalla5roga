@@ -1,7 +1,7 @@
 import { prisma } from "../../config/database.js";
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
-import type { SavedOuting } from "../../types/outings/outing.types.js";
+import type { Outing, SavedOuting } from "../../types/outings/outing.types.js";
 import { NotFoundError } from "../../utils/errors.js";
 
 export type SavedOutingWithDetails = SavedOuting & {
@@ -9,6 +9,7 @@ export type SavedOutingWithDetails = SavedOuting & {
     id: string;
     title: string;
     image_url: string;
+    occasion: Outing["occasion"];
     location_name: string | null;
     location_area: string | null;
     location_latitude: number | null;
@@ -26,6 +27,7 @@ export class ListSavedOutingsUseCase {
             id: true,
             title: true,
             image_url: true,
+            occasion: true,
             location_name: true,
             location_area: true,
             location_latitude: true,

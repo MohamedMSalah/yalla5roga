@@ -180,14 +180,14 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> resendOtp(String phone) => sendOtp(phone);
 
-  Future<bool> login({required String email, required String password}) {
+  Future<bool> login({required String phone, required String password}) {
     unawaited(
       AnalyticsService.instance.loginStarted(isLogin: true, method: 'email'),
     );
     return PerformanceService.instance.trace(
-      'login_email',
+      'login_phone',
       () => _run(
-        () => repository.login(email: email.trim(), password: password),
+        () => repository.login(phone: phone.trim(), password: password),
         context: 'login',
       ),
     );
@@ -195,7 +195,6 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> register({
     required String name,
-    required String email,
     required String password,
     required String phone,
     required String smsCode,
@@ -213,14 +212,13 @@ class AuthProvider extends ChangeNotifier {
     }
 
     unawaited(
-      AnalyticsService.instance.loginStarted(isLogin: false, method: 'email'),
+      AnalyticsService.instance.loginStarted(isLogin: false, method: 'phone'),
     );
     return PerformanceService.instance.trace(
-      'register_email_phone',
+      'register_phone',
       () => _run(
         () => repository.register(
           name: name.trim(),
-          email: email.trim(),
           password: password,
           phone: pendingPhone,
           verificationId: verificationId,
@@ -231,25 +229,6 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  Future<bool> signInWithGoogle() {
-    unawaited(
-      AnalyticsService.instance.loginStarted(isLogin: true, method: 'google'),
-    );
-    return PerformanceService.instance.trace(
-      'login_google',
-      () => _run(repository.signInWithGoogle, context: 'signInWithGoogle'),
-    );
-  }
-
-  Future<bool> signInWithApple() {
-    unawaited(
-      AnalyticsService.instance.loginStarted(isLogin: true, method: 'apple'),
-    );
-    return PerformanceService.instance.trace(
-      'login_apple',
-      () => _run(repository.signInWithApple, context: 'signInWithApple'),
-    );
-  }
 
   /// Kept for phone-only verify flows (legacy / deep links). Prefer [register].
   Future<bool> verifyOtp({required String smsCode, String? name}) async {
@@ -377,13 +356,11 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> syncProfileToBackend({
     String? name,
-    String? email,
     String? phone,
     String? imageUrl,
   }) async {
     final result = await repository.syncProfileToBackend(
       name: name,
-      email: email,
       phone: phone,
       imageUrl: imageUrl,
     );
@@ -401,35 +378,6 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  Future<bool> requestEmailChange({
-    required String newEmail,
-    required String currentPassword,
-  }) async {
-    _isLoading = true;
-    _errorMessage = null;
-    _errorCode = null;
-    notifyListeners();
-
-    final result = await repository.requestEmailChange(
-      newEmail: newEmail.trim(),
-      currentPassword: currentPassword,
-    );
-    return result.fold(
-      (failure) {
-        _isLoading = false;
-        _errorMessage = failure.message;
-        _errorCode = failure is AuthFailure ? failure.code : null;
-        _reportFailure(failure, context: 'requestEmailChange');
-        notifyListeners();
-        return false;
-      },
-      (_) {
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      },
-    );
-  }
 
   Future<bool> changePassword({
     required String currentPassword,

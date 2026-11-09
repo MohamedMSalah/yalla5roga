@@ -347,3 +347,7 @@ flowchart TD
 - [`USER_SCENARIOS.md`](USER_SCENARIOS.md) — journey-level expectations  
 - [`BUSINESS_LOGIC.md`](BUSINESS_LOGIC.md) — approved vs implemented  
 - [`DATABASE_ARCHITECTURE.md`](DATABASE_ARCHITECTURE.md)  
+
+### Creator deletion
+
+Outing details → confirm permanent deletion → `DELETE /api/outings/:id` → backend checks the authenticated creator → database deletes the outing → Flutter updates local lists and closes the details route. The cancellation state machine is independent of this route.

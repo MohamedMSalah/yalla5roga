@@ -43,7 +43,6 @@ class UserModel extends User {
       'name': name,
       'phone': phone,
       'email': email,
-      'token': token,
       'imageUrl': imageUrl,
       'created_at': createdAt?.toIso8601String(),
       'has_password': hasPassword,

@@ -7,7 +7,6 @@ import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_shimmer.dart';
 import 'package:yalla_5roga/core/widgets/section_header.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/lists/featured_places_list.dart';
-import 'package:yalla_5roga/features/discover/presentation/widgets/lists/nearby_places_list.dart';
 import 'package:yalla_5roga/features/discover/presentation/pages/discover_page.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 
@@ -17,13 +16,11 @@ class DiscoverSection extends StatelessWidget {
     super.key,
     this.compact = true,
     this.limit = 5,
-    this.showPlaces = false,
     this.heroSurface = 'section',
   });
 
   final bool compact;
   final int limit;
-  final bool showPlaces;
 
   /// Home and Outings tabs both embed this section on one route; each passes
   /// its own surface so place Hero tags never collide.
@@ -73,14 +70,6 @@ class DiscoverSection extends StatelessWidget {
                   heroSurface: '$heroSurface-featured',
                 ),
         ),
-        if (showPlaces && discover.hasLoaded) ...[
-          Responsive.spaceMd.gapH,
-          NearbyPlacesList(
-            places: discover.places.take(3).toList(),
-            title: l10n.nearbyPlaces,
-            heroSurface: '$heroSurface-nearby',
-          ),
-        ],
       ],
     );
   }

@@ -22,7 +22,6 @@ dependencies:
   get: ^4.7.3
   package_info_plus: ^10.2.1
   flutter_svg: ^2.0.7
-  http: ^1.6.0
   dio: ^5.9.0
   dartz: ^0.10.1
   equatable: ^2.0.7
@@ -42,8 +41,6 @@ dependencies:
   firebase_crashlytics: ^5.4.0
   firebase_performance: ^0.11.6
   firebase_analytics: ^12.6.0
-  google_sign_in: 6.3.0
-  sign_in_with_apple: ^8.2.0
   crypto: ^3.0.7
   cached_network_image: ^4.0.4
   app_links: ^7.2.2
@@ -60,6 +57,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/
+    - assets/covers/
     - shorebird.yaml
 
 flutter_launcher_icons:

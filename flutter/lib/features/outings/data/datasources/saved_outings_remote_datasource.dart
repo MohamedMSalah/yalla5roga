@@ -1,6 +1,7 @@
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place_location.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/saved_outing.dart';
 
 class SavedOutingsRemoteDataSource {
@@ -53,6 +54,10 @@ class SavedOutingsRemoteDataSource {
       id: id,
       title: title,
       image: image,
+      occasion: OutingOccasion.values.firstWhere(
+        (item) => item.name == (outing?['occasion'] ?? json['occasion']),
+        orElse: () => OutingOccasion.none,
+      ),
       location: PlaceLocation(
         name: locationName,
         latitude: lat is num ? lat.toDouble() : null,

@@ -21,6 +21,8 @@ Convention: JSON, snake_case bodies for most write APIs. Auth: `Authorization: B
 
 ## Auth — `/api/auth`
 
+Current login body: `{phone, password}`. Signup body: `{name, phone, password}`. The signup endpoint currently does not verify the client's SMS OTP proof. Older email descriptions below are historical and require reconciliation.
+
 | Method | Path | Auth | Body | Purpose | Flutter |
 |--------|------|------|------|---------|---------|
 | POST | `/api/auth/login` | No | email, password | Neon hash verify → Firebase session tokens | `ApiConstants.login` |
@@ -83,7 +85,7 @@ Flutter: `ApiConstants.groups*`. Entities: `groups`, `group_members`, `group_inv
 | POST | `/api/outings` | Yes | Create | requires deadline; `image_url` optional http(s); owner Going |
 | GET | `/api/outings/:id` | Yes | Get | |
 | PATCH | `/api/outings/:id` | Yes | Update | Owner; confirmed location locked |
-| DELETE | `/api/outings/:id` | Yes | Delete | Owner |
+| DELETE | `/api/outings/:id` | Yes | Permanently delete outing | Creator only. Flutter removes the outing and cached bookmark after success. |
 | POST | `/api/outings/:id/cancel` | Yes | Cancel | Owner |
 | GET/POST | `/api/outings/drafts` | Yes | List/create drafts | |
 | PATCH/DELETE | `/api/outings/drafts/:id` | Yes | Update/delete draft | owner |
@@ -111,7 +113,7 @@ Possible errors: 400 validation, 401, 403 forbidden, 404, 409 conflict (closed v
 
 | Method | Path | Auth | Purpose | Flutter |
 |--------|------|------|---------|---------|
-| GET | `/api/outings/saved` | Yes | List saved outings | `savedOutings` |
+| GET | `/api/outings/saved` | Yes | List saved outings, including nested `outing.occasion` for cover selection | `savedOutings` |
 | POST | `/api/outings/:id/save` | Yes | Save outing | `savedOuting(id)` |
 | DELETE | `/api/outings/:id/save` | Yes | Unsave | |
 | GET | `/api/places/saved` | Yes | List saved places | `savedPlaces` |
@@ -134,7 +136,7 @@ Entities: `saved_outings`, `saved_places`.
 
 \*List/get/nearby are public in route file (no `authMiddleware` on those GETs). Mutations require auth.
 
-Flutter Discover uses list/detail (+ saved places). Nearby may be unused by Flutter (client Nominatim for picker).
+Flutter Discover uses list/detail (+ saved places) and calls Nearby with `lat`, `lng` and optional `vibe` after a foreground location request. Latitude and longitude must be supplied as valid numeric coordinates. Results come from active geocoded rows in `places`, ordered by `distance_km` with a stable ID tie-break. The outing location picker remains a separate geocoding flow.
 
 ## Notifications — `/api/notifications`
 

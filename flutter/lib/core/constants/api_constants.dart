@@ -96,6 +96,7 @@ class ApiConstants {
 
   // Discover / places
   static const String places = '/api/places';
+  static const String nearbyPlaces = '/api/places/nearby';
 
   static String place(String placeId) => '/api/places/$placeId';
 }

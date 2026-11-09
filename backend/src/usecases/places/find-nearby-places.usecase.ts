@@ -12,8 +12,11 @@ export class FindNearbyPlacesUseCase {
   ) {}
 
   execute(input: FindNearbyPlacesInput): Promise<NearbyPlace[]> {
-    if (!Number.isFinite(input.lat) || !Number.isFinite(input.lng)) {
-      throw new ValidationError("lat and lng are required");
+    if (
+      !Number.isFinite(input.lat) || Math.abs(input.lat) > 90 ||
+      !Number.isFinite(input.lng) || Math.abs(input.lng) > 180
+    ) {
+      throw new ValidationError("lat and lng must be valid coordinates");
     }
     return this.places.findNearby(input);
   }

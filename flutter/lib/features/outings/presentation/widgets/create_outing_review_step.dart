@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
+import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/create_outing_provider.dart';
 
@@ -16,12 +17,12 @@ class CreateOutingReviewStep extends StatelessWidget {
     final l10n = context.l10n;
     return Column(
       children: [
-        AppNetworkImage(
+        PlanningCover(
           url: form.resolvedImage,
+          art: form.occasion.coverArt,
           width: double.infinity,
           height: 160.h,
           radius: 22.r,
-          placeholderIcon: Icons.explore_outlined,
         ),
         Responsive.spaceMd.gapH,
         AppCard(

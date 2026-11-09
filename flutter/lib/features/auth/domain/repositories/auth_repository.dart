@@ -5,23 +5,18 @@ import 'package:yalla_5roga/features/auth/domain/entities/user.dart';
 
 abstract class AuthRepository {
   Future<Either<Failure, User>> login({
-    required String email,
+    required String phone,
     required String password,
   });
 
   /// Creates an account after the phone OTP has been verified.
   Future<Either<Failure, User>> register({
     required String name,
-    required String email,
     required String password,
     required String phone,
     required String verificationId,
     required String smsCode,
   });
-
-  Future<Either<Failure, User>> signInWithGoogle();
-
-  Future<Either<Failure, User>> signInWithApple();
 
   Future<Either<Failure, User>> getCachedUser();
 
@@ -42,16 +37,10 @@ abstract class AuthRepository {
   /// Syncs changed profile fields to the app backend.
   Future<Either<Failure, User>> syncProfileToBackend({
     String? name,
-    String? email,
     String? phone,
     String? imageUrl,
   });
 
-  /// Email/password accounts only. Sends a confirmation link to the new email.
-  Future<Either<Failure, void>> requestEmailChange({
-    required String newEmail,
-    required String currentPassword,
-  });
 
   Future<Either<Failure, User>> updatePassword({
     required String currentPassword,

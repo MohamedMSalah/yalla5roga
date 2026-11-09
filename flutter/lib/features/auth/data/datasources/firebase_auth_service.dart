@@ -1,34 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:math';
-
-import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dart';
 
 /// Firebase Auth adapter. Presentation must not import this type.
 class FirebaseAuthService {
-  FirebaseAuthService({
-    fb.FirebaseAuth? auth,
-    GoogleSignIn? googleSignIn,
-    String? googleIosClientId,
-    String? googleWebClientId,
-  }) : _auth = auth ?? fb.FirebaseAuth.instance,
-       _googleSignIn =
-           googleSignIn ??
-           _createGoogleSignIn(
-             iosClientId: googleIosClientId,
-             webClientId: googleWebClientId,
-           );
+  FirebaseAuthService({fb.FirebaseAuth? auth})
+    : _auth = auth ?? fb.FirebaseAuth.instance;
 
   final fb.FirebaseAuth _auth;
-  final GoogleSignIn _googleSignIn;
 
   fb.User? get currentUser => _auth.currentUser;
 
@@ -219,98 +201,6 @@ class FirebaseAuthService {
     }
   }
 
-  Future<fb.UserCredential> signInWithGoogle() async {
-    try {
-      final account = await _googleSignIn.signIn();
-      if (account == null) {
-        throw const AuthException(
-          'Sign in cancelled',
-          AuthErrorCodes.cancelled,
-        );
-      }
-      final auth = await account.authentication;
-      final idToken = auth.idToken;
-      if (idToken == null || idToken.isEmpty) {
-        throw const AuthException(
-          'Google Sign-In is not set up for this app build. Add the SHA-1 fingerprint in Firebase.',
-          AuthErrorCodes.googleSignInFailed,
-        );
-      }
-      final credential = fb.GoogleAuthProvider.credential(
-        accessToken: auth.accessToken,
-        idToken: idToken,
-      );
-      return await _auth.signInWithCredential(credential);
-    } on AuthException {
-      rethrow;
-    } on fb.FirebaseAuthException catch (error) {
-      throw _mapFirebaseAuthException(error);
-    } on PlatformException catch (error) {
-      throw _mapGooglePlatformException(error);
-    } catch (error) {
-      throw AuthException(error.toString(), AuthErrorCodes.verificationFailed);
-    }
-  }
-
-  Future<fb.UserCredential> signInWithApple() async {
-    final available = await SignInWithApple.isAvailable();
-    if (!available) {
-      throw const AuthException(
-        'Apple Sign In is not available on this device',
-        AuthErrorCodes.appleUnavailable,
-      );
-    }
-
-    try {
-      final rawNonce = _generateNonce();
-      final nonce = _sha256ofString(rawNonce);
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: nonce,
-      );
-      final idToken = appleCredential.identityToken;
-      if (idToken == null || idToken.isEmpty) {
-        throw const AuthException(
-          'Apple Sign In failed',
-          AuthErrorCodes.verificationFailed,
-        );
-      }
-
-      final oauthCredential = fb.OAuthProvider('apple.com')
-          .credential(idToken: idToken, rawNonce: rawNonce);
-      final result = await _auth.signInWithCredential(oauthCredential);
-      final user = result.user;
-      if (user != null) {
-        final given = appleCredential.givenName?.trim() ?? '';
-        final family = appleCredential.familyName?.trim() ?? '';
-        final fullName = '$given $family'.trim();
-        if (fullName.isNotEmpty &&
-            (user.displayName == null || user.displayName!.trim().isEmpty)) {
-          await user.updateDisplayName(fullName);
-          await user.reload();
-        }
-      }
-      return result;
-    } on SignInWithAppleAuthorizationException catch (error) {
-      if (error.code == AuthorizationErrorCode.canceled) {
-        throw const AuthException(
-          'Sign in cancelled',
-          AuthErrorCodes.cancelled,
-        );
-      }
-      throw AuthException(error.message, AuthErrorCodes.verificationFailed);
-    } on AuthException {
-      rethrow;
-    } on fb.FirebaseAuthException catch (error) {
-      throw _mapFirebaseAuthException(error);
-    } catch (error) {
-      throw AuthException(error.toString(), AuthErrorCodes.verificationFailed);
-    }
-  }
-
   Future<String?> idToken({bool forceRefresh = false}) async {
     try {
       return await _auth.currentUser?.getIdToken(forceRefresh);
@@ -449,66 +339,7 @@ class FirebaseAuthService {
   }
 
   Future<void> signOut() async {
-    try {
-      await _googleSignIn.signOut();
-    } catch (_) {}
     await _auth.signOut();
-  }
-
-  static GoogleSignIn _createGoogleSignIn({
-    String? iosClientId,
-    String? webClientId,
-  }) {
-    final trimmedIos = iosClientId?.trim() ?? '';
-    final trimmedWeb = webClientId?.trim() ?? '';
-    final useIosClient =
-        !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.macOS);
-    return GoogleSignIn(
-      scopes: const ['email'],
-      clientId: useIosClient && trimmedIos.isNotEmpty ? trimmedIos : null,
-      serverClientId: trimmedWeb.isEmpty ? null : trimmedWeb,
-    );
-  }
-
-  static AuthException _mapGooglePlatformException(PlatformException error) {
-    final code = error.code;
-    if (code == GoogleSignIn.kSignInCanceledError ||
-        code == 'ERROR_ABORTED_BY_USER') {
-      return const AuthException('Sign in cancelled', AuthErrorCodes.cancelled);
-    }
-    final details = '${error.message ?? ''} ${error.details ?? ''}';
-    if (code == GoogleSignIn.kSignInFailedError &&
-        (details.contains('ApiException: 10') ||
-            details.contains('DEVELOPER_ERROR'))) {
-      return const AuthException(
-        'Google Sign-In is not set up for this app build. Add the SHA-1 fingerprint in Firebase.',
-        AuthErrorCodes.googleSignInFailed,
-      );
-    }
-    if (kDebugMode) {
-      debugPrint('[FirebaseAuth] Google Sign-In $code: ${error.message}');
-    }
-    return AuthException(
-      error.message ?? 'Google Sign In failed',
-      AuthErrorCodes.googleSignInFailed,
-    );
-  }
-
-  static String _generateNonce([int length = 32]) {
-    const charset =
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    final random = Random.secure();
-    return List.generate(
-      length,
-      (_) => charset[random.nextInt(charset.length)],
-    ).join();
-  }
-
-  static String _sha256ofString(String input) {
-    final bytes = utf8.encode(input);
-    return sha256.convert(bytes).toString();
   }
 
   static AuthException _mapFirebaseAuthException(

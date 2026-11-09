@@ -23,6 +23,8 @@ abstract class OutingsDataSource {
     bool includeOutingRow = true,
   });
 
+  Future<void> delete(String outingId);
+
   Future<OutingSnapshot> add(Outing outing, {String? creatorId});
   Future<OutingSnapshot> suggestPlaces({
     required String groupId,
@@ -83,6 +85,19 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     _lifecycleHints.clear();
     _lastSnapshot = null;
     _deduper.clear();
+  }
+
+  @override
+  Future<void> delete(String outingId) async {
+    try {
+      await _client.delete<Map<String, dynamic>>(ApiConstants.outing(outingId));
+      _optionsByOuting.remove(outingId);
+      _lifecycleHints.remove(outingId);
+      final snapshot = _lastSnapshot;
+      if (snapshot != null) _store(snapshot.withoutOuting(outingId));
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
   }
 
   @override

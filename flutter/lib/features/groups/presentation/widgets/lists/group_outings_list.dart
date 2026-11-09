@@ -57,6 +57,7 @@ class GroupOutingsList extends StatelessWidget {
                     outing.localizedPlace,
                   ].where((part) => part.trim().isNotEmpty).join(' · '),
                   image: outing.image,
+                  occasion: outing.occasion,
                   heroTag: heroTag,
                   onTap: () => Get.to(
                     () => EventPage(event: outing, coverHeroTag: heroTag),

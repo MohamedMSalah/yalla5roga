@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
@@ -20,25 +21,34 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
   }
 
   final SharedPreferences _prefs;
+  static const _maxMessagesPerOuting = 100;
+  static const _maxOutings = 20;
+  static const _writeDebounce = Duration(milliseconds: 500);
   var _byOuting = <String, List<ChatMessage>>{};
+  Timer? _persistTimer;
 
   void _load() {
     final raw = _prefs.getString(AppConstants.outingChatMessagesKey);
     if (raw == null) return;
-    final decoded = jsonDecode(raw);
-    if (decoded is! Map) return;
-    _byOuting = {
-      for (final entry in decoded.entries)
-        if (entry.value is List)
-          '${entry.key}': [
-            for (final item in entry.value as List)
-              if (item is Map)
-                ChatMessageModel.fromJson(
-                  item,
-                  outingId: '${entry.key}',
-                ),
-          ],
-    };
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+      _byOuting = {
+        for (final entry in decoded.entries.take(_maxOutings))
+          if (entry.value is List)
+            '${entry.key}': [
+              for (final item in (entry.value as List).take(_maxMessagesPerOuting))
+                if (item is Map)
+                  ChatMessageModel.fromJson(
+                    item,
+                    outingId: '${entry.key}',
+                  ),
+            ],
+      };
+    } catch (_) {
+      // A corrupt cache must never prevent chat from loading remotely.
+      _byOuting = {};
+    }
   }
 
   Future<void> _persist() {
@@ -51,6 +61,14 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
     );
   }
 
+  void _schedulePersist() {
+    _persistTimer?.cancel();
+    _persistTimer = Timer(_writeDebounce, () {
+      _persistTimer = null;
+      unawaited(_persist());
+    });
+  }
+
   @override
   List<ChatMessage> getMessages(String outingId) {
     return List.unmodifiable(_byOuting[outingId] ?? const []);
@@ -61,13 +79,22 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
     String outingId,
     List<ChatMessage> messages,
   ) async {
-    _byOuting[outingId] = List.of(messages);
-    await _persist();
+    final retained = messages.length <= _maxMessagesPerOuting
+        ? List<ChatMessage>.of(messages)
+        : List<ChatMessage>.of(messages.sublist(messages.length - _maxMessagesPerOuting));
+    _byOuting.remove(outingId);
+    _byOuting[outingId] = retained;
+    while (_byOuting.length > _maxOutings) {
+      _byOuting.remove(_byOuting.keys.first);
+    }
+    _schedulePersist();
     return getMessages(outingId);
   }
 
   @override
   Future<void> clear() async {
+    _persistTimer?.cancel();
+    _persistTimer = null;
     _byOuting = {};
     await _prefs.remove(AppConstants.outingChatMessagesKey);
   }

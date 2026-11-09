@@ -13,10 +13,6 @@ export class UserRepository implements IUserRepository {
     return this.datasource.findById(id);
   }
 
-  findByEmail(email: string): Promise<User | null> {
-    return this.datasource.findByEmail(email);
-  }
-
   findByPhone(phone: string): Promise<User | null> {
     return this.datasource.findByPhone(phone);
   }

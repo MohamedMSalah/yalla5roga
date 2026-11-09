@@ -17,36 +17,28 @@ import { truncateDisplayName } from "../users/sync-user.usecase.js";
 
 const PHONE_ALREADY_LINKED =
   "This phone number is already associated with another account";
-const EMAIL_ALREADY_LINKED = "An account with this email already exists";
 
 export class SignupUseCase {
   constructor(private readonly users: IUserRepository = new UserRepository()) {}
 
   async execute(input: SignupInput): Promise<AuthSessionResult> {
-    if (!input.name || !input.email || !input.password || !input.phone) {
-      throw new ValidationError("name, email, password, and phone are required");
+    if (!input.name || !input.password || !input.phone) {
+      throw new ValidationError("name, phone, and password are required");
     }
 
-    const email = input.email.trim().toLowerCase();
     const phone = normalizePhoneNumber(input.phone);
     const displayName = truncateDisplayName(input.name);
     if (!displayName) {
       throw new ValidationError("name is required");
     }
 
-    const [existingEmail, existingPhone] = await Promise.all([
-      this.users.findByEmail(email),
-      this.users.findByPhone(phone),
-    ]);
-    if (existingEmail) {
-      throw new ConflictError(EMAIL_ALREADY_LINKED);
-    }
+    const existingPhone = await this.users.findByPhone(phone);
     if (existingPhone) {
       throw new ConflictError(PHONE_ALREADY_LINKED);
     }
 
     const passwordHash = await hashPassword(input.password);
-    // Firebase gets a UID only; Neon stores name/email/phone/password.
+    // Firebase gets a UID only; Neon stores name/phone/password.
     const identity = await createFirebaseIdentityUser();
 
     try {
@@ -54,7 +46,6 @@ export class SignupUseCase {
       const user = await this.users.create({
         id: identity.uid,
         name: displayName,
-        email,
         phone,
         password_hash: passwordHash,
         password_updated_at: now,

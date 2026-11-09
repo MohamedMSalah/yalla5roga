@@ -1,4 +1,6 @@
 import 'package:yalla_5roga/core/localization/l10n.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 
 extension OutingL10n on Outing {
@@ -27,4 +29,12 @@ extension OutingL10n on Outing {
     if (clock.isEmpty) return place;
     return '$place · $clock';
   }
+}
+
+extension OutingCoverArt on OutingOccasion {
+  PlanningCoverArt get coverArt => switch (this) {
+    OutingOccasion.none => PlanningCoverArt.outing,
+    OutingOccasion.birthday => PlanningCoverArt.birthday,
+    OutingOccasion.wedding => PlanningCoverArt.wedding,
+  };
 }

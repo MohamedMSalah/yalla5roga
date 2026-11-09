@@ -31,7 +31,7 @@ class HomeHeader extends StatelessWidget {
                 ),
               ),
               Text(
-                '${user?.name.split(' ').first ?? ''} 👋',
+                user?.name.split(' ').first ?? '',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp),
               ),
             ],

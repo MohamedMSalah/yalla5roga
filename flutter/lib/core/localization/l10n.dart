@@ -318,8 +318,8 @@ class L10n {
     'طريقة تسجيل الدخول هذه غير متاحة حالياً.',
   );
   String get incorrectEmailOrPassword => _t(
-    'Incorrect email or password. Check your details and try again.',
-    'البريد الإلكتروني أو كلمة المرور غير صحيحة. راجع بياناتك وحاول مرة أخرى.',
+    'Incorrect phone number or password. Check your details and try again.',
+    'رقم الهاتف أو كلمة المرور غير صحيحة. راجع بياناتك وحاول مرة أخرى.',
   );
   String get socialSignInCancelled =>
       _t('Sign in cancelled', 'تم إلغاء تسجيل الدخول');
@@ -416,8 +416,8 @@ class L10n {
   String get letsGetYouOut => _t('Let’s get you out.', 'يلا نخرج.');
   String get joinTheFun => _t('Join the fun.', 'انضم للمتعة.');
   String get authLoginSubtitle => _t(
-    'Sign in with your email to keep planning with friends.',
-    'سجّل دخولك ببريدك الإلكتروني وكمّل التخطيط مع أصحابك.',
+    'Sign in with your phone number to keep planning with friends.',
+    'سجّل دخولك برقم هاتفك وكمّل التخطيط مع أصحابك.',
   );
   String get authSignupSubtitle => _t(
     'Create an account, verify your phone, and start making plans.',
@@ -459,6 +459,9 @@ class L10n {
     return goodEvening;
   }
 
+  String get noUpcomingOutings =>
+      _t('No upcoming outings', 'لا توجد خروجات قادمة');
+  String get tryAgain => _t('Try again', 'حاول مرة أخرى');
   String get nextUp => _t('Next up', 'الخروجة القادمة');
   String get quickActions => _t('Quick actions', 'إجراءات سريعة');
   String get makeItHappen => _t('Make it happen', 'خلّيها تحصل');
@@ -743,6 +746,7 @@ class L10n {
     'لا توجد خروجات بعد. أنشئ الأولى.',
   );
   String get chooseGroup => _t('Choose a group', 'اختر مجموعة');
+  String get groupDetails => _t('Group details', 'تفاصيل المجموعة');
   String get groupInfo => _t('Group info', 'معلومات المجموعة');
   String get groupActions => _t('Group actions', 'إجراءات المجموعة');
   String get groupBio => _t('About', 'عن المجموعة');
@@ -827,6 +831,10 @@ class L10n {
 
   String get pickAtLeastTwoPlaces =>
       digits(_t('Please pick at least 2 places', 'اختر مكانين على الأقل'));
+  String get decreaseVoteHours =>
+      _t('Decrease voting hours', 'تقليل ساعات التصويت');
+  String get increaseVoteHours =>
+      _t('Increase voting hours', 'زيادة ساعات التصويت');
   String get voteDeadlineHours => _t('Vote closes after', 'يغلق التصويت بعد');
   String get voteDeadlineHint => _t(
     'Set how many hours members have to vote',
@@ -1204,6 +1212,34 @@ class L10n {
   );
   String get memberSince => _t('Member since', 'عضو منذ');
   String get verified => _t('Verified', 'موثّق');
+  String get verifyPhoneNumber => _t('Verify phone number', 'تأكيد رقم الهاتف');
+  String get phoneVerificationSmsHint => _t(
+    'We’ll send a verification code by SMS.',
+    'سنرسل رمز التحقق في رسالة نصية.',
+  );
+  String get verifyPhoneChip => _t('Verify phone', 'وثّق الرقم');
+  String get deleteOuting => _t('Delete outing', 'حذف الخروجة');
+  String get deleteOutingTitle => _t('Delete this outing?', 'حذف هذه الخروجة؟');
+  String get deleteOutingBody => _t(
+    'This permanently removes the outing for everyone.',
+    'سيتم حذف الخروجة نهائياً للجميع.',
+  );
+  String get outingDeleted => _t('Outing deleted.', 'تم حذف الخروجة.');
+  String get findNearbyPlaces =>
+      _t('Find places near me', 'ابحث عن أماكن قريبة مني');
+  String get nearbyLocationHint => _t(
+    'Use your current location to see the closest places.',
+    'استخدم موقعك الحالي لعرض أقرب الأماكن.',
+  );
+  String distanceInKm(double distance) {
+    final amount = digits(distance.toStringAsFixed(1));
+    return _t('$amount km', '$amount كم');
+  }
+
+  String get noNearbyPlaces => _t(
+    'No nearby places match this filter.',
+    'لا توجد أماكن قريبة تطابق هذا التصنيف.',
+  );
   String get notVerified => _t('Not verified', 'غير موثّق');
   String get preferences => _t('Preferences', 'التفضيلات');
   String get pushNotifications => _t('Push notifications', 'الإشعارات');

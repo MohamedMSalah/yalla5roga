@@ -18,6 +18,7 @@ class OutingsProvider extends ChangeNotifier {
   final OutingsRepository repository;
 
   var _outings = <Outing>[];
+  final _deletedOutingIds = <String>{};
   var _suggestions = <GroupPlaceSuggestion>[];
   var _votesByOuting = <String, PlaceVote>{};
   var _attendanceByOuting = <String, Map<String, AttendanceStatus>>{};
@@ -52,13 +53,11 @@ class OutingsProvider extends ChangeNotifier {
   bool _matchesFilterTab(OutingStatus status, int tab) {
     switch (tab) {
       case 0:
-        return status == OutingStatus.draft ||
-            status == OutingStatus.confirmed;
+        return status == OutingStatus.draft || status == OutingStatus.confirmed;
       case 1:
         return status == OutingStatus.voting;
       default:
-        return status == OutingStatus.past ||
-            status == OutingStatus.cancelled;
+        return status == OutingStatus.past || status == OutingStatus.cancelled;
     }
   }
 
@@ -106,6 +105,13 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   void _applySnapshot(OutingSnapshot snapshot) {
+    // A refresh started before DELETE may still contain the old outing.
+    for (final id in _deletedOutingIds) {
+      if (snapshot.outings.any((outing) => outing.id == id) ||
+          snapshot.suggestions.any((item) => item.outingId == id)) {
+        snapshot = snapshot.withoutOuting(id);
+      }
+    }
     _outings = List.of(snapshot.outings);
     _suggestions = List.of(snapshot.suggestions);
     _votesByOuting = Map.of(snapshot.votesByOuting);
@@ -200,8 +206,7 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   AttendanceStatus attendanceFor(String outingId, String memberId) {
-    return _attendanceByOuting[outingId]?[memberId] ??
-        AttendanceStatus.unset;
+    return _attendanceByOuting[outingId]?[memberId] ?? AttendanceStatus.unset;
   }
 
   AttendanceStatus cuserAttendance(String outingId, String? memberId) {
@@ -231,9 +236,7 @@ class OutingsProvider extends ChangeNotifier {
       return false;
     }
     // Owner attendance is fixed Going on the backend.
-    if (userId != null &&
-        userId.isNotEmpty &&
-        outing.createdById == userId) {
+    if (userId != null && userId.isNotEmpty && outing.createdById == userId) {
       return false;
     }
     return true;
@@ -348,6 +351,29 @@ class OutingsProvider extends ChangeNotifier {
     );
   }
 
+  Future<bool> delete(String outingId) async {
+    final result = await repository.delete(outingId);
+    return result.fold(
+      (failure) {
+        AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.send,
+          context: 'deleteOuting',
+        );
+        return false;
+      },
+      (_) {
+        _deletedOutingIds.add(outingId);
+        _outings.removeWhere((outing) => outing.id == outingId);
+        _suggestions.removeWhere((item) => item.outingId == outingId);
+        _votesByOuting.remove(outingId);
+        _attendanceByOuting.remove(outingId);
+        notifyListeners();
+        return true;
+      },
+    );
+  }
+
   Future<bool> add(Outing outing, {String? creatorId}) async {
     if (_isCreating) return false;
     _isCreating = true;
@@ -421,6 +447,7 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   void clear() {
+    _deletedOutingIds.clear();
     repository.clearCache();
     _outings = [];
     _suggestions = [];

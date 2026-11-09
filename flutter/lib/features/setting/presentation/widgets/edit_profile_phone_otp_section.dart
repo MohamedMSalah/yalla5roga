@@ -14,6 +14,7 @@ class EditProfilePhoneOtpSection extends StatelessWidget {
     required this.isLoading,
     required this.otpController,
     required this.onSendOtp,
+    this.hint,
   });
 
   final bool phoneChanged;
@@ -22,6 +23,7 @@ class EditProfilePhoneOtpSection extends StatelessWidget {
   final bool isLoading;
   final TextEditingController otpController;
   final VoidCallback onSendOtp;
+  final String? hint;
 
   @override
   Widget build(BuildContext context) {
@@ -53,11 +55,6 @@ class EditProfilePhoneOtpSection extends StatelessWidget {
                     validator: (value) => Validators.otp(value, l10n),
                     action: TextButton(
                       onPressed: isLoading ? null : onSendOtp,
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
                       child: Text(
                         l10n.resendOtp,
                         style: TextStyle(
@@ -70,7 +67,7 @@ class EditProfilePhoneOtpSection extends StatelessWidget {
                   )
                 else ...[
                   Text(
-                    l10n.verifyNewPhoneHint,
+                    hint ?? l10n.verifyNewPhoneHint,
                     style: TextStyle(
                       color: context.palette.textMuted,
                       fontSize: Responsive.fontCaption,

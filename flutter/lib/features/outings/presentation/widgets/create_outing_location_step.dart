@@ -31,6 +31,15 @@ class CreateOutingLocationStep extends StatelessWidget {
     }
     return Column(
       children: [
+        if (!form.specialEvent) ...[
+          CustomButton(
+            label: l10n.addPlacesForVoting,
+            icon: Icons.how_to_vote_outlined,
+            variant: AppButtonVariant.outlined,
+            onPressed: () => form.setLetVote(true),
+          ),
+          Responsive.spaceMd.gapH,
+        ],
         AppCard(
           onTap: onPickCustomLocation,
           color: form.customPlacePinned ? context.palette.brandSoft : null,
@@ -175,14 +184,45 @@ class _MultiPlaceSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.pickMultiplePlaces,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Responsive.fontSm,
+        TextButton.icon(
+          onPressed: () => form.setLetVote(false),
+          icon: const Icon(Icons.place_outlined),
+          label: Text(l10n.useSingleLocation),
+        ),
+        Responsive.spaceSm.gapH,
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.voteDeadlineHours, style: context.texts.titleSmall),
+              Text(l10n.voteDeadlineHint, style: context.texts.bodySmall),
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: l10n.decreaseVoteHours,
+                    onPressed: form.voteDeadlineHours <= 1
+                        ? null
+                        : () => form.setVoteDeadlineHours(
+                            form.voteDeadlineHours - 1,
+                          ),
+                    icon: const Icon(Icons.remove_circle_outline),
+                  ),
+                  Text(l10n.hoursCount(form.voteDeadlineHours)),
+                  IconButton(
+                    tooltip: l10n.increaseVoteHours,
+                    onPressed: form.voteDeadlineHours >= 72
+                        ? null
+                        : () => form.setVoteDeadlineHours(
+                            form.voteDeadlineHours + 1,
+                          ),
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        Responsive.spaceXs.gapH,
+        Responsive.spaceMd.gapH,
         Text(
           l10n.placesSelectedMax(
             selected.length,

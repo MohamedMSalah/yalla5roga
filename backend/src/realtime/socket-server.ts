@@ -3,6 +3,7 @@ import { Server } from "socket.io";
 import { bindChatEmitter } from "./chat-emitter.js";
 import { registerChatGateway } from "./chat.gateway.js";
 import { authenticateSocket } from "./socket-auth.js";
+import { corsOrigin } from "../config/cors.js";
 
 /**
  * Attaches Socket.IO to the existing HTTP server (same port as Express).
@@ -17,7 +18,7 @@ export function attachRealtime(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     path: "/socket.io",
     cors: {
-      origin: true,
+      origin: corsOrigin,
       credentials: true,
       allowedHeaders: ["Authorization", "Content-Type", "Accept"],
     },

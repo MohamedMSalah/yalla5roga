@@ -15,7 +15,11 @@
 
 There is **no** global app role of Admin/Guest for outings. Outing Owner is `outings.created_by` only.
 
-## Firebase Authentication
+## Current transition: phone/password
+
+The app now uses phone and password for registration and login; Google and Apple buttons have been removed. Neon verifies the password and the backend issues a Firebase custom-token session. Registration OTP is currently checked only by the client, so the signup API must not be treated as proof of phone ownership. Existing social-only users need an account migration or recovery flow before this change is deployed. The historical descriptions below require reconciliation.
+
+## Firebase Authentication (historical)
 
 **Implemented client paths** (`FirebaseAuthService` / `AuthRepositoryImpl`):
 
@@ -31,7 +35,7 @@ Firebase Auth is **identity-only** (UID + ID tokens). It is **not** the applicat
 1. Signup: store name/email/phone/`password_hash` in Neon; create a **bare** Firebase Auth UID (no email, displayName, or password written to Firebase); return `idToken` + `customToken`.
 2. Login: verify Neon hash, mint Firebase session the same way.
 3. Client stores Firebase session; Dio uses refreshed ID tokens.
-4. Change password: authenticated `POST /api/auth/change-password` verifies `currentPassword` against Neon and stores a new bcrypt hash (Firebase Auth is not updated).
+4. Change password: the separate Flutter password form checks the new password confirmation before submitting. authenticated `POST /api/auth/change-password` verifies `currentPassword` against Neon and stores a new bcrypt hash (Firebase Auth is not updated).
 5. Confirm password: authenticated `POST /api/auth/verify-password` checks the Neon hash without changing it (edit-profile confirmation).
 
 Public user JSON exposes `has_password` (never the hash) so Flutter can show edit-password UI for Neon accounts. Phone verification for the settings chip is Firebase `phoneNumber` on the signed-in identity (OTP-linked), not merely a Neon `phone` profile value.
@@ -65,7 +69,7 @@ Does not create Neon rows by itself.
 
 | Action | Rule | Code anchors |
 |--------|------|--------------|
-| Update/delete/cancel outing | Caller = `created_by` | `outing-access`, cancel use case |
+| Update/delete/cancel outing | Caller = `created_by` | `outing-access`, delete and cancel use cases |
 | Add/replace/delete vote options | Owner + voting open + deadline not passed | `voting.usecase` |
 | Cast/change vote | Eligible voter + voting open | `assertEligibleVoter`, `assertVotingOpen` |
 | Tie-break | Owner only + unresolved tie | `breakTieRandomly` |
@@ -95,3 +99,9 @@ Unauthenticated invite open → auth → restore pending invite destination (`In
 - [`PRODUCT_SCENARIOS.md`](PRODUCT_SCENARIOS.md) §§2–3, 16
 - [`API_CONTRACTS.md`](API_CONTRACTS.md)
 - [`SYSTEM_DESIGN.md`](SYSTEM_DESIGN.md)
+
+### Settings account actions
+
+Logout replaces the route stack with the login form and clears account-scoped providers. An unverified profile number can be verified with Firebase SMS from Settings. Changes to a different number still require current-password confirmation for password accounts. Flutter syncs the confirmed number to Neon after Firebase verification.
+
+The verified chip reflects a Firebase phone matching the current Neon profile number. Firebase may reject linking a number that belongs to another Firebase UID, including a separate identity created by a prior signup OTP. That conflict requires identity reconciliation before linking.

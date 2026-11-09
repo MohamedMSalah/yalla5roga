@@ -27,7 +27,10 @@ class CreateOutingProvider extends ChangeNotifier {
     bool letVote = false,
   }) : _group = group,
        _groupLocked = group != null,
-       _specialEvent = specialEvent || (draft?.specialEvent ?? false),
+       _specialEvent =
+           specialEvent ||
+           (draft?.specialEvent ?? false) ||
+           (saved?.occasion ?? OutingOccasion.none) != OutingOccasion.none,
        _draftId =
            draft?.id ?? 'draft-${DateTime.now().millisecondsSinceEpoch}' {
     nameController = TextEditingController(
@@ -51,6 +54,9 @@ class CreateOutingProvider extends ChangeNotifier {
     if (saved != null) {
       nameController.text = saved!.title;
       _image = saved!.image;
+      if (saved!.occasion != OutingOccasion.none) {
+        _occasion = saved!.occasion;
+      }
       _applyLocation(saved!.location);
     }
     if (draft != null) {
@@ -188,8 +194,8 @@ class CreateOutingProvider extends ChangeNotifier {
       _customLatitude != null && _customLongitude != null;
 
   PlaceLocation? get selectedLocation {
-    if (multiPlaceMode && _selectedPlaces.isNotEmpty) {
-      return _selectedPlaces.first.toLocation();
+    if (multiPlaceMode) {
+      return _selectedPlaces.firstOrNull?.toLocation();
     }
     if (isCustomPlace) {
       return PlaceLocation(
@@ -355,15 +361,8 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   void setLetVote(bool value) {
+    if (_specialEvent || _letVote == value) return;
     _letVote = value;
-    if (value) {
-      _place = null;
-      customPlaceController.clear();
-      _customLatitude = null;
-      _customLongitude = null;
-    } else {
-      _selectedPlaces.clear();
-    }
     notifyListeners();
   }
 
@@ -484,7 +483,7 @@ class CreateOutingProvider extends ChangeNotifier {
       guestIds: _guestIds.toList(),
       letVote: _letVote,
       voteDeadlineHours: _letVote ? _voteDeadlineHours : null,
-      selectedPlaces: List.of(_selectedPlaces),
+      selectedPlaces: multiPlaceMode ? List.of(_selectedPlaces) : const [],
     );
   }
 

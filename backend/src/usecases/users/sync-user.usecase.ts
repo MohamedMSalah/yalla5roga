@@ -26,7 +26,7 @@ export function truncateDisplayName(name: string): string {
  * Identity sync for a verified Firebase UID.
  *
  * Creates a minimal PostgreSQL profile on first call. On later calls it only
- * applies trusted token claims (verified phone, fill-missing email) and never
+ * applies the verified phone claim and never
  * overwrites user-managed profile fields from the request body.
  */
 export class SyncUserUseCase {
@@ -55,7 +55,6 @@ export class SyncUserUseCase {
     const user = existing
       ? await this.syncExisting(existing, {
           verifiedPhone,
-          tokenEmail: input.tokenEmail,
         })
       : await this.createMinimalProfile(input, verifiedPhone);
 
@@ -86,26 +85,17 @@ export class SyncUserUseCase {
   }
 
   /**
-   * Existing profiles are identity-only: verified phone may be applied, and a
-   * missing email may be filled from the token. Body name / email / phone /
+   * Existing profiles are identity-only: verified phone may be applied. Body name / phone /
    * image_url never overwrite stored profile values.
    */
   private async syncExisting(
     existing: User,
-    options: {
-      verifiedPhone: string | null;
-      tokenEmail?: string | null;
-    },
+    options: { verifiedPhone: string | null },
   ): Promise<User> {
     const patch: UpdateUserInput = {};
 
     if (options.verifiedPhone && options.verifiedPhone !== existing.phone) {
       patch.phone = options.verifiedPhone;
-    }
-
-    const tokenEmail = normalizeOptionalEmail(options.tokenEmail);
-    if (!existing.email && tokenEmail) {
-      patch.email = tokenEmail;
     }
 
     if (Object.keys(patch).length === 0) {
@@ -130,7 +120,6 @@ export class SyncUserUseCase {
     return this.users.create({
       id: input.id,
       name: resolveCreateName(input),
-      email: resolveCreateEmail(input),
       phone,
       image_url: normalizeOptionalImageUrl(input.image_url),
     });
@@ -163,14 +152,6 @@ export class SyncUserUseCase {
   }
 }
 
-function normalizeOptionalEmail(
-  value: string | null | undefined,
-): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 function normalizeOptionalImageUrl(
   value: string | null | undefined,
 ): string | null {
@@ -188,22 +169,5 @@ function resolveCreateName(input: SyncUserInput): string {
     : "";
   if (fromToken) return fromToken;
 
-  const email = resolveCreateEmail(input);
-  if (email) {
-    const local = truncateDisplayName(email.split("@")[0] ?? "");
-    if (local) return local;
-  }
-
   return DEFAULT_DISPLAY_NAME;
-}
-
-/**
- * Prefer the verified token email. Body email is a create-time fallback only
- * (for example email/password signup before claims are copied onto the input).
- */
-function resolveCreateEmail(input: SyncUserInput): string | null {
-  return (
-    normalizeOptionalEmail(input.tokenEmail) ??
-    normalizeOptionalEmail(input.email)
-  );
 }

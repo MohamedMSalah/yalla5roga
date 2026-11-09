@@ -24,11 +24,9 @@ class AuthLocalDataSourceImpl implements AuthLocalDataSource {
       AppConstants.userCacheKey,
       jsonEncode(user.toJson()),
     );
-    if (user.token != null && user.token!.isNotEmpty) {
-      await _prefs.setString(AppConstants.tokenKey, user.token!);
-    } else {
-      await _prefs.remove(AppConstants.tokenKey);
-    }
+    // Firebase owns the credential and refreshes it in memory. Remove the
+    // legacy preference on every cache write so upgrades revoke stale copies.
+    await _prefs.remove(AppConstants.tokenKey);
   }
 
   @override

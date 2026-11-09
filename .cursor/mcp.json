@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "dart": {
+      "command": "dart",
+      "args": ["mcp-server"]
+    },
+    "figma": {
+      "type": "http",
+      "url": "https://mcp.figma.com/mcp"
+    },
+    "refero": {
+      "type": "http",
+      "url": "https://api.refero.design/mcp"
+    }
+  }
+}

@@ -1,5 +1,7 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
+import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
@@ -14,6 +16,16 @@ class DiscoverProvider extends ChangeNotifier {
   var _featuredAll = <SuggestedPlace>[];
   var _hasLoaded = false;
   String? _errorMessage;
+
+  Future<Either<Failure, List<SuggestedPlace>>> getNearbyPlaces({
+    required double latitude,
+    required double longitude,
+    OutingVibe? vibe,
+  }) => repository.getNearbyPlaces(
+    latitude: latitude,
+    longitude: longitude,
+    vibe: vibe,
+  );
 
   int get filter => _filter;
 

@@ -1,0 +1,2 @@
+-- Preserve legacy email data while the application transitions to phone login.
+-- No destructive schema change is required: phone is already unique.

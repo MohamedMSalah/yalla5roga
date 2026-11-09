@@ -14,15 +14,13 @@ import {
  * /api/auth/login:
  *   post:
  *     tags: [Authentication]
- *     summary: Log in with email and password
+ *     summary: Log in with phone number and password
  *     description: >
- *       Canonical email/password login. Verifies Neon `users.password_hash`,
+ *       Canonical phone/password login. Verifies Neon `users.password_hash`,
  *       then returns a Firebase ID token session (via custom-token exchange)
  *       plus `customToken` so mobile clients can `signInWithCustomToken` and
- *       refresh ID tokens locally. Firebase Auth is not used for email passwords.
- *       Google, Apple, and phone OTP still use Firebase Auth on the client,
- *       then `POST /api/users/sync`.
- *     operationId: loginWithEmailPassword
+ *       refresh ID tokens locally. Firebase Auth is not used for application passwords.
+ *     operationId: loginWithPhonePassword
  *     security: []
  *     requestBody:
  *       $ref: "#/components/requestBodies/Login"
@@ -48,15 +46,14 @@ import {
  * /api/auth/signup:
  *   post:
  *     tags: [Authentication]
- *     summary: Sign up with name, email, password, and phone
+ *     summary: Sign up with name, phone number, and password
  *     description: >
- *       Canonical email/password signup. Stores name, email, phone, and
+ *       Canonical phone/password signup. Stores name, phone, and
  *       `password_hash` in Neon only. Creates a bare Firebase Auth UID (no
- *       email, displayName, or password in Firebase) so the API can mint
- *       ID tokens, then returns `idToken` + `customToken`. Phone OTP may be
- *       verified on the client before calling this endpoint; Google/Apple
- *       continue to use Firebase then `POST /api/users/sync`.
- *     operationId: signupWithEmailPassword
+ *       profile fields or password in Firebase) so the API can mint
+ *       ID tokens, then returns `idToken` + `customToken`. The Flutter app
+ *       verifies the supplied phone by OTP before calling this endpoint.
+ *     operationId: signupWithPhonePassword
  *     security: []
  *     requestBody:
  *       $ref: "#/components/requestBodies/Signup"
@@ -70,7 +67,7 @@ import {
  *       "400":
  *         $ref: "#/components/responses/BadRequest"
  *       "409":
- *         description: Email or phone is already in use
+ *         description: Phone number is already in use
  *         content:
  *           application/json:
  *             schema:
@@ -86,7 +83,7 @@ import {
  * /api/auth/change-password:
  *   post:
  *     tags: [Authentication]
- *     summary: Change Neon email/password
+ *     summary: Change Neon password
  *     description: >
  *       Authenticated. Verifies `currentPassword` against Neon `password_hash`
  *       and stores a new bcrypt hash. Firebase Auth is not updated (identity-only).

@@ -53,7 +53,6 @@ export const syncUserBodySchema = z.preprocess(
     .object({
       // Longer provider display names are truncated to 30 before insert.
       name: z.string().trim().min(1).max(200).optional(),
-      email: z.email().max(254).optional(),
       phoneNumber: optionalPhoneField,
       phone: optionalPhoneField,
       image_url: z.url().max(2048).optional().nullable(),
@@ -61,7 +60,6 @@ export const syncUserBodySchema = z.preprocess(
     .superRefine(refinePhoneAliases)
     .transform((data) => ({
       name: data.name,
-      email: data.email,
       phone: data.phoneNumber ?? data.phone ?? null,
       image_url: data.image_url ?? null,
     })),
@@ -70,7 +68,6 @@ export const syncUserBodySchema = z.preprocess(
 export const updateUserBodySchema = z
   .object({
     name: z.string().trim().min(1).max(30).optional(),
-    email: z.email().max(254).optional().nullable(),
     phoneNumber: optionalUpdatePhoneField,
     phone: optionalUpdatePhoneField,
     image_url: z.url().max(2048).optional().nullable(),
@@ -78,7 +75,6 @@ export const updateUserBodySchema = z
   .superRefine(refinePhoneAliases)
   .transform((data) => ({
     name: data.name,
-    email: data.email,
     phone: data.phoneNumber ?? data.phone,
     image_url: data.image_url,
   }));

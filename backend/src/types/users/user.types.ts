@@ -4,7 +4,7 @@ export type User = users;
 
 /** API-safe user profile — never includes credential columns. */
 export type PublicUser = Omit<User, "password_hash" | "password_updated_at"> & {
-  /** True when Neon stores a password_hash (email/password accounts). */
+  /** True when Neon stores a password_hash (phone/password accounts). */
   has_password: boolean;
 };
 
@@ -12,7 +12,6 @@ export type CreateUserInput = {
   id: string;
   name: string;
   phone: string | null;
-  email: string | null;
   image_url?: string | null;
   password_hash?: string | null;
   password_updated_at?: Date | null;
@@ -21,7 +20,6 @@ export type CreateUserInput = {
 export type UpdateUserInput = {
   name?: string;
   phone?: string | null;
-  email?: string | null;
   image_url?: string | null;
   password_hash?: string | null;
   password_updated_at?: Date | null;
@@ -31,21 +29,18 @@ export type UpdateUserInput = {
  * Identity sync after Firebase sign-up or sign-in.
  * Email/password credentials are handled only by `/api/auth` (Neon password_hash).
  *
- * `id`, `verifiedPhone`, `tokenEmail`, `tokenName`, and `signInProvider` must
+ * `id`, `verifiedPhone`, `tokenName`, and `signInProvider` must
  * come from the verified Firebase ID token — never from the client body.
- * Body `name` / `email` / `phone` / `image_url` are create-time bootstrap hints
+ * Body `name` / `phone` / `image_url` are create-time bootstrap hints
  * only and must not overwrite an existing profile.
  */
 export type SyncUserInput = {
   id: string;
   name?: string | null;
-  email?: string | null;
   phone?: string | null;
   image_url?: string | null;
   /** Verified Firebase `phone_number` claim. */
   verifiedPhone?: string | null;
-  /** Verified Firebase `email` claim. */
-  tokenEmail?: string | null;
   /** Verified Firebase `name` claim. */
   tokenName?: string | null;
   /** Firebase `sign_in_provider`, such as `google.com`, `apple.com`, or `phone`. */

@@ -94,6 +94,9 @@ flutter/lib/
 | Request dedupe / diagnostics | `lib/core/network/request_deduper.dart`, `lib/core/network/diagnostics/` |
 | TTL cache helpers | `lib/core/cache/` |
 | API paths | `lib/core/constants/api_constants.dart` |
+| Profile editing | `features/setting/presentation/pages/edit_profile_page.dart`, `change_password_page.dart`, and profile sheets |
+| Nearby search | `features/discover/presentation/pages/discover_page.dart` → Discover provider/repository → `backend/src/services/places/nearby-search-bounds.ts` |
+| Default group and outing artwork | `flutter/assets/covers/`, `lib/core/widgets/planning_cover.dart` |
 | Outing API | `features/outings/data/datasources/outings_remote_datasource.dart` |
 | API request audit | `docs/audit/FLUTTER_API_REQUEST_OPTIMIZATION_REPORT.md` |
 | Vote UI | `features/outings/presentation/widgets/outing_vote_widget.dart` |

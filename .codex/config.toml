@@ -1,0 +1,12 @@
+# Project-scoped MCP configuration. Remote services authenticate through their
+# own OAuth flow; no credentials belong in this file.
+
+[mcp_servers.dart]
+command = "dart"
+args = ["mcp-server"]
+
+[mcp_servers.figma]
+url = "https://mcp.figma.com/mcp"
+
+[mcp_servers.refero]
+url = "https://api.refero.design/mcp"

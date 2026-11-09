@@ -12,7 +12,6 @@ import 'package:yalla_5roga/core/widgets/custom_textfield.dart';
 import 'package:yalla_5roga/core/widgets/otp_input.dart';
 import 'package:yalla_5roga/core/widgets/phone_text_field.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
-import 'package:yalla_5roga/features/auth/presentation/widgets/auth_social_buttons.dart';
 import 'package:yalla_5roga/features/shell/presentation/pages/main_shell.dart';
 
 class AuthForm extends StatefulWidget {
@@ -25,7 +24,6 @@ class AuthForm extends StatefulWidget {
 class _AuthFormState extends State<AuthForm> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
@@ -41,7 +39,6 @@ class _AuthFormState extends State<AuthForm> {
   void dispose() {
     _phoneController.removeListener(_onPhoneChanged);
     _nameController.dispose();
-    _emailController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
     _otpController.dispose();
@@ -100,7 +97,7 @@ class _AuthFormState extends State<AuthForm> {
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     final ok = await auth.login(
-      email: _emailController.text.trim(),
+      phone: Validators.normalizePhone(_phoneController.text),
       password: _passwordController.text,
     );
     if (!mounted) return;
@@ -128,7 +125,6 @@ class _AuthFormState extends State<AuthForm> {
     FocusScope.of(context).unfocus();
     final ok = await auth.register(
       name: _nameController.text.trim(),
-      email: _emailController.text.trim(),
       password: _passwordController.text,
       phone: Validators.normalizePhone(_phoneController.text),
       smsCode: Validators.normalizeOtp(_otpController.text),
@@ -181,17 +177,10 @@ class _AuthFormState extends State<AuthForm> {
             ),
             Responsive.spaceMd.gapH,
           ],
-          CustomTextField(
-            controller: _emailController,
-            label: l10n.email,
-            hint: l10n.emailHint,
-            prefixIcon: Icons.mail_outline,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.next,
-            inputFormatters: [InputFormatters.noSpaces, InputFormatters.email],
-            validator: (value) => Validators.email(value, l10n),
-          ),
-          Responsive.spaceMd.gapH,
+          if (isLogin) ...[
+            PhoneTextField(controller: _phoneController),
+            Responsive.spaceMd.gapH,
+          ],
           CustomTextField(
             controller: _passwordController,
             label: l10n.password,
@@ -281,8 +270,6 @@ class _AuthFormState extends State<AuthForm> {
               isLoading: auth.isLoading,
               onPressed: otpSent ? _submitRegister : _sendOtp,
             ),
-          Responsive.spaceLg.gapH,
-          const AuthSocialButtons(),
         ],
       ),
     );

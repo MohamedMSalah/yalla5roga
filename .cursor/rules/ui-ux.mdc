@@ -1,0 +1,28 @@
+---
+description: UI/UX quality and accessibility guardrails for the Flutter client
+globs: flutter/lib/**/*.dart
+alwaysApply: false
+---
+
+# UI/UX implementation rule
+
+Before editing a Flutter screen, inspect the existing target, `AppTheme`,
+`AppPalette`, `Responsive`, shared widgets, and the relevant user journey.
+Preserve the app's Material 3 system, Provider/Clean Architecture, Inter/Cairo
+typography, dark/light themes, and English/Arabic RTL behavior.
+
+- Reuse semantic tokens and shared components instead of local colors, spacing,
+  or duplicate controls.
+- Use `L10n`, logical directional APIs, semantics, accessible contrast, 48dp
+  touch targets, and layouts resilient to text scaling, keyboards, and
+  narrow/wide/foldable screens.
+- Include loading, empty, error, offline, and long-content states in UI work.
+- Keep motion purposeful and consistent with existing animation/transition
+  helpers; avoid generic AI visual tropes and unapproved redesigns.
+- Validate phone/wide, light/dark, and English/Arabic states where practical,
+  then report anything not exercised.
+
+Read the complete shared policy in `AGENTS.md` section 8 before a substantive
+UI/UX task. Use the installed Dart/Flutter MCP and skills only when their
+scope matches this established app; do not apply setup skills that would
+replace its manual `L10n` or GetX navigation conventions.

@@ -10,18 +10,14 @@ class EditProfileFieldsSection extends StatelessWidget {
   const EditProfileFieldsSection({
     super.key,
     required this.nameController,
-    required this.emailController,
     required this.phoneController,
-    required this.hasPassword,
     this.showName = true,
     this.showContact = true,
     this.phoneAutovalidateMode,
   });
 
   final TextEditingController nameController;
-  final TextEditingController emailController;
   final TextEditingController phoneController;
-  final bool hasPassword;
   final bool showName;
   final bool showContact;
   final AutovalidateMode? phoneAutovalidateMode;
@@ -43,25 +39,6 @@ class EditProfileFieldsSection extends StatelessWidget {
           validator: (value) => Validators.name(value, l10n),
         ),
       if (showContact) ...[
-        CustomTextField(
-          controller: emailController,
-          label: l10n.email,
-          hint: l10n.emailHint,
-          prefixIcon: Icons.mail_outline,
-          keyboardType: TextInputType.emailAddress,
-          textInputAction: TextInputAction.next,
-          inputFormatters: [InputFormatters.noSpaces, InputFormatters.email],
-          validator: (value) => Validators.email(value, l10n),
-        ),
-        if (!hasPassword)
-          Text(
-            l10n.socialAccountHint,
-            style: TextStyle(
-              color: context.palette.textMuted,
-              fontSize: Responsive.fontCaption,
-              height: 1.4,
-            ),
-          ),
         PhoneTextField(
           controller: phoneController,
           textInputAction: TextInputAction.next,

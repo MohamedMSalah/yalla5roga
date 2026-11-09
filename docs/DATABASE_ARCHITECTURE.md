@@ -42,6 +42,8 @@ erDiagram
 
 ### `users`
 
+Legacy `email` data is retained but ignored by Prisma during the phone-auth transition. Existing accounts without a usable phone and password require a migration strategy.
+
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `VarChar(128)` PK | Firebase UID |
@@ -113,7 +115,7 @@ Server-side drafts (Flutter may also keep local prefs drafts). JSON `guest_ids`,
 
 ### `chat_messages` / `chat_reads`
 
-Messages: text ≤ 2000, optional `client_message_id` unique per `(outing_id, sender_id, client_message_id)`. Reads: composite PK; `last_read_at`. `delivery_status` on message is deprecated for group seen-state.
+Messages: text ≤ 2000, optional `client_message_id` unique per `(outing_id, sender_id, client_message_id)`. Reads: composite PK; `last_read_at`. Group seen state is derived from reads; no per-message delivery flag is stored.
 
 ### `notifications`
 
@@ -133,7 +135,7 @@ Outbox + delivery audit. Unique `event_key` on events. Claim index `(status, nex
 
 ## 3. Enums (Prisma)
 
-`attendance_status`, `group_role`, `notification_type`, `outing_occasion`, `outing_type`, `outing_status`, `vote_close_reason`, `outing_vibe`, `price_level`, `weekday`, `message_delivery_status`, `invitation_status`, `notification_event_type`, `notification_channel`, `notification_event_status`.
+`attendance_status`, `group_role`, `notification_type`, `outing_occasion`, `outing_type`, `outing_status`, `vote_close_reason`, `outing_vibe`, `price_level`, `weekday`, `invitation_status`, `notification_event_type`, `notification_channel`, `notification_event_status`.
 
 ## 4. Important invariants
 
@@ -145,6 +147,8 @@ Outbox + delivery audit. Unique `event_key` on events. Claim index `(status, nex
 6. Confirmed winning location must stay consistent with `winning_option_id`.
 7. Notification outbox + in-app rows use `event_key` for idempotency.
 8. Pending invitations are not eligible voters.
+9. Database constraints enforce outing type/group consistency, an end after a start, vote-deadline range (1–72 hours), and draft clock fields (hour 0–23, minute 0–59). Existing historical rows must be audited before constraints are validated.
+10. Chat seen state is derived from `chat_reads`; `chat_messages.delivery_status` was removed.
 
 ## 5. Transaction requirements
 
@@ -179,3 +183,7 @@ Historical notes and audits: `docs/audit/`, `docs/system-design/`.
 
 - [`BUSINESS_LOGIC.md`](BUSINESS_LOGIC.md)
 - [`SYSTEM_DESIGN.md`](SYSTEM_DESIGN.md)
+
+### Nearby place search
+
+The service computes nearby results from active rows in `places` with coordinates. It uses indexed geographic bounds followed by a spherical distance filter and nearest-first ordering. Discover and Nearby do not have separate tables.

@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/utils/member_display_name.dart';
-import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
+import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
-import 'package:yalla_5roga/features/groups/presentation/widgets/lists/group_outings_list.dart';
-import 'package:yalla_5roga/features/groups/presentation/widgets/lists/group_voting_list.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_info_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/widgets/group_details_skeleton.dart';
-import 'package:yalla_5roga/features/groups/presentation/widgets/lists/suggested_places_list.dart';
+import 'package:yalla_5roga/features/groups/presentation/widgets/lists/group_outings_list.dart';
+import 'package:yalla_5roga/features/groups/presentation/widgets/lists/group_voting_list.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -30,20 +27,20 @@ class GroupDetailsPage extends StatefulWidget {
 }
 
 class _GroupDetailsPageState extends State<GroupDetailsPage> {
-  String get groupId => widget.groupId;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      await context.read<GroupsProvider>().ensureGroupLoaded(groupId);
-      if (!mounted) return;
-      await AppPermissions.promptContactsAccess(context.l10n);
-      if (!mounted) return;
-      await MemberDisplayName.ensureLoaded();
-      if (mounted) setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadGroup();
     });
+  }
+
+  Future<void> _loadGroup() async {
+    setState(() => _loading = true);
+    await context.read<GroupsProvider>().ensureGroupLoaded(widget.groupId);
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
@@ -51,83 +48,106 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
     final l10n = context.l10n;
     final palette = context.palette;
     final groups = context.watch<GroupsProvider>();
-    if (groups.isInitialLoading) {
+    final group = groups.findById(widget.groupId);
+    if (group == null) {
       return Scaffold(
-        appBar: AppPageBar(title: l10n.groupsTitle),
-        body: const GroupDetailsSkeleton(),
-      );
-    }
-    final group = groups.byId(groupId);
-    final groupOutings = context.watch<OutingsProvider>().forGroup(group.id);
-
-    return Scaffold(
-      appBar: AppPageBar(
-        title: group.name,
-        trailingIcon: Icons.settings_outlined,
-        onTrailingTap: () => Get.to(() => GroupInfoPage(groupId: groupId)),
-      ),
-      body: ListView(
-        padding: Responsive.pagePadding(),
-        children: [
-          AppHero(
-            tag: HeroTags.groupCover(group.id),
-            url: group.image,
-            radius: 22.r,
-            child: AppNetworkImage(
-              url: group.image,
-              width: double.infinity,
-              height: 180.h,
-              placeholderIcon: Icons.groups_outlined,
-              fade: false,
-            ),
-          ),
-          Responsive.spaceMd.gapH,
-          Row(
-            children: [
-              Expanded(
+        appBar: AppPageBar(title: l10n.groupDetails),
+        body: _loading
+            ? const GroupDetailsSkeleton()
+            : Center(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      group.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: Responsive.fontLg,
-                      ),
+                    AppEmptyState(
+                      icon: Icons.groups_outlined,
+                      message: l10n.dataLoadFailed,
+                      compact: true,
                     ),
-                    Text(
-                      l10n.membersOutings(
-                        group.memberCount,
-                        groupOutings.length,
-                      ),
-                      style: TextStyle(
-                        color: palette.textMuted,
-                        fontSize: Responsive.fontSm,
-                      ),
+                    TextButton(
+                      onPressed: _loadGroup,
+                      child: Text(l10n.tryAgain),
                     ),
                   ],
                 ),
               ),
-              AppBadge(
-                label: groups.roleLabel(group.cuserRole, l10n),
-                color: AppColors.brand50,
-                textColor: AppColors.brand700,
-              ),
-            ],
+      );
+    }
+
+    final outings = context.watch<OutingsProvider>();
+    final outingCount = outings.forGroup(group.id).length;
+
+    return Scaffold(
+      appBar: AppPageBar(
+        title: l10n.groupDetails,
+        trailing: IconButton(
+          tooltip: l10n.groupInfo,
+          icon: const Icon(Icons.info_outline),
+          onPressed: () => Get.to(() => GroupInfoPage(groupId: group.id)),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+            child: ListView(
+              padding: Responsive.pagePadding(),
+              children: [
+                AppHero(
+                  tag: HeroTags.groupCover(group.id),
+                  url: group.image,
+                  radius: 18.r,
+                  child: PlanningCover(
+                    url: group.image,
+                    art: PlanningCoverArt.group,
+                    width: double.infinity,
+                    height: 144.h,
+                    radius: 18.r,
+                  ),
+                ),
+                Responsive.spaceMd.gapH,
+                Semantics(
+                  header: true,
+                  child: Text(
+                    group.name,
+                    style: context.texts.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Responsive.spaceXs.gapH,
+                Wrap(
+                  spacing: Responsive.spaceSm,
+                  runSpacing: Responsive.spaceXs,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      l10n.membersOutings(group.memberCount, outingCount),
+                      style: context.texts.bodyMedium?.copyWith(
+                        color: palette.textSecondary,
+                      ),
+                    ),
+                    AppBadge(
+                      label: groups.roleLabel(group.cuserRole, l10n),
+                      color: palette.brandSoft,
+                      textColor: palette.brandStrong,
+                    ),
+                  ],
+                ),
+                Responsive.spaceLg.gapH,
+                CustomButton(
+                  label: l10n.createOuting,
+                  icon: Icons.add,
+                  onPressed: () => Get.to(() => CreateOutingPage(group: group)),
+                ),
+                Responsive.spaceXl.gapH,
+                GroupVotingList(group: group),
+                Responsive.spaceXl.gapH,
+                GroupOutingsList(group: group),
+              ],
+            ),
           ),
-          Responsive.spaceMd.gapH,
-          CustomButton(
-            label: l10n.createOuting,
-            icon: Icons.add,
-            onPressed: () => Get.to(() => CreateOutingPage(group: group)),
-          ),
-          Responsive.spaceLg.gapH,
-          GroupVotingList(group: group),
-          Responsive.spaceLg.gapH,
-          SuggestedPlacesList(group: group),
-          Responsive.spaceLg.gapH,
-          GroupOutingsList(group: group),
-        ],
+        ),
       ),
     );
   }

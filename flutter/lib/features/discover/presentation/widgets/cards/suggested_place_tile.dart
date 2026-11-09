@@ -25,6 +25,10 @@ class SuggestedPlaceTile extends StatelessWidget {
     final l10n = context.l10n;
     final palette = context.palette;
     final thumb = Responsive.avatarLg * 0.62;
+    final distance = place.distanceKm;
+    final detail = distance == null
+        ? l10n.priceLevelLabel(place.priceLevel.name)
+        : l10n.distanceInKm(distance);
 
     return AppCard(
       onTap: onTap,
@@ -58,7 +62,7 @@ class SuggestedPlaceTile extends StatelessWidget {
                 ),
                 Responsive.spaceXs.gapH,
                 Text(
-                  '${place.localizedArea(l10n)} · ${l10n.priceLevelLabel(place.priceLevel.name)}',
+                  '${place.localizedArea(l10n)} · $detail',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

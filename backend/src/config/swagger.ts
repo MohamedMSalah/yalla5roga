@@ -468,18 +468,17 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         LoginRequest: {
           type: "object",
-          required: ["email", "password"],
+          required: ["phone", "password"],
           properties: {
-            email: { type: "string", format: "email", maxLength: 254 },
+            phone: phone,
             password: { type: "string", minLength: 6, maxLength: 128 },
           },
         },
         SignupRequest: {
           type: "object",
-          required: ["name", "email", "password", "phone"],
+          required: ["name", "password", "phone"],
           properties: {
             name: { type: "string", minLength: 1, maxLength: 30 },
-            email: { type: "string", format: "email", maxLength: 254 },
             password: { type: "string", minLength: 6, maxLength: 128 },
             phoneNumber: {
               ...phone,
@@ -805,7 +804,6 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             "outing_id",
             "sender_id",
             "text",
-            "delivery_status",
             "sent_at",
           ],
           properties: {
@@ -813,13 +811,6 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             outing_id: uuid,
             sender_id: firebaseUid,
             text: { type: "string", maxLength: 2000 },
-            delivery_status: {
-              type: "string",
-              enum: ["pending", "sent", "delivered", "seen"],
-              deprecated: true,
-              description:
-                "Deprecated. A group chat cannot carry a single delivery status; derive seen state from chat_reads.",
-            },
             client_message_id: { ...uuid, nullable: true },
             sent_at: dateTime,
           },

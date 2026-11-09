@@ -1,207 +1,124 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
-import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
-import 'package:yalla_5roga/core/widgets/app_pressable.dart';
-import 'package:yalla_5roga/core/widgets/avatar_stack.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 
-class FeaturedOutingCard extends StatefulWidget {
+/// Select only a dated, non-terminal future plan; never label an old plan next.
+Outing? nextHomeOuting(Iterable<Outing> outings, DateTime now) {
+  Outing? next;
+  for (final outing in outings) {
+    final date = outing.scheduledAt;
+    if (date == null ||
+        !date.isAfter(now) ||
+        outing.status == OutingStatus.past ||
+        outing.status == OutingStatus.cancelled) {
+      continue;
+    }
+    if (next == null || date.isBefore(next.scheduledAt!)) next = outing;
+  }
+  return next;
+}
+
+class FeaturedOutingCard extends StatelessWidget {
   const FeaturedOutingCard({super.key});
 
   @override
-  State<FeaturedOutingCard> createState() => _FeaturedOutingCardState();
-}
-
-class _FeaturedOutingCardState extends State<FeaturedOutingCard> {
-  final _controller = PageController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final provider = context.watch<OutingsProvider>();
     final l10n = context.l10n;
-    final slides = context.watch<OutingsProvider>().outings;
-    final featuredIndex = context.watch<OutingsProvider>().featuredIndex;
-    if (slides.isEmpty) {
+    final outing = nextHomeOuting(provider.outings, DateTime.now());
+    if (outing == null) {
+      if (provider.errorMessage != null && provider.outings.isEmpty) {
+        return Column(
+          children: [
+            Text(l10n.errorUnexpected, textAlign: TextAlign.center),
+            TextButton(
+              onPressed: () => provider.load(forceRefresh: true),
+              child: Text(l10n.tryAgain),
+            ),
+          ],
+        );
+      }
       return AppEmptyState(
-        icon: Icons.photo_outlined,
-        message: l10n.noFeaturedOuting,
-        subtitle: l10n.noFeaturedOutingHint,
+        icon: Icons.event_outlined,
+        message: l10n.noUpcomingOutings,
+        subtitle: l10n.noOutingsHint,
         compact: true,
       );
     }
-
-    return Column(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(24.r),
-            boxShadow: [
-              BoxShadow(
-                color: context.palette.shadow,
-                blurRadius: 18.w,
-                offset: Offset(0, 8.h),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(24.r),
-            child: SizedBox(
-              height: 176.h,
-              child: PageView.builder(
-                controller: _controller,
-                itemCount: slides.length,
-                onPageChanged: context.read<OutingsProvider>().setFeaturedIndex,
-                itemBuilder: (context, index) {
-                  final slide = slides[index];
-                  final heroTag = HeroTags.outingCover('featured', slide.id);
-                  return AppPressable(
-                    key: ValueKey(slide.id),
-                    onTap: () => Get.to(
-                      () => EventPage(event: slide, coverHeroTag: heroTag),
-                    ),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        AppHero(
-                          tag: index == featuredIndex ? heroTag : null,
-                          url: slide.image,
-                          radius: 24.r,
-                          child: AppNetworkImage(
-                            url: slide.image,
-                            height: 176.h,
-                            placeholderIcon: Icons.explore_outlined,
-                            fade: false,
-                          ),
-                        ),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, Color(0xC70F172A)],
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 16.w,
-                          top: 16.h,
-                          child: Container(
-                            padding: Responsive.padding(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(999.r),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 12.w,
-                                  color: AppColors.brand700,
-                                ),
-                                6.gapW,
-                                Text(
-                                  slide.localizedDate(l10n),
-                                  style: TextStyle(
-                                    fontSize: Responsive.fontCaption,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.brand700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: 16.w,
-                          right: 16.w,
-                          bottom: 16.h,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      l10n.nextUp.toUpperCase(),
-                                      style: TextStyle(
-                                        color: AppColors.brand200,
-                                        fontSize: 10.sp,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                    Text(
-                                      slide.title,
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 20.sp,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                    Text(
-                                      slide.localizedMeta(l10n),
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: Responsive.fontSm,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (slide.going > 0)
-                                AvatarStack(
-                                  urls: const [],
-                                  extra: slide.going.clamp(0, 99),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-        Responsive.spaceSm.gapH,
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (var i = 0; i < slides.length; i++)
-              AnimatedContainer(
-                duration: AppMotion.standard,
-                curve: AppMotion.settle,
-                margin: EdgeInsets.symmetric(horizontal: 3.w),
-                width: (i == featuredIndex ? 20 : 6).w,
-                height: 6.h,
-                decoration: BoxDecoration(
-                  color: i == featuredIndex
-                      ? AppColors.brand600
-                      : context.palette.border,
-                  borderRadius: BorderRadius.circular(999.r),
+    final heroTag = HeroTags.outingCover('home-next', outing.id);
+    final when = outing.localizedWhen(l10n);
+    final place = outing.isLocationHidden ? '' : outing.localizedPlace;
+    return Material(
+      color: context.palette.surface,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () =>
+            Get.to(() => EventPage(event: outing, coverHeroTag: heroTag)),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              AppHero(
+                tag: heroTag,
+                url: outing.image,
+                radius: 12,
+                child: PlanningCover(
+                  url: outing.image,
+                  art: outing.occasion.coverArt,
+                  width: 72,
+                  height: 72,
                 ),
               ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      outing.title,
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    if (when.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(when, style: Theme.of(context).textTheme.bodyMedium),
+                    ],
+                    if (place.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        place,
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(color: context.palette.textSecondary),
+                      ),
+                    ],
+                    if (outing.status == OutingStatus.voting) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        l10n.voting,
+                        style: Theme.of(context).textTheme.labelLarge
+                            ?.copyWith(color: context.palette.brandStrong),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Icon(context.chevronForward),
+            ],
+          ),
         ),
-      ],
+      ),
     );
   }
 }

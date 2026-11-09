@@ -13,6 +13,7 @@ class AppNetworkImage extends StatelessWidget {
     this.height,
     this.fit = BoxFit.cover,
     this.radius,
+    this.placeholder,
     this.placeholderIcon = Icons.image_outlined,
     this.placeholderColor = AppColors.brand100,
     this.placeholderIconColor = AppColors.brand600,
@@ -28,7 +29,8 @@ class AppNetworkImage extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.radius,
     this.fade = true,
-  }) : placeholderIcon = Icons.person_rounded,
+  }) : placeholder = null,
+       placeholderIcon = Icons.person_rounded,
        placeholderColor = AppColors.brand100,
        placeholderIconColor = AppColors.brand600;
 
@@ -37,6 +39,7 @@ class AppNetworkImage extends StatelessWidget {
   final double? height;
   final BoxFit fit;
   final double? radius;
+  final Widget? placeholder;
   final IconData placeholderIcon;
   final Color placeholderColor;
   final Color placeholderIconColor;
@@ -89,13 +92,19 @@ class AppNetworkImage extends StatelessWidget {
       layoutHeight,
     ].whereType<double>().fold<double>(24, (a, b) => a < b ? a : b);
     final iconSize = (shortest * 0.38).clamp(16.0, 56.0);
-    final placeholder = Container(
-      width: width,
-      height: height,
-      color: placeholderColor,
-      alignment: Alignment.center,
-      child: Icon(placeholderIcon, color: placeholderIconColor, size: iconSize),
-    );
+    final fallback =
+        placeholder ??
+        Container(
+          width: width,
+          height: height,
+          color: placeholderColor,
+          alignment: Alignment.center,
+          child: Icon(
+            placeholderIcon,
+            color: placeholderIconColor,
+            size: iconSize,
+          ),
+        );
 
     final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
     // Only one cache dimension so the codec keeps aspect ratio.
@@ -103,7 +112,7 @@ class AppNetworkImage extends StatelessWidget {
     final memH = memW == null ? _decodePx(layoutHeight, dpr) : null;
 
     final image = url.trim().isEmpty
-        ? placeholder
+        ? fallback
         : _isRemote
         ? CachedNetworkImage(
             imageUrl: url,
@@ -112,8 +121,8 @@ class AppNetworkImage extends StatelessWidget {
             fit: fit,
             memCacheWidth: memW,
             memCacheHeight: memH,
-            placeholder: (_, _) => placeholder,
-            errorWidget: (_, _, _) => placeholder,
+            placeholder: (_, _) => fallback,
+            errorWidget: (_, _, _) => fallback,
             fadeInDuration: fade
                 ? AppMotion.of(context, const Duration(milliseconds: 180))
                 : Duration.zero,
@@ -128,7 +137,7 @@ class AppNetworkImage extends StatelessWidget {
             fit: fit,
             cacheWidth: memW,
             cacheHeight: memH,
-            errorBuilder: (_, _, _) => placeholder,
+            errorBuilder: (_, _, _) => fallback,
           );
 
     if (radius == null) return image;

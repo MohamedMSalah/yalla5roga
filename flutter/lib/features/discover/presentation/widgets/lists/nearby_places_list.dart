@@ -13,11 +13,13 @@ class NearbyPlacesList extends StatelessWidget {
     super.key,
     required this.places,
     this.title,
+    this.emptyMessage,
     this.heroSurface = 'discover-nearby',
   });
 
   final List<SuggestedPlace> places;
   final String? title;
+  final String? emptyMessage;
 
   /// Keeps Hero tags unique across lists that share a route.
   final String heroSurface;
@@ -44,8 +46,8 @@ class NearbyPlacesList extends StatelessWidget {
         if (places.isEmpty)
           AppEmptyState(
             icon: Icons.place_outlined,
-            message: l10n.noPlaces,
-            subtitle: l10n.noPlacesHint,
+            message: emptyMessage ?? l10n.noPlaces,
+            subtitle: emptyMessage == null ? l10n.noPlacesHint : null,
             compact: true,
           )
         else

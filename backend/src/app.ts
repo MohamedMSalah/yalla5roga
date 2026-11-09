@@ -5,12 +5,13 @@ import { prisma } from "./config/database.js";
 import { swaggerSpec } from "./config/swagger.js";
 import routes from "./routes/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
+import { corsOrigin } from "./config/cors.js";
 
 const app = express();
 
 app.use(
   cors({
-    origin: true,
+    origin: corsOrigin,
     credentials: true,
     allowedHeaders: ["Authorization", "Content-Type", "Accept"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

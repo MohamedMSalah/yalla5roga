@@ -47,6 +47,12 @@ class SavedOutingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void removeDeletedOuting(String outingId) {
+    final before = _saved.length;
+    _saved.removeWhere((outing) => outing.id == outingId);
+    if (_saved.length != before) notifyListeners();
+  }
+
   void clear() {
     _saved = [];
     _drafts = [];

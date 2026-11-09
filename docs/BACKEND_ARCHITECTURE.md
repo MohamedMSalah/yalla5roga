@@ -48,7 +48,7 @@ backend/tests/           # lifecycle, authz, concurrency, etc.
 4. `httpServer.listen(PORT, HOST)` (default `0.0.0.0:3000`)
 5. `startOutingCompletionJob()`, `startVotingDeadlineJob()`, `startNotificationWorker()`
 
-`app.ts` middleware stack: CORS → `express.json()` → `/` + `/health` → `/api-docs` → mounted routes → `errorMiddleware`.
+`app.ts` middleware stack: allowlisted CORS → `express.json()` → `/` + `/health` → `/api-docs` → mounted routes → `errorMiddleware`. Browser origins come from `CORS_ORIGINS`; native clients without an `Origin` header remain supported.
 
 Realtime modules: `src/realtime/` (`socket-server`, `socket-auth`, `chat.gateway`, `chat-emitter`, `rooms`). In-memory Socket.IO adapter only (single Node process; no Redis).
 
@@ -164,7 +164,7 @@ Places and outings store URL strings (`image_url`, `cover_image_url`). No in-rep
 ## 15. Logging / env
 
 - `console.log` / `console.error` with tagged prefixes (`[Firebase Auth]`, `[notifications]`, …).
-- Env via `dotenv` (`DATABASE_URL`, `FIREBASE_*`, `PORT`, notification config).
+- Env via `dotenv` (`DATABASE_URL`, `FIREBASE_*`, `PORT`, notification config, `CORS_ORIGINS`). Production startup rejects an empty CORS allowlist and `WHATSAPP_PROVIDER=stub`.
 - OpenAPI at `/api-docs` from `config/swagger.ts`.
 
 ## 16. Response conventions
@@ -180,3 +180,5 @@ Under `backend/tests/` — notably `outing-lifecycle.test.ts`, `resource-authz.t
 - [`API_CONTRACTS.md`](API_CONTRACTS.md)
 - [`DATABASE_ARCHITECTURE.md`](DATABASE_ARCHITECTURE.md)
 - [`AUTHENTICATION_AND_AUTHORIZATION.md`](AUTHENTICATION_AND_AUTHORIZATION.md)
+
+The places datasource uses `services/places/nearby-search-bounds.ts` to select geographic candidates, including searches near a pole or the date line. PostgreSQL applies the final distance and category filters.

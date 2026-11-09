@@ -1,4 +1,6 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
+import { EARTH_RADIUS_KM, nearbySearchBounds } from "../../services/places/nearby-search-bounds.js";
 import type {
   CreatePlaceImageInput,
   CreatePlaceInput,
@@ -52,28 +54,34 @@ export class PlaceDatasource {
     const { lat, lng } = opts;
     const vibe = opts.vibe ?? null;
 
-    // 1 degree of latitude is about 111.32 km; longitude shrinks with cos(lat).
-    const latDelta = radiusKm / 111.32;
-    const lngDelta = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+    const bounds = nearbySearchBounds(lat, lng, radiusKm);
+    const longitudeFilter = bounds.longitudes.length
+      ? Prisma.sql`(${Prisma.join(
+          bounds.longitudes.map(([min, max]) =>
+            Prisma.sql`longitude BETWEEN ${min}::float8 AND ${max}::float8`,
+          ),
+          " OR ",
+        )})`
+      : Prisma.sql`longitude IS NOT NULL`;
 
     return prisma.$queryRaw<NearbyPlace[]>`
       SELECT * FROM (
         SELECT
           id, name, area, vibe, cover_image_url, price_level,
           price_min, price_max, currency, latitude, longitude,
-          6371 * 2 * ASIN(LEAST(1.0, SQRT(
+          ${EARTH_RADIUS_KM}::float8 * 2 * ASIN(LEAST(1.0, SQRT(
             POWER(SIN(RADIANS(latitude - ${lat}::float8) / 2), 2) +
             COS(RADIANS(${lat}::float8)) * COS(RADIANS(latitude)) *
             POWER(SIN(RADIANS(longitude - ${lng}::float8) / 2), 2)
           ))) AS distance_km
         FROM places
         WHERE is_active = true
-          AND latitude  BETWEEN ${lat - latDelta}::float8 AND ${lat + latDelta}::float8
-          AND longitude BETWEEN ${lng - lngDelta}::float8 AND ${lng + lngDelta}::float8
+          AND latitude BETWEEN ${bounds.latitude[0]}::float8 AND ${bounds.latitude[1]}::float8
+          AND ${longitudeFilter}
           AND (${vibe}::outing_vibe IS NULL OR vibe = ${vibe}::outing_vibe)
       ) AS t
       WHERE distance_km <= ${radiusKm}::float8
-      ORDER BY distance_km ASC
+      ORDER BY distance_km ASC, id ASC
       LIMIT ${limit} OFFSET ${offset}
     `;
   }
