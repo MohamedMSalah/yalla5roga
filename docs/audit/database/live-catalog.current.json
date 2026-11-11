@@ -1,0 +1,6168 @@
+{
+  "capturedAt": "2026-11-10T13:24:42.969Z",
+  "endpoint": "ep-misty-glitter-av3zwlzf.c-11.us-east-1.aws.neon.tech",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "version": "PostgreSQL 18.6 (ac70818) on aarch64-unknown-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit",
+    "server_version": "18.6 (ac70818)",
+    "neon_project_id": "rough-mountain-69896781",
+    "neon_branch_id": "br-fragrant-heart-avfm4h2t",
+    "neon_timeline_id": "afec4c4a9c8ebb3f6e8faefb0c52c110"
+  },
+  "tables": [
+    {
+      "table_name": "_prisma_migrations",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "32768",
+      "comment": null
+    },
+    {
+      "table_name": "chat_messages",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "49152",
+      "comment": null
+    },
+    {
+      "table_name": "chat_reads",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "57344",
+      "comment": null
+    },
+    {
+      "table_name": "group_members",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "24576",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "24576",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "65536",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "49152",
+      "comment": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "24576",
+      "comment": null
+    },
+    {
+      "table_name": "outing_guests",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "24576",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "40960",
+      "comment": null
+    },
+    {
+      "table_name": "outing_votes",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "24576",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "90112",
+      "comment": null
+    },
+    {
+      "table_name": "place_hours",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "place_images",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "24576",
+      "comment": null
+    },
+    {
+      "table_name": "place_prices",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "32768",
+      "comment": null
+    },
+    {
+      "table_name": "saved_outings",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "saved_places",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "16384",
+      "comment": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "32768",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "relkind": "r",
+      "estimated_rows": "-1",
+      "total_bytes": "32768",
+      "comment": null
+    }
+  ],
+  "columns": [
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "character varying(36)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "checksum",
+      "ordinal_position": 2,
+      "sql_type": "character varying(64)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "finished_at",
+      "ordinal_position": 3,
+      "sql_type": "timestamp with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "migration_name",
+      "ordinal_position": 4,
+      "sql_type": "character varying(255)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "logs",
+      "ordinal_position": 5,
+      "sql_type": "text",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "rolled_back_at",
+      "ordinal_position": 6,
+      "sql_type": "timestamp with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "started_at",
+      "ordinal_position": 7,
+      "sql_type": "timestamp with time zone",
+      "not_null": true,
+      "default_expression": "now()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "column_name": "applied_steps_count",
+      "ordinal_position": 8,
+      "sql_type": "integer",
+      "not_null": true,
+      "default_expression": "0",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "outing_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "sender_id",
+      "ordinal_position": 3,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "text",
+      "ordinal_position": 4,
+      "sql_type": "character varying(2000)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "sent_at",
+      "ordinal_position": 6,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_messages",
+      "column_name": "client_message_id",
+      "ordinal_position": 7,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_reads",
+      "column_name": "outing_id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_reads",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "chat_reads",
+      "column_name": "last_read_at",
+      "ordinal_position": 3,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "group_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "invited_by_user_id",
+      "ordinal_position": 3,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "invited_phone",
+      "ordinal_position": 4,
+      "sql_type": "character varying(16)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "user_id",
+      "ordinal_position": 5,
+      "sql_type": "character varying(128)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "status",
+      "ordinal_position": 6,
+      "sql_type": "invitation_status",
+      "not_null": true,
+      "default_expression": "'pending'::invitation_status",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "expires_at",
+      "ordinal_position": 7,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "created_at",
+      "ordinal_position": 8,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_invitations",
+      "column_name": "updated_at",
+      "ordinal_position": 9,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_members",
+      "column_name": "group_id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_members",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_members",
+      "column_name": "role",
+      "ordinal_position": 3,
+      "sql_type": "group_role",
+      "not_null": true,
+      "default_expression": "'member'::group_role",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "group_members",
+      "column_name": "joined_at",
+      "ordinal_position": 4,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "column_name": "name",
+      "ordinal_position": 2,
+      "sql_type": "character varying(30)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "column_name": "bio",
+      "ordinal_position": 3,
+      "sql_type": "character varying(160)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "column_name": "image_url",
+      "ordinal_position": 4,
+      "sql_type": "character varying(2048)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "column_name": "created_by",
+      "ordinal_position": 5,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "column_name": "created_at",
+      "ordinal_position": 6,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "groups",
+      "column_name": "updated_at",
+      "ordinal_position": 7,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "event_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "channel",
+      "ordinal_position": 3,
+      "sql_type": "notification_channel",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "provider",
+      "ordinal_position": 4,
+      "sql_type": "character varying(40)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "provider_message_id",
+      "ordinal_position": 5,
+      "sql_type": "character varying(128)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "status",
+      "ordinal_position": 6,
+      "sql_type": "character varying(20)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "response",
+      "ordinal_position": 7,
+      "sql_type": "jsonb",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "column_name": "created_at",
+      "ordinal_position": 8,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "type",
+      "ordinal_position": 2,
+      "sql_type": "notification_event_type",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "channel",
+      "ordinal_position": 3,
+      "sql_type": "notification_channel",
+      "not_null": true,
+      "default_expression": "'push'::notification_channel",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "status",
+      "ordinal_position": 4,
+      "sql_type": "notification_event_status",
+      "not_null": true,
+      "default_expression": "'pending'::notification_event_status",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "recipient_phone",
+      "ordinal_position": 5,
+      "sql_type": "character varying(16)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "recipient_user_id",
+      "ordinal_position": 6,
+      "sql_type": "character varying(128)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "group_id",
+      "ordinal_position": 7,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "invitation_id",
+      "ordinal_position": 8,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "outing_id",
+      "ordinal_position": 9,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "event_key",
+      "ordinal_position": 10,
+      "sql_type": "character varying(191)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "payload",
+      "ordinal_position": 11,
+      "sql_type": "jsonb",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "attempts",
+      "ordinal_position": 12,
+      "sql_type": "smallint",
+      "not_null": true,
+      "default_expression": "0",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "max_attempts",
+      "ordinal_position": 13,
+      "sql_type": "smallint",
+      "not_null": true,
+      "default_expression": "5",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "next_attempt_at",
+      "ordinal_position": 14,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "last_error",
+      "ordinal_position": 15,
+      "sql_type": "character varying(1000)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "sent_at",
+      "ordinal_position": 16,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "created_at",
+      "ordinal_position": 17,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notification_events",
+      "column_name": "updated_at",
+      "ordinal_position": 18,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "body",
+      "ordinal_position": 3,
+      "sql_type": "character varying(500)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "image_url",
+      "ordinal_position": 4,
+      "sql_type": "character varying(2048)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "type",
+      "ordinal_position": 5,
+      "sql_type": "notification_type",
+      "not_null": true,
+      "default_expression": "'system'::notification_type",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "outing_id",
+      "ordinal_position": 6,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "group_id",
+      "ordinal_position": 7,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "action_required",
+      "ordinal_position": 8,
+      "sql_type": "boolean",
+      "not_null": true,
+      "default_expression": "false",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "is_read",
+      "ordinal_position": 9,
+      "sql_type": "boolean",
+      "not_null": true,
+      "default_expression": "false",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "event_key",
+      "ordinal_position": 10,
+      "sql_type": "character varying(191)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "notifications",
+      "column_name": "created_at",
+      "ordinal_position": 11,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "column_name": "outing_id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "column_name": "arrived_at",
+      "ordinal_position": 3,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "column_name": "outing_id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "column_name": "status",
+      "ordinal_position": 3,
+      "sql_type": "attendance_status",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "column_name": "updated_at",
+      "ordinal_position": 4,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "title",
+      "ordinal_position": 3,
+      "sql_type": "character varying(20)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "image_url",
+      "ordinal_position": 4,
+      "sql_type": "character varying(2048)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "group_id",
+      "ordinal_position": 5,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "occasion",
+      "ordinal_position": 6,
+      "sql_type": "outing_occasion",
+      "not_null": true,
+      "default_expression": "'none'::outing_occasion",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "special_event",
+      "ordinal_position": 7,
+      "sql_type": "boolean",
+      "not_null": true,
+      "default_expression": "false",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "vibe",
+      "ordinal_position": 8,
+      "sql_type": "outing_vibe",
+      "not_null": true,
+      "default_expression": "'food'::outing_vibe",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "scheduled_date",
+      "ordinal_position": 9,
+      "sql_type": "date",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "scheduled_hour",
+      "ordinal_position": 10,
+      "sql_type": "smallint",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "scheduled_minute",
+      "ordinal_position": 11,
+      "sql_type": "smallint",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "location_name",
+      "ordinal_position": 12,
+      "sql_type": "character varying(100)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "location_area",
+      "ordinal_position": 13,
+      "sql_type": "character varying(100)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "location_latitude",
+      "ordinal_position": 14,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "location_longitude",
+      "ordinal_position": 15,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "let_vote",
+      "ordinal_position": 16,
+      "sql_type": "boolean",
+      "not_null": true,
+      "default_expression": "false",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "vote_deadline_hours",
+      "ordinal_position": 17,
+      "sql_type": "smallint",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "guest_ids",
+      "ordinal_position": 18,
+      "sql_type": "jsonb",
+      "not_null": true,
+      "default_expression": "'[]'::jsonb",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "selected_places",
+      "ordinal_position": 19,
+      "sql_type": "jsonb",
+      "not_null": true,
+      "default_expression": "'[]'::jsonb",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "updated_at",
+      "ordinal_position": 20,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "column_name": "created_at",
+      "ordinal_position": 21,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_guests",
+      "column_name": "outing_id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_guests",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_guests",
+      "column_name": "invited_at",
+      "ordinal_position": 3,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_guests",
+      "column_name": "status",
+      "ordinal_position": 4,
+      "sql_type": "invitation_status",
+      "not_null": true,
+      "default_expression": "'accepted'::invitation_status",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "outing_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "place_id",
+      "ordinal_position": 3,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "label",
+      "ordinal_position": 4,
+      "sql_type": "character varying(100)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "area",
+      "ordinal_position": 5,
+      "sql_type": "character varying(100)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "image_url",
+      "ordinal_position": 6,
+      "sql_type": "character varying(2048)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "vibe",
+      "ordinal_position": 7,
+      "sql_type": "outing_vibe",
+      "not_null": true,
+      "default_expression": "'food'::outing_vibe",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "latitude",
+      "ordinal_position": 8,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "longitude",
+      "ordinal_position": 9,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "column_name": "sort_order",
+      "ordinal_position": 10,
+      "sql_type": "integer",
+      "not_null": true,
+      "default_expression": "0",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_votes",
+      "column_name": "outing_id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_votes",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_votes",
+      "column_name": "option_id",
+      "ordinal_position": 3,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_votes",
+      "column_name": "created_at",
+      "ordinal_position": 4,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outing_votes",
+      "column_name": "updated_at",
+      "ordinal_position": 5,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "title",
+      "ordinal_position": 2,
+      "sql_type": "character varying(20)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "image_url",
+      "ordinal_position": 3,
+      "sql_type": "character varying(2048)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "group_id",
+      "ordinal_position": 4,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "created_by",
+      "ordinal_position": 5,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "status",
+      "ordinal_position": 6,
+      "sql_type": "outing_status",
+      "not_null": true,
+      "default_expression": "'draft'::outing_status",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "type",
+      "ordinal_position": 7,
+      "sql_type": "outing_type",
+      "not_null": true,
+      "default_expression": "'group'::outing_type",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "occasion",
+      "ordinal_position": 8,
+      "sql_type": "outing_occasion",
+      "not_null": true,
+      "default_expression": "'none'::outing_occasion",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "scheduled_at",
+      "ordinal_position": 9,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "ends_at",
+      "ordinal_position": 10,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "location_place_id",
+      "ordinal_position": 11,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "location_name",
+      "ordinal_position": 12,
+      "sql_type": "character varying(100)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "location_area",
+      "ordinal_position": 13,
+      "sql_type": "character varying(100)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "location_latitude",
+      "ordinal_position": 14,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "location_longitude",
+      "ordinal_position": 15,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "vote_deadline_hours",
+      "ordinal_position": 16,
+      "sql_type": "smallint",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "vote_ends_at",
+      "ordinal_position": 17,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "vote_closed_at",
+      "ordinal_position": 18,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "vote_close_reason",
+      "ordinal_position": 19,
+      "sql_type": "vote_close_reason",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "winning_option_id",
+      "ordinal_position": 20,
+      "sql_type": "uuid",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "suggested_by_user_id",
+      "ordinal_position": 21,
+      "sql_type": "character varying(128)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "created_at",
+      "ordinal_position": 22,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "updated_at",
+      "ordinal_position": 23,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "outings",
+      "column_name": "create_request_key",
+      "ordinal_position": 24,
+      "sql_type": "character varying(80)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_hours",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_hours",
+      "column_name": "place_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_hours",
+      "column_name": "day",
+      "ordinal_position": 3,
+      "sql_type": "weekday",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_hours",
+      "column_name": "opens_at",
+      "ordinal_position": 4,
+      "sql_type": "time(6) without time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_hours",
+      "column_name": "closes_at",
+      "ordinal_position": 5,
+      "sql_type": "time(6) without time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_hours",
+      "column_name": "is_closed",
+      "ordinal_position": 6,
+      "sql_type": "boolean",
+      "not_null": true,
+      "default_expression": "false",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_images",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_images",
+      "column_name": "place_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_images",
+      "column_name": "image_url",
+      "ordinal_position": 3,
+      "sql_type": "character varying(2048)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_images",
+      "column_name": "caption",
+      "ordinal_position": 4,
+      "sql_type": "character varying(200)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_images",
+      "column_name": "sort_order",
+      "ordinal_position": 5,
+      "sql_type": "integer",
+      "not_null": true,
+      "default_expression": "0",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_prices",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_prices",
+      "column_name": "place_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_prices",
+      "column_name": "label",
+      "ordinal_position": 3,
+      "sql_type": "character varying(80)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_prices",
+      "column_name": "amount",
+      "ordinal_position": 4,
+      "sql_type": "numeric(12,2)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "place_prices",
+      "column_name": "currency",
+      "ordinal_position": 5,
+      "sql_type": "character(3)",
+      "not_null": true,
+      "default_expression": "'EGP'::bpchar",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "name",
+      "ordinal_position": 2,
+      "sql_type": "character varying(100)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "area",
+      "ordinal_position": 3,
+      "sql_type": "character varying(100)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "vibe",
+      "ordinal_position": 4,
+      "sql_type": "outing_vibe",
+      "not_null": true,
+      "default_expression": "'food'::outing_vibe",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "description",
+      "ordinal_position": 5,
+      "sql_type": "character varying(1000)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "cover_image_url",
+      "ordinal_position": 6,
+      "sql_type": "character varying(2048)",
+      "not_null": true,
+      "default_expression": "''::character varying",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "price_level",
+      "ordinal_position": 7,
+      "sql_type": "price_level",
+      "not_null": true,
+      "default_expression": "'moderate'::price_level",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "price_min",
+      "ordinal_position": 8,
+      "sql_type": "numeric(12,2)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "price_max",
+      "ordinal_position": 9,
+      "sql_type": "numeric(12,2)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "currency",
+      "ordinal_position": 10,
+      "sql_type": "character(3)",
+      "not_null": true,
+      "default_expression": "'EGP'::bpchar",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "latitude",
+      "ordinal_position": 11,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "longitude",
+      "ordinal_position": 12,
+      "sql_type": "double precision",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "featured",
+      "ordinal_position": 13,
+      "sql_type": "boolean",
+      "not_null": true,
+      "default_expression": "false",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "is_active",
+      "ordinal_position": 14,
+      "sql_type": "boolean",
+      "not_null": true,
+      "default_expression": "true",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "created_at",
+      "ordinal_position": 15,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "places",
+      "column_name": "updated_at",
+      "ordinal_position": 16,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "saved_outings",
+      "column_name": "user_id",
+      "ordinal_position": 1,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "saved_outings",
+      "column_name": "outing_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "saved_outings",
+      "column_name": "saved_at",
+      "ordinal_position": 3,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "saved_places",
+      "column_name": "user_id",
+      "ordinal_position": 1,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "saved_places",
+      "column_name": "place_id",
+      "ordinal_position": 2,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "saved_places",
+      "column_name": "saved_at",
+      "ordinal_position": 3,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "uuid",
+      "not_null": true,
+      "default_expression": "gen_random_uuid()",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "column_name": "user_id",
+      "ordinal_position": 2,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "column_name": "token",
+      "ordinal_position": 3,
+      "sql_type": "character varying(512)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "column_name": "platform",
+      "ordinal_position": 4,
+      "sql_type": "character varying(20)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "column_name": "created_at",
+      "ordinal_position": 5,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "column_name": "updated_at",
+      "ordinal_position": 6,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "id",
+      "ordinal_position": 1,
+      "sql_type": "character varying(128)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "name",
+      "ordinal_position": 2,
+      "sql_type": "character varying(30)",
+      "not_null": true,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "phone",
+      "ordinal_position": 3,
+      "sql_type": "character varying(16)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "email",
+      "ordinal_position": 4,
+      "sql_type": "character varying(254)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "password_hash",
+      "ordinal_position": 5,
+      "sql_type": "character varying(255)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "password_updated_at",
+      "ordinal_position": 6,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "image_url",
+      "ordinal_position": 7,
+      "sql_type": "character varying(2048)",
+      "not_null": false,
+      "default_expression": null,
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "created_at",
+      "ordinal_position": 8,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    },
+    {
+      "table_name": "users",
+      "column_name": "updated_at",
+      "ordinal_position": 9,
+      "sql_type": "timestamp(6) with time zone",
+      "not_null": true,
+      "default_expression": "CURRENT_TIMESTAMP",
+      "identity": "",
+      "generated": "",
+      "comment": null
+    }
+  ],
+  "constraints": [
+    {
+      "table_name": "_prisma_migrations",
+      "name": "_prisma_migrations_applied_steps_count_not_null",
+      "type": "n",
+      "definition": "NOT NULL applied_steps_count",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "applied_steps_count"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "name": "_prisma_migrations_checksum_not_null",
+      "type": "n",
+      "definition": "NOT NULL checksum",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "checksum"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "name": "_prisma_migrations_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "name": "_prisma_migrations_migration_name_not_null",
+      "type": "n",
+      "definition": "NOT NULL migration_name",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "migration_name"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "name": "_prisma_migrations_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "_prisma_migrations",
+      "name": "_prisma_migrations_started_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL started_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "started_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_sender_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (sender_id) REFERENCES users(id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "sender_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_sender_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL sender_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "sender_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_sent_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL sent_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "sent_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_text_not_null",
+      "type": "n",
+      "definition": "NOT NULL text",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "text"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "chat_reads_last_read_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL last_read_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "last_read_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "chat_reads_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "chat_reads_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "chat_reads_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (outing_id, user_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id",
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "chat_reads_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "chat_reads_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_expires_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL expires_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "expires_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_group_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id"
+      ],
+      "references_table": "groups"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_group_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL group_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_invited_by_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (invited_by_user_id) REFERENCES users(id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "invited_by_user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_invited_by_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL invited_by_user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "invited_by_user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_invited_phone_not_null",
+      "type": "n",
+      "definition": "NOT NULL invited_phone",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "invited_phone"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_status_not_null",
+      "type": "n",
+      "definition": "NOT NULL status",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "status"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_group_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id"
+      ],
+      "references_table": "groups"
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_group_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL group_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_joined_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL joined_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "joined_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (group_id, user_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id",
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_role_not_null",
+      "type": "n",
+      "definition": "NOT NULL role",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "role"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_bio_not_null",
+      "type": "n",
+      "definition": "NOT NULL bio",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "bio"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_created_by_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_by"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_created_by_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_by",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_by"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_image_url_not_null",
+      "type": "n",
+      "definition": "NOT NULL image_url",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "image_url"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_name_not_null",
+      "type": "n",
+      "definition": "NOT NULL name",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "name"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_channel_not_null",
+      "type": "n",
+      "definition": "NOT NULL channel",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "channel"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_event_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES notification_events(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "event_id"
+      ],
+      "references_table": "notification_events"
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_event_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL event_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "event_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_provider_not_null",
+      "type": "n",
+      "definition": "NOT NULL provider",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "provider"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_status_not_null",
+      "type": "n",
+      "definition": "NOT NULL status",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "status"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_attempts_not_null",
+      "type": "n",
+      "definition": "NOT NULL attempts",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "attempts"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_channel_not_null",
+      "type": "n",
+      "definition": "NOT NULL channel",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "channel"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_max_attempts_not_null",
+      "type": "n",
+      "definition": "NOT NULL max_attempts",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "max_attempts"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_next_attempt_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL next_attempt_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "next_attempt_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_payload_not_null",
+      "type": "n",
+      "definition": "NOT NULL payload",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "payload"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_status_not_null",
+      "type": "n",
+      "definition": "NOT NULL status",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "status"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_type_not_null",
+      "type": "n",
+      "definition": "NOT NULL type",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "type"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_action_required_not_null",
+      "type": "n",
+      "definition": "NOT NULL action_required",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "action_required"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_body_not_null",
+      "type": "n",
+      "definition": "NOT NULL body",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "body"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_group_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id"
+      ],
+      "references_table": "groups"
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_is_read_not_null",
+      "type": "n",
+      "definition": "NOT NULL is_read",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "is_read"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_type_not_null",
+      "type": "n",
+      "definition": "NOT NULL type",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "type"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "outing_arrivals_arrived_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL arrived_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "arrived_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "outing_arrivals_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "outing_arrivals_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "outing_arrivals_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (outing_id, user_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id",
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "outing_arrivals_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "outing_arrivals_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (outing_id, user_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id",
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_status_not_null",
+      "type": "n",
+      "definition": "NOT NULL status",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "status"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_group_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id"
+      ],
+      "references_table": "groups"
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_guest_ids_not_null",
+      "type": "n",
+      "definition": "NOT NULL guest_ids",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "guest_ids"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_image_url_not_null",
+      "type": "n",
+      "definition": "NOT NULL image_url",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "image_url"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_let_vote_not_null",
+      "type": "n",
+      "definition": "NOT NULL let_vote",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "let_vote"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_occasion_not_null",
+      "type": "n",
+      "definition": "NOT NULL occasion",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "occasion"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_scheduled_hour_range",
+      "type": "c",
+      "definition": "CHECK (scheduled_hour IS NULL OR scheduled_hour >= 0 AND scheduled_hour <= 23) NOT VALID",
+      "validated": false,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "scheduled_hour"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_scheduled_minute_range",
+      "type": "c",
+      "definition": "CHECK (scheduled_minute IS NULL OR scheduled_minute >= 0 AND scheduled_minute <= 59) NOT VALID",
+      "validated": false,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "scheduled_minute"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_selected_places_not_null",
+      "type": "n",
+      "definition": "NOT NULL selected_places",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "selected_places"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_special_event_not_null",
+      "type": "n",
+      "definition": "NOT NULL special_event",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "special_event"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_title_not_null",
+      "type": "n",
+      "definition": "NOT NULL title",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "title"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_vibe_not_null",
+      "type": "n",
+      "definition": "NOT NULL vibe",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "vibe"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_vote_deadline_range",
+      "type": "c",
+      "definition": "CHECK (vote_deadline_hours IS NULL OR vote_deadline_hours >= 1 AND vote_deadline_hours <= 72) NOT VALID",
+      "validated": false,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "vote_deadline_hours"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_invited_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL invited_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "invited_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (outing_id, user_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id",
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_status_not_null",
+      "type": "n",
+      "definition": "NOT NULL status",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "status"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_area_not_null",
+      "type": "n",
+      "definition": "NOT NULL area",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "area"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_image_url_not_null",
+      "type": "n",
+      "definition": "NOT NULL image_url",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "image_url"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_label_not_null",
+      "type": "n",
+      "definition": "NOT NULL label",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "label"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_place_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": "places"
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_sort_order_not_null",
+      "type": "n",
+      "definition": "NOT NULL sort_order",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "sort_order"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_vibe_not_null",
+      "type": "n",
+      "definition": "NOT NULL vibe",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "vibe"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_option_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL option_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "option_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_option_id_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (option_id, outing_id) REFERENCES outing_vote_options(id, outing_id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "option_id",
+        "outing_id"
+      ],
+      "references_table": "outing_vote_options"
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (outing_id, user_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id",
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_created_by_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (created_by) REFERENCES users(id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_by"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_created_by_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_by",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_by"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_ends_after_scheduled",
+      "type": "c",
+      "definition": "CHECK (scheduled_at IS NULL OR ends_at IS NULL OR ends_at > scheduled_at) NOT VALID",
+      "validated": false,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "scheduled_at",
+        "ends_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_group_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "group_id"
+      ],
+      "references_table": "groups"
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_image_url_not_null",
+      "type": "n",
+      "definition": "NOT NULL image_url",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "image_url"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_location_place_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (location_place_id) REFERENCES places(id) ON DELETE SET NULL",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "location_place_id"
+      ],
+      "references_table": "places"
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_occasion_not_null",
+      "type": "n",
+      "definition": "NOT NULL occasion",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "occasion"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_status_not_null",
+      "type": "n",
+      "definition": "NOT NULL status",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "status"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_suggested_by_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (suggested_by_user_id) REFERENCES users(id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "suggested_by_user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_title_not_null",
+      "type": "n",
+      "definition": "NOT NULL title",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "title"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_type_group_consistency",
+      "type": "c",
+      "definition": "CHECK (type = 'group'::outing_type AND group_id IS NOT NULL OR type = 'special_event'::outing_type AND group_id IS NULL) NOT VALID",
+      "validated": false,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "type",
+        "group_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_type_not_null",
+      "type": "n",
+      "definition": "NOT NULL type",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "type"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_vote_deadline_range",
+      "type": "c",
+      "definition": "CHECK (vote_deadline_hours IS NULL OR vote_deadline_hours >= 1 AND vote_deadline_hours <= 72) NOT VALID",
+      "validated": false,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "vote_deadline_hours"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_winning_option_id_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (winning_option_id, id) REFERENCES outing_vote_options(id, outing_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "winning_option_id",
+        "id"
+      ],
+      "references_table": "outing_vote_options"
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_day_not_null",
+      "type": "n",
+      "definition": "NOT NULL day",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "day"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_is_closed_not_null",
+      "type": "n",
+      "definition": "NOT NULL is_closed",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "is_closed"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_place_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": "places"
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_place_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL place_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_images",
+      "name": "place_images_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_images",
+      "name": "place_images_image_url_not_null",
+      "type": "n",
+      "definition": "NOT NULL image_url",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "image_url"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_images",
+      "name": "place_images_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_images",
+      "name": "place_images_place_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": "places"
+    },
+    {
+      "table_name": "place_images",
+      "name": "place_images_place_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL place_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_images",
+      "name": "place_images_sort_order_not_null",
+      "type": "n",
+      "definition": "NOT NULL sort_order",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "sort_order"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_amount_not_null",
+      "type": "n",
+      "definition": "NOT NULL amount",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "amount"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_currency_not_null",
+      "type": "n",
+      "definition": "NOT NULL currency",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "currency"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_label_not_null",
+      "type": "n",
+      "definition": "NOT NULL label",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "label"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_place_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": "places"
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_place_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL place_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_area_not_null",
+      "type": "n",
+      "definition": "NOT NULL area",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "area"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_cover_image_url_not_null",
+      "type": "n",
+      "definition": "NOT NULL cover_image_url",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "cover_image_url"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_currency_not_null",
+      "type": "n",
+      "definition": "NOT NULL currency",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "currency"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_description_not_null",
+      "type": "n",
+      "definition": "NOT NULL description",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "description"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_featured_not_null",
+      "type": "n",
+      "definition": "NOT NULL featured",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "featured"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_is_active_not_null",
+      "type": "n",
+      "definition": "NOT NULL is_active",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "is_active"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_name_not_null",
+      "type": "n",
+      "definition": "NOT NULL name",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "name"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_price_level_not_null",
+      "type": "n",
+      "definition": "NOT NULL price_level",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "price_level"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "places",
+      "name": "places_vibe_not_null",
+      "type": "n",
+      "definition": "NOT NULL vibe",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "vibe"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "saved_outings_outing_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (outing_id) REFERENCES outings(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": "outings"
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "saved_outings_outing_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL outing_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "saved_outings_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (user_id, outing_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id",
+        "outing_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "saved_outings_saved_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL saved_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "saved_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "saved_outings_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "saved_outings_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_places",
+      "name": "saved_places_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (user_id, place_id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id",
+        "place_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_places",
+      "name": "saved_places_place_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": "places"
+    },
+    {
+      "table_name": "saved_places",
+      "name": "saved_places_place_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL place_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "place_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_places",
+      "name": "saved_places_saved_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL saved_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "saved_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "saved_places",
+      "name": "saved_places_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "saved_places",
+      "name": "saved_places_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_token_not_null",
+      "type": "n",
+      "definition": "NOT NULL token",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "token"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_user_id_fkey",
+      "type": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": "users"
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_user_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL user_id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "user_id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "users",
+      "name": "users_created_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL created_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "created_at"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "users",
+      "name": "users_id_not_null",
+      "type": "n",
+      "definition": "NOT NULL id",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "users",
+      "name": "users_name_not_null",
+      "type": "n",
+      "definition": "NOT NULL name",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "name"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "users",
+      "name": "users_pkey",
+      "type": "p",
+      "definition": "PRIMARY KEY (id)",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "id"
+      ],
+      "references_table": null
+    },
+    {
+      "table_name": "users",
+      "name": "users_updated_at_not_null",
+      "type": "n",
+      "definition": "NOT NULL updated_at",
+      "validated": true,
+      "deferrable": false,
+      "initially_deferred": false,
+      "columns": [
+        "updated_at"
+      ],
+      "references_table": null
+    }
+  ],
+  "indexes": [
+    {
+      "table_name": "_prisma_migrations",
+      "name": "_prisma_migrations_pkey",
+      "definition": "CREATE UNIQUE INDEX _prisma_migrations_pkey ON public._prisma_migrations USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "16384",
+      "scans": "10"
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "chat_messages_pkey",
+      "definition": "CREATE UNIQUE INDEX chat_messages_pkey ON public.chat_messages USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "idx_chat_messages_outing_sent",
+      "definition": "CREATE INDEX idx_chat_messages_outing_sent ON public.chat_messages USING btree (outing_id, sent_at DESC)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "idx_chat_messages_outing_sent_id",
+      "definition": "CREATE INDEX idx_chat_messages_outing_sent_id ON public.chat_messages USING btree (outing_id, sent_at DESC, id DESC)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "15"
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "idx_chat_messages_sender",
+      "definition": "CREATE INDEX idx_chat_messages_sender ON public.chat_messages USING btree (sender_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "chat_messages",
+      "name": "uq_chat_messages_client_msg",
+      "definition": "CREATE UNIQUE INDEX uq_chat_messages_client_msg ON public.chat_messages USING btree (outing_id, sender_id, client_message_id)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "94"
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "chat_reads_pkey",
+      "definition": "CREATE UNIQUE INDEX chat_reads_pkey ON public.chat_reads USING btree (outing_id, user_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "129"
+    },
+    {
+      "table_name": "chat_reads",
+      "name": "idx_chat_reads_user",
+      "definition": "CREATE INDEX idx_chat_reads_user ON public.chat_reads USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "group_invitations_pkey",
+      "definition": "CREATE UNIQUE INDEX group_invitations_pkey ON public.group_invitations USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "idx_group_invitations_group",
+      "definition": "CREATE INDEX idx_group_invitations_group ON public.group_invitations USING btree (group_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "36"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "idx_group_invitations_invited_by",
+      "definition": "CREATE INDEX idx_group_invitations_invited_by ON public.group_invitations USING btree (invited_by_user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "idx_group_invitations_phone",
+      "definition": "CREATE INDEX idx_group_invitations_phone ON public.group_invitations USING btree (invited_phone)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "3"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "idx_group_invitations_phone_status",
+      "definition": "CREATE INDEX idx_group_invitations_phone_status ON public.group_invitations USING btree (invited_phone, status)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "idx_group_invitations_status",
+      "definition": "CREATE INDEX idx_group_invitations_status ON public.group_invitations USING btree (status)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "group_invitations",
+      "name": "idx_group_invitations_user",
+      "definition": "CREATE INDEX idx_group_invitations_user ON public.group_invitations USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "105"
+    },
+    {
+      "table_name": "group_members",
+      "name": "group_members_pkey",
+      "definition": "CREATE UNIQUE INDEX group_members_pkey ON public.group_members USING btree (group_id, user_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "257"
+    },
+    {
+      "table_name": "group_members",
+      "name": "idx_group_members_user",
+      "definition": "CREATE INDEX idx_group_members_user ON public.group_members USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "34"
+    },
+    {
+      "table_name": "groups",
+      "name": "groups_pkey",
+      "definition": "CREATE UNIQUE INDEX groups_pkey ON public.groups USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "999"
+    },
+    {
+      "table_name": "groups",
+      "name": "idx_groups_created_by",
+      "definition": "CREATE INDEX idx_groups_created_by ON public.groups USING btree (created_by)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "idx_notification_delivery_logs_event",
+      "definition": "CREATE INDEX idx_notification_delivery_logs_event ON public.notification_delivery_logs USING btree (event_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_delivery_logs",
+      "name": "notification_delivery_logs_pkey",
+      "definition": "CREATE UNIQUE INDEX notification_delivery_logs_pkey ON public.notification_delivery_logs USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_events",
+      "name": "idx_notification_events_claim",
+      "definition": "CREATE INDEX idx_notification_events_claim ON public.notification_events USING btree (status, next_attempt_at)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "22271"
+    },
+    {
+      "table_name": "notification_events",
+      "name": "idx_notification_events_group",
+      "definition": "CREATE INDEX idx_notification_events_group ON public.notification_events USING btree (group_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_events",
+      "name": "idx_notification_events_invitation",
+      "definition": "CREATE INDEX idx_notification_events_invitation ON public.notification_events USING btree (invitation_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_events",
+      "name": "idx_notification_events_outing",
+      "definition": "CREATE INDEX idx_notification_events_outing ON public.notification_events USING btree (outing_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_events",
+      "name": "idx_notification_events_phone",
+      "definition": "CREATE INDEX idx_notification_events_phone ON public.notification_events USING btree (recipient_phone)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_event_key_key",
+      "definition": "CREATE UNIQUE INDEX notification_events_event_key_key ON public.notification_events USING btree (event_key)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notification_events",
+      "name": "notification_events_pkey",
+      "definition": "CREATE UNIQUE INDEX notification_events_pkey ON public.notification_events USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "890"
+    },
+    {
+      "table_name": "notifications",
+      "name": "idx_notifications_group",
+      "definition": "CREATE INDEX idx_notifications_group ON public.notifications USING btree (group_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notifications",
+      "name": "idx_notifications_outing",
+      "definition": "CREATE INDEX idx_notifications_outing ON public.notifications USING btree (outing_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notifications",
+      "name": "idx_notifications_user_created",
+      "definition": "CREATE INDEX idx_notifications_user_created ON public.notifications USING btree (user_id, created_at DESC)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "8"
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_event_key_key",
+      "definition": "CREATE UNIQUE INDEX notifications_event_key_key ON public.notifications USING btree (event_key)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "notifications",
+      "name": "notifications_pkey",
+      "definition": "CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "idx_outing_arrivals_user",
+      "definition": "CREATE INDEX idx_outing_arrivals_user ON public.outing_arrivals USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outing_arrivals",
+      "name": "outing_arrivals_pkey",
+      "definition": "CREATE UNIQUE INDEX outing_arrivals_pkey ON public.outing_arrivals USING btree (outing_id, user_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "5"
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "idx_outing_attendance_user",
+      "definition": "CREATE INDEX idx_outing_attendance_user ON public.outing_attendance USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outing_attendance",
+      "name": "outing_attendance_pkey",
+      "definition": "CREATE UNIQUE INDEX outing_attendance_pkey ON public.outing_attendance USING btree (outing_id, user_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "43"
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "idx_outing_drafts_user",
+      "definition": "CREATE INDEX idx_outing_drafts_user ON public.outing_drafts USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "108"
+    },
+    {
+      "table_name": "outing_drafts",
+      "name": "outing_drafts_pkey",
+      "definition": "CREATE UNIQUE INDEX outing_drafts_pkey ON public.outing_drafts USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "4"
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "idx_outing_guests_status",
+      "definition": "CREATE INDEX idx_outing_guests_status ON public.outing_guests USING btree (outing_id, status)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "121"
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "idx_outing_guests_user",
+      "definition": "CREATE INDEX idx_outing_guests_user ON public.outing_guests USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "182"
+    },
+    {
+      "table_name": "outing_guests",
+      "name": "outing_guests_pkey",
+      "definition": "CREATE UNIQUE INDEX outing_guests_pkey ON public.outing_guests USING btree (outing_id, user_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "555"
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "idx_outing_vote_options_place",
+      "definition": "CREATE INDEX idx_outing_vote_options_place ON public.outing_vote_options USING btree (place_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_outing_id_place_id_key",
+      "definition": "CREATE UNIQUE INDEX outing_vote_options_outing_id_place_id_key ON public.outing_vote_options USING btree (outing_id, place_id)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "20"
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "outing_vote_options_pkey",
+      "definition": "CREATE UNIQUE INDEX outing_vote_options_pkey ON public.outing_vote_options USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outing_vote_options",
+      "name": "uq_vote_options_id_outing",
+      "definition": "CREATE UNIQUE INDEX uq_vote_options_id_outing ON public.outing_vote_options USING btree (id, outing_id)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "108"
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "idx_outing_votes_option",
+      "definition": "CREATE INDEX idx_outing_votes_option ON public.outing_votes USING btree (option_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "28"
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "idx_outing_votes_user",
+      "definition": "CREATE INDEX idx_outing_votes_user ON public.outing_votes USING btree (user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outing_votes",
+      "name": "outing_votes_pkey",
+      "definition": "CREATE UNIQUE INDEX outing_votes_pkey ON public.outing_votes USING btree (outing_id, user_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "211"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_created_by",
+      "definition": "CREATE INDEX idx_outings_created_by ON public.outings USING btree (created_by)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "20"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_group",
+      "definition": "CREATE INDEX idx_outings_group ON public.outings USING btree (group_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "155"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_location_place",
+      "definition": "CREATE INDEX idx_outings_location_place ON public.outings USING btree (location_place_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_scheduled",
+      "definition": "CREATE INDEX idx_outings_scheduled ON public.outings USING btree (scheduled_at)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_status",
+      "definition": "CREATE INDEX idx_outings_status ON public.outings USING btree (status)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_suggested_by",
+      "definition": "CREATE INDEX idx_outings_suggested_by ON public.outings USING btree (suggested_by_user_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_vote_ends_at",
+      "definition": "CREATE INDEX idx_outings_vote_ends_at ON public.outings USING btree (vote_ends_at)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "1245"
+    },
+    {
+      "table_name": "outings",
+      "name": "idx_outings_voting_deadline",
+      "definition": "CREATE INDEX idx_outings_voting_deadline ON public.outings USING btree (status, vote_ends_at)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "244"
+    },
+    {
+      "table_name": "outings",
+      "name": "outings_pkey",
+      "definition": "CREATE UNIQUE INDEX outings_pkey ON public.outings USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "295"
+    },
+    {
+      "table_name": "outings",
+      "name": "uq_outings_creator_request",
+      "definition": "CREATE UNIQUE INDEX uq_outings_creator_request ON public.outings USING btree (created_by, create_request_key)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_pkey",
+      "definition": "CREATE UNIQUE INDEX place_hours_pkey ON public.place_hours USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "1"
+    },
+    {
+      "table_name": "place_hours",
+      "name": "place_hours_place_id_day_key",
+      "definition": "CREATE UNIQUE INDEX place_hours_place_id_day_key ON public.place_hours USING btree (place_id, day)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "4"
+    },
+    {
+      "table_name": "place_images",
+      "name": "idx_place_images_place",
+      "definition": "CREATE INDEX idx_place_images_place ON public.place_images USING btree (place_id, sort_order)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "3"
+    },
+    {
+      "table_name": "place_images",
+      "name": "place_images_pkey",
+      "definition": "CREATE UNIQUE INDEX place_images_pkey ON public.place_images USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "place_prices",
+      "name": "idx_place_prices_place",
+      "definition": "CREATE INDEX idx_place_prices_place ON public.place_prices USING btree (place_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "3"
+    },
+    {
+      "table_name": "place_prices",
+      "name": "place_prices_pkey",
+      "definition": "CREATE UNIQUE INDEX place_prices_pkey ON public.place_prices USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "2"
+    },
+    {
+      "table_name": "places",
+      "name": "idx_places_lat_lng",
+      "definition": "CREATE INDEX idx_places_lat_lng ON public.places USING btree (latitude, longitude)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "33"
+    },
+    {
+      "table_name": "places",
+      "name": "idx_places_vibe",
+      "definition": "CREATE INDEX idx_places_vibe ON public.places USING btree (vibe)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "places",
+      "name": "places_pkey",
+      "definition": "CREATE UNIQUE INDEX places_pkey ON public.places USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "27"
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "idx_saved_outings_outing",
+      "definition": "CREATE INDEX idx_saved_outings_outing ON public.saved_outings USING btree (outing_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "saved_outings",
+      "name": "saved_outings_pkey",
+      "definition": "CREATE UNIQUE INDEX saved_outings_pkey ON public.saved_outings USING btree (user_id, outing_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "168"
+    },
+    {
+      "table_name": "saved_places",
+      "name": "idx_saved_places_place",
+      "definition": "CREATE INDEX idx_saved_places_place ON public.saved_places USING btree (place_id)",
+      "unique": false,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "1"
+    },
+    {
+      "table_name": "saved_places",
+      "name": "saved_places_pkey",
+      "definition": "CREATE UNIQUE INDEX saved_places_pkey ON public.saved_places USING btree (user_id, place_id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "111"
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "uq_user_fcm_tokens_token",
+      "definition": "CREATE UNIQUE INDEX uq_user_fcm_tokens_token ON public.user_fcm_tokens USING btree (token)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "53"
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_pkey",
+      "definition": "CREATE UNIQUE INDEX user_fcm_tokens_pkey ON public.user_fcm_tokens USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "1"
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "name": "user_fcm_tokens_user_id_token_key",
+      "definition": "CREATE UNIQUE INDEX user_fcm_tokens_user_id_token_key ON public.user_fcm_tokens USING btree (user_id, token)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "532"
+    },
+    {
+      "table_name": "users",
+      "name": "users_email_key",
+      "definition": "CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "users",
+      "name": "users_phone_key",
+      "definition": "CREATE UNIQUE INDEX users_phone_key ON public.users USING btree (phone)",
+      "unique": true,
+      "primary": false,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "0"
+    },
+    {
+      "table_name": "users",
+      "name": "users_pkey",
+      "definition": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)",
+      "unique": true,
+      "primary": true,
+      "valid": true,
+      "predicate": null,
+      "bytes": "8192",
+      "scans": "367"
+    }
+  ],
+  "enums": [
+    {
+      "name": "attendance_status",
+      "values": [
+        "going",
+        "not_going",
+        "maybe"
+      ]
+    },
+    {
+      "name": "group_role",
+      "values": [
+        "owner",
+        "member"
+      ]
+    },
+    {
+      "name": "invitation_status",
+      "values": [
+        "pending",
+        "accepted",
+        "declined",
+        "expired",
+        "revoked"
+      ]
+    },
+    {
+      "name": "notification_channel",
+      "values": [
+        "whatsapp",
+        "push",
+        "sms",
+        "email"
+      ]
+    },
+    {
+      "name": "notification_event_status",
+      "values": [
+        "pending",
+        "processing",
+        "sent",
+        "failed",
+        "dead"
+      ]
+    },
+    {
+      "name": "notification_event_type",
+      "values": [
+        "group_invite",
+        "outing_invite",
+        "outing_updated",
+        "attendance_changed",
+        "chat_message",
+        "voting_closed_early",
+        "voting_deadline_reached",
+        "winner_selected",
+        "tie_break_selected",
+        "outing_confirmed",
+        "outing_cancelled"
+      ]
+    },
+    {
+      "name": "notification_type",
+      "values": [
+        "outing",
+        "group",
+        "chat",
+        "vote",
+        "invitation",
+        "system"
+      ]
+    },
+    {
+      "name": "outing_occasion",
+      "values": [
+        "none",
+        "birthday",
+        "wedding"
+      ]
+    },
+    {
+      "name": "outing_status",
+      "values": [
+        "draft",
+        "voting",
+        "confirmed",
+        "cancelled",
+        "past"
+      ]
+    },
+    {
+      "name": "outing_type",
+      "values": [
+        "group",
+        "special_event"
+      ]
+    },
+    {
+      "name": "outing_vibe",
+      "values": [
+        "food",
+        "activity",
+        "outdoor",
+        "movie"
+      ]
+    },
+    {
+      "name": "price_level",
+      "values": [
+        "free",
+        "budget",
+        "moderate",
+        "expensive",
+        "luxury"
+      ]
+    },
+    {
+      "name": "vote_close_reason",
+      "values": [
+        "all_voted",
+        "deadline",
+        "unique_winner",
+        "tie_break",
+        "zero_votes"
+      ]
+    },
+    {
+      "name": "weekday",
+      "values": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+      ]
+    }
+  ],
+  "triggers": [],
+  "rowCounts": {
+    "_prisma_migrations": 5,
+    "chat_messages": 0,
+    "chat_reads": 0,
+    "group_invitations": 0,
+    "group_members": 0,
+    "groups": 0,
+    "notification_delivery_logs": 0,
+    "notification_events": 0,
+    "notifications": 0,
+    "outing_arrivals": 0,
+    "outing_attendance": 0,
+    "outing_drafts": 0,
+    "outing_guests": 0,
+    "outing_vote_options": 0,
+    "outing_votes": 0,
+    "outings": 0,
+    "place_hours": 0,
+    "place_images": 0,
+    "place_prices": 0,
+    "places": 0,
+    "saved_outings": 0,
+    "saved_places": 0,
+    "user_fcm_tokens": 0,
+    "users": 0
+  },
+  "findings": {
+    "users_without_phone": 0,
+    "non_e164_users": 0,
+    "users_with_legacy_email": 0,
+    "users_with_password": 0,
+    "groups_without_owner": 0,
+    "invalid_outing_type": 0,
+    "suggested_by_populated": 0,
+    "non_e164_invites": 0,
+    "unused_delivery_channels": 0
+  },
+  "migrations": [
+    {
+      "migration_name": "20261107000000_init_product_scenario",
+      "checksum": "fddda121bbdef394e5f76131171be03a18764c43b0cb81b89eec25b3a89e0dac",
+      "finished_at": "2026-11-06T22:51:36.840Z",
+      "rolled_back_at": null,
+      "applied_steps_count": 1
+    },
+    {
+      "migration_name": "20261107010000_outing_member_invite_status",
+      "checksum": "b0b60a09bffe92af4f94e52dfe95e6b640841be996996b0124abeae94c532a7e",
+      "finished_at": "2026-11-06T23:28:34.331Z",
+      "rolled_back_at": null,
+      "applied_steps_count": 1
+    },
+    {
+      "migration_name": "20261109000000_harden_constraints_and_indexes",
+      "checksum": "9635f7811badbc7111f7c61db469215d845a62b558188eac07d332881de86282",
+      "finished_at": "2026-11-09T19:53:25.274Z",
+      "rolled_back_at": null,
+      "applied_steps_count": 1
+    },
+    {
+      "migration_name": "20261109010000_phone_password_auth",
+      "checksum": "a91d6b1e9fb8dbf12a03ca0ba72755c7a4290a351975e9cbc1350c9b44a64d78",
+      "finished_at": "2026-11-09T19:53:27.594Z",
+      "rolled_back_at": null,
+      "applied_steps_count": 1
+    },
+    {
+      "migration_name": "20261109090000_outing_arrivals",
+      "checksum": "2247dba54f270b6e50369b82b61514ed6e8945ae8495b80783ae67da84b13398",
+      "finished_at": "2026-11-09T19:53:30.173Z",
+      "rolled_back_at": null,
+      "applied_steps_count": 1
+    }
+  ]
+}

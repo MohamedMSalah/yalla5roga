@@ -2,15 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/custom_button.dart';
+import 'package:yalla_5roga/core/widgets/app_shimmer.dart';
 import 'package:yalla_5roga/core/widgets/notification_button.dart';
-import 'package:yalla_5roga/core/widgets/section_header.dart';
-import 'package:yalla_5roga/core/widgets/segmented_tabs.dart';
-import 'package:yalla_5roga/features/discover/presentation/widgets/lists/discover_section.dart';
-import 'package:yalla_5roga/features/outings/presentation/widgets/lists/weekend_outings_list.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
-import 'package:yalla_5roga/features/outings/presentation/widgets/outings_skeleton.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/lists/active_votes_list.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/lists/outings_list.dart';
 
 class OutingsPage extends StatefulWidget {
   const OutingsPage({super.key});
@@ -33,46 +30,46 @@ class _OutingsPageState extends State<OutingsPage> {
   @override
   Widget build(BuildContext context) {
     final outings = context.watch<OutingsProvider>();
-    if (!outings.hasLoaded) {
-      return const OutingsSkeleton();
-    }
-
     final l10n = context.l10n;
 
     return SafeArea(
+      bottom: false,
       child: ListView(
-        padding: Responsive.pagePadding(),
+        padding: Responsive.pagePadding().add(
+          EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+        ),
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: SectionHeader(
-                  eyebrow: l10n.makeAMemory,
-                  title: l10n.outingsTitle,
+                child: Text(
+                  l10n.outingsTitle,
+                  style: context.texts.headlineSmall,
                 ),
               ),
               const NotificationButton(),
             ],
           ),
-          Responsive.spaceSm.gapH,
-          CustomButton(
-            label: l10n.plan,
-            icon: Icons.add,
-            size: AppButtonSize.small,
+          Responsive.spaceMd.gapH,
+          FilledButton.icon(
+            label: Text(l10n.createOuting),
+            icon: const Icon(Icons.add),
+            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
             onPressed: () => Get.to(() => const CreateOutingPage()),
           ),
-          Responsive.spaceMd.gapH,
-          SegmentedTabs(
-            labels: [l10n.upcoming, l10n.voting, l10n.past],
-            index: outings.filter,
-            onChanged: outings.setFilter,
-            badges: {outings.filter: l10n.n(outings.filtered.length)},
-          ),
-          Responsive.spaceLg.gapH,
-          const DiscoverSection(limit: 4, heroSurface: 'outings'),
-          Responsive.spaceLg.gapH,
-          const WeekendOutingsList(),
+          Responsive.spaceXl.gapH,
+          if (!outings.hasLoaded)
+            const AppShimmer(child: ShimmerOutingList(count: 3))
+          else if (outings.errorMessage != null && outings.outings.isEmpty)
+            TextButton(
+              onPressed: () => outings.load(forceRefresh: true),
+              child: Text(l10n.tryAgain),
+            )
+          else ...[
+            const ActiveVotesList(),
+            Responsive.spaceXl.gapH,
+            OutingsList(title: l10n.upcoming, items: outings.upcoming),
+          ],
         ],
       ),
     );

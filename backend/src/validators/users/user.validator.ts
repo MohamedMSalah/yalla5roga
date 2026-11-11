@@ -56,12 +56,14 @@ export const syncUserBodySchema = z.preprocess(
       phoneNumber: optionalPhoneField,
       phone: optionalPhoneField,
       image_url: z.url().max(2048).optional().nullable(),
+      phoneVerificationToken: z.string().trim().min(1).max(10000).optional(),
     })
     .superRefine(refinePhoneAliases)
     .transform((data) => ({
       name: data.name,
       phone: data.phoneNumber ?? data.phone ?? null,
       image_url: data.image_url ?? null,
+      ...(data.phoneVerificationToken ? { phoneVerificationToken: data.phoneVerificationToken } : {}),
     })),
 );
 

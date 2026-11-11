@@ -1,3 +1,4 @@
+import { chatHistoryQuerySchema } from "../../validators/chat/chat.validator.js";
 import type { NextFunction, Request, Response } from "express";
 import { ListMessagesUseCase } from "../../usecases/chat/list-messages.usecase.js";
 import { MarkChatReadUseCase } from "../../usecases/chat/mark-chat-read.usecase.js";
@@ -15,11 +16,22 @@ export class ChatController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
 
+      const { before, limit, messageId } = chatHistoryQuerySchema.parse(req.query);
+      const outingId = req.params.outingId as string;
+      if (messageId) {
+        const message = await this.listMessages.getMessage(outingId, req.user.uid, messageId);
+        res.json({ success: true, data: [message], next_cursor: null });
+        return;
+      }
+      const pageSize = limit ?? (before ? 40 : null);
       const messages = await this.listMessages.execute(
-        req.params.outingId as string,
+        outingId,
         req.user.uid,
+        pageSize == null ? undefined : { before, limit: pageSize + 1 },
       );
-      res.json({ success: true, data: messages });
+      const hasMore = pageSize != null && messages.length > pageSize;
+      const data = hasMore ? messages.slice(1) : messages;
+      res.json({ success: true, data, next_cursor: hasMore ? data[0]?.id : null });
     } catch (error) {
       next(error);
     }

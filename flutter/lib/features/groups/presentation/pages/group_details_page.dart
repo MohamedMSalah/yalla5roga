@@ -10,10 +10,10 @@ import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_info_page.dart';
+import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/widgets/group_details_skeleton.dart';
 import 'package:yalla_5roga/features/groups/presentation/widgets/lists/group_outings_list.dart';
-import 'package:yalla_5roga/features/groups/presentation/widgets/lists/group_voting_list.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -29,9 +29,19 @@ class GroupDetailsPage extends StatefulWidget {
 class _GroupDetailsPageState extends State<GroupDetailsPage> {
   bool _loading = true;
 
+  GroupsProvider? _openGroupProvider;
+
+  @override
+  void dispose() {
+    _openGroupProvider?.closeGroup(widget.groupId);
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
+    _openGroupProvider = context.read<GroupsProvider>()
+      ..openGroup(widget.groupId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _loadGroup();
     });
@@ -47,8 +57,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final palette = context.palette;
-    final groups = context.watch<GroupsProvider>();
-    final group = groups.findById(widget.groupId);
+    final groups = context.read<GroupsProvider>();
+    final group = context.select<GroupsProvider, Group?>(
+      (provider) => provider.findById(widget.groupId),
+    );
     if (group == null) {
       return Scaffold(
         appBar: AppPageBar(title: l10n.groupDetails),
@@ -73,8 +85,9 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
       );
     }
 
-    final outings = context.watch<OutingsProvider>();
-    final outingCount = outings.forGroup(group.id).length;
+    final outingCount = context.select<OutingsProvider, int>(
+      (provider) => provider.forGroup(group.id).length,
+    );
 
     return Scaffold(
       appBar: AppPageBar(
@@ -140,8 +153,6 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
                   icon: Icons.add,
                   onPressed: () => Get.to(() => CreateOutingPage(group: group)),
                 ),
-                Responsive.spaceXl.gapH,
-                GroupVotingList(group: group),
                 Responsive.spaceXl.gapH,
                 GroupOutingsList(group: group),
               ],

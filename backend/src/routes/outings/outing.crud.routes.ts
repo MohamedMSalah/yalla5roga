@@ -33,7 +33,7 @@ import {
  *   get:
  *     tags: [Outings]
  *     summary: List outings
- *     description: "userId defaults to the authenticated user when omitted."
+ *     description: Lists the caller’s outings. A groupId filter requires active membership and userId, if supplied, must equal the caller UID.
  *     operationId: listOutings
  *     parameters:
  *       - in: query
@@ -61,12 +61,16 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  *   post:
  *     tags: [Outings]
  *     summary: Create an outing
  *     description: >
  *       created_by is taken from the authenticated Firebase UID.
- *       Group outings require group_id (occasion defaults to none).
+ *       Group outings require group_id and active membership (occasion defaults to none).
  *       Special events omit group_id and must set occasion to birthday or wedding.
  *     operationId: createOuting
  *     requestBody:
@@ -84,6 +88,16 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: The request conflicts with the current resource state
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  * /api/outings/{id}/cancel:
  *   post:
  *     tags: [Outings]
@@ -109,6 +123,7 @@ import {
  *   get:
  *     tags: [Outings]
  *     summary: Get an outing
+ *     description: Accessible to the creator, active group members, and pending or accepted outing guests.
  *     operationId: getOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -127,6 +142,8 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *   patch:
  *     tags: [Outings]
  *     summary: Update an outing

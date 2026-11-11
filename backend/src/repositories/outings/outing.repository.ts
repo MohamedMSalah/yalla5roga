@@ -71,8 +71,8 @@ export class OutingRepository implements IOutingRepository {
   castVote(data: CastVoteInput) {
     return this.datasource.castVote(data);
   }
-  removeVote(outingId: string, userId: string) {
-    return this.datasource.removeVote(outingId, userId);
+  removeVote(outingId: string, userId: string, optionId?: string) {
+    return this.datasource.removeVote(outingId, userId, optionId);
   }
   clearVotes(outingId: string) {
     return this.datasource.clearVotes(outingId);

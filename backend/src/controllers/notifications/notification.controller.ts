@@ -3,6 +3,8 @@ import { ListNotificationsUseCase } from "../../usecases/notifications/list-noti
 import { MarkAllNotificationsReadUseCase } from "../../usecases/notifications/mark-all-notifications-read.usecase.js";
 import { MarkNotificationReadUseCase } from "../../usecases/notifications/mark-notification-read.usecase.js";
 import { UnauthorizedError } from "../../utils/errors.js";
+import { notificationTarget } from "../../services/notifications/notification-target.js";
+import { emitDataChange } from "../../realtime/data-changes.js";
 
 export class NotificationController {
   constructor(
@@ -16,7 +18,13 @@ export class NotificationController {
       if (!req.user?.uid) throw new UnauthorizedError();
 
       const notifications = await this.listNotifications.execute(req.user.uid);
-      res.json({ success: true, data: notifications });
+      res.json({
+        success: true,
+        data: notifications.map((row) => {
+          const target = notificationTarget(row.event_key, row.type);
+          return { ...row, eventType: target.type, messageId: target.messageId };
+        }),
+      });
     } catch (error) {
       next(error);
     }
@@ -29,6 +37,7 @@ export class NotificationController {
         req.params.id as string,
         req.user.uid,
       );
+      emitDataChange({ kind: "inbox" }, [req.user.uid]);
       res.json({ success: true, data: notification });
     } catch (error) {
       next(error);
@@ -39,6 +48,7 @@ export class NotificationController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const result = await this.markAllRead.execute(req.user.uid);
+      emitDataChange({ kind: "inbox" }, [req.user.uid]);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);

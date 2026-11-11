@@ -120,25 +120,26 @@ class AppConfig {
     required this.apiBaseUrl,
     required this.connectTimeout,
     required this.receiveTimeout,
-    required this.nominatimHost,
     required this.osmTileUrlTemplate,
+    this.osmDarkTileUrlTemplate,
+    this.osmDarkTileAttribution,
     required this.downloadUrl,
     required this.firebase,
   });
 
   static const String defaultDevelopmentApiBaseUrl = 'http://10.0.2.2:3000';
-  static const String defaultNominatimHost = 'nominatim.openstreetmap.org';
   static const String defaultOsmTileUrlTemplate =
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const String defaultDownloadUrl = 'https://yalla5roga.com';
-  static const int defaultTimeoutMs = 30000;
+  static const int defaultTimeoutMs = 15000;
 
   final AppEnvironment environment;
   final String apiBaseUrl;
   final Duration connectTimeout;
   final Duration receiveTimeout;
-  final String nominatimHost;
   final String osmTileUrlTemplate;
+  final String? osmDarkTileUrlTemplate;
+  final String? osmDarkTileAttribution;
   final String downloadUrl;
   final FirebaseClientConfig firebase;
 
@@ -164,7 +165,6 @@ class AppConfig {
     String apiBaseUrl = defaultDevelopmentApiBaseUrl,
     Duration connectTimeout = const Duration(milliseconds: defaultTimeoutMs),
     Duration receiveTimeout = const Duration(milliseconds: defaultTimeoutMs),
-    String nominatimHost = defaultNominatimHost,
     String osmTileUrlTemplate = defaultOsmTileUrlTemplate,
     String downloadUrl = defaultDownloadUrl,
     FirebaseClientConfig firebase = FirebaseClientConfig.testing,
@@ -174,7 +174,6 @@ class AppConfig {
       apiBaseUrl: apiBaseUrl,
       connectTimeout: connectTimeout,
       receiveTimeout: receiveTimeout,
-      nominatimHost: nominatimHost,
       osmTileUrlTemplate: osmTileUrlTemplate,
       downloadUrl: downloadUrl,
       firebase: firebase,
@@ -193,8 +192,9 @@ class AppConfig {
       'API_RECEIVE_TIMEOUT_MS',
       defaultValue: defaultTimeoutMs,
     );
-    const rawNominatimHost = String.fromEnvironment('NOMINATIM_HOST');
     const rawOsmTileUrl = String.fromEnvironment('OSM_TILE_URL');
+    const darkTiles = String.fromEnvironment('OSM_DARK_TILE_URL');
+    const darkCredit = String.fromEnvironment('OSM_DARK_TILE_ATTRIBUTION');
     const rawDownloadUrl = String.fromEnvironment('APP_DOWNLOAD_URL');
     const firebaseAndroidApiKey = String.fromEnvironment(
       'FIREBASE_ANDROID_API_KEY',
@@ -244,12 +244,14 @@ class AppConfig {
       apiBaseUrl: apiBaseUrl,
       connectTimeout: Duration(milliseconds: connectTimeoutMs),
       receiveTimeout: Duration(milliseconds: receiveTimeoutMs),
-      nominatimHost: rawNominatimHost.trim().isEmpty
-          ? defaultNominatimHost
-          : rawNominatimHost.trim(),
       osmTileUrlTemplate: rawOsmTileUrl.trim().isEmpty
           ? defaultOsmTileUrlTemplate
           : rawOsmTileUrl.trim(),
+      osmDarkTileUrlTemplate: darkCredit.trim().isEmpty ||
+              !darkTiles.startsWith('https://')
+          ? null
+          : darkTiles.trim(),
+      osmDarkTileAttribution: darkCredit.trim(),
       downloadUrl: rawDownloadUrl.trim().isEmpty
           ? defaultDownloadUrl
           : rawDownloadUrl.trim(),
@@ -322,9 +324,6 @@ class AppConfig {
       );
     }
 
-    if (nominatimHost.trim().isEmpty) {
-      throw const AppConfigException('NOMINATIM_HOST must not be empty.');
-    }
     if (osmTileUrlTemplate.trim().isEmpty) {
       throw const AppConfigException('OSM_TILE_URL must not be empty.');
     }

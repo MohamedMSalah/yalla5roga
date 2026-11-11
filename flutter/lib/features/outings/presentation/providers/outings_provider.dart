@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
@@ -13,16 +16,20 @@ export 'package:yalla_5roga/features/outings/domain/entities/place_vote.dart'
     show VoteOption;
 
 class OutingsProvider extends ChangeNotifier {
-  OutingsProvider({required this.repository});
+  OutingsProvider({required this.repository, DateTime Function()? now})
+    : _now = now ?? DateTime.now;
 
   final OutingsRepository repository;
+  final DateTime Function() _now;
+  Timer? _scheduleTimer;
 
   var _outings = <Outing>[];
   final _deletedOutingIds = <String>{};
   var _suggestions = <GroupPlaceSuggestion>[];
   var _votesByOuting = <String, PlaceVote>{};
   var _attendanceByOuting = <String, Map<String, AttendanceStatus>>{};
-  int _filter = 0;
+  final _pendingAttendance =
+      <String, ({String user, AttendanceStatus status})>{};
   int _featuredIndex = 0;
   var _hasLoaded = false;
   var _isCreating = false;
@@ -42,22 +49,47 @@ class OutingsProvider extends ChangeNotifier {
 
   String? get errorMessage => _errorMessage;
 
-  List<Outing> get filtered {
-    final tab = _filter.clamp(0, 2);
+  List<Outing> get history {
+    final now = _now();
     return [
       for (final outing in _outings)
-        if (_matchesFilterTab(outing.status, tab)) outing,
+        if (_isArchived(outing, now)) outing,
+    ]..sort(
+      (a, b) => (b.scheduledAt ?? DateTime(0)).compareTo(
+        a.scheduledAt ?? DateTime(0),
+      ),
+    );
+  }
+
+  List<Outing> get upcoming {
+    final now = _now();
+    final openVoteIds = _activeVotesAt(now).map((outing) => outing.id).toSet();
+    return [
+      for (final outing in _outings)
+        if (!_isArchived(outing, now) && !openVoteIds.contains(outing.id))
+          outing,
     ];
   }
 
-  bool _matchesFilterTab(OutingStatus status, int tab) {
-    switch (tab) {
-      case 0:
-        return status == OutingStatus.draft || status == OutingStatus.confirmed;
-      case 1:
-        return status == OutingStatus.voting;
-      default:
-        return status == OutingStatus.past || status == OutingStatus.cancelled;
+  bool _isArchived(Outing outing, DateTime now) =>
+      outing.status == OutingStatus.cancelled || outing.isPastAt(now);
+
+  void refreshSchedule() {
+    _scheduleNextStart();
+    notifyListeners();
+  }
+
+  void _scheduleNextStart() {
+    _scheduleTimer?.cancel();
+    final now = _now();
+    DateTime? nextStart;
+    for (final outing in _outings) {
+      final start = outing.scheduledAt;
+      if (start == null || _isArchived(outing, now)) continue;
+      if (nextStart == null || start.isBefore(nextStart)) nextStart = start;
+    }
+    if (nextStart != null) {
+      _scheduleTimer = Timer(nextStart.difference(now), refreshSchedule);
     }
   }
 
@@ -69,44 +101,97 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   /// Open place-voting outings (not expired). Source of truth for active vote UIs.
-  List<Outing> get activeVotes {
+  List<Outing> get activeVotes => _activeVotesAt(_now());
+
+  List<Outing> _activeVotesAt(DateTime now) {
     return [
       for (final outing in _outings)
-        if (outing.status == OutingStatus.voting &&
+        if (!_isArchived(outing, now) &&
+            outing.status == OutingStatus.voting &&
             optionsFor(outing.id).isNotEmpty &&
             !isVoteExpired(outing.id))
           outing,
     ];
   }
 
-  List<Outing> activeVotesForGroup(String groupId) {
-    return [
-      for (final outing in activeVotes)
-        if (outing.groupId == groupId) outing,
-    ];
+  int _sessionEpoch = 0;
+  final _openOutings = <String, int>{};
+  Iterable<String> get openOutingIds => _openOutings.keys;
+  final _unavailableOutings = <String>{};
+  bool isUnavailable(String id) => _unavailableOutings.contains(id);
+  bool containsOuting(String id) => findById(id) != null;
+
+  bool applyAttendanceChange(
+    String id,
+    String userId,
+    AttendanceStatus status,
+    DateTime updatedAt,
+  ) {
+    final snapshot = repository.applyAttendanceChange(
+      id,
+      userId,
+      status,
+      updatedAt,
+    );
+    if (snapshot == null) return false;
+    if (_snapshotDiffers(snapshot)) {
+      _applySnapshot(snapshot, reschedule: false);
+      notifyListeners();
+    }
+    return true;
   }
 
-  int get filter => _filter;
+  void openOuting(String id) =>
+      _openOutings.update(id, (count) => count + 1, ifAbsent: () => 1);
+
+  void closeOuting(String id) {
+    final count = _openOutings[id] ?? 0;
+    if (count <= 1) {
+      _openOutings.remove(id);
+    } else {
+      _openOutings[id] = count - 1;
+    }
+  }
 
   int get featuredIndex => _featuredIndex;
 
   Future<void> load({bool forceRefresh = false}) async {
+    final epoch = _sessionEpoch;
     final result = await repository.load(forceRefresh: forceRefresh);
-    result.fold((failure) {
-      _errorMessage = AppErrorFeedback.messageOf(failure);
-      AppErrorFeedback.report(
-        failure,
-        kind: AppErrorKind.load,
-        context: 'loadOutings',
-      );
-    }, _applySnapshot);
+    if (epoch != _sessionEpoch ||
+        OfflineSnapshots.cacheOnly && result.isLeft()) {
+      return;
+    }
+    var changed = !_hasLoaded;
+    result.fold(
+      (failure) {
+        changed =
+            changed || _errorMessage != AppErrorFeedback.messageOf(failure);
+        _errorMessage = AppErrorFeedback.messageOf(failure);
+        AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.load,
+          context: 'loadOutings',
+        );
+      },
+      (snapshot) {
+        // A fresh authorized list can restore access after a group re-add.
+        // Keep explicit deletion tombstones, but release old access denials.
+        _unavailableOutings.removeAll(
+          snapshot.outings.map((outing) => outing.id),
+        );
+        changed =
+            changed || _errorMessage != null || _snapshotDiffers(snapshot);
+        if (changed) _applySnapshot(snapshot);
+      },
+    );
     _hasLoaded = true;
-    notifyListeners();
+    if (changed) notifyListeners();
   }
 
-  void _applySnapshot(OutingSnapshot snapshot) {
-    // A refresh started before DELETE may still contain the old outing.
-    for (final id in _deletedOutingIds) {
+  void _applySnapshot(OutingSnapshot snapshot, {bool reschedule = true}) {
+    // An overlapping detail request may still contain a revoked or deleted outing.
+    for (final id in {..._deletedOutingIds, ..._unavailableOutings}) {
       if (snapshot.outings.any((outing) => outing.id == id) ||
           snapshot.suggestions.any((item) => item.outingId == id)) {
         snapshot = snapshot.withoutOuting(id);
@@ -120,6 +205,7 @@ class OutingsProvider extends ChangeNotifier {
         entry.key: Map.of(entry.value),
     };
     _errorMessage = null;
+    if (reschedule) _scheduleNextStart();
   }
 
   List<Outing> forGroup(String groupId) {
@@ -173,6 +259,9 @@ class OutingsProvider extends ChangeNotifier {
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
+  int eligibleVoterCountFor(String outingId) =>
+      _votesByOuting[outingId]?.eligibleVoterCount ?? 0;
+
   int votedCountFor(String outingId) {
     final options = optionsFor(outingId);
     if (options.isEmpty) return 0;
@@ -194,18 +283,29 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   /// Stand-in for deep links when the outing is not yet loaded.
-  Outing byId(String id) =>
-      findById(id) ?? (_outings.isNotEmpty ? _outings.first : _emptyOuting(id));
+  Outing byId(String id) => findById(id) ?? _emptyOuting(id);
 
   static Outing _emptyOuting(String id) {
     return Outing(id: id, image: '', title: '', meta: '', date: '');
   }
 
+  bool hasAttendanceFor(String outingId) =>
+      _attendanceByOuting.containsKey(outingId);
+
   Map<String, AttendanceStatus> attendanceMapFor(String outingId) {
-    return Map.unmodifiable(_attendanceByOuting[outingId] ?? const {});
+    final pending = _pendingAttendance[outingId];
+    return Map.unmodifiable({
+      ...?_attendanceByOuting[outingId],
+      if (pending != null) pending.user: pending.status,
+    });
   }
 
+  bool isSavingAttendance(String outingId) =>
+      _pendingAttendance.containsKey(outingId);
+
   AttendanceStatus attendanceFor(String outingId, String memberId) {
+    final pending = _pendingAttendance[outingId];
+    if (pending?.user == memberId) return pending!.status;
     return _attendanceByOuting[outingId]?[memberId] ?? AttendanceStatus.unset;
   }
 
@@ -214,15 +314,10 @@ class OutingsProvider extends ChangeNotifier {
     return attendanceFor(outingId, memberId);
   }
 
-  int goingCountFor(String outingId) {
-    final map = _attendanceByOuting[outingId];
-    if (map == null || map.isEmpty) {
-      return findById(outingId)?.going ?? 0;
-    }
-    return map.values
-        .where((status) => status == AttendanceStatus.going)
-        .length;
-  }
+  int goingCountFor(String outingId) =>
+      attendanceMapFor(outingId).values
+          .where((status) => status == AttendanceStatus.going)
+          .length;
 
   List<GroupMember> membersForOuting(Outing outing) {
     return repository.membersForOuting(outing);
@@ -274,12 +369,19 @@ class OutingsProvider extends ChangeNotifier {
     String memberId,
     AttendanceStatus status,
   ) async {
-    // Attendance is independent of voting lock (product scenarios §3.10).
+    // Attendance is independent of voting lock (product scenarios Ãƒâ€šÃ‚Â§3.10).
+    if (isSavingAttendance(outingId)) return false;
+    if (attendanceFor(outingId, memberId) == status) return true;
+    final change = (user: memberId, status: status);
+    _pendingAttendance[outingId] = change;
+    notifyListeners();
     final result = await repository.setAttendance(
       outingId: outingId,
       memberId: memberId,
       status: status,
     );
+    if (_pendingAttendance[outingId] != change) return false;
+    _pendingAttendance.remove(outingId);
     return result.fold(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -299,10 +401,23 @@ class OutingsProvider extends ChangeNotifier {
     );
   }
 
-  void setFilter(int value) {
-    if (_filter == value) return;
-    _filter = value;
-    notifyListeners();
+  Future<bool> confirmVenue(String outingId, String optionId) async {
+    final result = await repository.confirmVenue(outingId, optionId);
+    return result.fold(
+      (failure) {
+        AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.send,
+          context: 'confirmVenue',
+        );
+        return false;
+      },
+      (snapshot) {
+        _applySnapshot(snapshot);
+        notifyListeners();
+        return true;
+      },
+    );
   }
 
   void setFeaturedIndex(int value) {
@@ -368,20 +483,19 @@ class OutingsProvider extends ChangeNotifier {
         _suggestions.removeWhere((item) => item.outingId == outingId);
         _votesByOuting.remove(outingId);
         _attendanceByOuting.remove(outingId);
-        notifyListeners();
+        refreshSchedule();
         return true;
       },
     );
   }
 
-  Future<bool> add(Outing outing, {String? creatorId}) async {
-    if (_isCreating) return false;
+  Future<OutingCreation?> add(Outing outing, {String? creatorId}) async {
+    if (_isCreating) return null;
     _isCreating = true;
     notifyListeners();
 
-    var ok = false;
     final result = await repository.add(outing, creatorId: creatorId);
-    result.fold(
+    final created = result.fold<OutingCreation?>(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
@@ -389,16 +503,17 @@ class OutingsProvider extends ChangeNotifier {
           kind: AppErrorKind.send,
           context: 'createOuting',
         );
+        return null;
       },
-      (snapshot) {
-        _applySnapshot(snapshot);
+      (creation) {
+        _applySnapshot(creation.snapshot);
         AnalyticsService.instance.createOuting(source: 'form');
-        ok = true;
+        return creation;
       },
     );
     _isCreating = false;
     notifyListeners();
-    return ok;
+    return created;
   }
 
   Future<Outing?> suggestPlaces({
@@ -447,17 +562,31 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   void clear() {
+    _sessionEpoch++;
+    _openOutings.clear();
+    _unavailableOutings.clear();
+    _pendingAttendance.clear();
     _deletedOutingIds.clear();
     repository.clearCache();
     _outings = [];
     _suggestions = [];
     _votesByOuting = {};
     _attendanceByOuting = {};
-    _filter = 0;
     _featuredIndex = 0;
     _hasLoaded = false;
     _isCreating = false;
     _errorMessage = null;
+    refreshSchedule();
+  }
+
+  @override
+  void dispose() {
+    _scheduleTimer?.cancel();
+    super.dispose();
+  }
+
+  void applyDetailsSnapshot(OutingSnapshot snapshot) {
+    _applySnapshot(snapshot);
     notifyListeners();
   }
 
@@ -466,13 +595,26 @@ class OutingsProvider extends ChangeNotifier {
     String? outingId,
     bool forceRefresh = false,
   }) async {
+    final epoch = _sessionEpoch;
     final result = await repository.refreshLifecycle(
       outingId: outingId,
       forceRefresh: forceRefresh,
     );
+    if (epoch != _sessionEpoch ||
+        OfflineSnapshots.cacheOnly && result.isLeft()) {
+      return false;
+    }
     var changed = false;
     result.fold(
       (failure) {
+        if (outingId != null &&
+            (failure.statusCode == 403 || failure.statusCode == 404)) {
+          changed = _unavailableOutings.add(outingId);
+          _outings.removeWhere((item) => item.id == outingId);
+          _votesByOuting.remove(outingId);
+          _attendanceByOuting.remove(outingId);
+          return;
+        }
         final message = AppErrorFeedback.messageOf(failure);
         changed = _errorMessage != message;
         _errorMessage = message;
@@ -483,8 +625,12 @@ class OutingsProvider extends ChangeNotifier {
         );
       },
       (snapshot) {
-        changed = _snapshotDiffers(snapshot);
-        _applySnapshot(snapshot);
+        changed =
+            (outingId != null && _unavailableOutings.remove(outingId)) ||
+            _errorMessage != null ||
+            _snapshotDiffers(snapshot);
+        _errorMessage = null;
+        _applySnapshot(snapshot, reschedule: changed);
       },
     );
     if (changed) notifyListeners();
@@ -494,9 +640,35 @@ class OutingsProvider extends ChangeNotifier {
   bool _snapshotDiffers(OutingSnapshot snapshot) {
     if (!_sameOutings(_outings, snapshot.outings)) return true;
     if (_suggestions.length != snapshot.suggestions.length) return true;
-    if (_votesByOuting.length != snapshot.votesByOuting.length) return true;
-    if (_attendanceByOuting.length != snapshot.attendanceByOuting.length) {
+    if (_votesByOuting.length != snapshot.votesByOuting.length ||
+        _attendanceByOuting.length != snapshot.attendanceByOuting.length) {
       return true;
+    }
+    for (final entry in snapshot.attendanceByOuting.entries) {
+      if (!mapEquals(entry.value, _attendanceByOuting[entry.key])) return true;
+    }
+    for (final entry in snapshot.votesByOuting.entries) {
+      final next = entry.value;
+      final previous = _votesByOuting[entry.key];
+      if (previous == null ||
+          previous.finalized != next.finalized ||
+          previous.endsAt != next.endsAt ||
+          previous.eligibleVoterCount != next.eligibleVoterCount ||
+          !listEquals(previous.cuserOptionIds, next.cuserOptionIds) ||
+          previous.options.length != next.options.length) {
+        return true;
+      }
+      for (var index = 0; index < next.options.length; index++) {
+        final before = previous.options[index];
+        final after = next.options[index];
+        if (before.placeId != after.placeId ||
+            before.label != after.label ||
+            before.area != after.area ||
+            before.votes != after.votes ||
+            before.percent != after.percent) {
+          return true;
+        }
+      }
     }
     return false;
   }
@@ -506,10 +678,36 @@ class OutingsProvider extends ChangeNotifier {
     for (var i = 0; i < a.length; i++) {
       if (a[i].id != b[i].id ||
           a[i].status != b[i].status ||
+          a[i].scheduledAt != b[i].scheduledAt ||
+          a[i].endsAt != b[i].endsAt ||
+          a[i].location?.label != b[i].location?.label ||
+          a[i].location?.latitude != b[i].location?.latitude ||
+          a[i].location?.longitude != b[i].location?.longitude ||
           a[i].image != b[i].image ||
           a[i].title != b[i].title ||
-          a[i].going != b[i].going) {
+          a[i].going != b[i].going ||
+          a[i].meta != b[i].meta ||
+          a[i].date != b[i].date ||
+          a[i].time != b[i].time ||
+          a[i].groupId != b[i].groupId ||
+          a[i].location?.placeId != b[i].location?.placeId ||
+          a[i].occasion != b[i].occasion ||
+          a[i].type != b[i].type ||
+          a[i].createdById != b[i].createdById ||
+          a[i].suggestedBy != b[i].suggestedBy ||
+          a[i].voteDeadlineHours != b[i].voteDeadlineHours ||
+          !listEquals(a[i].guestIds, b[i].guestIds) ||
+          !listEquals(a[i].guestPhones, b[i].guestPhones) ||
+          a[i].votePlaces.length != b[i].votePlaces.length) {
         return false;
+      }
+      for (var index = 0; index < a[i].votePlaces.length; index++) {
+        if (!mapEquals(
+          a[i].votePlaces[index].toJson(),
+          b[i].votePlaces[index].toJson(),
+        )) {
+          return false;
+        }
       }
     }
     return true;

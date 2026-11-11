@@ -7,12 +7,14 @@ class GroupMember {
     required this.avatar,
     this.role = GroupRole.member,
     this.phone,
+    this.isPending = false,
   });
 
   final String id;
   final String name;
   final String avatar;
   final GroupRole role;
+  final bool isPending;
 
   /// Egyptian phone in `+20…` form when known (for contact name matching).
   final String? phone;
@@ -32,6 +34,7 @@ class GroupMember {
       avatar: avatar ?? this.avatar,
       role: role ?? this.role,
       phone: phone ?? this.phone,
+      isPending: isPending,
     );
   }
 
@@ -41,6 +44,7 @@ class GroupMember {
     'avatar': avatar,
     'role': role.name,
     'phone': phone,
+    if (isPending) 'is_pending': true,
   };
 
   factory GroupMember.fromJson(Map<String, dynamic> json) {
@@ -50,6 +54,7 @@ class GroupMember {
       avatar: json['avatar'] as String? ?? '',
       role: GroupRole.fromApi(json['role'] as String?),
       phone: json['phone'] as String?,
+      isPending: json['is_pending'] == true,
     );
   }
 }

@@ -52,3 +52,70 @@ class PlanningCover extends StatelessWidget {
     );
   }
 }
+
+class PlanningCoverPicker extends StatelessWidget {
+  const PlanningCoverPicker({
+    super.key,
+    required this.url,
+    required this.art,
+    required this.optionalLabel,
+    required this.onTap,
+  });
+
+  final String url;
+  final PlanningCoverArt art;
+  final String optionalLabel;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      borderRadius: BorderRadius.circular(22.r),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Stack(
+          alignment: AlignmentDirectional.bottomEnd,
+          children: [
+            PlanningCover(
+              url: url,
+              art: art,
+              width: double.infinity,
+              height: 140.h,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: context.palette.surface,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_a_photo_outlined, size: 18),
+                      Responsive.spaceSm.gapW,
+                      Flexible(
+                        child: Text(
+                          url.isEmpty
+                              ? optionalLabel
+                              : context.l10n.changePhoto,
+                          style: context.texts.labelLarge,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

@@ -69,6 +69,7 @@ class OutingDraft {
     this.occasion = OutingOccasion.none,
     this.specialEvent = false,
     this.guestIds = const [],
+    this.guestPhones = const [],
     this.letVote = false,
     this.voteDeadlineHours,
     this.selectedPlaces = const [],
@@ -86,6 +87,7 @@ class OutingDraft {
   final OutingOccasion occasion;
   final bool specialEvent;
   final List<String> guestIds;
+  final List<String> guestPhones;
   final bool letVote;
   final int? voteDeadlineHours;
   final List<Place> selectedPlaces;
@@ -110,6 +112,10 @@ class OutingDraft {
         orElse: () => OutingOccasion.none,
       ),
       specialEvent: json['specialEvent'] as bool? ?? false,
+      guestPhones: [
+        for (final item in json['guestPhones'] as List? ?? const [])
+          if (item is String) item,
+      ],
       guestIds: [
         for (final item in json['guestIds'] as List? ?? const [])
           if (item is String) item,
@@ -136,6 +142,7 @@ class OutingDraft {
     'occasion': occasion.name,
     'specialEvent': specialEvent,
     'guestIds': guestIds,
+    'guestPhones': guestPhones,
     'letVote': letVote,
     'voteDeadlineHours': voteDeadlineHours,
     'selectedPlaces': [for (final place in selectedPlaces) place.toJson()],

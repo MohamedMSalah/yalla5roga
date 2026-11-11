@@ -4,6 +4,7 @@ import type {
   Group,
   GroupMember,
   GroupMemberView,
+  GroupRoster,
   UpdateGroupInput,
 } from "../../types/groups/group.types.js";
 
@@ -18,8 +19,10 @@ export interface IGroupRepository {
   addInvitedMember(
     groupId: string,
     userId: string,
+    callerId?: string,
   ): Promise<{ member: GroupMember; created: boolean }>;
   findMember(groupId: string, userId: string): Promise<GroupMember | null>;
-  removeMember(groupId: string, userId: string): Promise<GroupMember>;
+  removeMember(groupId: string, userId: string, callerId: string): Promise<GroupMember>;
+  listRoster(groupId: string): Promise<GroupRoster>;
   listMembers(groupId: string): Promise<GroupMemberView[]>;
 }

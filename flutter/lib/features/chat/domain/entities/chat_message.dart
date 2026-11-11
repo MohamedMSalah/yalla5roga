@@ -1,4 +1,4 @@
-enum MessageDeliveryStatus { sent, delivered, seen }
+enum MessageDeliveryStatus { pending, failed, sent, delivered, seen }
 
 class ChatMessage {
   const ChatMessage({
@@ -10,6 +10,7 @@ class ChatMessage {
     this.outingId,
     this.avatar,
     this.senderId,
+    this.clientMessageId,
     this.sentAt,
     this.deliveryStatus = MessageDeliveryStatus.sent,
   });
@@ -24,6 +25,7 @@ class ChatMessage {
   final bool isMine;
   final String? avatar;
   final String? senderId;
+  final String? clientMessageId;
   final DateTime? sentAt;
   final MessageDeliveryStatus deliveryStatus;
 
@@ -36,6 +38,7 @@ class ChatMessage {
     bool? isMine,
     String? avatar,
     String? senderId,
+    String? clientMessageId,
     DateTime? sentAt,
     MessageDeliveryStatus? deliveryStatus,
   }) {
@@ -48,6 +51,7 @@ class ChatMessage {
       isMine: isMine ?? this.isMine,
       avatar: avatar ?? this.avatar,
       senderId: senderId ?? this.senderId,
+      clientMessageId: clientMessageId ?? this.clientMessageId,
       sentAt: sentAt ?? this.sentAt,
       deliveryStatus: deliveryStatus ?? this.deliveryStatus,
     );
@@ -62,6 +66,7 @@ class ChatMessage {
     'isMine': isMine,
     'avatar': avatar,
     'senderId': senderId,
+    'clientMessageId': clientMessageId,
     'sentAt': sentAt?.toIso8601String(),
     'deliveryStatus': deliveryStatus.name,
   };

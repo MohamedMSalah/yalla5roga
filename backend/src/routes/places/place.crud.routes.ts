@@ -240,6 +240,8 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  * /api/places/{id}/images:
  *   get:
  *     tags: [Places]
@@ -308,6 +310,8 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  * /api/places/{id}/prices:
  *   get:
  *     tags: [Places]
@@ -376,6 +380,8 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  */
 const router = Router();
 const controller = new PlaceController();

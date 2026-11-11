@@ -13,6 +13,8 @@ class PhoneTextField extends StatelessWidget {
     this.hint,
     this.validator,
     this.validate = true,
+    this.onChanged,
+    this.allowInternational = false,
     this.textInputAction,
     this.autovalidateMode,
   });
@@ -22,15 +24,29 @@ class PhoneTextField extends StatelessWidget {
   final String? hint;
   final String? Function(String?)? validator;
   final bool validate;
+  final ValueChanged<String>? onChanged;
+  final bool allowInternational;
   final TextInputAction? textInputAction;
   final AutovalidateMode? autovalidateMode;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    if (allowInternational) {
+      return CustomTextField(
+        controller: controller,
+        onChanged: onChanged,
+        label: label ?? l10n.phone,
+        hint: l10n.internationalPhoneHint,
+        keyboardType: TextInputType.phone,
+        textDirection: TextDirection.ltr,
+        validator: validator,
+      );
+    }
     // Keep phone rows LTR so "+20" stays on the left of the number in Arabic UI.
     return CustomTextField(
       controller: controller,
+      onChanged: onChanged,
       label: label ?? l10n.phone,
       hint: hint ?? l10n.phoneHint,
       keyboardType: TextInputType.phone,

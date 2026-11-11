@@ -40,8 +40,8 @@
 ## ADR-005: Firebase Authentication only for identity
 
 - **Status:** Accepted
-- **Context:** Mobile social/phone auth + secure API calls.
-- **Decision:** Firebase Auth for identity (UID + ID tokens) only; Neon is the sole application data store. Email/password signup creates a bare Firebase UID with no profile fields; name/email/phone/`password_hash` live in Neon. Backend verifies ID tokens and mints custom-token sessions for email/password.
+- **Context:** Phone/password app access, Firebase identity, and stable account relationships.
+- **Decision:** Firebase Auth for identity (UID + ID tokens) only; Neon is the sole application data store. Phone/password signup retains the phone OTP-verified Firebase UID after backend verification of its ID token. Firebase's phone credential is identity proof; application profiles and `password_hash` remain in Neon. Backend accepts verified Firebase phone OTP ID tokens and mints custom-token sessions for phone/password. Both keep the same Firebase UID. Legacy bare-UID accounts keep their IDs and can bind an unused OTP phone credential only after fresh server-verified OTP proof; registered identities are never merged. Retain the Firebase UID primary key for stable relations. PostgreSQL enforces E.164, uniqueness and NOT NULL on the phone lookup key so a phone change leaves existing relationships intact.
 - **Consequences:** All protected routes use `authMiddleware`; user rows keyed by Firebase UID. Do not use Firestore/Realtime DB (or Firebase Auth profile fields) as the app database.
 
 ## ADR-006: Backend authority for voting lifecycle
@@ -109,4 +109,29 @@
 
 ---
 
+## ADR-014: Offline snapshots and scoped realtime invalidation
+
+- **Status:** Accepted (2026-11-11, requested offline-first workflow)
+- **Decision:** Reuse SharedPreferences for bounded account/backend-scoped JSON snapshots and the existing chat cache. Cache hydration precedes authenticated REST catch-up. PostgreSQL remains authoritative; sockets deliver invalidations or canonical chat messages. One app-scoped `AppSyncProvider` owns network, lifecycle and socket recovery listeners.
+- **Replay policy:** Only durable chat sends use the outbox, with a stable client UUID and existing PostgreSQL uniqueness over outing/sender/client UUID. Server authorization and chat-state checks remain enforced. Votes, attendance, GPS, invitations, membership, account/security changes, deletes and lifecycle commands require online success.
+- **Consequences:** No new dependency, database or write route. No OS background worker or durable server event log. Resume/reconnect repairs lists and open details using REST. Preferences are bounded and unencrypted; logout purges the previous account's snapshots, chat cache and sends. ADR-013's single-process Socket.IO restriction remains.
+
 When superseding a decision, mark the old ADR **Superseded** and add a new one — do not silently rewrite history.
+
+
+## ADR-015: Stable inline mentions and bounded invalidation replay
+
+- **Status:** Accepted (2026-11-11, owner-requested mention/realtime work).
+- **Decision:** Extend ADR-013/014 using the same REST text field, Socket.IO connection, Provider coordinator, and offline send queue. Store mention IDs in URI-encoded inline text tokens and canonicalize labels from Neon. Use existing notification event keys and exact-message navigation. Keep a bounded in-memory, per-recipient invalidation replay buffer in the existing single-process deployment; fall back to stale caches and mounted resources when replay cannot cover the gap.
+- **Consequences:** No dependency or schema migration. Older clients display raw stable tokens until updated. The buffer expires after ten minutes or 512 global invalidations and resets on backend restart. Multi-instance hosting still requires shared replay/state infrastructure and an ADR. General data refresh is silent and uses profile GET; account sync is limited to restoration/authentication/verified account changes.
+
+
+## ADR-016: Centralized session synchronization on the existing socket
+
+- **Status:** Accepted (2026-11-11, owner-requested centralized synchronization).
+- **Decision:** Extend ADR-013/014/015 with authorized group rooms, a shared typed Flutter change envelope and acknowledged-only replay checkpoints. Reuse one DI-owned socket per signed-in app session. Apply complete attendance/chat rows directly; incomplete group/outing/voting events use targeted authenticated reads, and membership changes revalidate access-dependent lists. Keep REST writes and PostgreSQL business authority unchanged.
+- **Consequences:** No dependency or migration. Replay and delivery remain best effort in one Node process. Attendance rows are version-merged; replay contains resource identifiers to recheck current authorization. Durable server publication, shared multi-instance adapters and background execution remain outside this change. See `audit/CENTRALIZED_REALTIME_SYNC.md`.
+
+### ADR-005 clarification: recovery — 2026-11-11
+
+The existing application password authority is Neon bcrypt, as verified in phone/password login and password change. Recovery updates that same credential after fresh server-verified Firebase phone proof; it must not set an unrelated Firebase password. Shared PostgreSQL digests provide five-minute single-use reset grants with atomic consumption/password update and proof replay rejection. Current Firebase phone must match the existing Neon UID/phone; unbound legacy accounts fail closed. Existing signup/sync proof contracts and sessions remain unchanged. This extends the established architecture, with no new password store or identity migration.

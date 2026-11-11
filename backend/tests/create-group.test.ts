@@ -30,7 +30,7 @@ class FakeGroups implements IGroupRepository {
   findByUserId(): Promise<Group[]> {
     throw new Error("not used");
   }
-  create(data: {
+  async create(data: {
     name: string;
     bio?: string;
     image_url?: string;
@@ -44,9 +44,10 @@ class FakeGroups implements IGroupRepository {
       created_by: data.created_by,
       created_at: NOW,
       updated_at: NOW,
-      member_count: 0,
+      member_count: 1,
     };
-    return Promise.resolve(this.group);
+    await this.addMember({ group_id: this.group.id, user_id: data.created_by, role: "owner" });
+    return this.group;
   }
   update(): Promise<Group> {
     throw new Error("not used");
@@ -74,11 +75,14 @@ class FakeGroups implements IGroupRepository {
   addInvitedMember() {
     throw new Error("not used");
   }
-  findMember(): Promise<GroupMember | null> {
-    throw new Error("not used");
+  findMember(groupId: string, userId: string): Promise<GroupMember | null> {
+    return Promise.resolve(this.members.find(member => member.group_id === groupId && member.user_id === userId) ?? null);
   }
   removeMember(): Promise<GroupMember> {
     throw new Error("not used");
+  }
+  async listRoster(groupId: string) {
+    return { members: await this.listMembers(groupId), pendingMembers: [] };
   }
   listMembers(groupId: string): Promise<GroupMemberView[]> {
     return Promise.resolve(
@@ -123,8 +127,9 @@ describe("ListGroupMembersUseCase", () => {
       created_by: OWNER_ID,
     });
 
-    const members = await new ListGroupMembersUseCase(groups).execute(
+    const { members } = await new ListGroupMembersUseCase(groups).execute(
       "group-1",
+      OWNER_ID,
     );
     assert.equal(members.length, 1);
     assert.equal(members[0]?.user_id, OWNER_ID);

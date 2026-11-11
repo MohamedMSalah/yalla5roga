@@ -12,7 +12,6 @@ class AppConstants {
   static const String savedOutingsKey = 'saved_outings';
   static const String outingDraftsKey = 'outing_drafts';
   static const String outingChatMessagesKey = 'outing_chat_messages';
-  static const String locationPromptShownKey = 'location_prompt_shown';
   static const String fcmTokenKey = 'fcm_device_token';
 
   /// Android FCM / local-notification channel (must match AndroidManifest meta-data).
@@ -21,7 +20,6 @@ class AppConstants {
   static const String fcmAndroidChannelDescription =
       'Outing, group, and chat updates';
 
-  static const String nominatimUserAgent = 'Yalla5roga/1.0';
 
   static const Duration splashDuration = Duration(seconds: 2);
   static const int minPasswordLength = 8;

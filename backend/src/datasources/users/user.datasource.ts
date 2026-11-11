@@ -29,6 +29,14 @@ export class UserDatasource {
     });
   }
 
+  async enrollPassword(id: string, phone: string, passwordHash: string): Promise<User | null> {
+    const [updated] = await prisma.users.updateManyAndReturn({
+      where: { id, phone, password_hash: null },
+      data: { password_hash: passwordHash },
+    });
+    return updated ?? this.findById(id);
+  }
+
   /**
    * Legacy helper. Prefer create + selective update from SyncUserUseCase so
    * existing profile fields are not overwritten by identity sync.

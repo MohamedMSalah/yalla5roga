@@ -13,9 +13,10 @@ export class ListAttendanceUseCase {
     private readonly outings: IOutingRepository = new OutingRepository(),
   ) {}
 
-  async execute(outingId: string): Promise<OutingAttendance[]> {
+  async execute(outingId: string, userId: string): Promise<OutingAttendance[]> {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
+    await assertOutingParticipant(outing, userId);
     return this.outings.listAttendance(outingId);
   }
 }
@@ -55,6 +56,8 @@ export class UpsertAttendanceUseCase {
         body: "A participant updated their attendance.",
         eventKey: `attendance:${outingId}:${userId}:${nextStatus}:${row.updated_at.toISOString()}`,
         userIds: [outing.created_by],
+      }).catch((error: unknown) => {
+        console.error("[attendance] notification enqueue failed", error);
       });
     }
 

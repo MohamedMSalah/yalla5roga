@@ -30,7 +30,7 @@ This file distinguishes:
 | Owner | Creator of that outing. Owns lifecycle and management for that outing only. |
 | Member | Registered user who joined (accepted invitation or equivalent membership). |
 
-Invitation statuses (`pending` / `accepted` / `declined`) are **not** roles. After accept → Member.
+Outing invitation statuses (`pending` / `accepted` / `declined`) track the outing guest workflow. An accepted outing guest becomes a member. Group phone membership follows the automatic linking flow in section 3.
 
 Owner auto **Going**. Owner cannot set attendance to Not Going / Maybe. Members cannot leave / remove themselves. Members cannot perform Owner-only ops.
 
@@ -58,9 +58,9 @@ flowchart LR
 
 Must support: cold/warm start, auth/unauth, expired/invalid links, duplicate accept, already joined, auth cancel, post-login restore.
 
-Group invitations (phone → group membership) remain a separate group-membership flow with their own deep links.
+Adding a verified, registered phone number grants group membership immediately. For a phone number without a synchronized account, the group stores a pending E.164 association. The group roster shows the contact as awaiting registration. The association links to the verified Firebase UID automatically at signup or sync, even if the same number was added to several groups. The next roster refresh shows the registered member in the regular list. A group owner can revoke the pending association. Recipients have no acceptance, rejection or activation step. With recipient consent and a configured WhatsApp Business provider, the backend queues an approved template. Creating or adding a group member uses inline consent and the group remains available when delivery is unavailable.
 
-**Current implementation:** Group invite deep links (`yalla5roga://invite` / HTTPS) + claim on user sync. Outing-level invite accept/decline UI is being aligned to this document.
+Group share links (`yalla5roga://invite` or HTTPS) identify the group. Verified phone ownership and the persisted group association control access. The outing guest invitation workflow is separate.
 
 ---
 
@@ -68,9 +68,13 @@ Group invitations (phone → group membership) remain a separate group-membershi
 
 **Approved:** `group` outing and `special_event` share members, voting, attendance, chat, notifications, lifecycle, saved outings where applicable. No separate voting/attendance systems per type unless explicitly required later.
 
+Special-event organizers may send a WhatsApp invitation to phone contacts who agreed to receive it. The invitation gives the event name, local date and time, venue, a Google Calendar link and an optional link to try Yalla 5roga. These guests can attend without an app account. Phone invitations do not grant outing membership.
+
 ---
 
 ## 5. Outing lifecycle
+
+Groups may contain any number of outings, including overlapping schedules and multiple outings in the same lifecycle state. Group membership grants access to each group outing. Attendance, place options and votes, arrivals, and chat are scoped to the individual outing.
 
 **Approved core states:** `draft` → `voting` → `confirmed` | `cancelled`. Optional `past` / archived must not reopen voting.
 
@@ -83,11 +87,13 @@ Group invitations (phone → group membership) remain a separate group-membershi
 
 **Integrity:** Confirmed never returns to Voting. Cancelled never reopens voting. Backend enforces transitions.
 
+At its scheduled start, an outing moves from the Outings tab to **Settings → Outing history**. Cancelled and completed outings also appear in history. Outing details remain accessible from history for features such as arrival check-in when eligible.
+
 ```mermaid
 stateDiagram-v2
   [*] --> draft
   draft --> voting
-  voting --> confirmed: uniqueWinner_or_tieBreak
+  voting --> confirmed: uniqueWinner_or_tieBreak_or_ownerConfirmation
   voting --> cancelled: zeroVotes_or_ownerCancel
   confirmed --> past: completionJob
   confirmed --> cancelled: ownerCancel
@@ -132,7 +138,7 @@ Same definition for vote APIs, early close, deadline resolution, Flutter UI, and
 - One active vote per user per outing — DB uniqueness `(outing_id, user_id)`.
 - Before close: change vote via upsert (no duplicate actives).
 - After close / confirmed: reject votes and changes.
-- Unique winner → backend selects → Confirmed → permanently locked.
+- The creator can confirm a proposed option while the outing is still awaiting a venue. The backend closes voting and locks the chosen place. When the vote resolves first, the approved unique-winner, tie-break and zero-vote rules apply.
 - Tie → Owner triggers backend crypto RNG among tied leaders only; idempotent; Flutter animates only.
 - Zero votes at close → cancel.
 
@@ -155,6 +161,8 @@ Same definition for vote APIs, early close, deadline resolution, Flutter UI, and
 **Approved statuses:** `going` | `not_going` | `maybe`.
 
 Owner auto Going; Owner cannot change away. Members update own status. Independent of vote counts and eligibility. Notifications per recipient policy.
+
+**Physical arrival:** A scheduled outing needs a confirmed, pinned venue. Opening the outing during its arrival window triggers foreground GPS verification subject to device permission. Current group members follow the same rules, including the creator. RSVP choices have no effect on arrival eligibility. A recent, sufficiently accurate GPS fix within the allowed radius verifies the participant’s own arrival. The roster displays verified and unverified participants separately from RSVP and place voting. Location problems are visible on the affected device.
 
 ---
 
@@ -189,6 +197,8 @@ Backend enforces all rows; Flutter visibility is not authorization.
 
 **Approved events:** new invitation; invitation accepted (where applicable); outing details updated; candidate places changed; voting reset; attendance changed (policy); new chat (preferences); voting closed early; deadline reached; unique winner; tie-break winner; confirmed; cancelled.
 
+**Tap destinations:** Group creation and updates open Group Details. Outing creation, updates, and reminders open Outing Details. Chat opens the related outing chat with normal history and message styling. Place votes open Place Voting. Attendance votes open Attendance. Member joins and departures open Group Members. Opening a notification marks its inbox item read, and Back returns to the previous screen. Access follows the destination's existing authorization rules.
+
 **Infrastructure:** FCM token register/refresh; multi-device; invalid token handling; outbox → worker → real Push sender (Firebase Admin); retries; idempotency; delivery failure logging. Persisted notification rows alone do not prove push delivery.
 
 ---
@@ -201,7 +211,9 @@ Backend enforces all rows; Flutter visibility is not authorization.
 
 ## 16. Authentication and deep links
 
-**Approved:** Login and registration use phone number and password. Registration includes phone OTP in the client. Google, Apple, and email login are removed. Firebase ID tokens are verified by the backend. Deep-link destinations must survive auth. The backend does not yet verify signup OTP independently.
+**Approved:** Login and registration use phone number and password. Registration requires Firebase phone OTP proof verified by the backend. Login requires the application password and proceeds without OTP. Google, Apple, and email login are removed. Firebase ID tokens are verified by the backend. Deep-link destinations must survive auth.
+
+**Current implementation:** Signup verifies the client's Firebase phone OTP ID token on the backend, matches the normalized number and retains the verified UID. Pending group invitations link to that account after verification. Previously split signup identities can be repaired through Settings phone verification while keeping their PostgreSQL IDs and data.
 
 ---
 
@@ -258,8 +270,21 @@ Compliant only when schema, constraints, APIs, authZ, invites/deep links, voting
 
 ## Known limitations
 
+**Current implementation (2026-11-11, requested offline-first support):** Previously loaded account-scoped groups, outings, member profiles, votes and chat can be viewed from bounded local caches. Cached startup is followed by foreground REST synchronization. Only chat sends have durable offline replay with backend UUID deduplication and permanent conflict rejection. Scoped socket invalidations refresh affected Providers. Offline snapshots cannot prove current access; authenticated backend responses remain authoritative. See ADR-014 and `audit/OFFLINE_REALTIME_REPORT.md` for test evidence and limits.
+
 Track live status in [`docs/audit/`](audit/). Device E2E and real FCM delivery may remain NOT RUN until a device/Firebase test environment is available.
 
 ## Open decisions
 
 None that conflict with approved text above. Group-outing eligibility includes members of `outing.group_id` as accepted Members for that outing’s group context (implementation convenience documented here; not a third role).
+
+
+## Approved chat and background refresh behavior — 2026-11-11
+
+The owner requests silent background synchronization with no global loading or connection banner. Socket.IO invalidations update affected providers; reconnect/resume reconciles missed changes without polling. Cached content remains visible offline. Chat alone shows Connected after authenticated transport and room-join acknowledgement, Reconnecting during recovery, or Disconnected when unavailable. Every bubble shows the Neon sender name, with localized “(You)” for the current user. Selecting an @mention identifies a current chat participant by stable user ID, highlights the name, and notifies that member once per message; self-mentions never notify the sender. Notification navigation opens the regular outing chat. Message and mention notification taps use normal history and bubble styling, without a separate highlighted or labeled notification message.
+
+## Password recovery — owner-approved 2026-11-11
+
+Login offers Forgot Password → registered phone → Firebase SMS OTP → new password and confirmation → Login. The backend alone authorizes recovery from fresh verified phone proof, bound to the existing Firebase UID and matching Neon phone. A five-minute, single-use authorization is required to change the existing bcrypt credential. No new password store, Firebase UID, or Neon account is introduced by the backend. Existing sessions and account data retain their behavior.
+
+Recovery requires an existing Neon password and an enabled Firebase identity with the same verified phone. Legacy unbound/split identities and Firebase-only password accounts require support or the existing authenticated Settings repair path. Recovery must not silently merge them. Unregistered/unavailable numbers share a clear error. OTP requests have a 60-second UI/server preflight cooldown, with shared server attempt limits and Firebase SMS abuse controls. Actual SMS sending remains Firebase-owned.

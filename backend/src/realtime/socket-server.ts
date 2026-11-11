@@ -2,8 +2,11 @@ import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 import { bindChatEmitter } from "./chat-emitter.js";
 import { registerChatGateway } from "./chat.gateway.js";
+import { registerGroupGateway } from "./group.gateway.js";
 import { authenticateSocket } from "./socket-auth.js";
+import { userRealtimeRoom } from "./rooms.js";
 import { corsOrigin } from "../config/cors.js";
+import { reconcileDataChanges } from "./data-changes.js";
 
 /**
  * Attaches Socket.IO to the existing HTTP server (same port as Express).
@@ -31,9 +34,14 @@ export function attachRealtime(httpServer: HttpServer): Server {
   });
 
   registerChatGateway(io);
+  registerGroupGateway(io);
   bindChatEmitter(io);
 
   io.on("connection", (socket) => {
+    void socket.join(userRealtimeRoom(socket.data.uid));
+    socket.on("data:reconcile", (cursor: unknown, ack: unknown) => {
+      if (typeof ack === "function") ack(reconcileDataChanges(socket.data.uid, cursor));
+    });
     if (process.env.NODE_ENV !== "production") {
       console.log(`[realtime] connected uid=${socket.data.uid} id=${socket.id}`);
     }

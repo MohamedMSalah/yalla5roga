@@ -16,11 +16,28 @@ abstract class OutingChatLocalDataSource {
 }
 
 class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
-  OutingChatLocalDataSourceImpl(this._prefs) {
+  OutingChatLocalDataSourceImpl(this._prefs, {String? Function()? userId, String? origin})
+    : _userId = userId, _origin = origin {
+    _uid = _userId?.call();
     _load();
   }
 
   final SharedPreferences _prefs;
+  final String? Function()? _userId;
+  final String? _origin;
+  String? _uid;
+  String? get _key => _userId == null
+      ? AppConstants.outingChatMessagesKey
+      : _uid == null ? null : '${AppConstants.outingChatMessagesKey}:$_origin:$_uid';
+
+  void _switchAccount() {
+    final uid = _userId?.call();
+    if (_uid == uid) return;
+    _persistTimer?.cancel();
+    _byOuting = {};
+    _uid = uid;
+    _load();
+  }
   static const _maxMessagesPerOuting = 100;
   static const _maxOutings = 20;
   static const _writeDebounce = Duration(milliseconds: 500);
@@ -28,7 +45,8 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
   Timer? _persistTimer;
 
   void _load() {
-    final raw = _prefs.getString(AppConstants.outingChatMessagesKey);
+    final key = _key;
+    final raw = key == null ? null : _prefs.getString(key);
     if (raw == null) return;
     try {
       final decoded = jsonDecode(raw);
@@ -51,12 +69,14 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
     }
   }
 
-  Future<void> _persist() {
-    return _prefs.setString(
-      AppConstants.outingChatMessagesKey,
+  Future<void> _persist() async {
+    final key = _key;
+    if (key == null) return;
+    await _prefs.setString(
+      key,
       jsonEncode({
         for (final entry in _byOuting.entries)
-          entry.key: [for (final item in entry.value) item.toJson()],
+          entry.key: [for (final item in entry.value) if (!item.id.startsWith('local_')) item.toJson()],
       }),
     );
   }
@@ -71,6 +91,7 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
 
   @override
   List<ChatMessage> getMessages(String outingId) {
+    _switchAccount();
     return List.unmodifiable(_byOuting[outingId] ?? const []);
   }
 
@@ -79,6 +100,7 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
     String outingId,
     List<ChatMessage> messages,
   ) async {
+    _switchAccount();
     final retained = messages.length <= _maxMessagesPerOuting
         ? List<ChatMessage>.of(messages)
         : List<ChatMessage>.of(messages.sublist(messages.length - _maxMessagesPerOuting));
@@ -96,6 +118,8 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
     _persistTimer?.cancel();
     _persistTimer = null;
     _byOuting = {};
+    final key = _key;
+    if (key != null) await _prefs.remove(key);
     await _prefs.remove(AppConstants.outingChatMessagesKey);
   }
 }

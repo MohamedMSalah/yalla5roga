@@ -23,6 +23,7 @@ export class NotificationEventDatasource {
   ): Promise<NotificationEvent> {
     const payload: GroupInvitePayload = {
       invitationId: input.invitationId,
+      whatsappOptIn: input.whatsappOptIn,
       groupId: input.groupId,
       groupName: input.groupName,
       inviterName: input.inviterName,
@@ -32,8 +33,12 @@ export class NotificationEventDatasource {
       body: input.body,
     };
 
-    return this.db.notification_events.create({
-      data: {
+    const eventKey = `group_invite:${input.invitationId}`;
+    return this.db.notification_events.upsert({
+      where: { event_key: eventKey },
+      update: {},
+      create: {
+        event_key: eventKey,
         type: "group_invite",
         channel: input.channel ?? "whatsapp",
         status: "pending",

@@ -28,8 +28,8 @@ export const createPlaceBodySchema = z.object({
   price_min: z.number().nonnegative().optional().nullable(),
   price_max: z.number().nonnegative().optional().nullable(),
   currency: z.string().length(3).optional(),
-  latitude: z.number().optional().nullable(),
-  longitude: z.number().optional().nullable(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
   featured: z.boolean().optional(),
 });
 

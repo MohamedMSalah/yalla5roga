@@ -4,6 +4,18 @@ import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dar
 import 'package:yalla_5roga/features/auth/domain/entities/user.dart';
 
 abstract class AuthRepository {
+  Future<Either<Failure, String>> startPasswordRecovery(String phone);
+  Future<Either<Failure, String>> verifyPasswordRecovery({
+    required String requestToken,
+    required String verificationId,
+    required String smsCode,
+  });
+  Future<Either<Failure, void>> resetRecoveredPassword({
+    required String resetToken,
+    required String newPassword,
+    required String confirmPassword,
+  });
+
   Future<Either<Failure, User>> login({
     required String phone,
     required String password,
@@ -40,7 +52,6 @@ abstract class AuthRepository {
     String? phone,
     String? imageUrl,
   });
-
 
   Future<Either<Failure, User>> updatePassword({
     required String currentPassword,

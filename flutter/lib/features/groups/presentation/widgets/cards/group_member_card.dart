@@ -24,6 +24,7 @@ class GroupMemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final palette = context.palette;
+    final name = MemberDisplayName.resolve(member);
 
     return AppCard(
       radius: 16,
@@ -41,16 +42,27 @@ class GroupMemberCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.digits(MemberDisplayName.resolve(member)),
+                  l10n.digits(name),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: Responsive.fontBody,
                   ),
                 ),
-                if (member.phone != null && member.phone!.isNotEmpty)
+                if (member.phone != null &&
+                    member.phone!.isNotEmpty &&
+                    (!member.isPending || member.phone != name))
                   Text(
                     l10n.digits(member.phone!),
                     style: TextStyle(color: palette.textMuted, fontSize: 10.sp),
+                  ),
+                if (member.isPending)
+                  Text(
+                    l10n.pendingGroupRegistration,
+                    style: TextStyle(
+                      color: palette.textMuted,
+                      fontSize: Responsive.fontCaption,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
               ],
             ),

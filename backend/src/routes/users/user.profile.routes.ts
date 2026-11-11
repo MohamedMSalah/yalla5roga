@@ -73,6 +73,12 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "409":
+ *         description: The profile is still referenced by application records
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  * /api/users:
  *   get:
  *     tags: [Users]

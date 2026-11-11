@@ -27,12 +27,12 @@ class HomeHeader extends StatelessWidget {
                 l10n.greetingForHour(DateTime.now().hour),
                 style: TextStyle(
                   color: context.palette.textMuted,
-                  fontSize: Responsive.fontSm,
+                  fontSize: Responsive.fontBody,
                 ),
               ),
               Text(
                 user?.name.split(' ').first ?? '',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15.sp),
+                style: context.texts.headlineSmall,
               ),
             ],
           ),

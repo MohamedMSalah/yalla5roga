@@ -11,6 +11,7 @@ class ChatMessageModel extends ChatMessage {
     super.outingId,
     super.avatar,
     super.senderId,
+    super.clientMessageId,
     super.sentAt,
     super.deliveryStatus,
   });
@@ -25,6 +26,7 @@ class ChatMessageModel extends ChatMessage {
       isMine: message.isMine,
       avatar: message.avatar,
       senderId: message.senderId,
+      clientMessageId: message.clientMessageId,
       sentAt: message.sentAt,
       deliveryStatus: message.deliveryStatus,
     );
@@ -49,8 +51,10 @@ class ChatMessageModel extends ChatMessage {
       time: apiString(json['time']) ?? '',
       isMine: apiBool(json['isMine']),
       avatar: apiString(json['avatar']),
-      senderId:
-          apiString(json['sender_id']) ?? apiString(json['senderId']),
+      senderId: apiString(json['sender_id']) ?? apiString(json['senderId']),
+      clientMessageId:
+          apiString(json['client_message_id']) ??
+          apiString(json['clientMessageId']),
       sentAt: DateTime.tryParse(sentAtRaw ?? ''),
       deliveryStatus: MessageDeliveryStatus.values.firstWhere(
         (status) =>

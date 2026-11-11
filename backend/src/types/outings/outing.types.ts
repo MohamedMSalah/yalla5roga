@@ -38,6 +38,10 @@ export type SavedPlace = saved_places;
 export type CreateOutingInput = {
   title: string;
   image_url?: string;
+  create_request_key?: string;
+  initial_vote_options?: Omit<CreateVoteOptionInput, "outing_id">[];
+  guest_phones?: string[];
+  guest_phones_whatsapp_opt_in?: boolean;
   group_id?: string | null;
   created_by: string;
   status?: OutingStatus;
@@ -53,11 +57,10 @@ export type CreateOutingInput = {
   location_longitude?: number | null;
   vote_deadline_hours?: number | null;
   vote_ends_at?: Date | null;
-  suggested_by_user_id?: string | null;
 };
 
 export type UpdateOutingInput = Partial<
-  Omit<CreateOutingInput, "created_by">
+  Omit<CreateOutingInput, "created_by" | "guest_phones" | "guest_phones_whatsapp_opt_in" | "create_request_key" | "initial_vote_options">
 > & {
   vote_closed_at?: Date | null;
   vote_close_reason?: VoteCloseReason | null;

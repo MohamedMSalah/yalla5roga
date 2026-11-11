@@ -3,18 +3,24 @@ import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
+import 'package:yalla_5roga/core/network/dio_interceptors.dart';
 import 'package:yalla_5roga/features/chat/data/models/chat_message_model.dart';
 import 'package:yalla_5roga/features/chat/data/models/outing_chat_read_result_model.dart';
 import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
 import 'package:yalla_5roga/features/chat/domain/entities/outing_chat_read_result.dart';
 
 abstract class OutingChatDataSource {
-  Future<List<ChatMessage>> getMessages(String outingId);
+  Future<({List<ChatMessage> messages, String? nextCursor})> getMessages(
+    String outingId, {
+    String? before,
+    String? messageId,
+  });
   Future<ChatMessage> sendMessage({
     required String outingId,
     required String text,
     required String senderId,
     required String senderName,
+    required String clientMessageId,
   });
   Future<OutingChatReadResult> markRead(String outingId);
 }
@@ -25,19 +31,29 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
   final ApiClient _client;
 
   @override
-  Future<List<ChatMessage>> getMessages(String outingId) async {
+  Future<({List<ChatMessage> messages, String? nextCursor})> getMessages(
+    String outingId, {
+    String? before,
+    String? messageId,
+  }) async {
     try {
       final response = await _client.get<Map<String, dynamic>>(
         ApiConstants.outingChatMessages(outingId),
+        queryParameters: messageId == null
+            ? {'limit': 40, 'before': ?before}
+            : {'messageId': messageId},
       );
       final items = apiObjectList(
         response.data,
         aliases: const ['messages', 'items'],
       );
-      return [
-        for (final item in items)
-          ChatMessageModel.fromJson(item, outingId: outingId),
-      ];
+      return (
+        messages: [
+          for (final item in items)
+            ChatMessageModel.fromJson(item, outingId: outingId),
+        ],
+        nextCursor: apiString(response.data?['next_cursor']),
+      );
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -49,11 +65,13 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
     required String text,
     required String senderId,
     required String senderName,
+    required String clientMessageId,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.outingChatMessages(outingId),
-        data: {'text': text},
+        data: {'text': text, 'clientMessageId': clientMessageId},
+        options: Options(extra: {expectedUserIdKey: senderId}),
       );
       final payload = apiPayload(response.data);
       return ChatMessageModel.fromJson(payload, outingId: outingId).copyWith(

@@ -228,6 +228,9 @@ class FakeGroups implements IGroupRepository {
     const [member] = this.members.splice(idx, 1);
     return Promise.resolve(member);
   }
+  async listRoster(groupId: string) {
+    return { members: await this.listMembers(groupId), pendingMembers: [] };
+  }
   listMembers(groupId: string) {
     return Promise.resolve(
       this.members
@@ -515,10 +518,11 @@ describe("Group owner authorization", () => {
     const useCase = new AddGroupMemberUseCase(
       groups,
       users as unknown as IUserRepository,
+      { findUserIdByVerifiedPhone: async () => "phone-user" },
     );
     const member = await useCase.execute(OWNER, {
       group_id: GROUP_ID,
-      phoneNumber: "+201001234567",
+      phoneNumber: "01001234567",
     });
     assert.equal(member.user_id, "phone-user");
   });

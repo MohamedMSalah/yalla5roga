@@ -198,7 +198,7 @@ void main() {
           const AuthFailure('x', 'invalid-credential'),
           en,
         ),
-        en.incorrectEmailOrPassword,
+        en.authError('invalid-credential'),
       );
       expect(
         FailureMessageMapper.localize(

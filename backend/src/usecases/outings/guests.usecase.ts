@@ -49,6 +49,8 @@ export class AddGuestUseCase {
       status: "pending",
     });
 
+    if (guest.status !== "pending") return guest;
+
     try {
       await notifyOutingParticipants({
         outing,
@@ -76,27 +78,7 @@ export class AcceptOutingInvitationUseCase {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
 
-    const row = await prisma.outing_guests.findUnique({
-      where: {
-        outing_id_user_id: { outing_id: outingId, user_id: userId },
-      },
-    });
-    if (!row) throw new NotFoundError("Invitation");
-    if (row.status === "accepted") return row;
-    if (
-      row.status === "declined" ||
-      row.status === "revoked" ||
-      row.status === "expired"
-    ) {
-      throw new ConflictError("Invitation is no longer available");
-    }
-
-    const accepted = await prisma.outing_guests.update({
-      where: {
-        outing_id_user_id: { outing_id: outingId, user_id: userId },
-      },
-      data: { status: "accepted" },
-    });
+    const accepted = await resolveOutingInvitation(outingId, userId, "accepted");
 
     try {
       await notifyOutingParticipants({
@@ -124,24 +106,27 @@ export class DeclineOutingInvitationUseCase {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
 
-    const row = await prisma.outing_guests.findUnique({
-      where: {
-        outing_id_user_id: { outing_id: outingId, user_id: userId },
-      },
-    });
-    if (!row) throw new NotFoundError("Invitation");
-    if (row.status === "declined") return row;
-    if (row.status === "accepted") {
-      throw new ConflictError("Already accepted; members cannot leave");
-    }
-
-    return prisma.outing_guests.update({
-      where: {
-        outing_id_user_id: { outing_id: outingId, user_id: userId },
-      },
-      data: { status: "declined" },
-    });
+    return resolveOutingInvitation(outingId, userId, "declined");
   }
+}
+
+async function resolveOutingInvitation(
+  outingId: string,
+  userId: string,
+  status: "accepted" | "declined",
+): Promise<OutingGuest> {
+  const key = { outing_id: outingId, user_id: userId };
+  const [updated] = await prisma.outing_guests.updateManyAndReturn({
+    where: { ...key, status: "pending" },
+    data: { status },
+  });
+  if (updated) return updated;
+  const existing = await prisma.outing_guests.findUnique({
+    where: { outing_id_user_id: key },
+  });
+  if (!existing) throw new NotFoundError("Invitation");
+  if (existing.status === status) return existing;
+  throw new ConflictError("Invitation is no longer available");
 }
 
 export class RemoveGuestUseCase {

@@ -1,6 +1,6 @@
 import type { IGroupRepository } from "../../repositories/groups/i-group.repository.js";
 import { GroupRepository } from "../../repositories/groups/group.repository.js";
-import { assertGroupOwner } from "../../services/groups/group-access.js";
+import { assertGroupMember, assertGroupOwner } from "../../services/groups/group-access.js";
 import type { GroupMember } from "../../types/groups/group.types.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
 
@@ -14,7 +14,11 @@ export class RemoveGroupMemberUseCase {
     callerUid: string,
     userId: string,
   ): Promise<GroupMember> {
-    await assertGroupOwner(this.groups, groupId, callerUid);
+    if (callerUid === userId) {
+      await assertGroupMember(this.groups, groupId, callerUid);
+    } else {
+      await assertGroupOwner(this.groups, groupId, callerUid);
+    }
 
     const target = await this.groups.findMember(groupId, userId);
     if (!target) throw new NotFoundError("Group member");
@@ -30,6 +34,6 @@ export class RemoveGroupMemberUseCase {
       }
     }
 
-    return this.groups.removeMember(groupId, userId);
+    return this.groups.removeMember(groupId, userId, callerUid);
   }
 }

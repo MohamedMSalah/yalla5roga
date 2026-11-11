@@ -76,6 +76,20 @@ class Validators {
   /// Always returns E.164 with Western digits for Firebase / REST.
   static String normalizePhone(String value) => '+20${localPhoneDigits(value)}';
 
+  static String? normalizeGroupPhone(String value) {
+    final raw = value.trim();
+    if (raw.isEmpty || RegExp(r'[a-zA-Z]').hasMatch(raw)) return null;
+    final digits = DigitUtils.westernDigitsOnly(raw);
+    if (raw.startsWith('+') || digits.startsWith('00')) {
+      final international = raw.startsWith('+') ? digits : digits.substring(2);
+      if (RegExp(r'^[1-9]\d{6,14}$').hasMatch(international)) {
+        return '+$international';
+      }
+      return null;
+    }
+    return isValidEgyptianPhone(raw) ? normalizePhone(raw) : null;
+  }
+
   static bool isValidEgyptianPhone(String? value) {
     if (value == null || value.trim().isEmpty) return false;
     return RegExp(r'^1[0125]\d{8}$').hasMatch(localPhoneDigits(value));

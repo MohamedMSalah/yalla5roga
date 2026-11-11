@@ -30,6 +30,18 @@ class OutingSnapshot {
   final Map<String, Map<String, AttendanceStatus>> attendanceByOuting;
 }
 
+class OutingCreation {
+  const OutingCreation({
+    required this.outing,
+    required this.snapshot,
+    required this.manualWhatsAppUrls,
+  });
+
+  final Outing outing;
+  final OutingSnapshot snapshot;
+  final List<String> manualWhatsAppUrls;
+}
+
 class TieBreakResult {
   const TieBreakResult({required this.snapshot, required this.winningOptionId});
 
@@ -38,11 +50,19 @@ class TieBreakResult {
 }
 
 abstract class OutingsRepository {
+  /// Applies a complete committed row without a network request.
+  OutingSnapshot? applyAttendanceChange(
+    String outingId,
+    String userId,
+    AttendanceStatus status,
+    DateTime updatedAt,
+  );
+
   Future<Either<Failure, OutingSnapshot>> load({bool forceRefresh = false});
 
   Future<Either<Failure, void>> delete(String outingId);
 
-  Future<Either<Failure, OutingSnapshot>> add(
+  Future<Either<Failure, OutingCreation>> add(
     Outing outing, {
     String? creatorId,
   });
@@ -63,6 +83,10 @@ abstract class OutingsRepository {
     int optionIndex,
   );
 
+  Future<Either<Failure, OutingSnapshot>> confirmVenue(
+    String outingId,
+    String optionId,
+  );
   Future<Either<Failure, OutingSnapshot>> finalizeVote(String outingId);
 
   /// Owner tie-break; returns snapshot plus server-selected winning option id.

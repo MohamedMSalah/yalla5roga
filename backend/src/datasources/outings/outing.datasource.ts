@@ -1,3 +1,5 @@
+import { getNotificationConfig, hasAutomaticWhatsApp } from "../../config/notifications.js";
+import { specialEventInvitation } from "../../services/whatsapp/special-event-invitation.js";
 import { prisma } from "../../config/database.js";
 import type {
   AddGuestInput,
@@ -39,7 +41,7 @@ export class OutingDatasource {
       where: {
         OR: [
           { created_by: userId },
-          { outing_guests: { some: { user_id: userId } } },
+          { outing_guests: { some: { user_id: userId, status: { in: ["pending", "accepted"] } } } },
           { groups: { group_members: { some: { user_id: userId } } } },
         ],
       },
@@ -52,6 +54,17 @@ export class OutingDatasource {
    */
   async create(data: CreateOutingInput): Promise<Outing> {
     return prisma.$transaction(async (tx) => {
+      if (data.create_request_key) {
+        const requestKey = `${data.created_by}:${data.create_request_key}`;
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${requestKey}, 0))`;
+        const existing = await tx.outings.findUnique({
+          where: { created_by_create_request_key: {
+            created_by: data.created_by,
+            create_request_key: data.create_request_key,
+          } },
+        });
+        if (existing) return existing;
+      }
       const voteEndsAt =
         data.vote_ends_at ??
         (data.vote_deadline_hours != null
@@ -62,14 +75,30 @@ export class OutingDatasource {
         data.status ??
         (data.location_place_id || data.location_name ? "confirmed" : "draft");
 
+      const {
+        guest_phones: phones,
+        guest_phones_whatsapp_opt_in: _optIn,
+        initial_vote_options: options,
+        ...fields
+      } = data;
       const outing = await tx.outings.create({
         data: {
-          ...data,
+          ...fields,
           status,
           vote_ends_at: voteEndsAt,
           image_url: data.image_url ?? "",
         },
       });
+
+      if (options?.length) {
+        await tx.outing_vote_options.createMany({
+          data: options.map((option, index) => ({
+            ...option,
+            outing_id: outing.id,
+            sort_order: index,
+          })),
+        });
+      }
 
       await tx.outing_attendance.create({
         data: {
@@ -78,6 +107,21 @@ export class OutingDatasource {
           status: "going",
         },
       });
+
+      if (phones?.length && outing.scheduled_at && hasAutomaticWhatsApp()) {
+        const payload = specialEventInvitation({ ...outing, scheduled_at: outing.scheduled_at });
+        await tx.notification_events.createMany({
+          data: phones.map((phone) => ({
+            type: "outing_invite",
+            channel: "whatsapp",
+            recipient_phone: phone,
+            outing_id: outing.id,
+            event_key: `special_event_invite:${outing.id}:${phone}`,
+            max_attempts: getNotificationConfig().worker.maxAttempts,
+            payload,
+          })),
+        });
+      }
 
       return outing;
     });
@@ -99,39 +143,34 @@ export class OutingDatasource {
   }
 
   upsertAttendance(data: UpsertAttendanceInput): Promise<OutingAttendance> {
-    return prisma.outing_attendance.upsert({
-      where: {
-        outing_id_user_id: {
-          outing_id: data.outing_id,
-          user_id: data.user_id,
-        },
-      },
-      create: data,
-      update: { status: data.status, updated_at: new Date() },
-    });
+    return prisma.$queryRaw<OutingAttendance[]>`
+      INSERT INTO outing_attendance (outing_id, user_id, status)
+      VALUES (${data.outing_id}::uuid, ${data.user_id}, ${data.status}::attendance_status)
+      ON CONFLICT (outing_id, user_id) DO UPDATE
+      SET status = EXCLUDED.status,
+          updated_at = CASE WHEN outing_attendance.status <> EXCLUDED.status
+            THEN clock_timestamp() ELSE outing_attendance.updated_at END
+      RETURNING *
+    `.then(([row]) => row!);
   }
 
   listGuests(outingId: string): Promise<OutingGuest[]> {
     return prisma.outing_guests.findMany({ where: { outing_id: outingId } });
   }
 
-  addGuest(data: AddGuestInput): Promise<OutingGuest> {
-    return prisma.outing_guests.upsert({
-      where: {
-        outing_id_user_id: {
-          outing_id: data.outing_id,
-          user_id: data.user_id,
-        },
-      },
-      create: {
-        outing_id: data.outing_id,
-        user_id: data.user_id,
-        status: data.status ?? "pending",
-      },
-      update: {
-        status: data.status ?? "pending",
-        invited_at: new Date(),
-      },
+  async addGuest(data: AddGuestInput): Promise<OutingGuest> {
+    const key = { outing_id: data.outing_id, user_id: data.user_id };
+    const status = data.status ?? "pending";
+    return prisma.$transaction(async (tx) => {
+      await tx.outing_guests.createMany({
+        data: { ...key, status },
+        skipDuplicates: true,
+      });
+      await tx.outing_guests.updateMany({
+        where: { ...key, status: { notIn: ["pending", "accepted"] } },
+        data: { status, invited_at: new Date() },
+      });
+      return tx.outing_guests.findUniqueOrThrow({ where: { outing_id_user_id: key } });
     });
   }
 
@@ -183,9 +222,10 @@ export class OutingDatasource {
     });
   }
 
-  removeVote(outingId: string, userId: string): Promise<OutingVote> {
+  removeVote(outingId: string, userId: string, optionId?: string): Promise<OutingVote> {
     return prisma.outing_votes.delete({
       where: {
+        option_id: optionId,
         outing_id_user_id: {
           outing_id: outingId,
           user_id: userId,
@@ -235,8 +275,10 @@ export class OutingDatasource {
   }
 
   saveOuting(userId: string, outingId: string): Promise<SavedOuting> {
-    return prisma.saved_outings.create({
-      data: { user_id: userId, outing_id: outingId },
+    return prisma.saved_outings.upsert({
+      where: { user_id_outing_id: { user_id: userId, outing_id: outingId } },
+      create: { user_id: userId, outing_id: outingId },
+      update: { outing_id: outingId },
     });
   }
 
@@ -256,8 +298,10 @@ export class OutingDatasource {
   }
 
   savePlace(userId: string, placeId: string): Promise<SavedPlace> {
-    return prisma.saved_places.create({
-      data: { user_id: userId, place_id: placeId },
+    return prisma.saved_places.upsert({
+      where: { user_id_place_id: { user_id: userId, place_id: placeId } },
+      create: { user_id: userId, place_id: placeId },
+      update: { place_id: placeId },
     });
   }
 

@@ -23,13 +23,13 @@ export interface IPlaceRepository {
 
   listHours(placeId: string): Promise<PlaceHour[]>;
   upsertHour(data: UpsertPlaceHourInput): Promise<PlaceHour>;
-  deleteHour(id: string): Promise<PlaceHour>;
+  deleteHour(placeId: string, id: string): Promise<PlaceHour>;
 
   listImages(placeId: string): Promise<PlaceImage[]>;
   createImage(data: CreatePlaceImageInput): Promise<PlaceImage>;
-  deleteImage(id: string): Promise<PlaceImage>;
+  deleteImage(placeId: string, id: string): Promise<PlaceImage>;
 
   listPrices(placeId: string): Promise<PlacePrice[]>;
   createPrice(data: CreatePlacePriceInput): Promise<PlacePrice>;
-  deletePrice(id: string): Promise<PlacePrice>;
+  deletePrice(placeId: string, id: string): Promise<PlacePrice>;
 }

@@ -10,3 +10,7 @@ url = "https://mcp.figma.com/mcp"
 
 [mcp_servers.refero]
 url = "https://api.refero.design/mcp"
+
+[mcp_servers.graphify_yalla5roga]
+command = 'C:\Users\m0ham\Documents\Codex\2026-11-09\do\work\graphify-mcp\Scripts\python.exe'
+args = ['-m', 'graphify.serve', 'C:\Users\m0ham\Documents\Codex\2026-11-09\do\work\yalla5roga\graphify-out\graph.json']

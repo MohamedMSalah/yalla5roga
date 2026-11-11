@@ -18,7 +18,25 @@ class OutingsRepositoryImpl implements OutingsRepository {
   final OutingsRemoteDataSource remote;
   final NetworkInfo networkInfo;
 
-  static const _snapshotKey = 'snapshot';
+  @override
+  OutingSnapshot? applyAttendanceChange(
+    String outingId,
+    String userId,
+    AttendanceStatus status,
+    DateTime updatedAt,
+  ) {
+    final snapshot = remote.applyAttendanceChange(
+      outingId,
+      userId,
+      status,
+      updatedAt,
+    );
+    if (snapshot != null) _storeSnapshot(snapshot);
+    return snapshot;
+  }
+
+  int _generation = 0;
+  String get _snapshotKey => 'outings:snapshot:$_generation';
   final _snapshotCache = TtlCache<OutingSnapshot>(ttl: CachePolicy.outings);
 
   void _storeSnapshot(OutingSnapshot snapshot) {
@@ -38,6 +56,7 @@ class OutingsRepositoryImpl implements OutingsRepository {
 
   @override
   void clearCache() {
+    _generation++;
     _snapshotCache.invalidate();
     remote.clearCache();
   }
@@ -50,6 +69,7 @@ class OutingsRepositoryImpl implements OutingsRepository {
       key: _snapshotKey,
       forceRefresh: forceRefresh,
       reason: 'loadOutings',
+      offlineRead: true,
       feature: 'outings',
       source: 'OutingsRepositoryImpl',
       fetch: remote.load,
@@ -68,7 +88,7 @@ class OutingsRepositoryImpl implements OutingsRepository {
   }
 
   @override
-  Future<Either<Failure, OutingSnapshot>> add(
+  Future<Either<Failure, OutingCreation>> add(
     Outing outing, {
     String? creatorId,
   }) async {
@@ -77,7 +97,7 @@ class OutingsRepositoryImpl implements OutingsRepository {
       () => remote.add(outing, creatorId: creatorId),
       reason: 'addOuting',
     );
-    result.fold((_) {}, _storeSnapshot);
+    result.fold((_) {}, (created) => _storeSnapshot(created.snapshot));
     return result;
   }
 
@@ -119,6 +139,20 @@ class OutingsRepositoryImpl implements OutingsRepository {
       networkInfo,
       () => remote.selectVote(outingId, optionIndex),
       reason: 'selectVote',
+    );
+    result.fold((_) {}, _storeSnapshot);
+    return result;
+  }
+
+  @override
+  Future<Either<Failure, OutingSnapshot>> confirmVenue(
+    String outingId,
+    String optionId,
+  ) async {
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.confirmVenue(outingId, optionId),
+      reason: 'confirmVenue',
     );
     result.fold((_) {}, _storeSnapshot);
     return result;
@@ -186,6 +220,7 @@ class OutingsRepositoryImpl implements OutingsRepository {
         networkInfo,
         () => remote.refreshLifecycle(outingId: outingId),
         reason: 'refreshLifecycleOuting',
+        offlineRead: true,
       );
       result.fold((_) {}, _storeSnapshot);
       return result;
@@ -198,6 +233,7 @@ class OutingsRepositoryImpl implements OutingsRepository {
       key: _snapshotKey,
       forceRefresh: forceRefresh,
       reason: 'refreshLifecycle',
+      offlineRead: true,
       feature: 'outings',
       source: 'OutingsRepositoryImpl',
       fetch: () => remote.refreshLifecycle(),

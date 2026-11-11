@@ -17,6 +17,7 @@ class CustomTextField extends StatelessWidget {
     this.suffix,
     this.onToggleObscure,
     this.inputFormatters,
+    this.onChanged,
     this.textInputAction,
     this.textDirection,
     this.autovalidateMode,
@@ -35,6 +36,7 @@ class CustomTextField extends StatelessWidget {
   final Widget? suffix;
   final VoidCallback? onToggleObscure;
   final List<TextInputFormatter>? inputFormatters;
+  final ValueChanged<String>? onChanged;
   final TextInputAction? textInputAction;
   final TextDirection? textDirection;
   final AutovalidateMode? autovalidateMode;
@@ -60,6 +62,7 @@ class CustomTextField extends StatelessWidget {
           textDirection,
           TextFormField(
             controller: controller,
+            onChanged: onChanged,
             obscureText: obscureText,
             keyboardType: keyboardType,
             validator: validator,

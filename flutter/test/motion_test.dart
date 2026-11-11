@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yalla_5roga/core/navigation/app_page_transition.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/theme/app_palette.dart';
+import 'package:yalla_5roga/core/widgets/app_bottom_nav.dart';
 import 'package:yalla_5roga/core/widgets/app_bottom_nav_layout.dart';
 import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
@@ -10,6 +12,61 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/features/discover/presentation/pages/discover_place_details_page.dart';
 
 void main() {
+  for (final (rtl, highContrast) in [(false, false), (true, true)]) {
+    testWidgets(
+      'bottom bar layers over the body (high contrast: $highContrast)',
+      (tester) async {
+        final labels = rtl
+            ? ['الرئيسية', 'المجموعات', 'الخروجات', 'استكشف', 'الإعدادات']
+            : ['Home', 'Groups', 'Outings', 'Discover', 'Settings'];
+        int? selected;
+        tester.view.physicalSize = rtl
+            ? const Size(320, 740)
+            : const Size(800, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(
+              brightness: rtl ? Brightness.dark : Brightness.light,
+              extensions: [rtl ? AppPalette.dark : AppPalette.light],
+            ),
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(highContrast: highContrast),
+              child: Directionality(
+                textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+                child: child!,
+              ),
+            ),
+            home: AppBottomNavLayout(
+              pages: List.filled(5, const ColoredBox(color: Colors.teal)),
+              items: [
+                for (final label in labels)
+                  AppBottomNavItem(icon: Icons.circle, label: label),
+              ],
+              currentIndex: 0,
+              onChanged: (index) => selected = index,
+            ),
+          ),
+        );
+
+        expect(
+          tester.widget<Scaffold>(find.byType(Scaffold)).extendBody,
+          isTrue,
+        );
+        expect(
+          find.byType(BackdropFilter),
+          highContrast ? findsNothing : findsOneWidget,
+        );
+        await tester.tap(find.text(labels[3]));
+        expect(selected, 3);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   group('HeroTags', () {
     test('same item on different surfaces never collides', () {
       final tags = {

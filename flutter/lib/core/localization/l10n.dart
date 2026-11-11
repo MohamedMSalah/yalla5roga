@@ -9,6 +9,20 @@ class L10n {
 
   final Locale locale;
 
+  String get recoverPassword => _t('Recover password', 'استعادة كلمة المرور');
+  String get recoveryPhoneHelp => _t('Enter your registered phone number to receive a verification code.', 'أدخل رقم هاتفك المسجل لاستلام رمز التحقق.');
+  String get recoveryCodeHelp => _t('Enter the SMS code sent to your phone. Codes can expire; request a new one if needed.', 'أدخل رمز التحقق المرسل إلى هاتفك. إذا انتهت صلاحية الرمز، اطلب رمزًا جديدًا.');
+  String get recoveryPasswordHelp => _t('Choose a new password, then sign in again. If a request times out, try signing in before restarting recovery.', 'اختر كلمة مرور جديدة ثم سجّل الدخول. إذا انتهت مهلة الطلب، جرّب تسجيل الدخول قبل إعادة الاستعادة.');
+  String get resetPassword => _t('Reset password', 'إعادة تعيين كلمة المرور');
+  String get recoveryUnavailable => _t('Cannot recover this number. Check it or contact support.', 'تعذّرت استعادة هذا الرقم. راجعه أو تواصل مع الدعم.');
+  String get recoveryExpired => _t('Recovery expired. Request a new code.', 'انتهت صلاحية الاستعادة. اطلب رمزًا جديدًا.');
+  String get recoveryRateLimited => _t('Too many attempts. Try again later.', 'محاولات كثيرة. حاول لاحقًا.');
+  String get recoveryPasswordLimit => _t('Password must be at most 72 UTF-8 bytes. Try a shorter password.', 'كلمة المرور يجب ألا تتجاوز ٧٢ بايت. جرّب كلمة مرور أقصر.');
+  String get recoverySuccess => _t('Password reset. Sign in with your new password.', 'تم تعيين كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.');
+  String get recoveryStartAgain => _t('Use another number / start again', 'استخدام رقم آخر / البدء من جديد');
+  String recoveryResendIn(int seconds) => _t('Resend in ${digits(seconds.toString())} seconds', 'إعادة الإرسال خلال ${digits(seconds.toString())} ثانية');
+
+
   bool get _ar => locale.languageCode == 'ar';
 
   String _t(String en, String ar) => _ar ? ar : en;
@@ -135,6 +149,20 @@ class L10n {
   static const delegate = _L10nDelegate();
 
   // --- Shared ---
+  String get chatConnected => _t('Connected', 'متصل');
+  String get chatReconnecting => _t('Reconnecting', 'جارٍ إعادة الاتصال');
+  String get chatDisconnected => _t('Disconnected', 'غير متصل');
+
+  String get syncOffline =>
+      _t('Offline · Showing saved data', 'غير متصل · عرض البيانات المحفوظة');
+  String get syncReconnecting =>
+      _t('Connecting to live updates', 'جارٍ الاتصال بالتحديثات المباشرة');
+  String get syncInProgress => _t('Synchronizing', 'جارٍ المزامنة');
+  String get syncWaiting => _t('Waiting to synchronize', 'في انتظار المزامنة');
+  String get chatMessagePending => _t('Waiting to send', 'في انتظار الإرسال');
+  String get chatMessageFailed =>
+      _t('Message could not be sent', 'تعذّر إرسال الرسالة');
+
   String get appName => _t('Yalla 5roga', 'يلا خروجة');
   String get arabic => _t('العربية', 'العربية');
   String get english => _t('English', 'English');
@@ -194,6 +222,9 @@ class L10n {
     'Everything’s been read. Check All for the full feed.',
     'تمت قراءة الكل. راجع تبويب الكل للسجل الكامل.',
   );
+  String get chatMessageFromNotification =>
+      _t('Message from notification', 'الرسالة من الإشعار');
+
   String get noChatMessages => _t('No messages yet', 'لا توجد رسائل بعد');
   String get noChatMessagesHint => _t(
     'Say hi and start planning the details.',
@@ -340,7 +371,7 @@ class L10n {
     ),
   );
   String otpSent(String phone) =>
-      _t('OTP sent to $phone', 'تم إرسال رمز التحقق إلى $phone');
+      _t('Code sent.', 'تم إرسال الرمز.');
   String get resendOtp => _t('Resend code', 'إعادة إرسال الرمز');
   String get sendOtp => _t('Send OTP', 'إرسال رمز التحقق');
   String get requiredField => _t('This field is required', 'هذا الحقل مطلوب');
@@ -377,7 +408,7 @@ class L10n {
       _t('Something went wrong. Please try again.', 'حدث خطأ. حاول مرة أخرى.');
   String get errorNoInternet => noInternet;
   String get errorTimeout =>
-      _t('Something went wrong. Please try again.', 'حدث خطأ. حاول مرة أخرى.');
+      _t('Connection timed out. Please try again.', 'انتهت مهلة الاتصال. حاول مرة أخرى.');
   String get errorSessionExpired => _t(
     'Your session has expired. Please log in again.',
     'انتهت جلستك. سجّل الدخول مرة أخرى.',
@@ -386,6 +417,11 @@ class L10n {
     'You don’t have permission to do this.',
     'ليس لديك صلاحية لهذا الإجراء.',
   );
+  String get notificationTargetUnavailable => _t(
+    'This content is unavailable or you no longer have access.',
+    'هذا المحتوى غير متاح أو لم يعد بإمكانك الوصول إليه.',
+  );
+
   String get errorNotFound =>
       _t('This item is no longer available.', 'هذا العنصر لم يعد متاحاً.');
   String get errorConflict => _t(
@@ -397,8 +433,8 @@ class L10n {
     'راجع بياناتك وحاول مرة أخرى.',
   );
   String get errorServer => _t(
-    'Something went wrong on our side. Please try again later.',
-    'حدث خطأ من جهتنا. حاول لاحقاً.',
+    'Couldn’t complete this. Try again later.',
+    'تعذّر إتمام الطلب. حاول لاحقًا.',
   );
   String get errorSocket => _t(
     'Live connection lost. Reconnecting…',
@@ -446,6 +482,52 @@ class L10n {
   String get navGroups => _t('Groups', 'المجموعات');
   String get navOutings => _t('Outings', 'الخروجات');
   String get navProfile => _t('Profile', 'الملف الشخصي');
+  String get internationalPhoneHint => _t(
+    'Egyptian number or +country code',
+    'رقم مصري أو رقم يبدأ بمفتاح الدولة',
+  );
+  String get groupWhatsAppConsent => _t(
+    'These contacts agreed to receive a WhatsApp invitation from Yalla 5roga.',
+    'وافق أصحاب هذه الأرقام على تلقي دعوة واتساب من يلا خروجة.',
+  );
+  String get whatsappInvites => _t('WhatsApp invitations', 'دعوات واتساب');
+  String get whatsappOptInPrompt => _t(
+    'Only confirm if these recipients agreed to receive a WhatsApp invitation from Yalla 5roga.',
+    'أكد فقط إذا وافق المستلمون على تلقي دعوة واتساب من يلا خروجة.',
+  );
+  String get confirmWhatsAppInvites =>
+      _t('Confirm WhatsApp invitations', 'أكد دعوات واتساب');
+  String get sendManually => _t('Send manually', 'إرسال يدوي');
+  String get inviteByWhatsApp =>
+      _t('Invite phone contacts', 'دعوة جهات اتصال الهاتف');
+  String get sendEventInvitesManually => _t(
+    'Open each invitation in WhatsApp to send it.',
+    'افتح كل دعوة في واتساب لإرسالها.',
+  );
+  String get whatsappGuestLimit =>
+      _t('Select up to 50 phone guests.', 'اختر حتى ٥٠ ضيفًا من الهاتف.');
+  String whatsappGuestCount(int count) =>
+      _t('${n(count)} via WhatsApp', '${n(count)} عبر واتساب');
+  String confirmedArrivals(int count) =>
+      _t('${n(count)} confirmed present', '${n(count)} تم تأكيد حضورهم');
+  String get arrivalUnconfirmed =>
+      _t('Not yet verified', 'لم يتم التحقق من الحضور بعد');
+  String get arrivalVerified => _t('Arrived', 'وصل');
+  String get arrivalLocationUnavailable =>
+      _t('Location unavailable', 'الموقع غير متاح');
+  String get arrivalNeedsVenue => _t(
+    'Location verification starts at the scheduled time once the venue is confirmed on the map.',
+    'يبدأ التحقق من الحضور في الموعد المحدد بعد تأكيد المكان على الخريطة.',
+  );
+  String get whoArrived => _t('Who’s arrived', 'مين وصل');
+  String get nobodyArrived => _t('No arrivals yet', 'لم يصل أحد بعد');
+  String get automaticArrivalHint => _t(
+    'Opening this outing during its arrival window uses your device location to verify your arrival.',
+    'عند فتح هذه الخروجة خلال وقت تسجيل الحضور، يُستخدم موقع جهازك للتحقق من وصولك.',
+  );
+  String get arrivalsLoadFailed =>
+      _t('Could not load arrivals', 'تعذر تحميل قائمة الوصول');
+  String get navDiscover => _t('Discover', 'استكشف');
   String get navSettings => _t('Settings', 'الإعدادات');
   String get settings => _t('Settings', 'الإعدادات');
 
@@ -504,12 +586,12 @@ class L10n {
   String get otpSendFailed =>
       _t('Could not send verification code', 'تعذّر إرسال رمز التحقق');
   String get otpIncorrect => _t(
-    'Wrong verification code. Please try again.',
-    'رمز التحقق غير صحيح. حاول مرة أخرى.',
+    'Incorrect code. Try again.',
+    'الرمز غير صحيح. حاول مجددًا.',
   );
   String get otpExpired => _t(
-    'Verification code expired. Request a new one.',
-    'انتهت صلاحية رمز التحقق. اطلب رمزاً جديداً.',
+    'Code expired. Request a new one.',
+    'انتهت صلاحية الرمز. اطلب رمزًا جديدًا.',
   );
   String get otpTooManyRequests => _t(
     'Too many attempts. Please try again later.',
@@ -544,15 +626,15 @@ class L10n {
   /// names, status codes, or stack-like text).
   String authError(String? code, {String? fallback}) {
     return switch (code) {
-      'invalid-phone-number' => invalidPhone,
+      'invalid-phone-number' => _t('Invalid phone number.', 'رقم الهاتف غير صالح.'),
       'invalid-verification-code' => otpIncorrect,
       'session-expired' || 'invalid-verification-id' => otpExpired,
       'unauthorized' => errorSessionExpired,
       'too-many-requests' => otpTooManyRequests,
       'quota-exceeded' => otpQuotaExceeded,
-      'network-request-failed' || 'network' => noInternet,
+      'network-request-failed' || 'network' => _t('No internet connection.', 'لا يوجد اتصال بالإنترنت.'),
       'timeout' => errorTimeout,
-      'verification-timeout' => otpTimedOut,
+      'verification-timeout' => errorTimeout,
       'missing-verification' => otpMissingSession,
       'app-not-authorized' ||
       'captcha-check-failed' ||
@@ -568,9 +650,10 @@ class L10n {
       'user-disabled' => accountDisabled,
       'operation-not-allowed' => signInMethodNotEnabled,
       'weak-password' => passwordTooShort,
-      'user-not-found' ||
-      'wrong-password' ||
-      'invalid-credential' => incorrectEmailOrPassword,
+      'user-not-found' => _t('Account not found.', 'الحساب غير موجود.'),
+      'wrong-password' => _t('Incorrect password.', 'كلمة المرور غير صحيحة.'),
+      'invalid-credential' => _t('Incorrect phone number or password.', 'رقم الهاتف أو كلمة المرور غير صحيحة.'),
+      'server' || 'unexpected' => unexpectedError,
       'cancelled' => socialSignInCancelled,
       'google-sign-in-failed' || 'sign_in_failed' => googleSignInFailed,
       'apple-unavailable' => appleSignInUnavailable,
@@ -750,6 +833,11 @@ class L10n {
   String get groupInfo => _t('Group info', 'معلومات المجموعة');
   String get groupActions => _t('Group actions', 'إجراءات المجموعة');
   String get groupBio => _t('About', 'عن المجموعة');
+  String get editGroupBio => _t('Edit bio', 'تعديل نبذة المجموعة');
+  String groupBioTooLong(int limit) => _t(
+    'Use ${n(limit)} characters or fewer.',
+    'استخدم ${n(limit)} حرفًا أو أقل.',
+  );
   String get groupBioHint =>
       _t('What is this group about?', 'عن ماذا تدور هذه المجموعة؟');
   String get noGroupBio => _t('No description yet', 'لا يوجد وصف بعد');
@@ -763,6 +851,8 @@ class L10n {
     'When a group starts voting, it will show up here.',
     'لما تبدأ مجموعة تصويت، هيظهر هنا.',
   );
+  String get pendingGroupRegistration =>
+      _t('Pending registration', 'بانتظار التسجيل');
   String get removeMember => _t('Remove', 'إزالة');
   String get removeMemberTitle => _t('Remove Member?', 'إزالة العضو؟');
   String removeMemberMessage(String name) => _t(
@@ -901,6 +991,15 @@ class L10n {
   );
   String get outingName => _t('Outing name', 'اسم الخروجة');
   String get defaultOutingName => _t('New outing', 'خروجة جديدة');
+  String get confirmVenue => _t('Confirm venue', 'تأكيد المكان');
+  String confirmVenuePrompt(String place) => _t(
+    'Confirm $place and close place voting?',
+    'هل تريد تأكيد $place وإغلاق التصويت على المكان؟',
+  );
+  String attendanceTally(String label, int count) => '$label (${n(count)})';
+  String get olderChatMessages =>
+      _t('Load older messages', 'تحميل الرسائل الأقدم');
+  String get chatUnknownSender => _t('Former member', 'عضو سابق');
   String get you => _t('You', 'أنت');
   String get now => _t('Now', 'الآن');
   String get lookingUpLocation =>
@@ -923,10 +1022,21 @@ class L10n {
       _t('Let the group vote on the place', 'دع المجموعة تصوّت على المكان');
   String get addPlacesForVoting =>
       _t('Add places for voting', 'أضف أماكن للتصويت');
+  String get outingHistory => _t('Outing history', 'سجل الخروجات');
+  String get completedOuting => _t('Completed', 'مكتملة');
+  String get cancelledOuting => _t('Cancelled', 'ملغاة');
+  String get outingHistoryHint =>
+      _t('Past and cancelled outings', 'الخروجات السابقة والملغاة');
+  String get noOutingHistory =>
+      _t('No outings in your history yet', 'لا توجد خروجات في سجلك بعد');
+  String get placeVibes => _t('Filter by vibe', 'تصفية حسب الأجواء');
+  String get yourLocation => _t('Your location', 'موقعك');
+  String createOutingAt(String place) =>
+      _t('Create an outing at $place', 'إنشاء خروجة في $place');
   String get addPlacesForVotingHint => digits(
     _t(
-      'Add 2–5 places on the next step so the group can vote.',
-      'أضف من 2 إلى 5 أماكن في الخطوة التالية لتصوّت عليها المجموعة.',
+      'Select 2–5 places from the list or add pins from the map.',
+      'اختر من 2 إلى 5 أماكن من القائمة أو أضف مواقع من الخريطة.',
     ),
   );
   String get everyoneCanSuggest => _t(
@@ -1107,11 +1217,44 @@ class L10n {
       _t('Outing created successfully.', 'تم إنشاء الخروجة بنجاح.');
   String get changesSaved => _t('Changes saved.', 'تم حفظ التغييرات.');
   String get messageSent => _t('Message sent.', 'تم إرسال الرسالة.');
+  String get invitationReady =>
+      _t('Invitation ready to send.', 'الدعوة جاهزة للإرسال.');
+  String get invitationQueued =>
+      _t('Invitation queued.', 'تمت جدولة الدعوة للإرسال.');
   String get invitationSent => _t('Invitation sent.', 'تم إرسال الدعوة.');
   String get photoRequired =>
       _t('Please upload an outing photo', 'ارفع صورة للخروجة');
   String get nameRequired => _t('Please add an outing name', 'أضف اسم الخروجة');
   String get locationRequired => _t('Please choose a location', 'اختر مكاناً');
+  String get mapRetryTiles => _t('Reload map tiles', 'أعد تحميل الخريطة');
+  String get mapManagePlaces =>
+      _t('Manage places on map', 'إدارة الأماكن على الخريطة');
+  String get mapSearchHint => _t('Search places', 'ابحث عن مكان');
+  String get mapPinHint => _t(
+    'Move the map or tap to place the pin.',
+    'حرّك الخريطة أو اضغط عليها لتحديد الموقع.',
+  );
+  String get mapUseCenter => _t('Use map center', 'استخدم مركز الخريطة');
+  String get mapNoResults => _t(
+    'No matching places. Try another search or pick on the map.',
+    'لا توجد أماكن مطابقة. جرّب البحث مرة أخرى أو اختر من الخريطة.',
+  );
+  String get mapLookupFailed => _t(
+    'Place lookup is unavailable. You can still name a pin or use a catalog place.',
+    'البحث عن الأماكن غير متاح الآن. يمكنك تسمية الموقع أو اختيار مكان من القائمة.',
+  );
+  String get mapAlreadySelected =>
+      _t('This place is already selected.', 'هذا المكان محدد بالفعل.');
+  String get mapAddPlace => _t('Add this place', 'أضف هذا المكان');
+  String get mapUsePlaces =>
+      _t('Use selected places', 'استخدم الأماكن المحددة');
+  String get mapMoveUp => _t('Move up', 'انقل لأعلى');
+  String get mapMoveDown => _t('Move down', 'انقل لأسفل');
+  String get mapRemovePlace => _t('Remove place', 'احذف المكان');
+  String mapSelectedPlace(String name) =>
+      _t('Selected place: $name', 'المكان المحدد: $name');
+  String mapEditPlace(String name) => _t('Options for $name', 'خيارات $name');
+
   String get pickLocation => _t('Pick location', 'تحديد الموقع');
   String get pickOnMap =>
       _t('Pick this place on the map', 'حدّد المكان على الخريطة');

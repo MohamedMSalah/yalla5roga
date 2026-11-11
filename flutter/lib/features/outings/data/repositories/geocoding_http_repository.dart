@@ -1,105 +1,84 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
-import 'package:yalla_5roga/core/config/app_config.dart';
-import 'package:yalla_5roga/core/constants/app_constants.dart';
+import 'package:yalla_5roga/core/constants/api_constants.dart';
+import 'package:yalla_5roga/core/network/api_client.dart';
+import 'package:yalla_5roga/core/network/api_payload.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
 
-abstract class GeocodingRemoteDataSource {
-  Future<String?> reverseGeocode({
-    required double latitude,
-    required double longitude,
-  });
+class GeocodingHttpRepository implements LocationRepository {
+  const GeocodingHttpRepository(this._client);
 
-  Future<List<LocationHit>> search(String query);
-}
-
-class GeocodingHttpDataSource implements GeocodingRemoteDataSource {
-  GeocodingHttpDataSource({
-    Dio? client,
-    String? nominatimHost,
-    Duration? timeout,
-  }) : _nominatimHost = nominatimHost ?? AppConfig.instance.nominatimHost,
-       _timeout = timeout ?? AppConfig.instance.connectTimeout,
-       _client = client ?? Dio();
-
-  final Dio _client;
-  final String _nominatimHost;
-  final Duration _timeout;
-
-  Map<String, String> get _headers => {
-    'User-Agent': AppConstants.nominatimUserAgent,
-  };
+  final ApiClient _client;
 
   @override
-  Future<String?> reverseGeocode({
+  Future<LocationLookup> reverseGeocode({
     required double latitude,
     required double longitude,
-  }) async {
-    try {
-      final response = await _client.get<dynamic>('https://$_nominatimHost/reverse', queryParameters: {
-        'format': 'jsonv2',
-        'lat': '$latitude',
-        'lon': '$longitude',
-      }, options: Options(headers: _headers),).timeout(_timeout);
-      if (response.statusCode != 200) return null;
-      final data = response.data;
-      if (data is! Map) return null;
-      final named = (data['name'] as String?)?.trim();
-      if (named != null && named.isNotEmpty) return named;
-      final display = (data['display_name'] as String?)?.trim();
-      if (display == null || display.isEmpty) return null;
-      return display.split(',').first.trim();
-    } catch (_) {
+    required String language,
+    required Future<void> cancelled,
+  }) => _lookup({
+    'kind': 'reverse',
+    'latitude': latitude,
+    'longitude': longitude,
+    'language': language,
+  }, cancelled);
+
+  @override
+  Future<LocationLookup> search(
+    String query, {
+    required String language,
+    required Future<void> cancelled,
+  }) => _lookup({
+    'kind': 'search',
+    'query': query,
+    'language': language,
+  }, cancelled);
+
+  Future<LocationLookup> _lookup(
+    Map<String, Object> request,
+    Future<void> cancelled,
+  ) async {
+    final token = CancelToken();
+    unawaited(cancelled.then((_) => token.cancel()));
+    final response = await _client.post<Map<String, dynamic>>(
+      ApiConstants.placeGeocoding,
+      data: request,
+      cancelToken: token,
+    );
+    final data = apiPayload(response.data);
+    return LocationLookup(
+      available: data['available'] == true,
+      attribution: data['attribution'] as String?,
+      cacheSeconds: (data['cache_seconds'] as int? ?? 0).clamp(0, 300),
+      hits: [
+        if (data['results'] case final List<dynamic> results)
+          for (final result in results) ?_hit(result),
+      ],
+    );
+  }
+
+  LocationHit? _hit(Object? result) {
+    if (result is! Map<String, dynamic>) return null;
+    final latitude = (result['latitude'] as num?)?.toDouble();
+    final longitude = (result['longitude'] as num?)?.toDouble();
+    final name = (result['name'] as String?)?.trim();
+    if (latitude == null ||
+        longitude == null ||
+        name == null ||
+        name.isEmpty ||
+        !latitude.isFinite ||
+        !longitude.isFinite ||
+        latitude.abs() > 90 ||
+        longitude.abs() > 180) {
       return null;
     }
+    return LocationHit(
+      id: result['id'] as String? ?? '',
+      name: name,
+      area: result['area'] as String? ?? '',
+      latitude: latitude,
+      longitude: longitude,
+    );
   }
-
-  @override
-  Future<List<LocationHit>> search(String query) async {
-    try {
-      final response = await _client.get<dynamic>('https://$_nominatimHost/search', queryParameters: {
-        'format': 'jsonv2',
-        'q': query,
-        'limit': '8',
-      }, options: Options(headers: _headers),).timeout(_timeout);
-      if (response.statusCode != 200) return const [];
-      final data = response.data;
-      if (data is! List) return const [];
-      final hits = <LocationHit>[];
-      for (final item in data) {
-        if (item is! Map) continue;
-        final lat = double.tryParse('${item['lat']}');
-        final lon = double.tryParse('${item['lon']}');
-        if (lat == null || lon == null) continue;
-        final named = (item['name'] as String?)?.trim();
-        final display = (item['display_name'] as String?)?.trim();
-        final label = (named != null && named.isNotEmpty)
-            ? named
-            : (display == null || display.isEmpty
-                  ? query
-                  : display.split(',').first.trim());
-        hits.add(LocationHit(name: label, latitude: lat, longitude: lon));
-      }
-      return hits;
-    } catch (_) {
-      return const [];
-    }
-  }
-}
-
-class GeocodingHttpRepository implements LocationRepository {
-  GeocodingHttpRepository({GeocodingRemoteDataSource? remote})
-    : _remote = remote ?? GeocodingHttpDataSource();
-
-  final GeocodingRemoteDataSource _remote;
-
-  @override
-  Future<String?> reverseGeocode({
-    required double latitude,
-    required double longitude,
-  }) {
-    return _remote.reverseGeocode(latitude: latitude, longitude: longitude);
-  }
-
-  @override
-  Future<List<LocationHit>> search(String query) => _remote.search(query);
 }

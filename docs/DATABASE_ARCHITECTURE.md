@@ -2,9 +2,10 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-10 |
 | Documentation version | 1.0.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
+| Configured Neon schema | Eleven migrations applied through `20261111180000_password_recovery` on 2026-11-11. Recovery migration deployment and account preflight are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -13,15 +14,23 @@ Neon PostgreSQL is the **only** application data store. Firebase is not an app d
 
 ```mermaid
 erDiagram
+  users {
+    string id PK "Firebase UID"
+    string phone UK "Required E.164 number"
+  }
+  users ||--o{ password_recoveries : authorizes_reset
   users ||--o{ groups : creates
   users ||--o{ group_members : joins
   groups ||--o{ group_members : has
   groups ||--o{ group_invitations : invites
+  users |o--o{ group_invitations : claims
   users ||--o{ outings : creates
   groups ||--o{ outings : owns
   places ||--o{ outings : location
   outings ||--o{ outing_guests : members
   outings ||--o{ outing_attendance : attendance
+  outings ||--o{ outing_arrivals : physical_check_in
+  users ||--o{ outing_arrivals : participant
   outings ||--o{ outing_vote_options : candidates
   outings ||--o{ outing_votes : votes
   outing_vote_options ||--o{ outing_votes : receives
@@ -42,16 +51,14 @@ erDiagram
 
 ### `users`
 
-Legacy `email` data is retained but ignored by Prisma during the phone-auth transition. Existing accounts without a usable phone and password require a migration strategy.
+The stable Firebase UID is the primary key. The unique E.164 phone is the lookup and invitation address. New registration requires verified phone proof. The approved cleanup removed legacy email and password-update timestamps and made the phone required.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | `id` | `VarChar(128)` PK | Firebase UID |
 | `name` | `VarChar(30)` | required |
-| `phone` | `VarChar(16)?` unique | |
-| `email` | `VarChar(254)?` unique | |
-| `password_hash` | `VarChar(255)?` | bcrypt for email/password; null for social/phone-only |
-| `password_updated_at` | timestamptz? | |
+| `phone` | `VarChar(16)` unique, NOT NULL | E.164 format checked by PostgreSQL |
+| `password_hash` | `VarChar(255)?` | bcrypt credential for phone/password login. A legacy row may have no hash. |
 | `image_url` | `VarChar(2048)?` | |
 | `created_at` / `updated_at` | timestamptz | defaults / `@updatedAt` |
 
@@ -61,11 +68,13 @@ UUID PK (`gen_random_uuid()`). Fields: `name`, `bio`, `image_url`, `created_by` 
 
 ### `group_members`
 
-Composite PK `(group_id, user_id)`. `role` enum `group_role` default `member`. Cascade delete from group/user. Index on `user_id`. On group create, the creator is inserted immediately as `owner` so membership count starts at 1.
+Composite PK `(group_id, user_id)`. `role` enum `group_role` default `member`. Cascade delete from group/user. Index on `user_id`. Group creation and the initial owner membership are atomic. Owner removal locks the group while enforcing the last-owner rule.
 
 ### `group_invitations`
 
-Phone invitation to a group. PK UUID. `invited_phone`, `status` (`invitation_status` default `pending`), `expires_at`, optional `user_id`. Indexes on group, phone, status, phone+status, user.
+Phone association for group membership. PK UUID. `invited_phone`, `status` (`invitation_status` default `pending`), legacy `expires_at`, and optional `user_id`. The partial unique index permits one pending association per group and E.164 phone. Pending associations remain eligible until linked or revoked. The expiry timestamp is retained for schema compatibility and existing historical statuses retain their meaning.
+
+Phone values use E.164 normalization (default region Egypt), shared by signup/login/invites/sync. A pending association has `user_id=null`. Verified signup, login or sync locks the matching profile and pending rows, inserts active memberships in bulk and records the links as `accepted` with the same UID in one transaction. Owner revocation changes a still-pending row to `revoked`. Removing a registered member also revokes any still-pending row for the same group and phone. The current-user groups query uses `group_members.some(user_id=Bearer UID)`, not creator-only filtering. The integrity migration enforces the phone format and pending uniqueness while preserving all existing primary keys. Its real PostgreSQL/HTTP regression test rolls back all fixture writes and verifies no fixture users persist.
 
 ### `places`
 
@@ -87,19 +96,22 @@ Catalog places. UUID PK. `vibe` (`outing_vibe`), `price_level`, optional lat/lng
 | `vote_deadline_hours` | optional smallint |
 | `vote_ends_at` | **required by product / create validator** |
 | `vote_closed_at` | set when ballots lock |
-| `vote_close_reason` | enum |
+| `vote_close_reason` | enum, including `owner_confirmed` for explicit creator choice |
 | `winning_option_id` | composite FK `(winning_option_id, id)` → `(outing_vote_options.id, outing_id)` |
-| `suggested_by_user_id` | optional |
 
 Indexes: status, group, scheduled, created_by, vote_ends_at, (status, vote_ends_at).
 
 ### `outing_guests`
 
-Outing membership / invitation. Composite PK `(outing_id, user_id)`. `status` `invitation_status` default `accepted` (historical create path). Product roles remain Owner vs Member — this table is invitation/membership state, **not** a Guest role. Cascade on outing/user delete.
+Outing membership and invitation state. Composite PK `(outing_id, user_id)`. The `invitation_status` default is `pending`. Acceptance remains explicit. Outing and user deletion cascade to their membership rows.
 
 ### `outing_attendance`
 
 Composite PK `(outing_id, user_id)`. `status` `attendance_status` (`going|not_going|maybe`). Independent of votes.
+
+### `outing_arrivals`
+
+Composite PK `(outing_id, user_id)`, with an `arrived_at` timestamp and cascading foreign keys. The table records the first physical check-in and its `verification_method`. New arrivals use `gps`. The check constraint requires finite distance and positive finite accuracy for GPS methods, in meters. The migration preserves earlier rows, including former organizer records. Those organizer records are excluded from the verified roster and can be replaced by valid GPS verification. The presence of a verified row represents arrival, and raw device coordinates are discarded. `outings.create_request_key` is nullable and unique per creator so retrying the same submission can reuse the original outing. The group index is nonunique and no scheduling exclusion applies.
 
 ### `outing_vote_options`
 
@@ -111,11 +123,11 @@ UUID PK. FK outing (cascade). Optional `place_id`. Unique `(outing_id, place_id)
 
 ### `outing_drafts`
 
-Server-side drafts (Flutter may also keep local prefs drafts). JSON `guest_ids`, `selected_places`.
+Server-side drafts (Flutter may also keep local prefs drafts). PostgreSQL checks that `guest_ids` and `selected_places` are JSON arrays.
 
 ### `chat_messages` / `chat_reads`
 
-Messages: text ≤ 2000, optional `client_message_id` unique per `(outing_id, sender_id, client_message_id)`. Reads: composite PK; `last_read_at`. Group seen state is derived from reads; no per-message delivery flag is stored.
+Messages use an optional `client_message_id` unique per `(outing_id, sender_id, client_message_id)`. Reads use a composite key and a `last_read_at` timestamp. The update preserves the highest timestamp and group seen state is derived from it.
 
 ### `notifications`
 
@@ -123,11 +135,11 @@ In-app inbox. Unique nullable `event_key` for idempotency. Types: `notification_
 
 ### `user_fcm_tokens`
 
-Unique `(user_id, token)` and unique `token`.
+Globally unique `token` with a separate `user_id` index for delivery. Re-registration can update the owning user in one write.
 
 ### `saved_outings` / `saved_places`
 
-Composite PKs `(user_id, outing_id)` / `(user_id, place_id)`.
+Composite PKs `(user_id, outing_id)` and `(user_id, place_id)`. Each table has a `(user_id, saved_at DESC)` index for the current-user saved list.
 
 ### `notification_events` / `notification_delivery_logs`
 
@@ -187,3 +199,21 @@ Historical notes and audits: `docs/audit/`, `docs/system-design/`.
 ### Nearby place search
 
 The service computes nearby results from active rows in `places` with coordinates. It uses indexed geographic bounds followed by a spherical distance filter and nearest-first ordering. Discover and Nearby do not have separate tables.
+
+### Initial vote candidates and fixed locations
+
+Initial group vote candidates reuse `outing_vote_options` and `sort_order`. The outing transaction stores them together with the outing and owner attendance. It uses the existing creator-scoped unique request key and PostgreSQL transaction advisory lock to replay a committed create safely. Fixed catalog selections use `outings.location_place_id`; latitude and longitude remain nullable, including for older catalog entries. No map-specific migration is required.
+
+
+## Stable chat mention storage — 2026-11-11
+
+Mentions are encoded inline in existing `chat_messages.text` as `<@URI-encoded-user-id|URI-encoded-display-name>`. IDs are stable Firebase UID/Neon user primary keys; labels are canonicalized from Neon at write time. Existing message/client UUID and notification/outbox uniqueness provide retry deduplication. No schema migration is introduced. The realtime invalidation buffer holds no durable application state and is intentionally lost on process restart.
+
+## Password recovery security state — 2026-11-11
+
+Additive migration `20261111180000_password_recovery` introduces two tables. It was applied to the configured application schema on 2026-11-11 with `prisma migrate deploy`, after confirming it was the only pending migration. The real recovery preflight subsequently succeeded without sending SMS or changing a password.
+
+- `password_recoveries`: request digest PK, existing `user_id` FK with delete cascade, bound E.164 phone, SHA-256 version digest of existing bcrypt hash, creation/expiration timestamps, unique nullable phone-sign-in proof digest and reset-secret digest, nullable consumed timestamp. Expiry is indexed. Successful consumption and password CAS update are one transaction; competing grants are invalidated.
+- `password_recovery_limits`: digest key PK, integer attempts, indexed expiry. Atomic upsert provides shared fixed-window limits, without storing raw IP addresses or opaque credentials.
+
+No plaintext passwords, OTPs, Firebase ID tokens or raw recovery secrets are persisted. Only the existing `users.password_hash` is updated. Replay markers survive beyond accepted proof lifetime; rows expired more than a day ago and expired limit buckets are cleaned during recovery starts.

@@ -1,17 +1,13 @@
 import 'package:equatable/equatable.dart';
 
 /// Result of `POST /api/groups/:id/invitations`.
-enum GroupInviteOutcome {
-  memberAdded,
-  alreadyMember,
-  invited,
-  alreadyPending,
-}
+enum GroupInviteOutcome { memberAdded, alreadyMember, invited, alreadyPending }
 
 class GroupInviteResult extends Equatable {
   const GroupInviteResult({
     required this.outcome,
     this.whatsappUrl,
+    this.notificationQueued = false,
     this.deepLink,
     this.invitationId,
     this.invitedPhone,
@@ -19,6 +15,7 @@ class GroupInviteResult extends Equatable {
 
   final GroupInviteOutcome outcome;
   final String? whatsappUrl;
+  final bool notificationQueued;
   final String? deepLink;
   final String? invitationId;
   final String? invitedPhone;
@@ -43,6 +40,7 @@ class GroupInviteResult extends Equatable {
     return GroupInviteResult(
       outcome: outcome,
       whatsappUrl: _string(json['whatsapp_url']),
+      notificationQueued: json['notification_queued'] == true,
       deepLink: _string(json['deep_link']),
       invitationId: _string(json['invitation_id']),
       invitedPhone: _string(json['invited_phone']),
@@ -59,6 +57,7 @@ class GroupInviteResult extends Equatable {
   List<Object?> get props => [
     outcome,
     whatsappUrl,
+    notificationQueued,
     deepLink,
     invitationId,
     invitedPhone,

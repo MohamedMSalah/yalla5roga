@@ -59,8 +59,8 @@ export class DeletePlaceHourUseCase {
     private readonly places: IPlaceRepository = new PlaceRepository(),
   ) {}
 
-  execute(id: string): Promise<PlaceHour> {
-    return this.places.deleteHour(id);
+  execute(placeId: string, id: string): Promise<PlaceHour> {
+    return this.places.deleteHour(placeId, id);
   }
 }
 
@@ -97,8 +97,8 @@ export class DeletePlaceImageUseCase {
     private readonly places: IPlaceRepository = new PlaceRepository(),
   ) {}
 
-  execute(id: string): Promise<PlaceImage> {
-    return this.places.deleteImage(id);
+  execute(placeId: string, id: string): Promise<PlaceImage> {
+    return this.places.deleteImage(placeId, id);
   }
 }
 
@@ -137,7 +137,7 @@ export class DeletePlacePriceUseCase {
     private readonly places: IPlaceRepository = new PlaceRepository(),
   ) {}
 
-  execute(id: string): Promise<PlacePrice> {
-    return this.places.deletePrice(id);
+  execute(placeId: string, id: string): Promise<PlacePrice> {
+    return this.places.deletePrice(placeId, id);
   }
 }

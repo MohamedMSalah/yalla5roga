@@ -1,11 +1,15 @@
 import type { PublicUser, User } from "../../types/users/user.types.js";
 
-/** Strip credential fields before any API response. */
+/** Allowlist protects responses even while legacy columns await migration. */
 export function toPublicUser(user: User): PublicUser {
-  const { password_hash, password_updated_at: _updated, ...publicUser } = user;
   return {
-    ...publicUser,
-    has_password: Boolean(password_hash),
+    id: user.id,
+    name: user.name,
+    phone: user.phone,
+    image_url: user.image_url,
+    created_at: user.created_at,
+    updated_at: user.updated_at,
+    has_password: Boolean(user.password_hash),
   };
 }
 

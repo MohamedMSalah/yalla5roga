@@ -16,6 +16,7 @@ class NotificationsProvider extends ChangeNotifier {
   var _hasLoaded = false;
   String? _errorMessage;
   var _epoch = 0;
+  var _accountEpoch = 0;
 
   List<NotificationItem> get items => List.unmodifiable(_items);
 
@@ -58,7 +59,6 @@ class NotificationsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-
   Future<void> refresh({bool forceRefresh = false}) async {
     final token = ++_epoch;
     _isLoading = true;
@@ -98,9 +98,11 @@ class NotificationsProvider extends ChangeNotifier {
   }
 
   Future<bool> markAllRead() {
+    final account = _accountEpoch;
     _epoch++;
     return _runUpdate(() async {
       final result = await repository.markAllRead();
+      if (account != _accountEpoch) return false;
       return result.fold(
         (failure) {
           _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -121,9 +123,11 @@ class NotificationsProvider extends ChangeNotifier {
   }
 
   Future<bool> markRead(String id) {
+    final account = _accountEpoch;
     _epoch++;
     return _runUpdate(() async {
       final result = await repository.markRead(id);
+      if (account != _accountEpoch) return false;
       return result.fold(
         (failure) {
           _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -147,6 +151,7 @@ class NotificationsProvider extends ChangeNotifier {
   }
 
   void clear() {
+    _accountEpoch++;
     _epoch++;
     repository.clearCache();
     _items = [];
@@ -160,10 +165,12 @@ class NotificationsProvider extends ChangeNotifier {
   }
 
   Future<bool> _runUpdate(Future<bool> Function() action) async {
+    final account = _accountEpoch;
     _isUpdating = true;
     _errorMessage = null;
     notifyListeners();
     final success = await action();
+    if (account != _accountEpoch) return false;
     _isUpdating = false;
     notifyListeners();
     return success;

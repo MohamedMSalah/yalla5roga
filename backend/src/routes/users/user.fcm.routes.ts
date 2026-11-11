@@ -45,6 +45,10 @@ const unregister = new UnregisterFcmTokenUseCase();
  *     responses:
  *       "201":
  *         description: Token registered
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/RegisteredFcmTokenResponse"
  *       "400":
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
@@ -73,6 +77,10 @@ const unregister = new UnregisterFcmTokenUseCase();
  *     responses:
  *       "200":
  *         description: Token unregistered
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/UnregisteredFcmTokenResponse"
  *       "400":
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
@@ -96,6 +104,10 @@ const unregister = new UnregisterFcmTokenUseCase();
  *     responses:
  *       "200":
  *         description: Token unregistered
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/UnregisteredFcmTokenResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":

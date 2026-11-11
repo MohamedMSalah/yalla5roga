@@ -13,6 +13,7 @@ export type NotificationEventStatus = notification_event_status;
 export type NotificationEventType = notification_event_type;
 
 export type GroupInvitePayload = {
+  whatsappOptIn?: boolean;
   invitationId: string;
   groupId: string;
   groupName: string;
@@ -24,6 +25,7 @@ export type GroupInvitePayload = {
 };
 
 export type EnqueueGroupInviteInput = {
+  whatsappOptIn?: boolean;
   invitationId: string;
   groupId: string;
   groupName: string;

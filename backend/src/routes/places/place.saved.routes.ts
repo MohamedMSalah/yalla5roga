@@ -15,20 +15,33 @@ import { savedOutingParamsSchema } from "../../validators/outings/outing.validat
  *     responses:
  *       "200":
  *         description: Saved place records
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SavedPlaceListResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  * /api/places/{id}/save:
  *   post:
  *     tags: [Places]
  *     summary: Save a place
+ *     description: Repeated requests return the existing bookmark.
  *     operationId: savePlace
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
  *     responses:
  *       "201":
  *         description: Saved place record
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SavedPlaceResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  *   delete:
  *     tags: [Places]
  *     summary: Unsave a place
@@ -38,8 +51,16 @@ import { savedOutingParamsSchema } from "../../validators/outings/outing.validat
  *     responses:
  *       "200":
  *         description: Removed saved-place record
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/SavedPlaceResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  */
 const router = Router();
 const controller = new OutingController();

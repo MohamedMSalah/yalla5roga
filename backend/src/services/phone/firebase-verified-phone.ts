@@ -12,7 +12,7 @@ export class FirebaseVerifiedPhoneLookup implements VerifiedPhoneLookup {
   async findUserIdByVerifiedPhone(e164: string): Promise<string | null> {
     try {
       const record = await getFirebaseAuth().getUserByPhoneNumber(e164);
-      return record.uid;
+      return record.disabled ? null : record.uid;
     } catch (error) {
       if (isFirebaseUserNotFound(error)) return null;
       throw error;

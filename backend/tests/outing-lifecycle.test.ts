@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import test from "node:test";
 import { PrismaClient } from "@prisma/client";
 import { CreateOutingUseCase } from "../src/usecases/outings/create-outing.usecase.js";
 import { UpsertAttendanceUseCase } from "../src/usecases/outings/attendance.usecase.js";
+import { UpdateOutingUseCase } from "../src/usecases/outings/update-outing.usecase.js";
 import {
   CastVoteUseCase,
   CreateVoteOptionUseCase,
@@ -20,7 +21,7 @@ async function seedUser(suffix: string) {
     data: {
       id,
       name: suffix.slice(0, 30),
-      email: `${id}@example.com`,
+      phone: `+2010${randomInt(10000000, 99999999)}`,
     },
   });
   return id;
@@ -102,6 +103,11 @@ test("outing lifecycle: create, vote upsert, unique winner, attendance independe
 
     const cast = new CastVoteUseCase();
     await cast.execute(outing.id, owner, a.id);
+
+    await assert.rejects(
+      () => new UpdateOutingUseCase().execute(outing.id, owner, { status: "confirmed" }),
+      /venue confirmation endpoint/,
+    );
 
     // Change vote before every eligible voter has participated (keeps poll open).
     await cast.execute(outing.id, owner, b.id);

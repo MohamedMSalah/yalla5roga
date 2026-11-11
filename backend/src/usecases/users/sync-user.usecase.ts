@@ -2,13 +2,14 @@ import type { IUserRepository } from "../../repositories/users/i-user.repository
 import { UserRepository } from "../../repositories/users/user.repository.js";
 import { ClaimGroupInvitationsUseCase } from "../groups/claim-group-invitations.usecase.js";
 import { tryNormalizePhoneNumber } from "../../services/phone/normalize-phone.js";
+import { FirebasePhoneIdentity } from "../../services/phone/phone-identity.js";
 import type {
   SyncUserInput,
   SyncUserResult,
   UpdateUserInput,
   User,
 } from "../../types/users/user.types.js";
-import { ConflictError, ValidationError } from "../../utils/errors.js";
+import { ConflictError, UnauthorizedError, ValidationError } from "../../utils/errors.js";
 
 const PHONE_ALREADY_LINKED =
   "This phone number is already associated with another account";
@@ -36,6 +37,7 @@ export class SyncUserUseCase {
       ClaimGroupInvitationsUseCase,
       "execute"
     > = new ClaimGroupInvitationsUseCase(),
+    private readonly phones: Pick<FirebasePhoneIdentity, "verifyProof" | "bindPhone"> = new FirebasePhoneIdentity(),
   ) {}
 
   async execute(input: SyncUserInput): Promise<SyncUserResult> {
@@ -43,20 +45,33 @@ export class SyncUserUseCase {
       throw new ValidationError("id is required");
     }
 
-    const verifiedPhone = input.verifiedPhone
+    let verifiedPhone = input.verifiedPhone
       ? tryNormalizePhoneNumber(input.verifiedPhone)
       : null;
     const existing = await this.users.findById(input.id);
 
-    if (verifiedPhone) {
+    if (input.phoneVerificationToken) {
+      const proof = await this.phones.verifyProof(input.phoneVerificationToken);
+      // Never merge registered identities or transfer their phone credentials.
+      if (proof.uid !== input.id && await this.users.findById(proof.uid)) {
+        throw new ConflictError(PHONE_ALREADY_LINKED);
+      }
+      await this.assertPhoneAvailable(proof.phone, input.id);
+      await this.phones.bindPhone(input.id, proof);
+      verifiedPhone = proof.phone;
+    } else if (verifiedPhone) {
       await this.assertPhoneAvailable(verifiedPhone, input.id);
+    }
+
+    if (!existing && !verifiedPhone) {
+      throw new UnauthorizedError("Firebase phone verification is required");
     }
 
     const user = existing
       ? await this.syncExisting(existing, {
           verifiedPhone,
         })
-      : await this.createMinimalProfile(input, verifiedPhone);
+      : await this.createMinimalProfile(input, verifiedPhone!);
 
     if (!verifiedPhone) {
       return {
@@ -111,18 +126,17 @@ export class SyncUserUseCase {
    */
   private async createMinimalProfile(
     input: SyncUserInput,
-    verifiedPhone: string | null,
+    verifiedPhone: string,
   ): Promise<User> {
-    const phone =
-      verifiedPhone ??
-      (await this.bootstrapUnverifiedPhone(input.phone, input.id));
-
-    return this.users.create({
-      id: input.id,
-      name: resolveCreateName(input),
-      phone,
-      image_url: normalizeOptionalImageUrl(input.image_url),
-    });
+    try {
+      return await this.users.create({ id: input.id, name: resolveCreateName(input),
+        phone: verifiedPhone, image_url: normalizeOptionalImageUrl(input.image_url) });
+    } catch (error) {
+      if ((error as { code?: string }).code !== "P2002") throw error;
+      const existing = await this.users.findById(input.id);
+      if (existing?.phone === verifiedPhone) return existing;
+      throw new ConflictError(PHONE_ALREADY_LINKED);
+    }
   }
 
   private async assertPhoneAvailable(phone: string, userId: string) {
@@ -132,24 +146,6 @@ export class SyncUserUseCase {
     }
   }
 
-  /**
-   * Stores an unverified profile phone only when creating a row that has none.
-   * Never treated as verified and never used to claim invitations.
-   */
-  private async bootstrapUnverifiedPhone(
-    submitted: string | null | undefined,
-    userId: string,
-  ): Promise<string | null> {
-    if (!submitted) return null;
-
-    const normalized = tryNormalizePhoneNumber(submitted);
-    if (!normalized) {
-      throw new ValidationError("Invalid phone number");
-    }
-
-    await this.assertPhoneAvailable(normalized, userId);
-    return normalized;
-  }
 }
 
 function normalizeOptionalImageUrl(

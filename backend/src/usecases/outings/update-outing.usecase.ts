@@ -52,6 +52,9 @@ export class UpdateOutingUseCase {
     }
 
     if (data.status != null && data.status !== existing.status) {
+      if (data.status === "confirmed") {
+        throw new ValidationError("Confirm a proposed venue through the venue confirmation endpoint");
+      }
       assertValidStatusTransition(existing.status, data.status);
       if (data.status === "voting" && existing.status === "confirmed") {
         throw new ValidationError("Confirmed outings cannot reopen voting");

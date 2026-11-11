@@ -48,9 +48,8 @@ async function withClientAuth<T>(
   }
 }
 
-export type EmailPasswordSession = {
+export type FirebaseSession = {
   uid: string;
-  email: string | null;
   idToken: string;
   refreshToken: string;
   expiresIn: string;
@@ -61,13 +60,12 @@ export type EmailPasswordSession = {
 /** Exchange a Firebase Admin custom token for an ID token session. */
 export async function signInWithCustomTokenSession(
   customToken: string,
-): Promise<EmailPasswordSession> {
+): Promise<FirebaseSession> {
   return withClientAuth(async (auth) => {
     const credential = await signInWithCustomToken(auth, customToken);
     const idToken = await credential.user.getIdToken();
     return {
       uid: credential.user.uid,
-      email: credential.user.email,
       idToken,
       refreshToken: credential.user.refreshToken,
       expiresIn: "3600",

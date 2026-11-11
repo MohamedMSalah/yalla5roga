@@ -22,7 +22,7 @@ export class MarkChatReadUseCase {
       user_id: userId,
       last_read_at: new Date(),
     });
-    emitOutingRead(outingId, read);
+    await emitOutingRead(outingId, read);
     return read;
   }
 }

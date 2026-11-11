@@ -115,8 +115,8 @@ class FakeEvents implements INotificationEventRepository {
   }
 }
 
-class FakeWhatsApp implements NotificationChannelSender {
-  readonly channel = "whatsapp" as const;
+class FakeChannel implements NotificationChannelSender {
+  constructor(readonly channel: NotificationEvent["channel"] = "whatsapp") {}
   result: ChannelSendResult = {
     provider: "stub",
     providerMessageId: "msg-1",
@@ -133,7 +133,7 @@ class FakeWhatsApp implements NotificationChannelSender {
 describe("notification dispatcher", () => {
   it("marks WhatsApp deliveries as sent and writes a delivery log", async () => {
     const events = new FakeEvents();
-    const whatsapp = new FakeWhatsApp();
+    const whatsapp = new FakeChannel();
     events.claimed = [event()];
     const dispatcher = new NotificationDispatcher(events, [whatsapp], {
       deepLinkBaseUrl: "https://yalla5roga.com",
@@ -158,9 +158,30 @@ describe("notification dispatcher", () => {
     assert.equal(whatsapp.calls[0]?.payload.deepLink.includes("/invite/"), true);
   });
 
+  it("normalizes queued chat events and keeps their inbox identity", async () => {
+    const events = new FakeEvents();
+    const push = new FakeChannel("push");
+    events.claimed = [event({
+      type: "chat_message",
+      channel: "push",
+      recipient_user_id: "recipient",
+      outing_id: "outing-1",
+      event_key: "outbox:chat_message:message-1:recipient",
+      payload: { notification_type: "chat", outing_id: "outing-1", body: "New message" },
+    })];
+
+    await new NotificationDispatcher(events, [push]).processBatch(NOW);
+
+    assert.equal(push.calls[0]?.inboxEventKey, "chat_message:message-1:recipient");
+    assert.equal(push.calls[0]?.payload.type, "chat_message");
+    assert.equal(push.calls[0]?.payload.groupId, "group-1");
+    assert.equal(push.calls[0]?.payload.outingId, "outing-1");
+    assert.equal(push.calls[0]?.payload.messageId, "message-1");
+  });
+
   it("retries failed WhatsApp sends without killing the event on first failure", async () => {
     const events = new FakeEvents();
-    const whatsapp = new FakeWhatsApp();
+    const whatsapp = new FakeChannel();
     whatsapp.result = {
       provider: "meta",
       status: "failed",

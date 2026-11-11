@@ -1,137 +1,116 @@
-import 'package:equatable/equatable.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-/// Known push categories. Unknown values map to [PushNotificationType.unknown].
-enum PushNotificationType {
-  outing,
+enum NotificationDestination {
   group,
+  groupMembers,
+  outing,
+  placeVoting,
+  attendance,
   chat,
-  vote,
-  invitation,
-  system,
-  unknown;
-
-  static PushNotificationType fromData(String? raw) {
-    switch (raw?.trim().toLowerCase()) {
-      case 'outing':
-        return PushNotificationType.outing;
-      case 'group':
-        return PushNotificationType.group;
-      case 'chat':
-        return PushNotificationType.chat;
-      case 'vote':
-        return PushNotificationType.vote;
-      case 'invitation':
-      case 'invite':
-        return PushNotificationType.invitation;
-      case 'system':
-        return PushNotificationType.system;
-      default:
-        return PushNotificationType.unknown;
-    }
-  }
+  inbox,
 }
 
-/// Normalized FCM payload for navigation and local display.
-///
-/// Expected `data` keys (all optional except useful routing fields):
-/// `type`, `outingId`, `groupId`, `chatId`, and any future keys in [data].
-class PushNotificationPayload extends Equatable {
-  const PushNotificationPayload({
-    required this.type,
-    required this.data,
-    this.messageId,
-    this.title,
-    this.body,
-    this.outingId,
-    this.groupId,
-    this.chatId,
-  });
+class PushNotificationPayload {
+  PushNotificationPayload.fromData(Map<String, dynamic> data)
+    : type = _type(data),
+      outingId =
+          _pick(data, 'outingId') ??
+          _pick(data, 'outing_id') ??
+          _pick(data, 'chatId') ??
+          _pick(data, 'eventId'),
+      groupId = _pick(data, 'groupId') ?? _pick(data, 'group_id'),
+      messageId = _pick(data, 'messageId'),
+      pushId = _pick(data, 'pushId'),
+      notificationId = _pick(data, 'notificationId'),
+      recipientUserId = _pick(data, 'recipientUserId'),
+      title = _pick(data, 'title'),
+      body = _pick(data, 'body');
 
-  final String? messageId;
-  final String? title;
-  final String? body;
-  final PushNotificationType type;
+  factory PushNotificationPayload.fromRemoteMessage(RemoteMessage message) =>
+      PushNotificationPayload.fromData({
+        ...message.data,
+        'pushId': message.data['pushId'] ?? message.messageId,
+        'title': message.notification?.title ?? message.data['title'],
+        'body': message.notification?.body ?? message.data['body'],
+      });
+
+  factory PushNotificationPayload.fromLocalData(Map<String, dynamic> data) {
+    // Older local notifications stored the Firebase transport ID here.
+    if (data['pushId'] == null &&
+        data['notificationId'] == null &&
+        data['messageId'] != null &&
+        data['type'] != 'chat_message') {
+      return PushNotificationPayload.fromData({
+        ...data,
+        'pushId': data['messageId'],
+        'messageId': null,
+      });
+    }
+    return PushNotificationPayload.fromData(data);
+  }
+
+  final String type;
   final String? outingId;
   final String? groupId;
-  final String? chatId;
-  final Map<String, String> data;
+  final String? messageId;
+  final String? pushId;
+  final String? notificationId;
+  final String? recipientUserId;
+  final String? title;
+  final String? body;
 
-  bool get hasDisplayContent =>
-      (title != null && title!.trim().isNotEmpty) ||
-      (body != null && body!.trim().isNotEmpty);
+  String? get deduplicationId => notificationId ?? pushId;
 
-  factory PushNotificationPayload.fromRemoteMessage(RemoteMessage message) {
-    final data = <String, String>{
-      for (final entry in message.data.entries) entry.key: '${entry.value}',
-    };
-
-    String? pick(String key) {
-      final value = data[key]?.trim();
-      if (value == null || value.isEmpty) return null;
-      return value;
-    }
-
-    return PushNotificationPayload(
-      messageId: message.messageId,
-      title: message.notification?.title ?? pick('title'),
-      body: message.notification?.body ?? pick('body'),
-      type: PushNotificationType.fromData(pick('type')),
-      outingId: pick('outingId') ?? pick('eventId'),
-      groupId: pick('groupId'),
-      chatId: pick('chatId') ?? pick('outingId'),
-      data: data,
-    );
-  }
-
-  /// Reconstruct from local-notification payload JSON-ish map encoding.
-  factory PushNotificationPayload.fromLocalPayload(Map<String, dynamic> map) {
-    final data = <String, String>{
-      for (final entry in map.entries)
-        if (entry.key != 'title' &&
-            entry.key != 'body' &&
-            entry.key != 'messageId')
-          entry.key: entry.value?.toString() ?? '',
-    };
-
-    String? pick(String key) {
-      final value = (map[key] ?? data[key])?.toString().trim();
-      if (value == null || value.isEmpty) return null;
-      return value;
-    }
-
-    return PushNotificationPayload(
-      messageId: pick('messageId'),
-      title: pick('title'),
-      body: pick('body'),
-      type: PushNotificationType.fromData(pick('type')),
-      outingId: pick('outingId') ?? pick('eventId'),
-      groupId: pick('groupId'),
-      chatId: pick('chatId') ?? pick('outingId'),
-      data: data,
-    );
-  }
-
-  Map<String, dynamic> toLocalPayloadMap() => {
-    if (messageId != null) 'messageId': messageId,
-    if (title != null) 'title': title,
-    if (body != null) 'body': body,
-    'type': type.name,
-    if (outingId != null) 'outingId': outingId,
-    if (groupId != null) 'groupId': groupId,
-    if (chatId != null) 'chatId': chatId,
-    ...data,
+  NotificationDestination get destination => switch (type) {
+    'chat' || 'chat_message' => NotificationDestination.chat,
+    'place_vote' ||
+    'vote' ||
+    'voting_closed_early' ||
+    'voting_deadline_reached' ||
+    'winner_selected' ||
+    'tie_break_selected' => NotificationDestination.placeVoting,
+    'attendance_vote' ||
+    'attendance_changed' => NotificationDestination.attendance,
+    'member_joined' || 'member_left' => NotificationDestination.groupMembers,
+    'group' ||
+    'group_created' ||
+    'group_updated' ||
+    'group_invite' => NotificationDestination.group,
+    'outing' ||
+    'outing_created' ||
+    'outing_updated' ||
+    'outing_invite' ||
+    'outing_reminder' ||
+    'outing_confirmed' ||
+    'outing_cancelled' => NotificationDestination.outing,
+    _ when outingId != null => NotificationDestination.outing,
+    _ when groupId != null => NotificationDestination.group,
+    _ => NotificationDestination.inbox,
   };
 
-  @override
-  List<Object?> get props => [
-    messageId,
-    title,
-    body,
-    type,
-    outingId,
-    groupId,
-    chatId,
-    data,
-  ];
+  bool get hasDisplayContent => title != null || body != null;
+
+  Map<String, String> toLocalPayloadMap() => {
+    'type': type,
+    'outingId': ?outingId,
+    'groupId': ?groupId,
+    'messageId': ?messageId,
+    'pushId': ?pushId,
+    'notificationId': ?notificationId,
+    'recipientUserId': ?recipientUserId,
+    'title': ?title,
+    'body': ?body,
+  };
+
+  static String _type(Map<String, dynamic> data) {
+    final type = _pick(data, 'type')?.toLowerCase();
+    if (type != null && type != 'unknown') return type;
+    return _pick(data, 'notification_type')?.toLowerCase() ?? '';
+  }
+
+  static String? _pick(Map<String, dynamic> data, String key) {
+    final value = data[key];
+    if (value is! String || value.trim().isEmpty) return null;
+    return value.trim();
+  }
 }

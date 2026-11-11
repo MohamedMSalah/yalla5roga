@@ -9,6 +9,11 @@ import { ListUsersUseCase } from "../../usecases/users/list-users.usecase.js";
 import { SyncUserUseCase } from "../../usecases/users/sync-user.usecase.js";
 import { UpdateUserUseCase } from "../../usecases/users/update-user.usecase.js";
 import { ForbiddenError, UnauthorizedError } from "../../utils/errors.js";
+import { FirebasePhoneIdentity } from "../../services/phone/phone-identity.js";
+
+import { emitDataChange, publishGroupChange } from "../../realtime/data-changes.js";
+import { prisma } from "../../config/database.js";
+import { getChatIo } from "../../realtime/chat-emitter.js";
 
 export class UserController {
   constructor(
@@ -17,6 +22,7 @@ export class UserController {
     private readonly listUsers = new ListUsersUseCase(),
     private readonly updateUser = new UpdateUserUseCase(),
     private readonly deleteUser = new DeleteUserUseCase(),
+    private readonly phones: Pick<FirebasePhoneIdentity, "verifiedPhone"> = new FirebasePhoneIdentity(),
   ) {}
 
   list = async (_req: Request, res: Response, next: NextFunction) => {
@@ -51,17 +57,22 @@ export class UserController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
 
+      const currentPhone = req.user.phone ? await this.phones.verifiedPhone(req.user.uid) : null;
       // Identity always comes from the verified token — never body.uid / role.
       const result = await this.syncUser.execute({
         id: req.user.uid,
+        phoneVerificationToken: req.body.phoneVerificationToken,
         name: req.body.name,
         phone: req.body.phone,
         image_url: req.body.image_url ?? null,
-        verifiedPhone: req.user.phone ?? null,
+        verifiedPhone: currentPhone === req.user.phone ? currentPhone : null,
         tokenName: req.user.name ?? null,
         signInProvider: req.user.signInProvider ?? null,
       });
 
+      if (["name", "phone", "image_url", "phoneVerificationToken"].some((key) => req.body[key] !== undefined)) {
+        emitDataChange({ kind: "profile" }, [req.user.uid]);
+      }
       res.status(200).json({
         success: true,
         data: toPublicUser(result.user),
@@ -76,6 +87,15 @@ export class UserController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const user = await this.updateUser.execute(req.user.uid, req.body);
+      emitDataChange({ kind: "profile" }, [req.user.uid]);
+      if (getChatIo()) {
+        void prisma.group_members.findMany({
+          where: { user_id: req.user.uid },
+          select: { group_id: true },
+        }).then((groups) => Promise.all(groups.map(({ group_id }) =>
+          publishGroupChange(group_id, "group"),
+        ))).catch((error: unknown) => console.error("[realtime] profile audience", error));
+      }
       res.json({ success: true, data: toPublicUser(user) });
     } catch (error) {
       next(error);

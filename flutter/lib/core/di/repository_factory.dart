@@ -1,4 +1,5 @@
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:yalla_5roga/features/chat/data/datasources/chat_send_queue.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
@@ -10,7 +11,6 @@ import 'package:yalla_5roga/features/auth/domain/repositories/auth_repository.da
 import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_local_datasource.dart';
 import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_remote_datasource.dart';
 import 'package:yalla_5roga/features/chat/data/repositories/outing_chat_repository_impl.dart';
-import 'package:yalla_5roga/features/chat/domain/repositories/outing_chat_repository.dart';
 import 'package:yalla_5roga/features/discover/data/datasources/discover_remote_datasource.dart';
 import 'package:yalla_5roga/features/discover/data/repositories/discover_repository_impl.dart';
 import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
@@ -70,10 +70,15 @@ class RepositoryFactory {
     );
   }
 
-  OutingChatRepository outingChat() {
+  OutingChatRepositoryImpl outingChat(ChatSendQueue sendQueue) {
     return OutingChatRepositoryImpl(
       remote: OutingChatRemoteDataSourceImpl(apiClient),
-      local: OutingChatLocalDataSourceImpl(prefs),
+      local: OutingChatLocalDataSourceImpl(
+        prefs,
+        userId: () => firebaseAuth.currentUser?.uid,
+        origin: config.apiBaseUrl,
+      ),
+      sendQueue: sendQueue,
       networkInfo: networkInfo,
     );
   }
@@ -101,11 +106,6 @@ class RepositoryFactory {
   }
 
   LocationRepository geocoding() {
-    return GeocodingHttpRepository(
-      remote: GeocodingHttpDataSource(
-        nominatimHost: config.nominatimHost,
-        timeout: config.connectTimeout,
-      ),
-    );
+    return GeocodingHttpRepository(apiClient);
   }
 }

@@ -97,10 +97,10 @@ Group vs special event discriminated by `group_id` / `occasion` / `type`. Deadli
 
 | Path | Components | Status |
 |------|------------|--------|
-| Group phone invite | `InviteToGroupUseCase` → `group_invitations` + WhatsApp outbox/`whatsapp_url`; Flutter `GroupsProvider.inviteMember` / create-group phones; claim on verified-phone `users/sync`; deep-link restore via `InviteDeepLinkProvider` | Implemented |
-| Outing invite | `guests.usecase` + accept/decline routes (registered `user_id` only — no phone/`outing_guests` for non-users) | API Implemented; Flutter deep-link UI **Partial** |
+| Group phone invite | `InviteToGroupUseCase` → immediate `group_members` for a verified registered UID, otherwise normalized `group_invitations` + WhatsApp. Verified signup/login/sync claims pending invitations; deep-link restore via `InviteDeepLinkProvider` | Implemented |
+| Outing invite | `guests.usecase` + accept/decline for registered members. Special-event phone invitations use the notification outbox or click-to-chat and do not create members. | Implemented; Flutter member deep-link UI **Partial** |
 
-Pending ≠ Member. Accept creates/updates accepted membership.
+Pending ≠ Member. Outing guest responses transition a pending row once. The same response is idempotent and a competing response returns 409. Reissuing an invite preserves an existing pending or accepted row. Group phone associations use verified-phone linking. PostgreSQL permits one pending row per group and E.164 phone. Matching rows are locked while bulk membership insertion and link recording share a transaction. Owners can revoke a pending association and registered member removal prevents a pending row from restoring access. The add flow rechecks the account after persisting a pending row to close the race with signup. Roster reads use a single snapshot for active and pending rows so they reflect one side of a concurrent account link. Signup verifies OTP proof and keeps its UID; password login checks the canonical Firebase phone before claiming. Session restore displays cached state first; the coordinator defers one-time users/sync until after cache hydration and before online group revalidation. Settings verification uses sync (not a profile PATCH), then refreshes groups once. Legacy unused OTP identities can supply recent proof to bind their phone to the signed-in UID; no registered accounts are merged.
 
 ### Place discovery
 
@@ -118,7 +118,9 @@ See §13.5. Core services: `voting.usecase.ts`, `vote-resolution.ts`, `outing-pa
 
 `SendMessageUseCase`, list/read routes under `/api/outings/:outingId/messages` and `/read`. Access via `chat-access.ts`.
 
-**Hybrid realtime (ADR-013):** REST persists; after success, Socket.IO emits `outing:message` to room `outing:{outingId}`. Mark-read emits `outing:read`. Clients authenticate sockets with Firebase ID tokens and must pass `assertChatParticipant` on `outing:join`. Flutter recovers missed messages with REST after reconnect.
+**Hybrid realtime (ADR-013):** REST persists; after success, Socket.IO emits `outing:message` to room `outing:{outingId}`. Mark-read updates a monotonic PostgreSQL watermark and emits `outing:read`. Clients authenticate sockets with Firebase ID tokens and must pass `assertChatParticipant` on `outing:join`. Flutter recovers missed messages with REST after reconnect.
+
+**Offline recovery (ADR-014):** Launch hydrates account-scoped snapshots, then revalidates profile, groups/outings, inbox and open details/chats. `data:changed` hints collect IDs for a 250 ms debounce. Membership changes also revalidate active chats; votes refresh the affected outing. Background events remain dirty until foreground recovery. Transient snapshot fallback schedules capped exponential retry and never writes to PostgreSQL. Durable chat sends reuse their UUID until acknowledged; permanent authorization/state conflicts mark that send failed while subsequent sends can proceed. Other writes are not replayed. See `audit/OFFLINE_REALTIME_REPORT.md` for cache bounds and verification limits.
 
 ### Saved outings / places
 
@@ -135,7 +137,7 @@ Saved outing use cases + place bookmark endpoints; Neon composite PKs.
 ### Create outing (Group)
 
 1. Trigger: Owner submits create form (`CreateOutingPage`), optionally with multi-place voting via **Add places for voting** / Add place (same page as former suggest-places sheet).  
-2. Flutter: `CreateOutingProvider` → repository → `POST /api/outings` (+ vote-option posts when `votePlaces` set).  
+2. Flutter: `CreateOutingProvider` → repository → `POST /api/outings` (with optional ordered `initial_vote_options` for group voting). The outing, initial candidates, and owner attendance commit together.
 3. Controller: `OutingController.create`.  
 4. Use case: `CreateOutingUseCase` validates type/deadline/window.  
 5. DB txn: insert `outings` + owner `outing_attendance=going`.  
@@ -190,6 +192,18 @@ Trigger: authenticated user accepts. `POST /api/outings/:id/invitations/accept` 
 
 `PUT /api/outings/:id/attendance` `{ status }` → upsert row; notify owner if member changed; never touch votes.
 
+```mermaid
+flowchart LR
+  Open[Participant opens the active outing] --> GPS[Bounded foreground GPS with device permission]
+  GPS --> API[Authenticated self verification]
+  API --> Policy[Validate membership, confirmed venue, time, accuracy and distance]
+  Policy --> DB[Persist first verified GPS arrival]
+  DB --> Socket[Notify current participants over Socket.IO]
+  Socket --> List[Refresh authorized roster]
+```
+
+The backend serves the check-in radius and closing time. The default radius is 100 m and the default window is 360 minutes, capped by the outing end. The visible outing route schedules a fix on open and resume, then no more than once a minute while foregrounded. It stops when the window closes, the viewer arrives or the route loses visibility. Socket invalidations refresh the roster without triggering extra GPS samples.
+
 ### Notification delivery
 
 ```mermaid
@@ -199,13 +213,20 @@ sequenceDiagram
   participant OB as notification_events
   participant W as notification worker
   participant FCM as FCM
+  participant App as Flutter
+  participant API as Authenticated API
 
   UC->>N: eventType + eventKey + recipients
   N->>N: insert notifications
   N->>OB: enqueue
   W->>OB: claim pending
-  W->>FCM: send to user_fcm_tokens
+  W->>FCM: send notification and destination IDs to user_fcm_tokens
   W->>OB: mark sent/failed
+  FCM-->>App: notification tap
+  Note over App: Wait for authenticated MainShell
+  App->>API: Mark the matching inbox item read
+  App->>API: Resolve the authorized resource
+  App->>App: Push the destination onto the current stack
 ```
 
 ---
@@ -218,7 +239,9 @@ sequenceDiagram
 | `voting` | Collecting place votes | Open | Open until `vote_closed_at` or terminal status |
 | `confirmed` | Winner locked | Open | Locked |
 | `cancelled` | Terminal cancel | Closed | Locked |
-| `past` | Completed after schedule | — | Locked |
+| `past` | Completed after the outing ends | — | Locked |
+
+Flutter reads all plans through the same authenticated `GET /api/outings/cuser` snapshot. The client compares `scheduled_at` to the current instant and moves an outing to Settings → Outing history at its scheduled start, along with rows whose server status is `past` or `cancelled`. The provider schedules a local update at the next start and recalculates when the app resumes. The completion job determines when a confirmed outing’s database status becomes `past`.
 
 **Tie nuance (implemented):** Status may remain `voting` while `vote_closed_at` is set (ballots locked) until Owner tie-break confirms.
 
@@ -351,3 +374,47 @@ flowchart TD
 ### Creator deletion
 
 Outing details → confirm permanent deletion → `DELETE /api/outings/:id` → backend checks the authenticated creator → database deletes the outing → Flutter updates local lists and closes the details route. The cancellation state machine is independent of this route.
+
+The creator’s explicit venue confirmation and automatic place-vote resolution use the same row lock and venue persistence path. RSVP upserts return the fresh roster and summary for that outing in one response. Chat history uses a stable ordering by send timestamp and ID, and the sender profile projection is shared by REST and Socket.IO.
+
+
+## Silent targeted refresh and mention flow — 2026-11-11
+
+Committed domain changes emit scoped invalidations to authenticated user rooms. The coordinator coalesces them over 250 ms, refreshes affected lists or mounted detail IDs, and retains offline snapshots. Resume/reconnect replays missed invalidations from a ten-minute/512-entry buffer; reset checks stale list caches plus mounted details. Active chats recover REST history because message delivery itself is not journaled. Background reads are silent. Five delayed recovery retries retain dirty state on exhaustion; foreground/network recovery or a fresh server event can restart recovery. No polling timer is added.
+
+Chat mention selection → stable ID token in existing REST text → backend validates chat access/member IDs and canonicalizes Neon names → message commit → canonical Socket.IO echo → idempotent inbox/outbox notification for each other participant. Mentioned users receive the mention body with the existing exact-message deep link. Chat participation remains distinct from vote eligibility.
+
+
+## Centralized realtime flow — 2026-11-11
+
+Committed write → server-resolved recipients → existing Socket.IO user rooms → one `AppSyncProvider` listener → direct attendance/chat merge or set-coalesced group/outing REST reads. Reconnect uses the last reconciliation checkpoint; live delivery only deduplicates and cannot skip older missed changes. An expired/restarted journal triggers list and mounted-detail recovery. Membership invalidations recover active chats as well as groups/outings. Read receipts also check current membership at fan-out. Online REST remains required for non-chat writes; voting, attendance and lifecycle authority are unchanged. [Contracts](API_CONTRACTS.md#centralized-synchronization-contract--2026-11-11) and [verification](audit/CENTRALIZED_REALTIME_SYNC.md).
+
+## Password recovery workflow — 2026-11-11
+
+```mermaid
+sequenceDiagram
+  participant UI as Recovery form
+  participant API as Auth API
+  participant FA as Firebase Auth
+  participant DB as Neon
+  UI->>API: Start with registered phone
+  API->>FA: Check current canonical UID phone
+  API->>DB: Shared limits + request digest (10 minutes)
+  API-->>UI: Request secret + cooldown
+  UI->>FA: Send SMS and verify OTP (secondary Auth)
+  FA-->>UI: Phone ID token
+  UI->>API: Request secret + phone ID token
+  API->>FA: Verify token/revocation + current phone
+  API->>DB: Consume proof once + reset digest (5 minutes)
+  API-->>UI: Reset secret
+  UI->>API: Reset secret + new password/confirmation
+  API->>FA: Recheck UID phone
+  API->>DB: Transaction: consume grant + conditional bcrypt update
+  API-->>UI: Updated; return to Login
+```
+
+Phone/password login continues to verify the same Neon hash and issue a Firebase session under the same UID. Recovery does not create/merge identities or revoke established sessions. PostgreSQL owns grant concurrency, proof replay and shared limits. Secrets remain in memory on the client; database stores only digests. External Firebase SMS quotas and abuse protection remain necessary because a modified client can bypass app/preflight sending controls. See authentication docs and [verification report](audit/PASSWORD_RECOVERY_REPORT.md).
+
+### Recovery SMS reliability follow-up — 2026-11-11
+
+The existing sequence is unchanged: backend preflight → Firebase SMS → isolated Firebase proof → backend authorization/reset. The configured Neon schema now includes the recovery migration; missing security tables had blocked start before Firebase could be invoked. Flutter observes native invocation errors and callbacks together under a single 75-second deadline. Failed resends preserve the previous request/verification pair, committing replacement state only after Firebase dispatch succeeds. No password authority, proof-validation or session policy changed.

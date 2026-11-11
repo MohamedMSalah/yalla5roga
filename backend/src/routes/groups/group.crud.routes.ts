@@ -34,8 +34,8 @@ import {
  *     tags: [Groups]
  *     summary: List groups
  *     description: >
- *       Filters by the `userId` query when present, otherwise by the
- *       authenticated user.
+ *       Lists only the authenticated user’s memberships. If supplied, userId
+ *       must match that caller’s Firebase UID.
  *     operationId: listGroups
  *     parameters:
  *       - in: query
@@ -47,7 +47,7 @@ import {
  *         description: Firebase UID. Defaults to the authenticated user.
  *     responses:
  *       "200":
- *         description: Groups for the selected user
+ *         description: Groups for the authenticated user
  *         content:
  *           application/json:
  *             schema:
@@ -58,6 +58,8 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *   post:
  *     tags: [Groups]
  *     summary: Create a group
@@ -84,7 +86,7 @@ import {
  *   get:
  *     tags: [Groups]
  *     summary: Get a group
- *     description: Returns a single group by UUID.
+ *     description: Returns the group and caller role to an active group member.
  *     operationId: getGroup
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -103,6 +105,8 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *   patch:
  *     tags: [Groups]
  *     summary: Update a group
@@ -157,6 +161,12 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "409":
+ *         description: The group still has outings
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  */
 const router = Router();
 const controller = new GroupController();

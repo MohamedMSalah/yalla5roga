@@ -13,7 +13,7 @@ import {
  *   get:
  *     tags: [Group Members]
  *     summary: List group members
- *     description: Returns memberships for the group.
+ *     description: Returns active member profiles in data and phone associations awaiting registration in pending_members. Only active members can read the roster.
  *     operationId: listGroupMembers
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -32,6 +32,8 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *   post:
  *     tags: [Group Members]
  *     summary: Add a group member by phone number
@@ -61,6 +63,12 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "409":
+ *         description: The request conflicts with the current resource state
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  * /api/groups/{id}/members/{userId}:
  *   delete:
  *     tags: [Group Members]

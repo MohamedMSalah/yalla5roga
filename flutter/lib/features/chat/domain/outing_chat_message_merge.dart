@@ -9,6 +9,10 @@ List<ChatMessage> upsertOutingChatMessage(
   ChatMessage message,
 ) {
   final isServer = !isLocalPendingMessageId(message.id);
+  if (!isServer && items.any((item) =>
+      !isLocalPendingMessageId(item.id) && _sameOptimistic(message, item))) {
+    return items;
+  }
   final without = <ChatMessage>[
     for (final item in items)
       if (item.id != message.id &&
@@ -30,6 +34,10 @@ List<ChatMessage> upsertOutingChatMessage(
 }
 
 bool _sameOptimistic(ChatMessage local, ChatMessage server) {
+  if (local.clientMessageId != null || server.clientMessageId != null) {
+    return local.clientMessageId != null &&
+        local.clientMessageId == server.clientMessageId;
+  }
   if (local.text != server.text) return false;
   if ((local.senderId ?? '') != (server.senderId ?? '')) return false;
   if (local.outingId != null &&

@@ -11,26 +11,34 @@ class OutingChatProvider extends ChangeNotifier {
   OutingChatProvider({
     required this.repository,
     OutingChatSocketClient? socketClient,
+    Stream<ChatMessage>? sendUpdates,
+    this.onQueued,
+    this.persistLiveMessage,
   }) : _socket = socketClient {
+    _sendSub = sendUpdates?.listen(_applyLiveMessage);
     final socket = _socket;
     if (socket == null) return;
     _messageSub = socket.messages.listen(_onSocketMessage);
-    _connectionSub = socket.connectionChanges.listen(_onConnectionChange);
+    _connectionSub = socket.connectionChanges.listen((_) => notifyListeners());
   }
 
   final OutingChatRepository repository;
   final OutingChatSocketClient? _socket;
+  final VoidCallback? onQueued;
+  final Future<void> Function(ChatMessage)? persistLiveMessage;
+  StreamSubscription<ChatMessage>? _sendSub;
 
   StreamSubscription<ChatMessage>? _messageSub;
   StreamSubscription<bool>? _connectionSub;
-  Timer? _recoveryDebounce;
 
   var _messages = <String, List<ChatMessage>>{};
   var _loading = <String, bool>{};
   var _loaded = <String, bool>{};
+  final _loadingOlder = <String>{};
+  var _generation = 0;
   var _sending = <String, bool>{};
   var _unread = <String, int>{};
-  var _activeOutingIds = <String>{};
+  final _activeOutings = <String, int>{};
   String? _currentUserId;
   int _unreadChatCount = 0;
   String? _errorMessage;
@@ -42,6 +50,10 @@ class OutingChatProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   bool get isSocketConnected => _socket?.isConnected ?? false;
+  bool get isReconnecting => _socket?.isReconnecting ?? false;
+  bool isRoomConnected(String id) => _socket?.isRoomConnected(id) ?? false;
+  bool isRoomReconnecting(String id) =>
+      _socket?.isRoomReconnecting(id) ?? false;
 
   int unreadFor(String outingId) => _unread[outingId] ?? 0;
 
@@ -68,28 +80,55 @@ class OutingChatProvider extends ChangeNotifier {
     if (userId != null && userId.isNotEmpty) {
       _currentUserId = userId;
     }
-    _activeOutingIds.add(outingId);
+    final subscriptions = _activeOutings.update(
+      outingId,
+      (n) => n + 1,
+      ifAbsent: () => 1,
+    );
+    if (subscriptions == 1) unawaited(_socket?.joinOuting(outingId));
+    final generation = _generation;
     await load(outingId, forceRefresh: forceRefresh, userId: _currentUserId);
-    await _socket?.joinOuting(outingId);
+    if (generation != _generation || !_activeOutings.containsKey(outingId))
+      return;
     await markRead(outingId);
   }
 
   Future<void> unsubscribe(String outingId) async {
-    _activeOutingIds.remove(outingId);
+    final subscriptions = _activeOutings[outingId] ?? 0;
+    if (subscriptions > 1) {
+      _activeOutings[outingId] = subscriptions - 1;
+      return;
+    }
+    _activeOutings.remove(outingId);
     await _socket?.leaveOuting(outingId);
   }
 
-  /// Foreground / network regain: rejoin rooms and REST-fill gaps.
-  Future<void> recoverAfterResume({String? userId}) async {
-    if (userId != null && userId.isNotEmpty) {
-      _currentUserId = userId;
+  bool hasOlder(String outingId) => repository.hasOlderMessages(outingId);
+  bool isLoadingOlder(String outingId) => _loadingOlder.contains(outingId);
+
+  Future<void> loadOlder(String outingId) async {
+    if (!hasOlder(outingId) || !_loadingOlder.add(outingId)) return;
+    final generation = _generation;
+    notifyListeners();
+    final result = await repository.getOlderMessages(outingId);
+    if (generation != _generation) return;
+    _loadingOlder.remove(outingId);
+    result.fold((failure) {
+      AppErrorFeedback.report(
+        failure,
+        kind: AppErrorKind.load,
+        context: 'loadOlderOutingChat',
+      );
+    }, (items) => _mergeMessages(outingId, items));
+    notifyListeners();
+  }
+
+  void _mergeMessages(String outingId, List<ChatMessage> items) {
+    var merged = messagesFor(outingId);
+    for (final item in _withMine(items, _currentUserId)) {
+      merged = upsertOutingChatMessage(merged, item);
     }
-    if (_activeOutingIds.isEmpty &&
-        (_socket?.joinedOutingIds.isEmpty ?? true)) {
-      return;
-    }
-    await _socket?.recover();
-    await _recoverActiveRoomsFromRest();
+    _messages[outingId] = merged;
   }
 
   Future<void> load(
@@ -101,9 +140,11 @@ class OutingChatProvider extends ChangeNotifier {
       _currentUserId = userId;
     }
 
+    if (isLoading(outingId)) return;
+    final generation = _generation;
     final cached = repository.cachedMessages(outingId);
     if (cached.isNotEmpty) {
-      _messages[outingId] = _withMine(cached, _currentUserId);
+      _mergeMessages(outingId, cached);
       notifyListeners();
     }
 
@@ -115,8 +156,14 @@ class OutingChatProvider extends ChangeNotifier {
       outingId,
       forceRefresh: forceRefresh,
     );
+    if (generation != _generation) return;
     result.fold(
       (failure) {
+        if (failure.statusCode == 401 ||
+            failure.statusCode == 403 ||
+            failure.statusCode == 404) {
+          _messages.remove(outingId);
+        }
         _errorMessage = AppErrorFeedback.messageOf(failure);
         if (messagesFor(outingId).isEmpty) {
           AppErrorFeedback.report(
@@ -127,7 +174,7 @@ class OutingChatProvider extends ChangeNotifier {
         }
       },
       (items) {
-        _messages[outingId] = _withMine(items, _currentUserId);
+        _mergeMessages(outingId, items);
         _errorMessage = null;
       },
     );
@@ -146,6 +193,7 @@ class OutingChatProvider extends ChangeNotifier {
     final trimmed = text.trim();
     if (trimmed.isEmpty || isSending(outingId)) return false;
 
+    final generation = _generation;
     _currentUserId = senderId;
     _sending[outingId] = true;
     notifyListeners();
@@ -158,6 +206,7 @@ class OutingChatProvider extends ChangeNotifier {
       avatar: avatar,
     );
 
+    if (generation != _generation) return false;
     var ok = false;
     result.fold(
       (failure) {
@@ -176,6 +225,8 @@ class OutingChatProvider extends ChangeNotifier {
         );
         _errorMessage = null;
         ok = true;
+        if (message.deliveryStatus == MessageDeliveryStatus.pending)
+          onQueued?.call();
       },
     );
     _sending[outingId] = false;
@@ -184,7 +235,10 @@ class OutingChatProvider extends ChangeNotifier {
   }
 
   Future<void> markRead(String outingId) async {
+    final generation = _generation;
+    if (_socket != null && !_socket.isConnected) return;
     final result = await repository.markRead(outingId);
+    if (generation != _generation) return;
     result.fold((_) {}, (read) {
       _unread[outingId] = read.unreadCount;
       _unreadChatCount = read.unreadChatCount;
@@ -193,10 +247,9 @@ class OutingChatProvider extends ChangeNotifier {
   }
 
   void clear() {
-    _recoveryDebounce?.cancel();
-    _recoveryDebounce = null;
-    final active = _activeOutingIds.toList();
-    _activeOutingIds = {};
+    _generation++;
+    _loadingOlder.clear();
+    _activeOutings.clear();
     _messages = {};
     _loading = {};
     _loaded = {};
@@ -206,20 +259,15 @@ class OutingChatProvider extends ChangeNotifier {
     _errorMessage = null;
     _currentUserId = null;
     repository.clearCache();
-    unawaited(() async {
-      for (final outingId in active) {
-        await _socket?.leaveOuting(outingId);
-      }
-      await _socket?.disconnect();
-    }());
+    unawaited(_socket?.disconnect());
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _recoveryDebounce?.cancel();
     _messageSub?.cancel();
     _connectionSub?.cancel();
+    _sendSub?.cancel();
     unawaited(_socket?.dispose() ?? Future<void>.value());
     super.dispose();
   }
@@ -227,35 +275,44 @@ class OutingChatProvider extends ChangeNotifier {
   void _onSocketMessage(ChatMessage message) {
     final outingId = message.outingId;
     if (outingId == null || outingId.isEmpty) return;
-    if (!_activeOutingIds.contains(outingId) &&
+    if (!_activeOutings.containsKey(outingId) &&
         !(_socket?.joinedOutingIds.contains(outingId) ?? false)) {
       return;
     }
 
+    unawaited(persistLiveMessage?.call(message));
+    _applyLiveMessage(message);
+  }
+
+  void _applyLiveMessage(ChatMessage message) {
+    final outingId = message.outingId;
+    if (outingId == null || !_activeOutings.containsKey(outingId)) return;
     final enriched = message.copyWith(
       isMine:
           (_currentUserId != null && message.senderId == _currentUserId) ||
           message.isMine,
     );
-    _messages[outingId] = upsertOutingChatMessage(
-      messagesFor(outingId),
-      enriched,
-    );
+    final current = messagesFor(outingId);
+    if (current.any(
+      (item) =>
+          item.id == enriched.id &&
+          item.deliveryStatus == enriched.deliveryStatus &&
+          item.text == enriched.text &&
+          item.sender == enriched.sender,
+    ))
+      return;
+    _messages[outingId] = upsertOutingChatMessage(current, enriched);
     notifyListeners();
   }
 
-  void _onConnectionChange(bool connected) {
-    if (!connected) return;
-    // Debounce: connect + resume can fire close together.
-    _recoveryDebounce?.cancel();
-    _recoveryDebounce = Timer(const Duration(milliseconds: 250), () {
-      unawaited(_recoverActiveRoomsFromRest());
-    });
-  }
-
-  Future<void> _recoverActiveRoomsFromRest() async {
-    for (final outingId in _activeOutingIds.toList()) {
+  Future<void> recoverActiveChats() async {
+    if (_activeOutings.isEmpty) return;
+    if (_socket?.isConnected == true) await _socket?.recover();
+    for (final outingId in _activeOutings.keys.toList()) {
       await load(outingId, forceRefresh: true, userId: _currentUserId);
+      if (_activeOutings.containsKey(outingId) && _errorMessage == null) {
+        await markRead(outingId);
+      }
     }
   }
 

@@ -7,6 +7,7 @@ class Place {
     required this.name,
     required this.area,
     this.id = '',
+    this.sourceId = '',
     this.latitude,
     this.longitude,
     this.imageUrl = '',
@@ -15,6 +16,9 @@ class Place {
 
   /// Stable id when known; otherwise [placeId] derives a slug from [name].
   final String id;
+
+  // Ephemeral geocoder identity. Only the selected snapshot is persisted.
+  final String sourceId;
   final String name;
   final String area;
   final double? latitude;
@@ -31,6 +35,7 @@ class Place {
   bool get hasCoordinates => latitude != null && longitude != null;
 
   PlaceLocation toLocation() => PlaceLocation(
+    placeId: id.isEmpty ? null : id,
     name: name,
     area: area,
     latitude: latitude,
@@ -48,6 +53,7 @@ class Place {
   }) {
     return Place(
       id: id ?? this.id,
+      sourceId: sourceId,
       name: name ?? this.name,
       area: area ?? this.area,
       latitude: latitude ?? this.latitude,
@@ -58,7 +64,7 @@ class Place {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': placeId,
+    'id': id,
     'name': name,
     'area': area,
     'latitude': latitude,
@@ -81,6 +87,25 @@ class Place {
         orElse: () => OutingVibe.food,
       ),
     );
+  }
+
+  bool matchesSelection(Place other) {
+    if (id.isNotEmpty && other.id.isNotEmpty) return id == other.id;
+    if (sourceId.isNotEmpty && other.sourceId.isNotEmpty) {
+      return sourceId == other.sourceId;
+    }
+    if (name.trim().toLowerCase() != other.name.trim().toLowerCase()) {
+      return false;
+    }
+    if (area.isNotEmpty && other.area.isNotEmpty &&
+        area.trim().toLowerCase() != other.area.trim().toLowerCase()) {
+      return false;
+    }
+    if (!hasCoordinates || !other.hasCoordinates) {
+      return !hasCoordinates && !other.hasCoordinates && area == other.area;
+    }
+    return (latitude! - other.latitude!).abs() < .00005 &&
+        (longitude! - other.longitude!).abs() < .00005;
   }
 
   static String slugForName(String name) {

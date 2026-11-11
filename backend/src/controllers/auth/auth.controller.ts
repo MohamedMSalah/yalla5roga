@@ -1,3 +1,4 @@
+import { PasswordRecoveryUseCase } from "../../usecases/auth/password-recovery.usecase.js";
 import type { NextFunction, Request, Response } from "express";
 import { ChangePasswordUseCase } from "../../usecases/auth/change-password.usecase.js";
 import { LoginUseCase } from "../../usecases/auth/login.usecase.js";
@@ -11,7 +12,26 @@ export class AuthController {
     private readonly signup = new SignupUseCase(),
     private readonly changePassword = new ChangePasswordUseCase(),
     private readonly verifyPassword = new VerifyPasswordUseCase(),
+    private readonly recovery = new PasswordRecoveryUseCase(),
   ) {}
+
+  recoveryLimit = async (req: Request, res: Response, next: NextFunction) => {
+    res.set("Cache-Control", "no-store");
+    try { await this.recovery.limit(req.ip ?? req.socket.remoteAddress ?? "unknown"); next(); }
+    catch (error) { next(error); }
+  };
+  recoveryStartHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try { res.json({ success: true, data: await this.recovery.start(req.body.phone) }); }
+    catch (error) { next(error); }
+  };
+  recoveryVerifyHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try { res.json({ success: true, data: await this.recovery.verify(req.body.requestToken, req.body.phoneVerificationToken) }); }
+    catch (error) { next(error); }
+  };
+  recoveryResetHandler = async (req: Request, res: Response, next: NextFunction) => {
+    try { res.json({ success: true, data: await this.recovery.reset(req.body) }); }
+    catch (error) { next(error); }
+  };
 
   loginHandler = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -35,6 +55,7 @@ export class AuthController {
         name: req.body.name,
         password: req.body.password,
         phone: req.body.phone,
+        phoneVerificationToken: req.body.phoneVerificationToken,
       });
 
       res.status(201).json({

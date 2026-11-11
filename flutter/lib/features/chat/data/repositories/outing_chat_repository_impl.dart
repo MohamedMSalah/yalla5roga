@@ -1,8 +1,14 @@
 import 'package:dartz/dartz.dart';
-import 'package:flutter/foundation.dart';
+import 'package:yalla_5roga/core/error/exception_mapper.dart';
+import 'package:yalla_5roga/features/chat/data/datasources/chat_send_queue.dart';
+import 'package:yalla_5roga/features/chat/domain/outing_chat_message_merge.dart';
+
+import 'dart:math';
+
 import 'package:yalla_5roga/core/cache/cache_policy.dart';
 import 'package:yalla_5roga/core/cache/ttl_cache.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
+import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
 import 'package:yalla_5roga/core/network/remote_guard.dart';
 import 'package:yalla_5roga/core/network/request_deduper.dart';
@@ -18,18 +24,81 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     required this.local,
     required this.networkInfo,
     RequestDeduper? deduper,
+    this.sendQueue,
   }) : _deduper = deduper ?? RequestDeduper();
 
   final OutingChatRemoteDataSourceImpl remote;
   final OutingChatLocalDataSource local;
   final NetworkInfo networkInfo;
   final RequestDeduper _deduper;
+  final ChatSendQueue? sendQueue;
+
+  Future<bool> flushSends() async {
+    if (!await networkInfo.isConnected) return true;
+    return await sendQueue?.flush((pending) async {
+      final outingId = pending.outingId!;
+      final generation = _generation;
+      final saved = await remote.sendMessage(
+        outingId: outingId,
+        text: pending.text,
+        senderId: pending.senderId!,
+        senderName: pending.sender,
+        clientMessageId: pending.clientMessageId!,
+      );
+      if (generation == _generation) await _upsert(outingId, saved);
+      return saved;
+    }) ?? false;
+  }
+
+  Future<void> persistLiveMessage(ChatMessage message) =>
+      _upsert(message.outingId!, message);
 
   final _memory = TtlCache<List<ChatMessage>>(ttl: CachePolicy.outingChat);
 
+  final _olderCursor = <String, String?>{};
+  int _generation = 0;
+
+  @override
+  Future<Either<Failure, ChatMessage>> getMessage(
+    String outingId,
+    String messageId,
+  ) => guardRemote(networkInfo, () async {
+    final page = await remote.getMessages(outingId, messageId: messageId);
+    final message = page.messages.singleOrNull;
+    if (message == null || message.id != messageId) {
+      throw const ServerException('Message not found', 'NOT_FOUND', 404);
+    }
+    return message;
+  }, reason: 'getNotificationChatMessage');
+
+  @override
+  bool hasOlderMessages(String outingId) => _olderCursor[outingId] != null;
+
+  @override
+  Future<Either<Failure, List<ChatMessage>>> getOlderMessages(
+    String outingId,
+  ) async {
+    final before = _olderCursor[outingId];
+    if (before == null) return const Right([]);
+    final generation = _generation;
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.getMessages(outingId, before: before),
+      reason: 'loadOlderOutingChat',
+    );
+    return result.map((page) {
+      if (generation != _generation) return const [];
+      _olderCursor[outingId] = page.nextCursor;
+      return page.messages;
+    });
+  }
+
   @override
   List<ChatMessage> cachedMessages(String outingId) {
-    return _memory.getStale(outingId) ?? local.getMessages(outingId);
+    return _merge(
+      _memory.getStale(outingId) ?? local.getMessages(outingId),
+      sendQueue?.messages.where((item) => item.outingId == outingId).toList() ?? const [],
+    );
   }
 
   @override
@@ -46,7 +115,6 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
       RequestDeduper.keyFor(
         method: 'GET',
         path: 'chat:$outingId',
-        query: {'force': forceRefresh},
       ),
       () async {
         if (!forceRefresh) {
@@ -54,7 +122,7 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
           if (fresh != null) return Right(fresh);
         }
 
-        final disk = local.getMessages(outingId);
+        final generation = _generation;
         final result = await guardRemote(
           networkInfo,
           () => remote.getMessages(outingId),
@@ -63,17 +131,23 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
 
         return await result.fold<Future<Either<Failure, List<ChatMessage>>>>(
           (failure) async {
-            final fallback = disk.isNotEmpty
-                ? disk
-                : _memory.getStale(outingId) ?? const <ChatMessage>[];
+            if (generation != _generation) return const Right([]);
+            if (failure.statusCode == 401 || failure.statusCode == 403 || failure.statusCode == 404) {
+              _memory.invalidate(outingId);
+              await local.saveMessages(outingId, []);
+              return Left(failure);
+            }
+            final fallback = cachedMessages(outingId);
             if (fallback.isNotEmpty) {
               _memory.set(outingId, fallback);
               return Right(fallback);
             }
             return Left(failure);
           },
-          (remoteMessages) async {
-            final merged = _merge(disk, remoteMessages);
+          (page) async {
+            if (generation != _generation) return const Right([]);
+            _olderCursor.putIfAbsent(outingId, () => page.nextCursor);
+            final merged = _merge(cachedMessages(outingId), page.messages);
             _memory.set(outingId, merged);
             await local.saveMessages(outingId, merged);
             return Right(merged);
@@ -96,8 +170,10 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     String? avatar,
   }) async {
     final now = DateTime.now();
+    final clientMessageId = _newMessageId();
     final pending = ChatMessage(
-      id: 'local_${now.microsecondsSinceEpoch}',
+      id: 'local_$clientMessageId',
+      clientMessageId: clientMessageId,
       outingId: outingId,
       sender: senderName,
       text: text,
@@ -108,8 +184,21 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
       sentAt: now,
       deliveryStatus: MessageDeliveryStatus.sent,
     );
-    await _upsert(outingId, pending);
+    final queue = sendQueue;
+    if (queue != null) {
+      final queued = pending.copyWith(deliveryStatus: MessageDeliveryStatus.pending);
+      try {
+        await queue.add(queued);
+        return Right(queued);
+      } on AppException catch (error) {
+        return Left(ExceptionMapper.toFailure(error));
+      } catch (_) {
+        return const Left(CacheFailure('Could not save the pending message'));
+      }
+    }
 
+    final generation = _generation;
+    await _upsert(outingId, pending);
     final result = await guardRemote(
       networkInfo,
       () => remote.sendMessage(
@@ -117,14 +206,16 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
         text: text,
         senderId: senderId,
         senderName: senderName,
+        clientMessageId: clientMessageId,
       ),
       reason: 'sendOutingChat',
     );
 
+    if (generation != _generation) return const Left(AuthFailure());
     return await result.fold<Future<Either<Failure, ChatMessage>>>(
       (failure) async {
-        debugPrint('[OutingChat] send cached locally: ${failure.message}');
-        return Right(pending);
+        await _replace(outingId, pending.id);
+        return Left(failure);
       },
       (remoteMessage) async {
         final saved = remoteMessage.copyWith(
@@ -151,6 +242,8 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
 
   @override
   Future<void> clearCache() async {
+    _generation++;
+    _olderCursor.clear();
     _memory.invalidate();
     _deduper.clear();
     await local.clear();
@@ -164,14 +257,14 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
 
   Future<void> _replace(
     String outingId,
-    String pendingId,
-    ChatMessage message,
-  ) {
+    String pendingId, [
+    ChatMessage? message,
+  ]) {
     final current = [
       for (final item in cachedMessages(outingId))
         if (item.id != pendingId) item,
     ];
-    final next = _merge(current, [message]);
+    final next = _merge(current, [?message]);
     _memory.set(outingId, next);
     return local.saveMessages(outingId, next);
   }
@@ -180,6 +273,18 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     List<ChatMessage> localMessages,
     List<ChatMessage> remoteMessages,
   ) {
+    if (localMessages.any((item) => isLocalPendingMessageId(item.id)) ||
+        remoteMessages.any((item) => isLocalPendingMessageId(item.id))) {
+      final byClientId = {
+        for (final item in [...localMessages, ...remoteMessages])
+          if (!isLocalPendingMessageId(item.id) && item.clientMessageId != null)
+            item.clientMessageId,
+      };
+      localMessages = localMessages.where((item) =>
+          !isLocalPendingMessageId(item.id) || !byClientId.contains(item.clientMessageId)).toList();
+      remoteMessages = remoteMessages.where((item) =>
+          !isLocalPendingMessageId(item.id) || !byClientId.contains(item.clientMessageId)).toList();
+    }
     final byId = <String, ChatMessage>{};
     for (final message in localMessages) {
       if (message.id.isEmpty) continue;
@@ -193,7 +298,8 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
       ..sort((a, b) {
         final aTime = a.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0);
         final bTime = b.sentAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return aTime.compareTo(bTime);
+        final byTime = aTime.compareTo(bTime);
+        return byTime != 0 ? byTime : a.id.compareTo(b.id);
       });
     return merged;
   }
@@ -204,4 +310,15 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     final period = at.hour >= 12 ? 'PM' : 'AM';
     return '$hour:$minute $period';
   }
+}
+
+String _newMessageId() {
+  final random = Random.secure();
+  final bytes = List.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
 }

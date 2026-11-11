@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import test from "node:test";
 import { PrismaClient } from "@prisma/client";
 import { CreateOutingUseCase } from "../src/usecases/outings/create-outing.usecase.js";
@@ -16,7 +16,7 @@ const prisma = new PrismaClient();
 async function seedUser(suffix: string) {
   const id = `conc_${suffix}_${randomUUID().slice(0, 8)}`;
   await prisma.users.create({
-    data: { id, name: suffix.slice(0, 30), email: `${id}@example.com` },
+    data: { id, name: suffix.slice(0, 30), phone: `+2011${randomInt(10000000, 99999999)}` },
   });
   return id;
 }

@@ -2,45 +2,36 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-08 |
+| Last verified | 2026-11-10 |
 | Documentation version | 1.0.0 |
-| Needs verification | Apple Sign-In production entitlements on each store build |
+| Needs verification | Recovery for historical accounts without a usable phone and password |
 
 ## Authentication vs authorization
 
 | Concept | Meaning in this project |
 |---------|-------------------------|
-| **Authentication** | Proving identity via Firebase ID token (or establishing that session via email/password custom-token exchange). |
+| **Authentication** | Proving identity via Firebase ID token (or establishing that session via phone/password custom-token exchange). |
 | **Authorization** | Checking whether that Firebase UID may perform an action on a **specific resource** (outing Owner, group owner, eligible voter, etc.). |
 
 There is **no** global app role of Admin/Guest for outings. Outing Owner is `outings.created_by` only.
 
-## Current transition: phone/password
+## Firebase Authentication
 
-The app now uses phone and password for registration and login; Google and Apple buttons have been removed. Neon verifies the password and the backend issues a Firebase custom-token session. Registration OTP is currently checked only by the client, so the signup API must not be treated as proof of phone ownership. Existing social-only users need an account migration or recovery flow before this change is deployed. The historical descriptions below require reconciliation.
+Firebase provides the UID, phone OTP proof, ID tokens and refresh sessions. Neon stores application profiles and bcrypt hashes. The Firebase UID is the stable Neon primary key and the E.164 phone is the unique lookup address.
 
-## Firebase Authentication (historical)
+Signup requires an ID token from a phone OTP sign-in within ten minutes. The backend verifies revocation, provider, the current Firebase phone record and normalized phone equality. It retains the verified UID and claims invitations before returning. Retrying with the same verified UID, phone and password preserves the original profile and hash. An already registered UID or phone cannot be claimed with OTP alone.
 
-**Implemented client paths** (`FirebaseAuthService` / `AuthRepositoryImpl`):
+## Phone/password (backend-canonical)
 
-- Google Sign-In
-- Apple Sign-In
-- Phone OTP
-- Email/password via backend (`POST /api/auth/signup|login`) then `signInWithCustomToken`
-
-Firebase Auth is **identity-only** (UID + ID tokens). It is **not** the application database — profiles, passwords, groups, outings, and related data live in Neon only. Neon `users.id` = Firebase UID.
-
-## Email/password (backend-canonical)
-
-1. Signup: store name/email/phone/`password_hash` in Neon; create a **bare** Firebase Auth UID (no email, displayName, or password written to Firebase); return `idToken` + `customToken`.
-2. Login: verify Neon hash, mint Firebase session the same way.
+1. Signup: store name/phone/`password_hash` in Neon under the OTP-verified Firebase UID; return the existing `idToken` + `customToken` session. Firebase retains the verified phone credential for identity proof, never the application password or profile.
+2. Login: verify the Neon hash and mint the Firebase session without OTP. Signup and login share a per-process, per-IP attempt limit.
 3. Client stores Firebase session; Dio uses refreshed ID tokens.
 4. Change password: the separate Flutter password form checks the new password confirmation before submitting. authenticated `POST /api/auth/change-password` verifies `currentPassword` against Neon and stores a new bcrypt hash (Firebase Auth is not updated).
 5. Confirm password: authenticated `POST /api/auth/verify-password` checks the Neon hash without changing it (edit-profile confirmation).
 
 Public user JSON exposes `has_password` (never the hash) so Flutter can show edit-password UI for Neon accounts. Phone verification for the settings chip is Firebase `phoneNumber` on the signed-in identity (OTP-linked), not merely a Neon `phone` profile value.
 
-Google / Apple / phone skip password endpoints and call `POST /api/users/sync` after Firebase sign-in (Neon profile upsert).
+New passwords are limited to 72 UTF-8 bytes to avoid bcrypt truncation.
 
 ## ID token verification
 
@@ -49,7 +40,7 @@ Socket.IO chat connections (`backend/src/realtime/socket-auth.ts`) verify the sa
 `authMiddleware` (`backend/src/middleware/auth.middleware.ts`):
 
 1. Parse `Authorization: Bearer …`
-2. `admin.auth().verifyIdToken(token)`
+2. Verify the Firebase ID token and require the `phone` or `custom` sign-in provider for application REST and Socket.IO sessions.
 3. Attach `req.user.uid` (and claim fields)
 4. Reject missing/invalid → 401
 
@@ -57,7 +48,9 @@ Does not create Neon rows by itself.
 
 ## User synchronization
 
-`POST /api/users/sync` (authenticated) upserts Neon `users` from token + optional body (name/email/phone/image). Also used to claim pending group invitations by verified phone where implemented.
+`POST /api/users/sync` provisions or synchronizes the Neon user under the Firebase UID. Automatic membership linking requires the token phone to match the current Firebase phone credential. Signup verifies fresh OTP proof and login checks the canonical UID’s Firebase credential before linking pending memberships. If OTP sync creates the profile first, signup can enroll the initial password with a conditional write that preserves the profile and any concurrently set password. Session restore exposes the matching cached profile immediately. The coordinator performs one deferred account sync after cached shell hydration and before online group revalidation; ordinary profile reads use GET /api/users/cuser.
+
+For legacy signup identities, Settings OTP can return an optional `phoneVerificationToken` to sync while preserving the original Bearer session. After fresh proof, the backend moves the phone credential only if the OTP UID has no separate Neon account and the phone is available to the caller. It does not merge accounts, delete identities, or change PostgreSQL primary keys. If the Firebase target update fails, it restores the source phone credential. Existing affected users must verify once in Settings; a matching unverified Neon profile phone never silently grants membership.
 
 ## Token handling (Flutter)
 
@@ -74,6 +67,8 @@ Does not create Neon rows by itself.
 | Cast/change vote | Eligible voter + voting open | `assertEligibleVoter`, `assertVotingOpen` |
 | Tie-break | Owner only + unresolved tie | `breakTieRandomly` |
 | Attendance upsert | Participant; Owner forced Going | `attendance.usecase` |
+| Arrival list / self check-in | Owner, accepted outing members, or group members. Check-in identity comes from Firebase UID. | `arrivals.usecase` |
+| Special-event phone invitation | Authenticated event creator attests WhatsApp recipient agreement. Phone recipients receive event details without membership. | `CreateOutingUseCase` |
 | Accept/decline outing invite | Invitee | guests use cases |
 | Remove member from outing | Owner; member self-remove forbidden | RemoveGuest |
 | Chat send/list | Participant + open status | `chat-access` |
@@ -94,6 +89,8 @@ Owner ∪ accepted `outing_guests` ∪ `group_members` of `outing.group_id`. Pen
 
 Unauthenticated invite open → auth → restore pending invite destination (`InviteDeepLinkProvider`). Opening link alone must not create membership without accept.
 
+Notification taps wait for session restoration or sign-in and the authenticated shell. Push payloads with a recipient are scoped to that signed-in account. Group, outing, and message reads enforce membership on the backend, and the inbox read endpoint checks ownership.
+
 ## Related
 
 - [`PRODUCT_SCENARIOS.md`](PRODUCT_SCENARIOS.md) §§2–3, 16
@@ -104,4 +101,36 @@ Unauthenticated invite open → auth → restore pending invite destination (`In
 
 Logout replaces the route stack with the login form and clears account-scoped providers. An unverified profile number can be verified with Firebase SMS from Settings. Changes to a different number still require current-password confirmation for password accounts. Flutter syncs the confirmed number to Neon after Firebase verification.
 
-The verified chip reflects a Firebase phone matching the current Neon profile number. Firebase may reject linking a number that belongs to another Firebase UID, including a separate identity created by a prior signup OTP. That conflict requires identity reconciliation before linking.
+The verified chip reflects a Firebase phone matching the current Neon profile number. A credential conflict from an unused legacy OTP UID is repaired through the verified sync flow above; conflicts with another registered identity remain rejected. Successful verification refreshes groups once to show newly claimed memberships.
+
+RSVP reads and writes require current participation. GPS arrival requires current group membership on group outings, including for the creator. The backend derives the subject UID from the authenticated Firebase token and accepts only a bounded location sample for that user. Roster invalidations are routed to authenticated participant user rooms. Client coordinates remain client-reported evidence. Group pending associations continue to link only through verified phone ownership and transactionally upsert membership.
+
+
+## Account synchronization versus data reads — 2026-11-11
+
+Session restoration first exposes the matching cached account. After cached shell hydration, one deferred authenticated account sync claims pending invitations before online group-list revalidation. A successful sync is not repeated by general refresh/resume. Offline/failed synchronization remains pending for recovery. Profile refresh uses GET `/api/users/cuser`; it does not call users/sync or force ID-token refresh. Sync remains available for OTP provisioning and explicit verified-phone/account changes. Concurrent identical syncs and profile refreshes are coalesced. Firebase remains the identity provider; Neon owns profiles and membership.
+
+
+### Authentication request reliability
+
+Flutter applies default 15-second connection, send and receive limits, and bounds Firebase sign-in and token calls. OTP requests use one 75-second deadline for Firebase native invocation/callbacks, allowing the SDK’s 60-second retrieval window; normal API/token deadlines remain 15 seconds. Invocation failures are observed immediately and late callbacks are ignored. Authentication failures preserve network and timeout classifications for localized snackbar feedback. Login, signup and user sync do not use the interceptor’s automatic 401 retry; sync remains deduplicated. Firebase UID and Neon account ownership remain unchanged. Firebase SDK operations cannot be cancelled by Dart timeouts, so a timed-out operation can still complete in the SDK.
+
+
+## Realtime room authorization — 2026-11-11
+
+The same verified session socket owns `user:{decoded.uid}`, authorized `group:{UUID}` subscriptions and participant-authorized `outing:{UUID}` chat rooms. Group joins validate UUIDs and query current Neon membership; client-provided identities or room names cannot grant access. Message and read-receipt delivery both filter the current outing audience even when removed users remain in old rooms. Complete attendance events use owner/accepted-guest/group-member eligibility, excluding pending-only guests. Historical attendance replay carries only identifiers and obtains fresh REST authorization. Client session generations discard old callbacks and cursors on logout/account switches. No new authentication method is introduced.
+
+## Forgot password — 2026-11-11
+
+Audit confirmed that `LoginUseCase` and `ChangePasswordUseCase` use Neon `users.password_hash` (bcrypt cost 12). Firebase is the identity/session and phone-proof provider; setting a Firebase password would not update the credential consumed by phone/password login. Recovery therefore updates the existing Neon hash, without introducing a second authority.
+
+1. `POST /api/auth/recovery/start` normalizes the registered phone, requires an existing password and the same current enabled Firebase phone on the canonical UID, then creates a ten-minute request secret.
+2. Flutter reuses Firebase SMS sending. OTP credential verification happens in an ephemeral secondary Firebase Auth instance, signs out/deletes that instance, and never syncs/provisions a Neon profile or changes the primary session.
+3. `POST /api/auth/recovery/verify` accepts only the request secret and Firebase phone ID token. Admin verifies signature/project/expiry/revocation, phone sign-in provider, current phone credential and exact UID/phone equality. `auth_time` must be at/after request creation (second precision), no later than server time and at most five minutes old. A unique digest of UID + auth_time prevents proof replay, including refreshed ID tokens. A random 256-bit reset secret is issued for five minutes.
+4. `POST /api/auth/recovery/reset` accepts the reset secret and matching passwords. Passwords require at least eight characters, upper/lowercase, number and symbol, and at most 72 UTF-8 bytes. The current UID, phone, Firebase binding and original password-version digest must still match. Grant consumption and a conditional password update share one PostgreSQL transaction; all other outstanding grants for that UID are consumed. Concurrent reuse loses with 401. Login then uses the new password against the same account.
+
+Only SHA-256 digests of random request/reset secrets and phone sign-in replay keys persist. Passwords remain bcrypt; OTPs, plaintext passwords, Firebase proof tokens and raw recovery secrets are never stored in Neon. Responses use `Cache-Control: no-store`; Flutter keeps secrets in route-local memory. Existing sessions are preserved, with no reset-triggered token revocation.
+
+Limits are shared in PostgreSQL: 30 recovery API attempts/IP/minute, five starts/phone/hour, one start/phone/minute, five verification attempts/request and five reset attempts/secret per ten minutes. SMS sending is direct to Firebase: these API limits cannot prevent a modified client from calling Firebase directly. Firebase quotas, app verification and SMS region policies must remain configured. Resend starts a new request; earlier valid requests expire normally or are invalidated by a successful reset. Old proof markers remain beyond accepted proof lifetime and are cleaned opportunistically after a day; expired rate-limit buckets are also removed.
+
+Unsupported legacy identities fail closed with recovery unavailable. No account transfer/merge or Firebase password-provider migration is attempted. Migration `20261111180000_password_recovery` was applied to the configured Neon schema on 2026-11-11. A real eligible-account start succeeded afterward; Firebase SMS delivery remains a device check. See [verification and limits](audit/PASSWORD_RECOVERY_REPORT.md).

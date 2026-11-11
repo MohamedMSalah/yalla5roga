@@ -11,6 +11,14 @@ abstract class OutingChatRepository {
     bool forceRefresh = false,
   });
 
+  Future<Either<Failure, ChatMessage>> getMessage(
+    String outingId,
+    String messageId,
+  );
+
+  bool hasOlderMessages(String outingId);
+  Future<Either<Failure, List<ChatMessage>>> getOlderMessages(String outingId);
+
   Future<Either<Failure, ChatMessage>> sendMessage({
     required String outingId,
     required String text,

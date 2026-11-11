@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
@@ -11,7 +13,6 @@ import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place_location.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/saved_outing.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
-import 'package:yalla_5roga/features/outings/presentation/providers/pick_location_provider.dart';
 
 class CreateOutingProvider extends ChangeNotifier {
   CreateOutingProvider({
@@ -32,7 +33,8 @@ class CreateOutingProvider extends ChangeNotifier {
            (draft?.specialEvent ?? false) ||
            (saved?.occasion ?? OutingOccasion.none) != OutingOccasion.none,
        _draftId =
-           draft?.id ?? 'draft-${DateTime.now().millisecondsSinceEpoch}' {
+           draft?.id ??
+           'draft-${DateTime.now().millisecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}' {
     nameController = TextEditingController(
       text: saved?.title ?? draft?.title ?? '',
     );
@@ -69,6 +71,7 @@ class CreateOutingProvider extends ChangeNotifier {
           ? OutingOccasion.birthday
           : draft!.occasion;
       _guestIds.addAll(draft!.guestIds);
+      _guestPhones.addAll(draft!.guestPhones);
       if (draft!.groupId != null) {
         _group = _groups.cast<Group?>().firstWhere(
           (item) => item?.id == draft!.groupId,
@@ -97,6 +100,7 @@ class CreateOutingProvider extends ChangeNotifier {
   final bool _groupLocked;
   final String _draftId;
   final _guestIds = <String>{};
+  final _guestPhones = <String>{};
 
   late final TextEditingController nameController;
   late final TextEditingController customPlaceController;
@@ -111,6 +115,7 @@ class CreateOutingProvider extends ChangeNotifier {
   TimeOfDay _time = const TimeOfDay(hour: 11, minute: 30);
   Place? _place;
   final _selectedPlaces = <Place>[];
+  String _customArea = '';
   double? _customLatitude;
   double? _customLongitude;
   OutingOccasion _occasion = OutingOccasion.none;
@@ -160,6 +165,7 @@ class CreateOutingProvider extends ChangeNotifier {
   bool get groupLocked => _groupLocked;
 
   Set<String> get guestIds => _guestIds;
+  Set<String> get guestPhones => Set.unmodifiable(_guestPhones);
 
   List<Group> get groups => List.unmodifiable(_groups);
 
@@ -200,6 +206,7 @@ class CreateOutingProvider extends ChangeNotifier {
     if (isCustomPlace) {
       return PlaceLocation(
         name: customPlaceController.text.trim(),
+        area: _customArea,
         latitude: _customLatitude,
         longitude: _customLongitude,
       );
@@ -261,16 +268,29 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   void _applyLocation(PlaceLocation location) {
+    final id = location.placeId;
     final match = _catalogPlaces.where(
-      (item) =>
-          item.name == location.name &&
-          (location.area.isEmpty || item.area == location.area),
+      (item) => id != null
+          ? item.id == id
+          : item.name == location.name &&
+                (location.area.isEmpty || item.area == location.area),
     );
     if (match.isNotEmpty) {
       _place = match.first;
       return;
     }
-    customPlaceController.text = location.label;
+    if (id != null) {
+      _place = Place(
+        id: id,
+        name: location.name,
+        area: location.area,
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
+      return;
+    }
+    customPlaceController.text = location.name;
+    _customArea = location.area;
     _customLatitude = location.latitude;
     _customLongitude = location.longitude;
   }
@@ -296,7 +316,9 @@ class CreateOutingProvider extends ChangeNotifier {
       if (nameError != null) return nameError;
       // Cover photo is optional until a remote upload pipeline exists.
       if (_specialEvent) {
-        if (_guestIds.isEmpty) return l10n.guestsRequired;
+        if (_guestIds.isEmpty && _guestPhones.isEmpty) {
+          return l10n.guestsRequired;
+        }
       } else if (_group == null) {
         return l10n.groupRequired;
       }
@@ -362,6 +384,18 @@ class CreateOutingProvider extends ChangeNotifier {
 
   void setLetVote(bool value) {
     if (_specialEvent || _letVote == value) return;
+    if (value && _selectedPlaces.isEmpty) {
+      if (_place case final place?) {
+        _selectedPlaces.add(place);
+      } else if (customPlacePinned && isCustomPlace) {
+        _selectedPlaces.add(
+          mapInitialPlace!.copyWith(
+            vibe:
+                OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)],
+          ),
+        );
+      }
+    }
     _letVote = value;
     notifyListeners();
   }
@@ -373,8 +407,43 @@ class CreateOutingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool isPlaceSelected(Place place) {
-    return _selectedPlaces.any((item) => item == place);
+  bool isPlaceSelected(Place place) =>
+      _selectedPlaces.any(place.matchesSelection);
+
+  Place? get mapInitialPlace {
+    if (_place != null) return _place;
+    final location = selectedLocation;
+    if (location == null) return null;
+    return Place(
+      name: location.name,
+      area: location.area,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      vibe: OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)],
+    );
+  }
+
+  void replaceMapSelection(List<Place> places) {
+    if (!multiPlaceMode) {
+      if (places.length == 1) applyPickedPlace(places.single);
+      return;
+    }
+    final ordered = <Place>[];
+    for (final place in places.take(OutingsProvider.maxVotePlaces)) {
+      if (ordered.any(place.matchesSelection)) continue;
+      ordered.add(
+        place.id.isNotEmpty
+            ? place
+            : place.copyWith(
+                vibe: OutingVibe
+                    .values[_vibe.clamp(0, OutingVibe.values.length - 1)],
+              ),
+      );
+    }
+    _selectedPlaces
+      ..clear()
+      ..addAll(ordered);
+    notifyListeners();
   }
 
   bool get canAddMorePlaces =>
@@ -392,7 +461,7 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   void removeSelectedPlace(Place place) {
-    _selectedPlaces.removeWhere((item) => item == place);
+    _selectedPlaces.removeWhere((item) => item.matchesSelection(place));
     notifyListeners();
   }
 
@@ -430,14 +499,20 @@ class CreateOutingProvider extends ChangeNotifier {
       return;
     }
     _place = value;
+    _customArea = '';
     _customLatitude = null;
     _customLongitude = null;
     customPlaceController.clear();
     notifyListeners();
   }
 
-  void applyPickedPlace(PickedPlace picked) {
+  void applyPickedPlace(Place picked) {
+    if (picked.id.isNotEmpty) {
+      setCatalogPlace(picked);
+      return;
+    }
     _place = null;
+    _customArea = picked.area;
     _customLatitude = picked.latitude;
     _customLongitude = picked.longitude;
     customPlaceController.text = picked.name;
@@ -460,7 +535,10 @@ class CreateOutingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setGuests(Iterable<String> ids) {
+  void setGuests(Iterable<String> ids, {Iterable<String> phones = const []}) {
+    _guestPhones
+      ..clear()
+      ..addAll(phones);
     _guestIds
       ..clear()
       ..addAll(ids);
@@ -481,6 +559,7 @@ class CreateOutingProvider extends ChangeNotifier {
       occasion: _occasion,
       specialEvent: _specialEvent,
       guestIds: _guestIds.toList(),
+      guestPhones: _guestPhones.toList(),
       letVote: _letVote,
       voteDeadlineHours: _letVote ? _voteDeadlineHours : null,
       selectedPlaces: multiPlaceMode ? List.of(_selectedPlaces) : const [],
@@ -510,12 +589,20 @@ class CreateOutingProvider extends ChangeNotifier {
           : '$locationLabel · $formattedTime',
       date: formattedDate,
       time: formattedTime,
-      going: _specialEvent ? guests.length : _group!.memberCount,
+      going: _specialEvent
+          ? guests.length + _guestPhones.length
+          : _group!.memberCount,
       groupId: _specialEvent ? null : _group!.id,
       location: voting ? null : selectedLocation,
       occasion: _occasion,
       guestIds: guests,
-      status: voting ? OutingStatus.voting : OutingStatus.draft,
+      guestPhones: _specialEvent ? _guestPhones.toList() : const [],
+      createRequestKey: _draftId,
+      status: voting
+          ? OutingStatus.voting
+          : selectedLocation != null
+          ? OutingStatus.confirmed
+          : OutingStatus.draft,
       votePlaces: places,
       // Backend create requires a deadline even when voting UI is off.
       voteDeadlineHours: _voteDeadlineHours,

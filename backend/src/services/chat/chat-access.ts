@@ -20,7 +20,10 @@ async function loadOutingForUser(outingId: string, uid: string) {
       status: true,
       created_by: true,
       group_id: true,
-      outing_guests: { where: { user_id: uid }, select: { user_id: true } },
+      outing_guests: {
+        where: { user_id: uid, status: { in: ["pending", "accepted"] } },
+        select: { user_id: true },
+      },
       groups: {
         select: {
           group_members: {

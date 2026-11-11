@@ -18,6 +18,17 @@ export type GroupMemberView = GroupMember & {
   image_url: string | null;
 };
 
+export type PendingGroupMemberView = {
+  invitation_id: string;
+  phone: string;
+  status: "pending";
+};
+
+export type GroupRoster = {
+  members: GroupMemberView[];
+  pendingMembers: PendingGroupMemberView[];
+};
+
 export type CreateGroupInput = {
   name: string;
   bio?: string;

@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/error/error_blueprint_logger.dart';
 import 'package:yalla_5roga/core/error/error_codes.dart';
 import 'package:yalla_5roga/core/error/error_context.dart';
@@ -15,10 +16,11 @@ Future<Either<Failure, T>> guardRemote<T>(
   Future<T> Function() action, {
   String? reason,
   ErrorContext? context,
+  bool offlineRead = false,
 }) async {
   final ctx = context ?? ErrorContext.fromReason(reason);
   try {
-    if (!await networkInfo.isConnected) {
+    if (!offlineRead && !await networkInfo.isConnected) {
       const failure = NetworkFailure(
         'No internet connection',
         ErrorCodes.network,
@@ -32,6 +34,7 @@ Future<Either<Failure, T>> guardRemote<T>(
     }
     return Right(await action());
   } on AppException catch (error, stack) {
+    if (OfflineSnapshots.cacheOnly) return Left(ExceptionMapper.toFailure(error));
     ErrorBlueprintLogger.log(
       error: error,
       stackTrace: stack,

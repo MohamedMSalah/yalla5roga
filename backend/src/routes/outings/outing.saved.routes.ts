@@ -26,7 +26,7 @@ import { savedOutingParamsSchema } from "../../validators/outings/outing.validat
  *   post:
  *     tags: [Saved Outings]
  *     summary: Save an outing
- *     description: Saves the outing for the authenticated user.
+ *     description: Saves an accessible outing for the caller. Repeated requests return the existing bookmark.
  *     operationId: saveOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -45,6 +45,8 @@ import { savedOutingParamsSchema } from "../../validators/outings/outing.validat
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *   delete:
  *     tags: [Saved Outings]
  *     summary: Unsave an outing
@@ -65,6 +67,8 @@ import { savedOutingParamsSchema } from "../../validators/outings/outing.validat
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  */
 const router = Router();
 const controller = new OutingController();

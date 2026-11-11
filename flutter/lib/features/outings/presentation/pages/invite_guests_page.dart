@@ -8,19 +8,25 @@ import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
+import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
+import 'package:yalla_5roga/features/groups/presentation/pages/pick_device_contacts_page.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 
-/// Multi-select contacts for a special event. Returns selected member ids on confirm.
+typedef SelectedEventGuests = ({Set<String> ids, Set<String> phones});
+
+/// Select app members and phone contacts for a special event.
 class InviteGuestsPage extends StatefulWidget {
   const InviteGuestsPage({
     super.key,
     required this.contacts,
     this.initialSelectedIds = const {},
+    this.initialSelectedPhones = const {},
   });
 
   final List<GroupMember> contacts;
   final Set<String> initialSelectedIds;
+  final Set<String> initialSelectedPhones;
 
   @override
   State<InviteGuestsPage> createState() => _InviteGuestsPageState();
@@ -28,11 +34,13 @@ class InviteGuestsPage extends StatefulWidget {
 
 class _InviteGuestsPageState extends State<InviteGuestsPage> {
   late final Set<String> _selected;
+  late Set<String> _phones;
 
   @override
   void initState() {
     super.initState();
     _selected = {...widget.initialSelectedIds};
+    _phones = {...widget.initialSelectedPhones};
   }
 
   bool get _allSelected =>
@@ -56,8 +64,20 @@ class _InviteGuestsPageState extends State<InviteGuestsPage> {
     });
   }
 
+  Future<void> _pickPhones() async {
+    final phones = await Get.to<Set<String>>(
+      () => PickDeviceContactsPage(initialSelectedPhones: _phones),
+    );
+    if (!mounted || phones == null) return;
+    if (phones.length > 50) {
+      AppSnackBar.show(context.l10n.whatsappGuestLimit);
+      return;
+    }
+    setState(() => _phones = phones);
+  }
+
   void _confirm() {
-    Get.back(result: Set<String>.from(_selected));
+    Get.back(result: (ids: {..._selected}, phones: {..._phones}));
   }
 
   @override
@@ -86,6 +106,19 @@ class _InviteGuestsPageState extends State<InviteGuestsPage> {
         top: false,
         child: Column(
           children: [
+            Padding(
+              padding: Responsive.pagePadding(bottom: 8),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.contacts_outlined),
+                title: Text(l10n.inviteByWhatsApp),
+                subtitle: _phones.isEmpty
+                    ? null
+                    : Text(l10n.whatsappGuestCount(_phones.length)),
+                trailing: Icon(context.chevronForward),
+                onTap: _pickPhones,
+              ),
+            ),
             Expanded(
               child: widget.contacts.isEmpty
                   ? AppEmptyState(

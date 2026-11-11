@@ -14,12 +14,14 @@ class GroupInfoHeader extends StatelessWidget {
     required this.outingCount,
     required this.canManage,
     required this.onChangeImage,
+    this.onSaveBio,
   });
 
   final Group group;
   final int outingCount;
   final bool canManage;
   final VoidCallback? onChangeImage;
+  final Future<bool> Function(String)? onSaveBio;
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +86,7 @@ class GroupInfoHeader extends StatelessWidget {
           ),
         ),
         Responsive.spaceSm.gapH,
-        GroupBioCard(bio: group.bio),
+        GroupBioCard(bio: group.bio, onSave: canManage ? onSaveBio : null),
       ],
     );
   }

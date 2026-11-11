@@ -27,7 +27,7 @@ Reduce the friction of “where should we go?” by giving a group:
 
 | Feature | Summary |
 |---------|---------|
-| Auth | Firebase Auth (Google / Apple / phone) + email/password via backend Neon hash + Firebase identity |
+| Auth | Phone/password backed by a Neon hash. Firebase supplies signup OTP proof, UID and refreshable API sessions. |
 | Groups | Persistent friend groups; phone invitations with deep links |
 | Outings | Group outings and special events (birthday / wedding) |
 | Place voting | Owner-managed candidates; one active vote per member; server closure / winner / tie-break |

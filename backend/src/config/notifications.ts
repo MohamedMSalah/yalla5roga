@@ -11,6 +11,7 @@ export type NotificationConfig = {
     /** Approved Meta template name for outbound invites. */
     templateName: string;
     templateLanguage: string;
+    specialEventTemplateName?: string;
   };
   worker: {
     intervalMs: number;
@@ -32,7 +33,7 @@ function envInt(name: string, fallback: number): number {
 
 /**
  * Notification pipeline settings. Meta Cloud API credentials are optional in
- * local/dev — the stub provider logs and marks delivery so the queue still runs.
+ * local/dev. With no provider, WhatsApp delivery is disabled.
  */
 export function getNotificationConfig(): NotificationConfig {
   const providerRaw = env("WHATSAPP_PROVIDER", "stub").toLowerCase();
@@ -52,6 +53,7 @@ export function getNotificationConfig(): NotificationConfig {
       apiVersion: env("WHATSAPP_API_VERSION", "v21.0"),
       templateName: env("WHATSAPP_INVITE_TEMPLATE", "group_invite"),
       templateLanguage: env("WHATSAPP_INVITE_TEMPLATE_LANG", "en"),
+      specialEventTemplateName: env("WHATSAPP_SPECIAL_EVENT_TEMPLATE", "special_event_invite"),
     },
     worker: {
       intervalMs: envInt("NOTIFICATION_WORKER_INTERVAL_MS", 5_000),
@@ -59,4 +61,9 @@ export function getNotificationConfig(): NotificationConfig {
       maxAttempts: envInt("NOTIFICATION_MAX_ATTEMPTS", 5),
     },
   };
+}
+
+export function hasAutomaticWhatsApp(config = getNotificationConfig()): boolean {
+  const { provider, accessToken, phoneNumberId } = config.whatsapp;
+  return provider === "meta" && Boolean(accessToken && phoneNumberId);
 }

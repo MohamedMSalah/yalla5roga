@@ -1,8 +1,8 @@
+import { assertChatParticipant } from "../../services/chat/chat-access.js";
 import { prisma } from "../../config/database.js";
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
 import type { Outing, SavedOuting } from "../../types/outings/outing.types.js";
-import { NotFoundError } from "../../utils/errors.js";
 
 export type SavedOutingWithDetails = SavedOuting & {
   outing: {
@@ -20,7 +20,14 @@ export type SavedOutingWithDetails = SavedOuting & {
 export class ListSavedOutingsUseCase {
   async execute(userId: string): Promise<SavedOutingWithDetails[]> {
     const rows = await prisma.saved_outings.findMany({
-      where: { user_id: userId },
+      where: {
+        user_id: userId,
+        outings: { OR: [
+          { created_by: userId },
+          { outing_guests: { some: { user_id: userId, status: { in: ["pending", "accepted"] } } } },
+          { groups: { group_members: { some: { user_id: userId } } } },
+        ] },
+      },
       include: {
         outings: {
           select: {
@@ -53,8 +60,7 @@ export class SaveOutingUseCase {
   ) {}
 
   async execute(userId: string, outingId: string): Promise<SavedOuting> {
-    const outing = await this.outings.findById(outingId);
-    if (!outing) throw new NotFoundError("Outing");
+    await assertChatParticipant(outingId, userId);
     return this.outings.saveOuting(userId, outingId);
   }
 }

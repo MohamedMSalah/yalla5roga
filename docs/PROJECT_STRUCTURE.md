@@ -67,10 +67,12 @@ flutter/lib/
     network/api_client.dart, dio_interceptors.dart, api_payload.dart,
       request_deduper.dart, diagnostics/, performance_interceptor.dart
     cache/cache_policy.dart, cached_remote.dart, ttl_cache.dart
+      offline_snapshots.dart # bounded account/origin snapshots
+    network/app_sync_provider.dart # foreground/realtime recovery
     constants/api_constants.dart
     theme/, localization/, widgets/, monitoring/, config/
   features/
-    auth/          # login/signup/social/OTP
+    auth/          # phone/password login, signup OTP and session restore
     groups/        # groups CRUD + members
     outings/       # create, list, vote, attendance, saved, drafts UI
     chat/          # outing chat (REST + Socket.IO)
@@ -95,12 +97,18 @@ flutter/lib/
 | TTL cache helpers | `lib/core/cache/` |
 | API paths | `lib/core/constants/api_constants.dart` |
 | Profile editing | `features/setting/presentation/pages/edit_profile_page.dart`, `change_password_page.dart`, and profile sheets |
-| Nearby search | `features/discover/presentation/pages/discover_page.dart` → Discover provider/repository → `backend/src/services/places/nearby-search-bounds.ts` |
+| Shared map infrastructure | `flutter/lib/core/widgets/app_map.dart`, `flutter/lib/core/utils/map_location.dart` |
+| Outing map selection | `flutter/lib/features/outings/presentation/pages/pick_location_page.dart` and its route-local provider |
+| Nearby map | `features/discover/presentation/pages/discover_page.dart` → Discover provider/repository → `backend/src/services/places/nearby-search-bounds.ts` |
+| Active Votes | `features/outings/presentation/widgets/lists/active_votes_list.dart` → Outings tab |
+| Outing history | Settings → `features/outings/presentation/pages/outing_history_page.dart` → current-user outing snapshot |
 | Default group and outing artwork | `flutter/assets/covers/`, `lib/core/widgets/planning_cover.dart` |
 | Outing API | `features/outings/data/datasources/outings_remote_datasource.dart` |
 | API request audit | `docs/audit/FLUTTER_API_REQUEST_OPTIMIZATION_REPORT.md` |
 | Vote UI | `features/outings/presentation/widgets/outing_vote_widget.dart` |
 | Attendance UI | `…/outing_attendance_widget.dart` |
+| Physical arrival | `OutingArrivalsSection` owns route lifecycle. `OutingArrivalService` verifies GPS via `backend/src/usecases/outings/arrivals.usecase.ts`. The existing Socket.IO transport invalidates the roster. |
+| Special-event invite copy | `backend/src/services/whatsapp/special-event-invitation.ts` |
 | Create outing (+ multi-place suggest) | `…/pages/create_outing_page.dart`, `…/providers/create_outing_provider.dart` |
 | Create group | `features/groups/presentation/pages/create_group_page.dart` |
 | Device contacts picker | `features/groups/presentation/pages/pick_device_contacts_page.dart` |
@@ -110,6 +118,8 @@ flutter/lib/
 | Outing chat REST | `features/chat/data/datasources/outing_chat_remote_datasource.dart` |
 | Outing chat Socket.IO | `features/chat/data/datasources/outing_chat_socket_client.dart` |
 | Chat message upsert/dedupe | `features/chat/domain/outing_chat_message_merge.dart` |
+| Durable chat sends | `features/chat/data/datasources/chat_send_queue.dart` |
+| Scoped change events | `backend/src/realtime/data-changes.ts` |
 
 Tests: `flutter/test/` (when present). Project-local Cursor notes: `flutter/.cursor/rules/project-context.mdc` (may lag root docs — prefer root `docs/` + `AGENTS.md`).
 
@@ -147,7 +157,7 @@ backend/src/
   config/           # prisma, firebase, swagger, notifications
 backend/prisma/schema.prisma
 backend/tests/
-backend/scripts/    # probes (flutter-client-scenario, outing-chat-realtime-audit)
+backend/scripts/    # probes and the real Firebase/Neon backend-full-integration suite
 ```
 
 ### Key backend files
@@ -155,6 +165,7 @@ backend/scripts/    # probes (flutter-client-scenario, outing-chat-realtime-audi
 | Concern | Path |
 |---------|------|
 | Route index | `src/routes/index.ts` |
+| Optional geocoding | `backend/src/routes/places/place.geocoding.routes.ts` → `backend/src/services/places/geocoding.ts` |
 | Outing routes | `src/routes/outings/` (crud, drafts, saved, participants, voting, chat) |
 | Group routes | `src/routes/groups/` (crud, members, invitations) |
 | User routes | `src/routes/users/` (profile, sync, fcm) |
@@ -164,6 +175,8 @@ backend/scripts/    # probes (flutter-client-scenario, outing-chat-realtime-audi
 | Create outing | `src/usecases/outings/create-outing.usecase.ts` |
 | Attendance | `src/usecases/outings/attendance.usecase.ts` |
 | Auth middleware | `src/middleware/auth.middleware.ts` |
+| Verified phone identity and legacy OTP repair | `src/services/phone/phone-identity.ts`; auth signup/login and `usecases/users/sync-user.usecase.ts` |
+| Group account-linking regression checks | `backend/tests/group-account-linking.test.ts`, `group-membership.database.test.ts`, `flutter/test/group_account_linking_test.dart`; read-only audit `backend/scripts/group-membership-audit.ts` |
 | Outing chat realtime | `src/realtime/` (`socket-server`, `chat.gateway`, `chat-emitter`) |
 | Schema | `prisma/schema.prisma` |
 
@@ -175,3 +188,33 @@ backend/scripts/    # probes (flutter-client-scenario, outing-chat-realtime-audi
 2. Schema change → Prisma migration + `DATABASE_ARCHITECTURE.md` + affected business docs.
 3. Lifecycle/voting change → backend services + Flutter UI refresh paths + `SYSTEM_DESIGN.md` / `USER_SCENARIOS.md` / `BUSINESS_LOGIC.md`.
 4. Never change architecture pattern without ADR entry.
+
+Outing feature verification uses `backend/scripts/backend-full-integration.ts`. The `--custom-session-features` mode runs the overlapping-outing, RSVP, venue, arrival and chat scenarios with disposable Firebase custom-token identities when the full OTP fixture set is unavailable.
+
+
+## Chat and realtime verification additions — 2026-11-11
+
+- `backend/src/services/chat/chat-mentions.ts`: stable-ID mention validation and canonicalization.
+- `backend/src/realtime/data-changes.ts`: domain invalidations and bounded authenticated replay.
+- `backend/scripts/chat-openapi-verification.ts`: disposable-fixture API checks selected by OpenAPI operation IDs; no Flutter execution.
+- `docs/audit/CHAT_REALTIME_OPENAPI_VERIFICATION.md`: current task API results and runtime verification limits.
+
+
+## Centralized realtime additions — 2026-11-11
+
+- `backend/src/realtime/group.gateway.ts`: group room authorization on the existing Socket.IO server.
+- `flutter/lib/core/network/realtime_change.dart`: shared event envelope, bounded deduplication and acknowledged replay checkpoint.
+- `backend/tests/realtime-group-gateway.test.ts`, `realtime-commit.test.ts`: group authorization and post-commit publication checks.
+- `flutter/test/realtime_cursor_test.dart`: reconnect race and account-boundary regression checks.
+- `docs/audit/CENTRALIZED_REALTIME_SYNC.md`: event contracts, scoped file changes, validation and remaining limits.
+
+## Password recovery files — 2026-11-11
+
+- `flutter/lib/features/auth/presentation/pages/password_recovery_page.dart` and `providers/password_recovery_provider.dart`: route-local recovery form/state.
+- Existing auth repository/datasources and `FirebaseAuthService`: API and isolated OTP proof adapters.
+- `backend/src/usecases/auth/password-recovery.usecase.ts`: recovery orchestration.
+- `backend/src/repositories/auth/password-recovery.repository.ts`: Prisma grants, rate limits and transactional password replacement.
+- `backend/src/routes/auth/index.ts`, auth controller/validator: HTTP/OpenAPI contracts.
+- `backend/prisma/migrations/20261111180000_password_recovery/migration.sql`: additive security-state tables.
+- `backend/tests/password-recovery.api.test.ts`: real HTTP/OpenAPI checks with disposable PostgreSQL schema and controlled Firebase boundary.
+- `docs/audit/PASSWORD_RECOVERY_REPORT.md`: file list, verification and deployment/authentication limitations.

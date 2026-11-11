@@ -3,6 +3,8 @@ import { GroupInvitationRepository } from "../../repositories/groups/group-invit
 import { tryNormalizePhoneNumber } from "../../services/phone/normalize-phone.js";
 import type { GroupInvitation } from "../../types/groups/group-invitation.types.js";
 
+import { publishGroupChange } from "../../realtime/data-changes.js";
+
 export class ClaimGroupInvitationsUseCase {
   constructor(
     private readonly invitations: IGroupInvitationRepository = new GroupInvitationRepository(),
@@ -21,6 +23,10 @@ export class ClaimGroupInvitationsUseCase {
     const phone = tryNormalizePhoneNumber(input.verifiedPhone);
     if (!phone) return [];
 
-    return this.invitations.claimForVerifiedPhone(input.userId, phone);
+    const claimed = await this.invitations.claimForVerifiedPhone(input.userId, phone);
+    await Promise.all(claimed.map(({ group_id }) =>
+      publishGroupChange(group_id, "membership", [input.userId]),
+    ));
+    return claimed;
   }
 }

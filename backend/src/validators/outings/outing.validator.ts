@@ -45,6 +45,17 @@ const optionalOutingImageUrl = z
   .union([z.literal(""), z.url().max(2048)])
   .optional();
 
+export const createVoteOptionBodySchema = z.object({
+  place_id: z.uuid().optional().nullable(),
+  label: z.string().trim().min(1).max(100),
+  area: z.string().trim().max(100).optional(),
+  image_url: z.url().max(2048).optional(),
+  vibe: outingVibeSchema.optional(),
+  latitude: z.number().min(-90).max(90).optional().nullable(),
+  longitude: z.number().min(-180).max(180).optional().nullable(),
+  sort_order: z.number().int().optional(),
+});
+
 export const createOutingBodySchema = z
   .object({
     title: z.string().trim().min(3).max(20),
@@ -52,13 +63,20 @@ export const createOutingBodySchema = z
     group_id: z.uuid().optional().nullable(),
     status: outingStatusSchema.optional(),
     occasion: outingOccasionSchema.optional(),
+    create_request_key: z.string().trim().min(1).max(80).optional(),
+    initial_vote_options: z.array(createVoteOptionBodySchema.extend({
+      latitude: z.number().min(-90).max(90).nullish(),
+      longitude: z.number().min(-180).max(180).nullish(),
+    })).min(2).max(5).optional(),
+    guest_phones: z.array(z.string().trim().min(8).max(20)).max(50).optional(),
+    guest_phones_whatsapp_opt_in: z.boolean().optional(),
     scheduled_at: z.coerce.date().optional().nullable(),
     ends_at: z.coerce.date().optional().nullable(),
     location_place_id: z.uuid().optional().nullable(),
     location_name: z.string().trim().max(100).optional().nullable(),
     location_area: z.string().trim().max(100).optional().nullable(),
-    location_latitude: z.number().optional().nullable(),
-    location_longitude: z.number().optional().nullable(),
+    location_latitude: z.number().min(-90).max(90).optional().nullable(),
+    location_longitude: z.number().min(-180).max(180).optional().nullable(),
     vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
     vote_ends_at: z.coerce.date().optional().nullable(),
   })
@@ -93,11 +111,10 @@ export const updateOutingBodySchema = z.object({
   location_place_id: z.uuid().optional().nullable(),
   location_name: z.string().trim().max(100).optional().nullable(),
   location_area: z.string().trim().max(100).optional().nullable(),
-  location_latitude: z.number().optional().nullable(),
-  location_longitude: z.number().optional().nullable(),
+  location_latitude: z.number().min(-90).max(90).optional().nullable(),
+  location_longitude: z.number().min(-180).max(180).optional().nullable(),
   vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
   vote_ends_at: z.coerce.date().optional().nullable(),
-  suggested_by_user_id: z.string().min(1).optional().nullable(),
 });
 
 export const outingIdParamsSchema = z.object({
@@ -108,6 +125,15 @@ export const listOutingsQuerySchema = z.object({
   groupId: z.uuid().optional(),
   userId: z.string().min(1).optional(),
 });
+
+export const arrivalBodySchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  accuracy: z.number().positive().max(10_000),
+  captured_at: z.iso.datetime({ offset: true }),
+  method: z.enum(["gps", "automatic_gps"]).optional(),
+  is_mocked: z.boolean().optional(),
+}).strict();
 
 export const attendanceBodySchema = z.object({
   status: attendanceStatusSchema,
@@ -120,17 +146,6 @@ export const addGuestBodySchema = z.object({
 export const guestParamsSchema = z.object({
   id: z.uuid(),
   userId: z.string().min(1),
-});
-
-export const createVoteOptionBodySchema = z.object({
-  place_id: z.uuid().optional().nullable(),
-  label: z.string().trim().min(1).max(100),
-  area: z.string().trim().max(100).optional(),
-  image_url: z.url().max(2048).optional(),
-  vibe: outingVibeSchema.optional(),
-  latitude: z.number().optional().nullable(),
-  longitude: z.number().optional().nullable(),
-  sort_order: z.number().int().optional(),
 });
 
 export const replaceVoteOptionsBodySchema = z.object({
@@ -161,10 +176,10 @@ export const createDraftBodySchema = z.object({
   scheduled_minute: z.number().int().min(0).max(59).optional().nullable(),
   location_name: z.string().trim().max(100).optional().nullable(),
   location_area: z.string().trim().max(100).optional().nullable(),
-  location_latitude: z.number().optional().nullable(),
-  location_longitude: z.number().optional().nullable(),
+  location_latitude: z.number().min(-90).max(90).optional().nullable(),
+  location_longitude: z.number().min(-180).max(180).optional().nullable(),
   let_vote: z.boolean().optional(),
-  vote_deadline_hours: z.number().int().optional().nullable(),
+  vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
   guest_ids: z.unknown().optional(),
   selected_places: z.unknown().optional(),
 });

@@ -24,7 +24,9 @@ class GroupsRepositoryImpl implements GroupsRepository {
   /// Firebase UID for Phase A leave via DELETE .../members/:userId.
   final String? Function() currentUserId;
 
-  static const _groupsKey = 'groups';
+  int _cacheGeneration = 0;
+  String get _groupsKey => 'groups:${currentUserId()}:$_cacheGeneration';
+  String _groupKey(String id) => '$_groupsKey:group:$id';
   final _groupsCache = TtlCache<List<Group>>(ttl: CachePolicy.groups);
   final _groupCache = TtlCache<Group>(ttl: CachePolicy.groups);
 
@@ -36,6 +38,7 @@ class GroupsRepositoryImpl implements GroupsRepository {
       key: _groupsKey,
       forceRefresh: forceRefresh,
       reason: 'getGroups',
+      offlineRead: true,
       feature: 'groups',
       source: 'GroupsRepositoryImpl',
       fetch: () async {
@@ -49,20 +52,48 @@ class GroupsRepositoryImpl implements GroupsRepository {
   Future<Either<Failure, Group>> getGroup(
     String groupId, {
     bool forceRefresh = false,
+    bool allowStale = true,
   }) {
+    final generation = _cacheGeneration;
+    final uid = currentUserId();
+    Future<Group> fetch() async =>
+        _withCallerRole(await remote.getGroup(groupId));
+
+    if (!allowStale) {
+      return guardRemote(networkInfo, fetch, reason: 'getGroup');
+    }
     return cachedRemote(
       networkInfo: networkInfo,
       cache: _groupCache,
-      key: groupId,
+      key: _groupKey(groupId),
       forceRefresh: forceRefresh,
       reason: 'getGroup',
+      offlineRead: true,
       feature: 'groups',
       source: 'GroupsRepositoryImpl',
-      fetch: () async {
-        final group = await remote.getGroup(groupId);
-        return _withCallerRole(group);
-      },
-    );
+      fetch: fetch,
+    ).then((result) {
+      if (generation == _cacheGeneration && uid == currentUserId()) {
+        result.fold(
+          (failure) {
+            if (failure.statusCode == 403 || failure.statusCode == 404) {
+              _groupCache.invalidate(_groupKey(groupId));
+              _groupsCache.invalidate(_groupsKey);
+            }
+          },
+          (group) {
+            final listed = _groupsCache.getStale(_groupsKey);
+            if (listed != null) {
+              _groupsCache.set(_groupsKey, [
+                if (!listed.any((item) => item.id == group.id)) group,
+                for (final item in listed) item.id == group.id ? group : item,
+              ]);
+            }
+          },
+        );
+      }
+      return result;
+    });
   }
 
   Group _withCallerRole(Group group) {
@@ -81,23 +112,27 @@ class GroupsRepositoryImpl implements GroupsRepository {
       reason: 'createGroup',
     );
     result.fold((_) {}, (created) {
-      _groupCache.set(created.id, created);
+      _groupCache.set(_groupKey(created.id), created);
       _groupsCache.invalidate(_groupsKey);
     });
     return result;
   }
 
   @override
-  Future<Either<Failure, Group>> updateGroup(Group group) async {
+  Future<Either<Failure, Group>> updateGroup(
+    String groupId, {
+    String? bio,
+    String? image,
+  }) async {
     final result = await guardRemote(
       networkInfo,
-      () => remote.updateGroup(group),
+      () => remote.updateGroup(groupId, bio: bio, image: image),
       reason: 'updateGroup',
     );
-    result.fold((_) {}, (updated) {
-      _groupCache.set(updated.id, updated);
+    if (result.isRight()) {
+      _groupCache.invalidate(_groupKey(groupId));
       _groupsCache.invalidate(_groupsKey);
-    });
+    }
     return result;
   }
 
@@ -112,7 +147,7 @@ class GroupsRepositoryImpl implements GroupsRepository {
       reason: 'addMember',
     );
     result.fold((_) {}, (updated) {
-      _groupCache.set(updated.id, updated);
+      _groupCache.set(_groupKey(updated.id), updated);
       _groupsCache.invalidate(_groupsKey);
     });
     return result;
@@ -122,14 +157,19 @@ class GroupsRepositoryImpl implements GroupsRepository {
   Future<Either<Failure, GroupInviteResult>> inviteByPhone({
     required String groupId,
     required String phoneNumber,
+    bool whatsappOptIn = false,
   }) async {
     final result = await guardRemote(
       networkInfo,
-      () => remote.inviteByPhone(groupId: groupId, phoneNumber: phoneNumber),
+      () => remote.inviteByPhone(
+        groupId: groupId,
+        phoneNumber: phoneNumber,
+        whatsappOptIn: whatsappOptIn,
+      ),
       reason: 'inviteByPhone',
     );
     if (result.isRight()) {
-      _groupCache.invalidate(groupId);
+      _groupCache.invalidate(_groupKey(groupId));
       _groupsCache.invalidate(_groupsKey);
     }
     return result;
@@ -138,15 +178,16 @@ class GroupsRepositoryImpl implements GroupsRepository {
   @override
   Future<Either<Failure, Group>> removeMember(
     String groupId,
-    String memberId,
-  ) async {
+    String memberId, {
+    bool pending = false,
+  }) async {
     final result = await guardRemote(
       networkInfo,
-      () => remote.removeMember(groupId, memberId),
+      () => remote.removeMember(groupId, memberId, pending: pending),
       reason: 'removeMember',
     );
     result.fold((_) {}, (updated) {
-      _groupCache.set(updated.id, updated);
+      _groupCache.set(_groupKey(updated.id), updated);
       _groupsCache.invalidate(_groupsKey);
     });
     return result;
@@ -164,7 +205,7 @@ class GroupsRepositoryImpl implements GroupsRepository {
       reason: 'leaveGroup',
     );
     result.fold((_) {}, (_) {
-      _groupCache.invalidate(groupId);
+      _groupCache.invalidate(_groupKey(groupId));
       _groupsCache.invalidate(_groupsKey);
     });
     return result;
@@ -184,6 +225,7 @@ class GroupsRepositoryImpl implements GroupsRepository {
 
   @override
   void clearCache() {
+    _cacheGeneration++;
     _groupsCache.invalidate();
     _groupCache.invalidate();
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class VibeOption {
@@ -6,6 +7,13 @@ class VibeOption {
 
   final IconData icon;
   final String label;
+
+  static List<VibeOption> outingVibes(L10n l10n) => [
+    VibeOption(Icons.restaurant_outlined, l10n.food),
+    VibeOption(Icons.sports_esports_outlined, l10n.activity),
+    VibeOption(Icons.park_outlined, l10n.outdoor),
+    VibeOption(Icons.movie_outlined, l10n.movie),
+  ];
 }
 
 class VibePicker extends StatelessWidget {

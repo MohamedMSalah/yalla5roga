@@ -12,6 +12,8 @@ import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dar
 ///
 /// Phone/password sessions are established by Neon, then exchanged for Firebase tokens.
 abstract class AuthRemoteDataSource {
+  Future<Map<String, dynamic>> recovery(String path, Map<String, dynamic> body);
+
   Future<AuthSessionModel> login({
     required String phone,
     required String password,
@@ -21,6 +23,7 @@ abstract class AuthRemoteDataSource {
     required String name,
     required String password,
     required String phone,
+    required String phoneVerificationToken,
   });
 
   /// Creates / syncs the PostgreSQL `users` row after Firebase social/phone auth.
@@ -29,6 +32,7 @@ abstract class AuthRemoteDataSource {
     String? name,
     String? phone,
     String? imageUrl,
+    String? phoneVerificationToken,
   });
 
   /// PATCH profile with only the fields that changed.
@@ -57,6 +61,22 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   final ApiClient _client;
 
   @override
+  Future<Map<String, dynamic>> recovery(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      final response = await _client.post<Map<String, dynamic>>(
+        path,
+        data: body,
+      );
+      return apiPayload(response.data);
+    } on DioException catch (error) {
+      _mapDio(error);
+    }
+  }
+
+  @override
   Future<AuthSessionModel> login({
     required String phone,
     required String password,
@@ -72,11 +92,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String name,
     required String password,
     required String phone,
+    required String phoneVerificationToken,
   }) {
     return _postSession(ApiConstants.signup, {
       'name': name.trim(),
       'password': password,
       'phone': phone.trim(),
+      'phoneVerificationToken': phoneVerificationToken,
     });
   }
 
@@ -85,11 +107,13 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? name,
     String? phone,
     String? imageUrl,
+    String? phoneVerificationToken,
   }) {
     return _postUser(ApiConstants.syncUser, {
       'name': ?name,
       'phone': ?phone,
       'image_url': ?imageUrl,
+      'phoneVerificationToken': ?phoneVerificationToken,
     });
   }
 
@@ -150,10 +174,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       await _client.post<Map<String, dynamic>>(
         ApiConstants.changePassword,
-        data: {
-          'currentPassword': currentPassword,
-          'newPassword': newPassword,
-        },
+        data: {'currentPassword': currentPassword, 'newPassword': newPassword},
       );
     } on DioException catch (error) {
       throw _mapDio(error, authCredentials: true);
@@ -175,7 +196,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
       return session;
     } on DioException catch (error) {
-      throw _mapDio(error, authCredentials: true);
+      throw _mapDio(error, authCredentials: path == ApiConstants.login);
     }
   }
 
@@ -201,7 +222,9 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
             app is AuthException ||
             app.statusCode == 401)) {
       throw AuthException(
-        app.message.isNotEmpty ? app.message : 'Incorrect phone number or password',
+        app.message.isNotEmpty
+            ? app.message
+            : 'Incorrect phone number or password',
         AuthErrorCodes.invalidCredential,
         app.statusCode ?? 401,
         app.httpMethod,

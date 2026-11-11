@@ -1,8 +1,10 @@
 # Yalla 5roga — Notifications
 
+FCM registration upserts on the globally unique token. The same device token can move between accounts in one write. The user lookup index supports push delivery. Inbox history and delivery attempts persist separately in Neon.
+
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-07 |
+| Last verified | 2026-11-10 |
 | Documentation version | 1.0.0 |
 | Implementation status | Outbox + channels implemented; **real device FCM delivery NOT RUN** |
 | Needs verification | End-to-end push on iOS/Android; WhatsApp provider in each environment |
@@ -14,11 +16,17 @@ flowchart LR
   Trigger[Use case / vote resolution] --> Fanout[outing-notifier / publisher]
   Fanout --> Inbox[notifications table]
   Fanout --> Outbox[notification_events]
+  Special[Special-event create transaction] --> Outbox
   Outbox --> Worker[notification-worker.job]
   Worker --> Push[PushChannel]
   Worker --> WA[WhatsAppChannel]
   Worker --> Logs[notification_delivery_logs]
   Push --> FCM[Firebase Cloud Messaging]
+  FCM --> Tap[Flutter notification tap]
+  Inbox --> Tap
+  Tap --> Shell[Authenticated MainShell]
+  Shell --> Target[Authorized destination]
+  Shell --> Read[Mark inbox item read]
   FlutterReg[Flutter FcmProvider] --> TokenAPI[POST /api/users/cuser/fcm-token]
   TokenAPI --> Tokens[user_fcm_tokens]
   Tokens --> Push
@@ -51,8 +59,8 @@ From Prisma `notification_event_type`:
 
 | Event | Typical trigger | Status |
 |-------|-----------------|--------|
-| `group_invite` | Group invitation (non-user phone) | Implemented — outbox WhatsApp + click-to-chat `whatsapp_url`; message includes invite deep link + `APP_DOWNLOAD_URL` / store links |
-| `outing_invite` | Outing guest invite | Implemented path |
+| `group_invite` | Group invitation (non-user phone) | Automatic outbox after confirmed recipient opt-in with Meta configured. Pending membership is persisted separately. |
+| `outing_invite` | Registered guest invite or special-event phone invitation | Push for registered guests. WhatsApp outbox or click-to-chat for opted-in special-event phone guests. |
 | `outing_updated` | Candidate changes / outing updates | Implemented (vote reset messages) |
 | `attendance_changed` | Member attendance upsert | Implemented (owner notified) |
 | `chat_message` | Send chat | Implemented fan-out path |
@@ -69,19 +77,44 @@ Exact recipient sets are coded in `outing-notifier.ts` / resolution helpers — 
 
 `notification_type`: `outing | group | chat | vote | invitation | system`.
 
+## Push and inbox destinations
+
+FCM sends a visible notification plus string data. The data carries `type`, `pushId`, `recipientUserId`, and the related `groupId`, `outingId`, and `messageId` when applicable. `notificationId` identifies the matching inbox row for mark-read. The worker derives routing metadata from outbox columns and the durable inbox event key, including for queued events written before this contract. The inbox API exposes the specific `eventType` and optional chat `messageId` alongside its existing display category.
+
+| Event | Destination |
+|-------|-------------|
+| `group_created`, `group_updated`, `group_invite` | Group Details, subject to membership |
+| `member_joined`, `member_left` | Members section in Group Info |
+| `outing_created`, `outing_updated`, `outing_reminder`, `outing_invite`, `outing_confirmed`, `outing_cancelled` | Outing Details |
+| `chat_message` | Outing Chat with its regular history and message styling |
+| `place_vote`, candidate changes and vote resolution | Place Voting section in Outing Details |
+| `attendance_vote`, `attendance_changed` | Attendance section in Outing Details |
+| General notification without a related resource | Notifications inbox |
+
+Group create/update, membership changes, individual place votes, and scheduled outing reminders have destination support but no push producer. Group outing creation currently emits a notification when initial voting options are added. Group phone invitations use WhatsApp. Already delivered legacy pushes can open a related resource from their IDs but may lack the inbox or exact message ID.
+
 ## Flutter handling
 
-| Mode | Behavior |
-|------|----------|
-| Background | `firebaseMessagingBackgroundHandler` |
-| Foreground | Local notifications service + provider refresh |
-| Tap | Navigate via payload / invite/outing ids when present |
+| Mode | Tap source |
+|------|------------|
+| Foreground | Local notification response |
+| Background | Firebase open stream or local notification response |
+| Terminated | Firebase initial message or local notification launch details |
+| In-app inbox | Selected notification row |
+
+The client holds taps until the authenticated shell is mounted. It checks the intended recipient when present, deduplicates push opens, and pushes onto the existing route stack. It marks the selected inbox item read and validates the destination through the authenticated API. Deleted and inaccessible content shows localized feedback on the current screen. Chat and mention notifications open the regular chat without fetching, repositioning, or specially labeling the notification message, even when the payload includes a message ID.
 
 ## Idempotency
 
 - `notifications.event_key` unique
 - `notification_events.event_key` unique
-- Retries must reuse keys so duplicates are not created
+- Retries reuse event keys. Outing fan-out batches inbox and push outbox writes in one transaction so both records are persisted together.
+
+## WhatsApp configuration
+
+Set `WHATSAPP_PROVIDER=meta`, `WHATSAPP_ACCESS_TOKEN`, and `WHATSAPP_PHONE_NUMBER_ID` for automatic delivery. Configure approved templates with `WHATSAPP_INVITE_TEMPLATE` and `WHATSAPP_SPECIAL_EVENT_TEMPLATE` and set `WHATSAPP_INVITE_TEMPLATE_LANG` to the approved language. The special-event template must have five body parameters in order: event title, Cairo date/time, venue, Google Calendar URL, and optional try-the-app URL. The fixed template copy must say guests can attend without the app. Set `APP_DOWNLOAD_URL` to the public try-the-app page. Meta requires recipient opt-in before outbound messages. The app records the organizer’s confirmation before queueing. [WhatsApp Business Messaging Policy](https://business.whatsapp.com/policy)
+
+Without a configured Meta sender, group associations remain pending and the group API does not queue a send. The disabled sender never reports a successful WhatsApp submission. Group events deduplicate on `group_invite:<invitationId>`. A Meta success needs a provider message ID. The outbox’s sent status represents provider acceptance. Rate limits and service failures retry with bounded backoff. A rejected template or missing consent is terminal. Special-event invites retain their separate click-to-chat flow. Live delivery needs a Meta business account, API token, sending number ID, an approved group template and recipient consent.
 
 ## Failure handling
 
@@ -101,6 +134,7 @@ No verified per-event user preference matrix in Neon as of last verification. Do
 | PushChannel using Admin FCM | Implemented in code |
 | WhatsApp invitation channel | Implemented when config present |
 | Device E2E push proof | **NOT RUN** |
+| Development backend notification audit | Real Firebase identity and Neon data verified for older-message lookup, ownership, deletion, and push payload construction with the FCM send intercepted. |
 | Invitation-accepted dedicated UX event | Partial / policy-dependent |
 
 ## Related
@@ -108,3 +142,8 @@ No verified per-event user preference matrix in Neon as of last verification. Do
 - [`PRODUCT_SCENARIOS.md`](PRODUCT_SCENARIOS.md) §14
 - [`SYSTEM_DESIGN.md`](SYSTEM_DESIGN.md)
 - [`API_CONTRACTS.md`](API_CONTRACTS.md)
+
+
+## Mention notification handling — 2026-11-11
+
+Stable-ID mentions reuse `chat_message`, type `chat`, and the regular outing-chat destination. The mentioned recipient sees a “mentioned you” body using the canonical sender name; other chat recipients retain the ordinary new-message body. Repeated tokens and concurrent REST retries share the existing durable message/recipient event key and unique outbox key. The sender is excluded from both recipient sets. A retry after chat closure can acknowledge an already committed message and repair notification enqueue without creating another row. Delivery workers and real device push were not exercised in this task. Inbox producers and mark-read endpoints publish targeted Socket.IO invalidations after persistence.

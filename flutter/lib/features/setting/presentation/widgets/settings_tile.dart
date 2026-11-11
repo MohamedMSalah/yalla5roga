@@ -26,41 +26,44 @@ class SettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Row(
-        children: [
-          IconCircle(
-            icon: icon,
-            size: 32,
-            radius: 8,
-            iconSize: 16,
-            background: background,
-            foreground: foreground,
-          ),
-          12.gapW,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.sp,
-                  ),
-                ),
-                if (subtitle != null)
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Row(
+          children: [
+            IconCircle(
+              icon: icon,
+              size: 32,
+              radius: 8,
+              iconSize: 16,
+              background: background,
+              foreground: foreground,
+            ),
+            12.gapW,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    subtitle!,
+                    title,
                     style: TextStyle(
-                      color: context.palette.textMuted,
-                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12.sp,
                     ),
                   ),
-              ],
+                  if (subtitle != null)
+                    Text(
+                      subtitle!,
+                      style: TextStyle(
+                        color: context.palette.textMuted,
+                        fontSize: 10.sp,
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          ?trailing,
-        ],
+            ?trailing,
+          ],
+        ),
       ),
     );
   }

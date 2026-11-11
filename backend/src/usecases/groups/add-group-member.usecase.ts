@@ -3,6 +3,8 @@ import { GroupRepository } from "../../repositories/groups/group.repository.js";
 import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
 import { UserRepository } from "../../repositories/users/user.repository.js";
 import { assertGroupOwner } from "../../services/groups/group-access.js";
+import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
+import { FirebaseVerifiedPhoneLookup } from "../../services/phone/firebase-verified-phone.js";
 import type {
   AddGroupMemberByPhoneInput,
   GroupMember,
@@ -13,6 +15,7 @@ export class AddGroupMemberUseCase {
   constructor(
     private readonly groups: IGroupRepository = new GroupRepository(),
     private readonly users: IUserRepository = new UserRepository(),
+    private readonly phones = new FirebaseVerifiedPhoneLookup(),
   ) {}
 
   async execute(
@@ -25,8 +28,9 @@ export class AddGroupMemberUseCase {
 
     await assertGroupOwner(this.groups, input.group_id, callerUid);
 
-    const user = await this.users.findByPhone(input.phoneNumber);
-    if (!user) {
+    const phone = normalizePhoneNumber(input.phoneNumber);
+    const user = await this.users.findByPhone(phone);
+    if (!user || await this.phones.findUserIdByVerifiedPhone(phone) !== user.id) {
       throw new NotFoundError("User with this phone number");
     }
 

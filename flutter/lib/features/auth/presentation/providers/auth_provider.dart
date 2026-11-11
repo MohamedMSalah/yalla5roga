@@ -31,6 +31,8 @@ class AuthProvider extends ChangeNotifier {
   String? _verificationId;
   int? _resendToken;
   String? _pendingPhone;
+  bool _restoredAccountNeedsSync = false;
+  Future<bool>? _accountSynchronization;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
@@ -81,25 +83,33 @@ class AuthProvider extends ChangeNotifier {
   Future<void> restoreSession() async {
     final hasFirebase = repository.hasFirebaseSession;
     final result = await repository.getCachedUser();
-    result.fold(
-      (_) {
-        _user = null;
-        if (hasFirebase) {
-          unawaited(repository.signOutFirebase());
-        }
-      },
-      (user) {
-        if (!hasFirebase) {
-          _user = null;
-          unawaited(repository.logout().then((_) {}));
-          return;
-        }
-        _user = user;
-        unawaited(repository.debugPrintSwaggerIdToken());
-        unawaited(refreshProfile());
-      },
-    );
+    _user = result.fold<User?>((_) => null, (user) => user);
+    if (!hasFirebase || _user == null) {
+      _user = null;
+      await repository.logout();
+    }
+    _restoredAccountNeedsSync = _user != null;
     notifyListeners();
+  }
+
+  /// Deferred until cached shell content is visible. A successful restore sync
+  /// runs once; later resumes and profile reads cannot repeat it.
+  Future<bool> synchronizeRestoredAccount() {
+    if (!_restoredAccountNeedsSync || _user == null) return Future.value(false);
+    return _accountSynchronization ??= _synchronizeRestoredAccount()
+        .whenComplete(() => _accountSynchronization = null);
+  }
+
+  Future<bool> _synchronizeRestoredAccount() async {
+    final uid = _user?.id;
+    final result = await repository.syncProfileToBackend();
+    if (_user?.id != uid) return false;
+    return result.fold((_) => false, (user) {
+      _restoredAccountNeedsSync = false;
+      _user = user;
+      notifyListeners();
+      return true;
+    });
   }
 
   Future<bool> sendOtp(String phone, {bool updateCurrentUser = false}) async {
@@ -118,6 +128,7 @@ class AuthProvider extends ChangeNotifier {
     _errorCode = null;
     notifyListeners();
 
+    try {
     final samePhone = _pendingPhone == e164;
     final result = await repository.sendOtp(
       phone: e164,
@@ -127,10 +138,7 @@ class AuthProvider extends ChangeNotifier {
 
     final sent = result.fold(
       (failure) {
-        _isLoading = false;
-        _errorCode = failure is AuthFailure
-            ? (failure.code ?? AuthErrorCodes.verificationFailed)
-            : AuthErrorCodes.verificationFailed;
+        _errorCode = failure.code ?? (failure is AuthFailure ? AuthErrorCodes.verificationFailed : 'unexpected');
         _errorMessage = failure.message;
         _reportFailure(failure, context: 'sendOtp');
         notifyListeners();
@@ -142,13 +150,11 @@ class AuthProvider extends ChangeNotifier {
           _otpSent = true;
           _verificationId = null;
           _pendingPhone = e164;
-          _isLoading = false;
-          notifyListeners();
+            notifyListeners();
           return true;
         }
         if (verification.verificationId.isEmpty) {
-          _isLoading = false;
-          _errorCode = AuthErrorCodes.verificationFailed;
+            _errorCode = AuthErrorCodes.verificationFailed;
           _errorMessage = 'Phone verification failed';
           _reportFailure(
             const AuthFailure('Phone verification failed'),
@@ -163,7 +169,6 @@ class AuthProvider extends ChangeNotifier {
         _pendingPhone = e164;
         _otpSent = true;
         _phoneAutoVerified = false;
-        _isLoading = false;
         notifyListeners();
         return true;
       },
@@ -176,6 +181,14 @@ class AuthProvider extends ChangeNotifier {
       });
     }
     return sent;
+    } catch (_) {
+      _errorCode = 'unexpected';
+      _errorMessage = 'Something went wrong. Please try again.';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<bool> resendOtp(String phone) => sendOtp(phone);
@@ -229,7 +242,6 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-
   /// Kept for phone-only verify flows (legacy / deep links). Prefer [register].
   Future<bool> verifyOtp({required String smsCode, String? name}) async {
     final verificationId = _verificationId;
@@ -261,12 +273,20 @@ class AuthProvider extends ChangeNotifier {
   bool get hasPassword =>
       (_user?.hasPassword ?? false) || repository.hasPasswordProvider;
 
-  Future<void> refreshProfile() async {
-    if (_user == null) return;
+  Future<void>? _profileRefresh;
+
+  Future<void> refreshProfile() => _profileRefresh ??= _refreshProfile()
+      .whenComplete(() => _profileRefresh = null);
+
+  Future<void> _refreshProfile() async {
+    final uid = _user?.id;
+    if (uid == null) return;
     final result = await repository.refreshProfile();
+    if (_user?.id != uid) return;
     result.fold(
       (failure) => _reportFailure(failure, context: 'refreshProfile'),
       (user) {
+        if (_user == user) return;
         _user = user;
         notifyListeners();
       },
@@ -378,7 +398,6 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-
   Future<bool> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -457,6 +476,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    _restoredAccountNeedsSync = false;
     final result = await repository.logout();
     result.fold((failure) {
       _errorMessage = failure.message;
@@ -498,11 +518,8 @@ class AuthProvider extends ChangeNotifier {
       final result = await action();
       final success = result.fold(
         (failure) {
-          _isLoading = false;
           _errorMessage = failure.message;
-          _errorCode = failure is AuthFailure
-              ? (failure.code ?? AuthErrorCodes.verificationFailed)
-              : AuthErrorCodes.verificationFailed;
+          _errorCode = failure.code ?? (failure is AuthFailure ? AuthErrorCodes.verificationFailed : 'unexpected');
           // Cancelled social sign-in is not an error worth reporting.
           if (_errorCode != AuthErrorCodes.cancelled) {
             _reportFailure(failure, context: context);
@@ -517,7 +534,6 @@ class AuthProvider extends ChangeNotifier {
           _verificationId = null;
           _resendToken = null;
           _pendingPhone = null;
-          _isLoading = false;
           notifyListeners();
           return true;
         },
@@ -526,7 +542,7 @@ class AuthProvider extends ChangeNotifier {
         await CrashlyticsService.instance.setUserId(_user!.id);
         await AnalyticsService.instance.setUserId(_user!.id);
         unawaited(AnalyticsService.instance.loginSuccess());
-        unawaited(repository.debugPrintSwaggerIdToken());
+  
       }
       return success;
     } catch (error, stack) {
@@ -538,9 +554,8 @@ class AuthProvider extends ChangeNotifier {
           reason: 'auth_provider_$context',
         ),
       );
-      _isLoading = false;
-      _errorCode = AuthErrorCodes.verificationFailed;
-      _errorMessage = 'Unexpected error';
+      _errorCode = 'unexpected';
+      _errorMessage = 'Something went wrong. Please try again.';
       ErrorBlueprintLogger.log(
         error: error,
         stackTrace: stack,
@@ -558,6 +573,9 @@ class AuthProvider extends ChangeNotifier {
       unawaited(AnalyticsService.instance.loginFailed(code: _errorCode));
       notifyListeners();
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 }

@@ -13,13 +13,18 @@ abstract class GroupsDataSource {
   Future<List<Group>> getGroups();
   Future<Group> getGroup(String groupId);
   Future<Group> createGroup(Group group);
-  Future<Group> updateGroup(Group group);
+  Future<Group> updateGroup(String groupId, {String? bio, String? image});
   Future<Group> addMember(String groupId, GroupMember member);
-  Future<Group> removeMember(String groupId, String memberId);
+  Future<Group> removeMember(
+    String groupId,
+    String memberId, {
+    bool pending = false,
+  });
   Future<void> leaveGroup(String groupId, String userId);
   Future<GroupInviteResult> inviteByPhone({
     required String groupId,
     required String phoneNumber,
+    bool whatsappOptIn = false,
   });
   GroupMember? memberById(String id);
   GroupMember? memberByPhone(String phone);
@@ -59,8 +64,11 @@ class GroupsRemoteDataSource implements GroupsDataSource {
         ApiConstants.group(groupId),
       );
       final group = _groupFromJson(apiPayload(response.data));
-      final members = await _fetchMembers(groupId);
-      return group.copyWith(members: members);
+      final roster = await _fetchMembers(groupId);
+      return group.copyWith(
+        members: roster.members,
+        pendingMembers: roster.pendingMembers,
+      );
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -75,7 +83,7 @@ class GroupsRemoteDataSource implements GroupsDataSource {
         data: {
           'name': group.name,
           if (group.bio.isNotEmpty) 'bio': group.bio,
-          if (imageUrl != null) 'image_url': imageUrl,
+          'image_url': ?imageUrl,
         },
       );
       final created = _groupFromJson(apiPayload(response.data));
@@ -93,16 +101,19 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   }
 
   @override
-  Future<Group> updateGroup(Group group) async {
+  Future<Group> updateGroup(
+    String groupId, {
+    String? bio,
+    String? image,
+  }) async {
     try {
-      final imageUrl = remoteImageUrlOrNull(group.image);
+      final imageUrl = remoteImageUrlOrNull(image);
       final response = await _client.patch<Map<String, dynamic>>(
-        ApiConstants.group(group.id),
+        ApiConstants.group(groupId),
         data: {
-          'name': group.name,
-          'bio': group.bio,
+          'bio': ?bio,
           // Local paths are preview-only until an upload pipeline exists.
-          if (imageUrl != null) 'image_url': imageUrl,
+          'image_url': ?imageUrl,
         },
       );
       return _groupFromJson(apiPayload(response.data));
@@ -125,19 +136,25 @@ class GroupsRemoteDataSource implements GroupsDataSource {
           if (member.role == GroupRole.owner) 'role': 'owner',
         },
       );
-      return getGroup(groupId);
+      return await getGroup(groupId);
     } on DioException catch (error) {
       throw _unwrap(error);
     }
   }
 
   @override
-  Future<Group> removeMember(String groupId, String memberId) async {
+  Future<Group> removeMember(
+    String groupId,
+    String memberId, {
+    bool pending = false,
+  }) async {
     try {
       await _client.delete<Map<String, dynamic>>(
-        ApiConstants.groupMember(groupId, memberId),
+        pending
+            ? ApiConstants.pendingGroupMember(groupId, memberId)
+            : ApiConstants.groupMember(groupId, memberId),
       );
-      return getGroup(groupId);
+      return await getGroup(groupId);
     } on DioException catch (error) {
       throw _unwrap(error);
     }
@@ -159,11 +176,12 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   Future<GroupInviteResult> inviteByPhone({
     required String groupId,
     required String phoneNumber,
+    bool whatsappOptIn = false,
   }) async {
     try {
       final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.groupInvitations(groupId),
-        data: {'phoneNumber': phoneNumber},
+        data: {'phoneNumber': phoneNumber, 'whatsappOptIn': whatsappOptIn},
       );
       return GroupInviteResult.fromJson(apiPayload(response.data));
     } on DioException catch (error) {
@@ -197,7 +215,8 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   String groupsForMember(String id) => '';
 
-  Future<List<GroupMember>> _fetchMembers(String groupId) async {
+  Future<({List<GroupMember> members, List<GroupMember> pendingMembers})>
+  _fetchMembers(String groupId) async {
     final response = await _client.get<Map<String, dynamic>>(
       ApiConstants.groupMembers(groupId),
     );
@@ -205,7 +224,20 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       response.data,
       aliases: const ['items', 'members'],
     );
-    return [for (final item in items) _memberFromJson(item)];
+    return (
+      members: [for (final item in items) _memberFromJson(item)],
+      pendingMembers: [
+        for (final item in apiObjectList(response.data?['pending_members']))
+          if (item['invitation_id'] case final String id)
+            GroupMember(
+              id: id,
+              name: '',
+              avatar: '',
+              phone: apiString(item['phone']),
+              isPending: true,
+            ),
+      ],
+    );
   }
 
   GroupMember _memberFromJson(Map<String, dynamic> json) {

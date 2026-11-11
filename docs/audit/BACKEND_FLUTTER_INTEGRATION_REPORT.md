@@ -1,5 +1,34 @@
 # Backend–Flutter Integration Report
 
+## 2026-11-09 Swagger and Flutter API audit
+
+| Check | Result |
+|-------|--------|
+| Swagger UI | Phone/password login returned HTTP 200 and a Firebase ID token. Authorize applied that token. The Swagger Execute request to the current-user endpoint sent the matching bearer header and returned HTTP 200. |
+| Configured database before deployment | Health, current-user groups, saved outings, drafts, places, nearby, saved places and notifications returned HTTP 200. The Flutter outings feed returned HTTP 500. A read-only schema check confirmed that the arrival migration had not been applied. The current Prisma outing model requires the missing request-key column. |
+| Full HTTP sweep | Exercised 84 of 84 Swagger operations against temporary schemas built from all five migrations. 83 returned a 2xx response in a fixture case after rechecks. Group-invite decline was exercised as a 403 authorization case. |
+| Flutter against the configured database | Production Dio clients passed login, profile parsing, password verification, groups, catalog and nearby lookup. The production outing data source reproduced the HTTP 500. All 74 Flutter regression tests passed. |
+| Flutter against the migrated fixture | Production Dio clients passed the outings feed, special-event create, idempotent replay, manual invite URL parsing and arrival write/list. The fixture used supplied coordinates to test the API contract. |
+| Regression suites | Flutter 74/74. Backend subset 78/82. Four sync-user tests still expect fields from the former email profile contract. |
+| Isolated feature checks | Place discovery returned the fixture at distance zero. Vote casting and owner tie-break passed after pinning raw SQL to the fixture schema. Socket.IO authenticated, joined and left the fixture outing. Arrival checks rejected a far point, accepted an in-range point and kept one arrival on retry. Special-event create reused the same outing on retry and returned a manual WhatsApp link with a Google Calendar URL. |
+
+### Reproduced defects
+
+| Case | Observed behavior |
+|------|-------------------|
+| Current-user outings on the configured database | The pending arrival migration caused HTTP 500 before deployment. After deploying, the authenticated request returned HTTP 200. |
+| Delete a group with a related group outing | HTTP 500. The foreign key clears the outing’s group ID, which violates the outing type constraint. Deleting an empty group returned HTTP 200. |
+| Delete the same vote twice | The first deletion returned HTTP 200. The repeated deletion returned HTTP 500 with Prisma P2025 because the vote row was already absent. |
+| List places with featured=false | HTTP 200 omits non-featured places. The controller treats the query-string value "false" as truthy. |
+
+The first fixture run used Prisma's schema option for ORM queries. Raw SQL still resolved to the public schema, which explained the initial nearby result and the vote/tie-break 404s. The recheck pinned the isolated connection pool’s search path before retrying. Temporary schemas and fixture Firebase identities were removed. Native Firebase session behavior, real WhatsApp delivery and device GPS still require separate verification.
+
+### Neon deployment follow-up
+
+Prisma applied the three pending migrations for constraint hardening, phone/password migration history, and outing arrivals on 2026-11-09. Migration status reports the schema is up to date. Read-only Neon checks verified the arrival table and its keys, the outing request-key column, and the valid unique index. The existing authorized Swagger session returned HTTP 200 for database health, the current-user outings feed, and an outing arrival list.
+
+## 2026-11-08 audit (historical)
+
 | Metadata | Value |
 |----------|-------|
 | Date | 2026-11-08 |
@@ -320,3 +349,29 @@ Flutter: on socket reconnect, `OutingChatProvider` force-refreshes REST history 
 - Updated: `SYSTEM_ARCHITECTURE`, `SYSTEM_DESIGN`, `BACKEND_ARCHITECTURE`, `FLUTTER_ARCHITECTURE`, `API_CONTRACTS`, `AUTHENTICATION_AND_AUTHORIZATION`, `USER_SCENARIOS` (CHAT-07), `BUSINESS_LOGIC`, `PROJECT_OVERVIEW`, `PROJECT_STRUCTURE`.
 - Code: backend realtime stack; Flutter socket client reliability hardening; `outing_chat_message_merge.dart` + unit tests.
 - No Redis / extra infra introduced.
+
+
+## Interactive maps and atomic outing creation
+
+Discover and Create Outing Step 2 share the FlutterMap surface and foreground GPS helper. Discover filters and previews catalog places. The outing picker keeps draft selection local to the route and returns an ordered list on confirmation. A group vote sends the list in the create request. Prisma commits the outing, candidates and owner attendance in one transaction and uses the existing request key for retries. There is no new database migration.
+
+### Files changed for the map work
+
+- Flutter shared infrastructure: `lib/core/widgets/app_map.dart`, `lib/core/utils/map_location.dart`, `lib/core/config/app_config.dart`, `lib/core/constants/{app_constants,api_constants}.dart`, `lib/core/di/repository_factory.dart`, `lib/core/network/api_client.dart`, and `lib/core/localization/l10n.dart`.
+- Flutter screens and data: `discover/presentation/pages/discover_page.dart`; `outings/presentation/pages/{pick_location_page,create_outing_page}.dart`; `outings/presentation/providers/{pick_location_provider,create_outing_provider}.dart`; `outings/presentation/widgets/create_outing_location_step.dart`; `outings/domain/entities/{place,place_location}.dart`; `outings/domain/repositories/location_repository.dart`; `outings/data/repositories/geocoding_http_repository.dart`; `outings/data/datasources/outings_remote_datasource.dart`. Feature paths are under `flutter/lib/features/`.
+- Backend: `src/routes/places/{index,place.geocoding.routes}.ts`, `src/services/places/geocoding.ts`, `src/config/swagger.ts`, `src/types/outings/outing.types.ts`, `src/validators/outings/outing.validator.ts`, `src/usecases/outings/create-outing.usecase.ts`, and `src/datasources/outings/outing.datasource.ts`.
+- Tests: Flutter `test/map_selection_test.dart` and `test/create_outing_basics_layout_test.dart`. Backend `tests/{map-outing-create,map-geocoding,outing-lifecycle,voting-concurrency}.test.ts`.
+- Configuration and documentation: backend and Flutter environment examples, `API_CONTRACTS.md`, `BACKEND_ARCHITECTURE.md`, `BUSINESS_LOGIC.md`, `DATABASE_ARCHITECTURE.md`, `FLUTTER_ARCHITECTURE.md`, `PROJECT_STRUCTURE.md`, `SYSTEM_ARCHITECTURE.md`, `SYSTEM_DESIGN.md`, `USER_SCENARIOS.md`, and this report.
+
+### Automated validation
+
+- `flutter test --no-pub` passed all 82 tests. Coverage includes catalog search, cancellation and stale responses, single picker navigation and denial, multi-selection ordering, draft round-trips, camera idle and disposal, and the Discover filter and preview.
+- `flutter analyze --no-pub` reported zero errors and 20 existing warnings and informational diagnostics.
+- Backend TypeScript check passed. The backend suite passed 107 of 111 tests after applying the five existing migrations to a disposable PostgreSQL instance. All map tests passed, including concurrent retry, ordered and nullable values, duplicate handling, and rollback on a failed option insert. Four existing profile-sync tests still expect email behavior absent from the current auth flow.
+
+### Deployment and manual checks
+
+1. Deploy the backend before the new Flutter build. Verify the provider-disabled response, then enable the optional Pelias-compatible service only after checking language coverage, quota, storage terms, and attribution.
+2. On Android and iOS, verify precise and approximate location, permission denial, settings recovery, offline tile retries, gestures and camera performance on representative devices.
+3. Verify the two languages and themes, large text and TalkBack or VoiceOver, rotation, foldable layouts and the keyboard. Configure the optional dark basemap if the release requires dark raster tiles.
+4. On a staging account, publish and reopen one fixed outing and one group vote. Check catalog UUIDs, manually named pins, nullable coordinates, candidate order and repeat submission with the same request key.

@@ -1,7 +1,15 @@
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 
 class VoteOption {
-  const VoteOption(this.placeId, this.label, this.votes, this.percent);
+  const VoteOption(
+    this.placeId,
+    this.label,
+    this.votes,
+    this.percent, {
+    this.area = '',
+  });
+
+  final String area;
 
   final String placeId;
   final String label;
@@ -19,6 +27,7 @@ class VoteOption {
       label ?? this.label,
       votes ?? this.votes,
       percent ?? this.percent,
+      area: area,
     );
   }
 
@@ -46,6 +55,7 @@ class PlaceVote {
     this.endsAt,
     this.cuserOptionIds = const [],
     this.suggestedById,
+    this.eligibleVoterCount = 0,
     this.finalized = false,
   });
 
@@ -55,9 +65,11 @@ class PlaceVote {
   final List<String> cuserOptionIds;
   final String? suggestedById;
   final bool finalized;
+  final int eligibleVoterCount;
 
   /// First selected option (legacy single-select helpers).
-  String? get cuserOptionId => cuserOptionIds.isEmpty ? null : cuserOptionIds.first;
+  String? get cuserOptionId =>
+      cuserOptionIds.isEmpty ? null : cuserOptionIds.first;
 
   int? get cuserOptionIndex {
     final id = cuserOptionId;
@@ -94,6 +106,7 @@ class PlaceVote {
           ? const []
           : (cuserOptionIds ?? this.cuserOptionIds),
       suggestedById: suggestedById,
+      eligibleVoterCount: eligibleVoterCount,
       finalized: finalized ?? this.finalized,
     );
   }

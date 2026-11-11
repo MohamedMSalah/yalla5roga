@@ -5,7 +5,7 @@ import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
@@ -155,112 +155,18 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     BuildContext context,
     CreateOutingProvider form,
   ) async {
-    final picked = await Get.to<PickedPlace>(
+    final discover = context.read<DiscoverProvider>();
+    final multi = form.multiPlaceMode;
+    final selected = await Get.to<List<Place>>(
       () => PickLocationPage(
-        placeName: form.customPlaceController.text.trim(),
-        initialLatitude: form.customLatitude,
-        initialLongitude: form.customLongitude,
+        catalog: discover.catalogPlaces(),
+        initial: multi ? null : form.mapInitialPlace,
+        selected: multi ? form.selectedPlaces : const [],
+        maxSelections: multi ? OutingsProvider.maxVotePlaces : 1,
       ),
-    );
-    if (picked == null || !context.mounted) return;
-    form.applyPickedPlace(picked);
-  }
-
-  Future<void> _addVotePlace(
-    BuildContext context,
-    CreateOutingProvider form,
-  ) async {
-    if (!form.canAddMorePlaces) {
-      AppSnackBar.show(context.l10n.pickAtMostFivePlaces);
-      return;
-    }
-    final places = form.suggestedPlaces
-        .where((place) => !form.isPlaceSelected(place))
-        .toList();
-    if (places.isEmpty) {
-      AppSnackBar.show(context.l10n.noPlaces);
-      return;
-    }
-    final selected = await Get.bottomSheet<Place>(
-      SafeArea(
-        child: Builder(
-          builder: (context) {
-            final palette = context.palette;
-            final l10n = context.l10n;
-            final maxHeight = MediaQuery.sizeOf(context).height * 0.7;
-            return Material(
-              color: palette.surface,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24.r)),
-              clipBehavior: Clip.antiAlias,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: maxHeight),
-                child: Padding(
-                  padding: Responsive.padding(all: 20),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.addPlace,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: Responsive.fontMd,
-                        ),
-                      ),
-                      Responsive.spaceXs.gapH,
-                      Text(
-                        l10n.placesSelectedMax(
-                          form.selectedPlaces.length,
-                          OutingsProvider.maxVotePlaces,
-                        ),
-                        style: TextStyle(
-                          color: AppColors.brand600,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 10.sp,
-                        ),
-                      ),
-                      Responsive.spaceMd.gapH,
-                      Flexible(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: places.length,
-                          itemBuilder: (context, index) {
-                            final place = places[index];
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: AppNetworkImage(
-                                url: place.imageUrl,
-                                width: 40.w,
-                                height: 40.w,
-                                radius: 12.r,
-                              ),
-                              title: Text(
-                                place.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(place.area),
-                              onTap: () => Get.back(result: place),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      enterBottomSheetDuration: AppMotion.sheetEnter,
-      exitBottomSheetDuration: AppMotion.sheetExit,
     );
     if (selected == null || !context.mounted) return;
-    form.addSelectedPlace(selected);
+    form.replaceMapSelection(selected);
   }
 
   Future<void> _pickDate(
@@ -293,14 +199,15 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     BuildContext context,
     CreateOutingProvider form,
   ) async {
-    final selected = await Get.to<Set<String>>(
+    final selected = await Get.to<SelectedEventGuests>(
       () => InviteGuestsPage(
         contacts: form.contacts,
         initialSelectedIds: form.guestIds,
+        initialSelectedPhones: form.guestPhones,
       ),
     );
     if (selected == null || !context.mounted) return;
-    form.setGuests(selected);
+    form.setGuests(selected.ids, phones: selected.phones);
   }
 
   Future<void> _pickGroup(
@@ -401,16 +308,31 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
   Future<void> _create(BuildContext context, CreateOutingProvider form) async {
     final outings = context.read<OutingsProvider>();
     if (outings.isCreating) return;
+    if (form.guestPhones.isNotEmpty) {
+      final l10n = context.l10n;
+      final optedIn = await AppAlert.confirm(
+        title: l10n.whatsappInvites,
+        message: l10n.whatsappOptInPrompt,
+        confirmText: l10n.confirmWhatsAppInvites,
+        cancelText: l10n.cancel,
+      );
+      if (!context.mounted || !optedIn || outings.isCreating) return;
+    }
     final userId = context.read<AuthProvider>().user?.id;
     final outing = form.buildOuting(createdById: userId);
-    final ok = await outings.add(outing);
-    if (!context.mounted || !ok) return;
+    final created = await outings.add(outing);
+    if (!context.mounted || created == null) return;
     if (form.draft != null) {
       await context.read<SavedOutingsProvider>().removeDraft(form.draft!.id);
     }
     if (!context.mounted) return;
     AppSnackBar.show(context.l10n.outingCreated);
-    Get.off(() => EventPage(event: outing));
+    Get.off(
+      () => EventPage(
+        event: created.outing,
+        manualWhatsAppUrls: created.manualWhatsAppUrls,
+      ),
+    );
   }
 
   Future<void> _saveDraft(
@@ -479,7 +401,6 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
                             form: form,
                             onPickCustomLocation: () =>
                                 _pickCustomLocation(context, form),
-                            onAddVotePlace: () => _addVotePlace(context, form),
                           ),
                           _ => CreateOutingReviewStep(
                             key: const ValueKey(2),

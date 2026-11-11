@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:get/get.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
-import 'package:yalla_5roga/core/utils/app_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
@@ -36,6 +36,21 @@ class GroupsProvider extends ChangeNotifier {
   var _hasLoaded = false;
   String? _errorMessage;
   var _epoch = 0;
+  final _openGroups = <String, int>{};
+  final _loadedRosters = <String>{};
+  Iterable<String> get openGroupIds => _openGroups.keys;
+
+  void openGroup(String id) =>
+      _openGroups.update(id, (count) => count + 1, ifAbsent: () => 1);
+
+  void closeGroup(String id) {
+    final count = _openGroups[id] ?? 0;
+    if (count <= 1) {
+      _openGroups.remove(id);
+    } else {
+      _openGroups[id] = count - 1;
+    }
+  }
 
   List<Group> get groups => List.unmodifiable(_groups);
 
@@ -95,24 +110,73 @@ class GroupsProvider extends ChangeNotifier {
     return Group(id: id, name: '', outings: 0, image: '', members: const []);
   }
 
-  Future<Group?> ensureGroupLoaded(String groupId) async {
+  Future<Group?> ensureGroupLoaded(
+    String groupId, {
+    bool forceRefresh = false,
+    bool allowStale = true,
+  }) async {
+    final epoch = _epoch;
     final existing = findById(groupId);
-    if (existing != null && existing.members.isNotEmpty) return existing;
+    if (allowStale &&
+        !forceRefresh &&
+        _loadedRosters.contains(groupId) &&
+        existing != null &&
+        existing.members.isNotEmpty) {
+      return existing;
+    }
 
-    final result = await repository.getGroup(groupId);
-    return result.fold((_) => existing, (group) {
-      _groups = [
-        group,
-        for (final item in _groups)
-          if (item.id != group.id) item,
-      ];
-      notifyListeners();
-      return group;
-    });
+    if (allowStale &&
+        !OfflineSnapshots.cacheOnly &&
+        (existing == null || existing.members.isEmpty)) {
+      final preview = await OfflineSnapshots.preview(
+        () => repository.getGroup(groupId, forceRefresh: true),
+      );
+      if (epoch != _epoch) return null;
+      preview.fold((_) {}, (group) {
+        if (findById(groupId) == null) {
+          _groups = [group, ..._groups];
+        } else {
+          _groups[_groups.indexWhere((item) => item.id == groupId)] = group;
+        }
+        notifyListeners();
+      });
+    }
+    final result = await repository.getGroup(
+      groupId,
+      forceRefresh: forceRefresh,
+      allowStale: allowStale,
+    );
+    if (epoch != _epoch) return null;
+    return result.fold(
+      (failure) {
+        if (failure.statusCode == 403 || failure.statusCode == 404) {
+          _loadedRosters.remove(groupId);
+          _groups.removeWhere((item) => item.id == groupId);
+          notifyListeners();
+          return null;
+        }
+        return allowStale ? findById(groupId) : null;
+      },
+      (group) {
+        if (!OfflineSnapshots.cacheOnly) _loadedRosters.add(groupId);
+        final index = _groups.indexWhere((item) => item.id == groupId);
+        if (index < 0) {
+          _groups = [group, ..._groups];
+        } else {
+          _groups[index] = group;
+        }
+        notifyListeners();
+        return group;
+      },
+    );
   }
 
   Future<void> loadGroups({bool forceRefresh = false}) async {
+    final epoch = _epoch;
+    if (forceRefresh) _loadedRosters.clear();
     final result = await repository.getGroups(forceRefresh: forceRefresh);
+    if (epoch != _epoch) return;
+    if (OfflineSnapshots.cacheOnly && result.isLeft()) return;
     result.fold(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -123,7 +187,19 @@ class GroupsProvider extends ChangeNotifier {
         );
       },
       (groups) {
-        _groups = List.of(groups);
+        final existing = {for (final group in _groups) group.id: group};
+        _groups = [
+          for (final group in groups)
+            if (existing[group.id] case final previous?)
+              group.copyWith(
+                members: group.listedMemberCount == previous.memberCount
+                    ? previous.members
+                    : const [],
+                pendingMembers: previous.pendingMembers,
+              )
+            else
+              group,
+        ];
         _errorMessage = null;
       },
     );
@@ -162,9 +238,8 @@ class GroupsProvider extends ChangeNotifier {
   }
 
   String? addCreatePhone(String raw, L10n l10n) {
-    final error = Validators.phone(raw, l10n);
-    if (error != null) return error;
-    final phone = Validators.normalizePhone(raw);
+    final phone = Validators.normalizeGroupPhone(raw);
+    if (phone == null) return l10n.invalidPhone;
     if (_createPhones.contains(phone)) return l10n.phoneAlreadyAdded;
     _createPhones.add(phone);
     notifyListeners();
@@ -194,8 +269,8 @@ class GroupsProvider extends ChangeNotifier {
   void addCreatePhones(Iterable<String> phones) {
     var changed = false;
     for (final raw in phones) {
-      if (!Validators.isValidEgyptianPhone(raw)) continue;
-      final phone = Validators.normalizePhone(raw);
+      final phone = Validators.normalizeGroupPhone(raw);
+      if (phone == null) continue;
       if (_createPhones.contains(phone)) continue;
       _createPhones.add(phone);
       changed = true;
@@ -207,8 +282,8 @@ class GroupsProvider extends ChangeNotifier {
   void setCreatePhones(Iterable<String> phones) {
     final next = <String>[];
     for (final raw in phones) {
-      if (!Validators.isValidEgyptianPhone(raw)) continue;
-      final phone = Validators.normalizePhone(raw);
+      final phone = Validators.normalizeGroupPhone(raw);
+      if (phone == null) continue;
       if (next.contains(phone)) continue;
       next.add(phone);
     }
@@ -223,6 +298,7 @@ class GroupsProvider extends ChangeNotifier {
     required String ownerName,
     String? ownerAvatar,
     String bio = '',
+    bool whatsappOptIn = false,
   }) async {
     if (_isCreating || name.trim().isEmpty) return null;
 
@@ -269,12 +345,12 @@ class GroupsProvider extends ChangeNotifier {
 
     final createdGroup = created;
     var queuedInvites = 0;
-    String? firstWhatsAppUrl;
     if (createdGroup != null) {
       for (final phone in phonesToInvite) {
         final invite = await repository.inviteByPhone(
           groupId: createdGroup.id,
           phoneNumber: phone,
+          whatsappOptIn: whatsappOptIn,
         );
         invite.fold(
           (failure) {
@@ -285,14 +361,11 @@ class GroupsProvider extends ChangeNotifier {
             );
           },
           (value) {
-            if (value.needsWhatsApp) {
-              queuedInvites += 1;
-              firstWhatsAppUrl ??= value.whatsappUrl;
-            }
+            if (value.notificationQueued) queuedInvites += 1;
           },
         );
       }
-      // Always refresh so creator is in members and count starts at ≥1.
+      // Always refresh so creator is in members and count starts at Ã¢â€°Â¥1.
       final refreshed = await repository.getGroup(
         createdGroup.id,
         forceRefresh: true,
@@ -313,10 +386,6 @@ class GroupsProvider extends ChangeNotifier {
     if (queuedInvites > 0) {
       final l10n = _l10n;
       if (l10n != null) AppSnackBar.show(l10n.invitesQueued(queuedInvites));
-      final url = firstWhatsAppUrl;
-      if (url != null && url.isNotEmpty) {
-        await AppLauncher.openWhatsAppUrl(url);
-      }
     }
 
     return created;
@@ -345,7 +414,12 @@ class GroupsProvider extends ChangeNotifier {
     final added = await AddMemberPhoneSheet.show();
     if (added == null) return;
 
-    final error = await inviteMember(groupId, added, l10n);
+    final error = await inviteMember(
+      groupId,
+      added.phone,
+      l10n,
+      whatsappOptIn: added.whatsappOptIn,
+    );
     // API failures already surface via AppErrorFeedback; validation only here.
     if (error != null) {
       AppSnackBar.show(error);
@@ -397,24 +471,46 @@ class GroupsProvider extends ChangeNotifier {
     Get.until((route) => route.isFirst);
   }
 
-  Future<bool> updateImage(String groupId, String url) async {
-    final current = byId(groupId);
-    final result = await repository.updateGroup(current.copyWith(image: url));
+  Future<bool> updateImage(String groupId, String url) =>
+      _updateGroup(groupId, image: url);
+
+  Future<bool> updateBio(String groupId, String bio) =>
+      _updateGroup(groupId, bio: bio.trim());
+
+  Future<bool> _updateGroup(
+    String groupId, {
+    String? bio,
+    String? image,
+  }) async {
+    final current = findById(groupId);
+    if (current == null || !canManage(current)) return false;
+    final result = await repository.updateGroup(
+      groupId,
+      bio: bio,
+      image: image,
+    );
     final ok = result.fold(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,
           kind: AppErrorKind.send,
-          context: 'updateGroupImage',
+          context: bio == null ? 'updateGroupImage' : 'updateGroupBio',
         );
         return false;
       },
       (group) {
         _errorMessage = null;
+        // A patch response omits the caller role and the loaded member list.
         _groups = [
           for (final item in _groups)
-            if (item.id == group.id) group else item,
+            if (item.id == group.id)
+              item.copyWith(
+                bio: bio == null ? null : group.bio,
+                image: image == null ? null : group.image,
+              )
+            else
+              item,
         ];
         return true;
       },
@@ -426,16 +522,23 @@ class GroupsProvider extends ChangeNotifier {
   /// Invite by phone. Existing verified users join immediately; others get a
   /// pending `group_invitations` row and a WhatsApp download/invite message.
   /// Returns a localized validation/API error, or `null` on success.
-  Future<String?> inviteMember(String groupId, String phone, L10n l10n) async {
-    final group = byId(groupId);
-    if (group.containsMember(id: phone, phone: phone)) {
+  Future<String?> inviteMember(
+    String groupId,
+    String phone,
+    L10n l10n, {
+    bool whatsappOptIn = false,
+  }) async {
+    final epoch = _epoch;
+    if (findById(groupId)?.containsMember(id: phone, phone: phone) == true) {
       return l10n.phoneAlreadyAdded;
     }
 
     final result = await repository.inviteByPhone(
       groupId: groupId,
       phoneNumber: phone,
+      whatsappOptIn: whatsappOptIn,
     );
+    if (epoch != _epoch) return null;
     final error = await result.fold<Future<String?>>(
       (failure) async {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -450,25 +553,17 @@ class GroupsProvider extends ChangeNotifier {
       (invite) async {
         _errorMessage = null;
         final display = l10n.digits(MemberDisplayName.resolvePhone(phone));
+        await ensureGroupLoaded(groupId, forceRefresh: true);
+        if (epoch != _epoch) return null;
         if (invite.isMembership) {
-          final refreshed = await repository.getGroup(
-            groupId,
-            forceRefresh: true,
-          );
-          refreshed.fold((_) {}, (updated) {
-            _groups = [
-              for (final item in _groups)
-                if (item.id == updated.id) updated else item,
-            ];
-          });
           AnalyticsService.instance.joinGroup();
           AppSnackBar.show(l10n.memberAdded(display));
-        } else if (invite.needsWhatsApp) {
-          AppSnackBar.show(l10n.invitationSent);
-          final url = invite.whatsappUrl;
-          if (url != null && url.isNotEmpty) {
-            await AppLauncher.openWhatsAppUrl(url);
-          }
+        } else {
+          AppSnackBar.show(
+            invite.notificationQueued
+                ? l10n.invitationQueued
+                : l10n.pendingGroupRegistration,
+          );
         }
         return null;
       },
@@ -485,7 +580,11 @@ class GroupsProvider extends ChangeNotifier {
 
   Future<bool> removeMember(String groupId, GroupMember person) async {
     if (person.role == GroupRole.owner) return false;
-    final result = await repository.removeMember(groupId, person.id);
+    final result = await repository.removeMember(
+      groupId,
+      person.id,
+      pending: person.isPending,
+    );
     final ok = result.fold(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -509,7 +608,7 @@ class GroupsProvider extends ChangeNotifier {
     return ok;
   }
 
-  /// Leaves the group. Backend decides ownership transfer if the owner leaves.
+  /// Leaves the group; the backend prevents the last owner from leaving.
   Future<bool> leaveGroup(String groupId) async {
     if (_isLeaving) return false;
     _isLeaving = true;
@@ -549,7 +648,6 @@ class GroupsProvider extends ChangeNotifier {
 
     await loadGroups(forceRefresh: forceRefresh);
     if (token != _epoch) {
-      _finishInitialLoad();
       return;
     }
 
@@ -565,8 +663,10 @@ class GroupsProvider extends ChangeNotifier {
   void clear() {
     _epoch++;
     repository.clearCache();
+    _openGroups.clear();
+    _loadedRosters.clear();
     _unreadGroupCount = 0;
-    _groups = [for (final group in _groups) group.copyWith(unread: 0)];
+    _groups = [];
     _isLoading = false;
     _isLeaving = false;
     _isCreating = false;

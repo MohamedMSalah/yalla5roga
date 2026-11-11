@@ -7,7 +7,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo for your group, outing, or profile.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Yalla 5roga uses your location to pin your current place on the map.</string>
+	<string>Yalla 5roga uses your location while the app is open to show you on the map and automatically verify arrival at your outing.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Yalla 5roga uses your contacts to show the names you saved for group members. Contacts stay on this device.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>

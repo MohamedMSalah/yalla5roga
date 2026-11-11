@@ -23,14 +23,6 @@ class GroupsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.groupsTitle,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Responsive.fontMd,
-          ),
-        ),
-        Responsive.spaceSm.gapH,
         if (items.isEmpty)
           AppEmptyState(
             icon: showCreate

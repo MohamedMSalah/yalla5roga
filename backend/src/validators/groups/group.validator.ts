@@ -41,9 +41,11 @@ export const groupMemberParamsSchema = z.object({
 });
 
 export const inviteToGroupBodySchema = z.object({
+  whatsappOptIn: z.boolean().optional(),
   phoneNumber: z.string().trim().min(8).max(20),
 });
 
-export const invitationIdParamsSchema = z.object({
+export const pendingMembershipParamsSchema = z.object({
+  id: z.uuid(),
   invitationId: z.uuid(),
 });

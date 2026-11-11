@@ -5,6 +5,7 @@ import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
@@ -19,7 +20,9 @@ class GroupOutingsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final outings = context.watch<OutingsProvider>().forGroup(group.id);
+    final outings = context.select<OutingsProvider, List<Outing>>(
+      (provider) => provider.forGroup(group.id),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -121,7 +121,10 @@ export class PlaceController {
 
   removeHour = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = await this.deleteHour.execute(req.params.hourId as string);
+      const data = await this.deleteHour.execute(
+        req.params.id as string,
+        req.params.hourId as string,
+      );
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -152,6 +155,7 @@ export class PlaceController {
   removeImage = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data = await this.deleteImage.execute(
+        req.params.id as string,
         req.params.imageId as string,
       );
       res.json({ success: true, data });
@@ -184,6 +188,7 @@ export class PlaceController {
   removePrice = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data = await this.deletePrice.execute(
+        req.params.id as string,
         req.params.priceId as string,
       );
       res.json({ success: true, data });

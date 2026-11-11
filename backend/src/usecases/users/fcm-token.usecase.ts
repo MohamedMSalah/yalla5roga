@@ -12,21 +12,16 @@ export class RegisterFcmTokenUseCase {
       throw new ValidationError("Invalid FCM token");
     }
 
-    // Unique on token globally: move token to this user if it existed elsewhere.
-    await prisma.user_fcm_tokens.deleteMany({
-      where: { token: cleaned, NOT: { user_id: userId } },
-    });
-
+    // A globally unique token can move between accounts in a single write.
     const row = await prisma.user_fcm_tokens.upsert({
-      where: {
-        user_id_token: { user_id: userId, token: cleaned },
-      },
+      where: { token: cleaned },
       create: {
         user_id: userId,
         token: cleaned,
         platform: platform?.slice(0, 20) ?? null,
       },
       update: {
+        user_id: userId,
         platform: platform?.slice(0, 20) ?? null,
         updated_at: new Date(),
       },

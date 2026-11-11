@@ -3,24 +3,50 @@ import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/error/exception_mapper.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 
+const expectedUserIdKey = "expectedFirebaseUserId";
+
 typedef IdTokenProvider = Future<String?> Function({bool forceRefresh});
 
 /// Attaches `Authorization: Bearer <Firebase ID token>` on every request.
 ///
 /// The backend must verify this token and derive the user UID from it —
 /// never trust a client-supplied identity field.
-class AuthInterceptor extends QueuedInterceptor {
-  AuthInterceptor({IdTokenProvider? tokenProvider})
+class AuthInterceptor extends Interceptor {
+  AuthInterceptor({IdTokenProvider? tokenProvider, this.currentUserId})
     : _tokenProvider = tokenProvider;
 
+  final String? Function()? currentUserId;
   IdTokenProvider? _tokenProvider;
+
+  bool _sessionMatches(RequestOptions options) {
+    final expected = options.extra[expectedUserIdKey];
+    return expected == null || currentUserId?.call() == expected;
+  }
+
+  DioException _sessionChanged(RequestOptions options) => DioException(
+    requestOptions: options,
+    type: DioExceptionType.cancel,
+    error: const AuthException('Account changed'),
+  );
   Dio? _dio;
+  final _refreshes = <String?, Future<String?>>{};
+
+  Future<String?> _refresh(IdTokenProvider provider) {
+    final uid = currentUserId?.call();
+    return _refreshes.putIfAbsent(uid, () =>
+      provider(forceRefresh: true).whenComplete(() => _refreshes.remove(uid)),
+    );
+  }
 
   /// Must be called once after the owning Dio instance is constructed.
   void bind(Dio dio) => _dio = dio;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    if (!_sessionMatches(options)) {
+      handler.reject(_sessionChanged(options));
+      return;
+    }
     final provider = _tokenProvider;
     if (provider == null) {
       handler.next(options);
@@ -29,6 +55,10 @@ class AuthInterceptor extends QueuedInterceptor {
 
     provider()
         .then((token) {
+          if (!_sessionMatches(options)) {
+            handler.reject(_sessionChanged(options));
+            return;
+          }
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -40,7 +70,11 @@ class AuthInterceptor extends QueuedInterceptor {
           }
           // Public endpoints can still proceed. Authenticated endpoints will
           // return a 401, which this interceptor handles below.
-          handler.next(options);
+          if (_sessionMatches(options)) {
+            handler.next(options);
+          } else {
+            handler.reject(_sessionChanged(options));
+          }
         });
   }
 
@@ -50,14 +84,14 @@ class AuthInterceptor extends QueuedInterceptor {
     final alreadyRetried = err.requestOptions.extra['_authRetried'] == true;
     final provider = _tokenProvider;
     final dio = _dio;
-    if (statusCode != 401 || alreadyRetried || provider == null || dio == null) {
+    if (err.requestOptions.path.contains('/auth/recovery/') || err.requestOptions.path.endsWith('/auth/login') || err.requestOptions.path.endsWith('/auth/signup') || err.requestOptions.path.endsWith('/users/sync') || statusCode != 401 || alreadyRetried || provider == null || dio == null || !_sessionMatches(err.requestOptions)) {
       handler.next(err);
       return;
     }
 
     try {
-      final token = await provider(forceRefresh: true);
-      if (token == null || token.isEmpty) {
+      final token = await _refresh(provider);
+      if (token == null || token.isEmpty || !_sessionMatches(err.requestOptions)) {
         handler.next(err);
         return;
       }

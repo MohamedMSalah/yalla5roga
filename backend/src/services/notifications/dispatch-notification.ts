@@ -5,6 +5,7 @@ import type { NotificationEvent } from "../../types/notifications/notification-e
 import type { NotificationChannelSender } from "./channels/notification-channel.js";
 import { PushChannel } from "./channels/push.channel.js";
 import { WhatsAppChannel } from "./channels/whatsapp.channel.js";
+import { notificationTarget } from "./notification-target.js";
 
 function backoffMs(attempt: number): number {
   // 10s, 30s, 90s, 270s, ... capped at 15 minutes
@@ -51,12 +52,21 @@ export class NotificationDispatcher {
     }
 
     const payload = this.events.parsePayload(event);
+    const inboxEventKey = event.event_key?.startsWith("outbox:")
+      ? event.event_key.slice("outbox:".length)
+      : null;
     const result = await channel.send({
       eventId: event.id,
       channel: event.channel,
       recipientPhone: event.recipient_phone,
       recipientUserId: event.recipient_user_id,
-      payload,
+      payload: event.channel === "push" ? {
+        ...payload,
+        ...notificationTarget(inboxEventKey, event.type),
+        groupId: event.group_id,
+        outingId: event.outing_id,
+      } : payload,
+      inboxEventKey,
     });
 
     await this.events.addDeliveryLog({
@@ -77,7 +87,7 @@ export class NotificationDispatcher {
       event,
       result.error ?? "Channel send failed",
       now,
-      false,
+      result.retryable === false,
     );
   }
 

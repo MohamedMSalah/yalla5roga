@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
-import 'package:yalla_5roga/features/groups/presentation/widgets/cards/active_vote_card.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/cards/active_vote_card.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
-/// Horizontal active-votes list for the Groups screen.
+/// Horizontal active-votes list for the Outings tab.
 class ActiveVotesList extends StatelessWidget {
   const ActiveVotesList({super.key});
 
@@ -33,7 +33,8 @@ class ActiveVotesList extends StatelessWidget {
           )
         else
           SizedBox(
-            height: Responsive.voteCardHeight,
+            height: MediaQuery.textScalerOf(context)
+                .scale(Responsive.voteCardHeight),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const BouncingScrollPhysics(),

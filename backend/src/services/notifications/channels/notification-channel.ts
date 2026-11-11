@@ -7,6 +7,7 @@ export type ChannelSendResult = {
   status: "sent" | "failed";
   response?: unknown;
   error?: string;
+  retryable?: boolean;
   /** When set, dispatcher may delete invalid FCM tokens. */
   invalidTokens?: string[];
 };
@@ -24,6 +25,7 @@ export type ChannelSendInput = {
   channel: NotificationChannel;
   recipientPhone: string | null;
   recipientUserId: string | null;
+  inboxEventKey?: string | null;
   payload: GroupInvitePayload | PushPayload | Record<string, unknown>;
 };
 

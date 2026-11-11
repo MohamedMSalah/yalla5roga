@@ -10,6 +10,8 @@ class NotificationItem {
     this.action = false,
     this.createdAt,
     this.type,
+    this.eventType,
+    this.messageId,
   });
 
   final String id;
@@ -26,6 +28,8 @@ class NotificationItem {
   final bool action;
   final DateTime? createdAt;
   final String? type;
+  final String? eventType;
+  final String? messageId;
 
   /// Legacy alias used by older UI / JSON payloads.
   String? get eventId => outingId;
@@ -53,6 +57,8 @@ class NotificationItem {
       action: action,
       createdAt: createdAt,
       type: type,
+      eventType: eventType,
+      messageId: messageId,
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
@@ -10,7 +12,13 @@ class FirebaseAuthService {
   FirebaseAuthService({fb.FirebaseAuth? auth})
     : _auth = auth ?? fb.FirebaseAuth.instance;
 
+  static const _timeout = Duration(seconds: 15);
   final fb.FirebaseAuth _auth;
+  String? _pendingPhoneVerificationToken;
+
+  String? get pendingPhoneVerificationToken => _pendingPhoneVerificationToken;
+
+  void clearPhoneVerificationToken() => _pendingPhoneVerificationToken = null;
 
   fb.User? get currentUser => _auth.currentUser;
 
@@ -28,6 +36,7 @@ class FirebaseAuthService {
     }
 
     final completer = Completer<PhoneVerification>();
+    var acceptingCallbacks = true;
 
     if (kDebugMode) {
       debugPrint(
@@ -37,25 +46,25 @@ class FirebaseAuthService {
     }
 
     try {
-      await _auth.verifyPhoneNumber(
+      final request = _auth.verifyPhoneNumber(
         phoneNumber: e164,
         forceResendingToken: forceResendingToken,
         verificationCompleted: (credential) {
+          if (!acceptingCallbacks) return;
           if (updateCurrentUser) {
             unawaited(_applyPhoneUpdate(credential, completer));
             return;
           }
-          if (!completer.isCompleted) {
-            completer.complete(const PhoneVerification(verificationId: ''));
-          }
-          unawaited(_auth.signInWithCredential(credential));
+          // Wait for codeSent; do not race signup with another sign-in.
         },
         verificationFailed: (error) {
+          if (!acceptingCallbacks) return;
           if (!completer.isCompleted) {
             completer.completeError(_mapFirebaseAuthException(error));
           }
         },
         codeSent: (verificationId, resendToken) {
+          if (!acceptingCallbacks) return;
           if (!completer.isCompleted) {
             completer.complete(
               PhoneVerification(
@@ -66,6 +75,7 @@ class FirebaseAuthService {
           }
         },
         codeAutoRetrievalTimeout: (verificationId) {
+          if (!acceptingCallbacks) return;
           if (!completer.isCompleted) {
             completer.complete(
               PhoneVerification(verificationId: verificationId),
@@ -74,23 +84,38 @@ class FirebaseAuthService {
         },
         timeout: const Duration(seconds: 60),
       );
-    } on fb.FirebaseAuthException catch (error) {
-      throw _mapFirebaseAuthException(error);
-    }
 
-    try {
+      // Observe both native invocation and callbacks immediately. Android app
+      // verification/reCAPTCHA can outlast the normal API request deadline.
+      unawaited(
+        request.then<void>(
+          (_) {},
+          onError: (Object error, StackTrace stack) {
+            if (!acceptingCallbacks || completer.isCompleted) return;
+            completer.completeError(
+              error is fb.FirebaseAuthException
+                  ? _mapFirebaseAuthException(error)
+                  : const AuthException(
+                      'Phone verification failed',
+                      AuthErrorCodes.verificationFailed,
+                    ),
+              stack,
+            );
+          },
+        ),
+      );
       return await completer.future.timeout(
-        const Duration(seconds: 70),
+        const Duration(seconds: 75),
         onTimeout: () => throw const AuthException(
           'Phone verification timed out',
           AuthErrorCodes.timedOut,
         ),
       );
-    } on AuthException {
-      rethrow;
-    } catch (error) {
-      if (error is AuthException) rethrow;
-      throw AuthException(error.toString(), AuthErrorCodes.verificationFailed);
+    } on fb.FirebaseAuthException catch (error) {
+      throw _mapFirebaseAuthException(error);
+    } finally {
+      // Ignore callbacks arriving after a timeout or another completed result.
+      acceptingCallbacks = false;
     }
   }
 
@@ -112,7 +137,7 @@ class FirebaseAuthService {
       return;
     }
     try {
-      await user.updatePhoneNumber(credential);
+      await _updatePhoneCredential(user, credential);
       await user.reload();
       if (!completer.isCompleted) {
         completer.complete(
@@ -154,7 +179,12 @@ class FirebaseAuthService {
         verificationId: verificationId,
         smsCode: smsCode.trim(),
       );
-      return await _auth.signInWithCredential(credential);
+      return await _auth.signInWithCredential(credential).timeout(_timeout);
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
@@ -166,17 +196,23 @@ class FirebaseAuthService {
   /// can refresh Firebase ID tokens for Bearer auth.
   Future<fb.UserCredential> signInWithCustomToken(String customToken) async {
     try {
-      return await _auth.signInWithCustomToken(customToken.trim());
+      return await _auth
+          .signInWithCustomToken(customToken.trim())
+          .timeout(_timeout);
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
   }
 
-  /// Confirms a phone OTP without keeping that temporary Firebase session.
+  /// Returns the verified OTP ID token for backend signup, then signs out.
   ///
-  /// Used before backend email signup so the phone is client-verified while
-  /// Neon remains the email/password store.
-  Future<void> verifyPhoneOtpThenSignOut({
+  /// The backend verifies this proof and keeps its UID for the Neon account.
+  Future<String> verifyPhoneOtpThenSignOut({
     required String verificationId,
     required String smsCode,
   }) async {
@@ -191,51 +227,83 @@ class FirebaseAuthService {
         verificationId: verificationId,
         smsCode: smsCode.trim(),
       );
-      await _auth.signInWithCredential(credential);
-      await _auth.signOut();
-    } on fb.FirebaseAuthException catch (error) {
-      if (_auth.currentUser != null) {
-        await _auth.signOut();
+      final verified = await _auth
+          .signInWithCredential(credential)
+          .timeout(_timeout);
+      final token = await verified.user?.getIdToken(true).timeout(_timeout);
+      if (token == null || token.isEmpty) {
+        throw const AuthException('Phone verification failed');
       }
+      return token;
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
+    } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
+    } finally {
+      await _auth.signOut().timeout(_timeout);
+    }
+  }
+
+  Future<String> recoveryPhoneProof({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    // An isolated Auth instance prevents OTP from signing the application in,
+    // provisioning a Neon profile, or replacing an existing app session.
+    final app = await Firebase.initializeApp(
+      name: 'password-recovery-${DateTime.now().microsecondsSinceEpoch}',
+      options: Firebase.app().options,
+    ).timeout(_timeout);
+    final proofAuth = fb.FirebaseAuth.instanceFor(app: app);
+    try {
+      final credential = fb.PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode.trim(),
+      );
+      final verified = await proofAuth
+          .signInWithCredential(credential)
+          .timeout(_timeout);
+      final token = await verified.user?.getIdToken(true).timeout(_timeout);
+      if (token == null || token.isEmpty) {
+        throw const AuthException('Phone verification failed');
+      }
+      return token;
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
+    } on fb.FirebaseAuthException catch (error) {
+      throw _mapFirebaseAuthException(error);
+    } finally {
+      // Cleanup must also run if a non-cancellable SDK sign-in completes late.
+      try {
+        await proofAuth.signOut().timeout(_timeout);
+      } finally {
+        await app.delete().timeout(_timeout);
+      }
     }
   }
 
   Future<String?> idToken({bool forceRefresh = false}) async {
     try {
-      return await _auth.currentUser?.getIdToken(forceRefresh);
+      return await _auth.currentUser
+          ?.getIdToken(forceRefresh)
+          .timeout(_timeout);
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
   }
 
-  /// Debug helper for Swagger. Prints the Firebase ID token only in debug
-  /// builds. Do not copy an FCM device token into Authorize.
-  Future<void> debugPrintSwaggerIdToken() async {
-    if (!kDebugMode) return;
-
-    try {
-      final user = _auth.currentUser;
-      if (user == null) {
-        debugPrint('Firebase ID token (Swagger): no signed-in user');
-        return;
-      }
-
-      final token = await user.getIdToken(true);
-      if (token == null || token.isEmpty) {
-        debugPrint('Firebase ID token (Swagger): token was empty');
-        return;
-      }
-
-      final segments = token.split('.').length;
-      debugPrint(
-        'length=${token.length} segments=$segments',
-      );
-      debugPrint('Firebase ID token (Swagger): $token');
-    } catch (_) {
-      debugPrint('Firebase ID token (Swagger): refresh failed');
-    }
-  }
+  Future<void> debugPrintSwaggerIdToken() async {}
 
   bool get hasPasswordProvider {
     final user = _auth.currentUser;
@@ -269,6 +337,11 @@ class FirebaseAuthService {
         password: password,
       );
       await user.reauthenticateWithCredential(credential);
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
@@ -280,6 +353,11 @@ class FirebaseAuthService {
       await user.updateDisplayName(name.trim());
       await user.reload();
       return _auth.currentUser ?? user;
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
@@ -294,6 +372,11 @@ class FirebaseAuthService {
     final user = await _requireUser();
     try {
       await user.verifyBeforeUpdateEmail(newEmail.trim());
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
@@ -309,6 +392,11 @@ class FirebaseAuthService {
       await user.updatePassword(newPassword);
       await user.reload();
       return _auth.currentUser ?? user;
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
@@ -330,16 +418,52 @@ class FirebaseAuthService {
         verificationId: verificationId,
         smsCode: smsCode.trim(),
       );
-      await user.updatePhoneNumber(credential);
+      await _updatePhoneCredential(user, credential);
       await user.reload();
       return _auth.currentUser ?? user;
+    } on TimeoutException {
+      throw const AuthException(
+        'Connection timed out. Please try again.',
+        AuthErrorCodes.timedOut,
+      );
     } on fb.FirebaseAuthException catch (error) {
       throw _mapFirebaseAuthException(error);
     }
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    clearPhoneVerificationToken();
+    await _auth.signOut().timeout(_timeout);
+  }
+
+  Future<void> _updatePhoneCredential(
+    fb.User user,
+    fb.PhoneAuthCredential credential,
+  ) async {
+    clearPhoneVerificationToken();
+    try {
+      await user.updatePhoneNumber(credential);
+    } on fb.FirebaseAuthException catch (error) {
+      if (error.code != 'credential-already-in-use') rethrow;
+      // Older signup versions left the verified phone on an unused OTP UID.
+      // Prove ownership without replacing the signed-in application account.
+      final app = await Firebase.initializeApp(
+        name: 'phone-verification-proof',
+        options: Firebase.app().options,
+      );
+      final proofAuth = fb.FirebaseAuth.instanceFor(app: app);
+      try {
+        final result = await proofAuth.signInWithCredential(credential);
+        final token = await result.user?.getIdToken(true);
+        if (token == null || token.isEmpty) {
+          throw const AuthException('Phone verification failed');
+        }
+        _pendingPhoneVerificationToken = token;
+      } finally {
+        await proofAuth.signOut();
+        await app.delete();
+      }
+    }
   }
 
   static AuthException _mapFirebaseAuthException(

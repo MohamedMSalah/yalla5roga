@@ -6,6 +6,7 @@ import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/phone_text_field.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_phone_otp_section.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_edit_sheet.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_text_sheet.dart';
@@ -29,6 +30,8 @@ class ProfilePhoneSheet extends StatefulWidget {
     );
     auth.resetOtp();
     if (success == true && context.mounted) {
+      await context.read<GroupsProvider>().refresh(forceRefresh: true);
+      if (!context.mounted) return;
       await AppAlert.success(context, message: context.l10n.phoneVerified);
     }
   }

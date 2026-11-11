@@ -12,15 +12,17 @@ import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/custom_textfield.dart';
 
-/// Multi-select Egyptian phone numbers from the device address book.
+/// Multi-select phone numbers from the device address book.
 /// Returns normalized E.164 phones on confirm.
 class PickDeviceContactsPage extends StatefulWidget {
   const PickDeviceContactsPage({
     super.key,
     this.initialSelectedPhones = const {},
+    this.allowInternational = false,
   });
 
   final Set<String> initialSelectedPhones;
+  final bool allowInternational;
 
   @override
   State<PickDeviceContactsPage> createState() => _PickDeviceContactsPageState();
@@ -80,8 +82,11 @@ class _PickDeviceContactsPageState extends State<PickDeviceContactsPage> {
         final name = (contact.displayName ?? '').trim();
         for (final phone in contact.phones) {
           final number = (phone.normalizedNumber ?? phone.number).trim();
-          if (!Validators.isValidEgyptianPhone(number)) continue;
-          final normalized = Validators.normalizePhone(number);
+          final normalized = Validators.normalizeGroupPhone(number);
+          if (normalized == null ||
+              (!widget.allowInternational && !normalized.startsWith('+20'))) {
+            continue;
+          }
           byPhone.putIfAbsent(
             normalized,
             () => _DeviceContact(
@@ -92,9 +97,7 @@ class _PickDeviceContactsPageState extends State<PickDeviceContactsPage> {
         }
       }
       final items = byPhone.values.toList()
-        ..sort(
-          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-        );
+        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
       if (!mounted) return;
       setState(() {
         _contacts = items;

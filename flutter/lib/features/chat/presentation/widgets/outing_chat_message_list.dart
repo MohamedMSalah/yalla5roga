@@ -4,7 +4,6 @@ import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
-import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
 import 'package:yalla_5roga/features/chat/presentation/widgets/outing_chat_mention_text.dart';
 
@@ -13,33 +12,56 @@ class OutingChatMessageList extends StatelessWidget {
     super.key,
     required this.messages,
     required this.members,
-    required this.groups,
+    this.currentUserId,
+    this.currentUserName,
+    this.onLoadOlder,
+    this.loadingOlder = false,
   });
 
   final List<ChatMessage> messages;
   final List<GroupMember> members;
-  final GroupsProvider groups;
+  final String? currentUserId;
+  final String? currentUserName;
+  final VoidCallback? onLoadOlder;
+  final bool loadingOlder;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final palette = context.palette;
 
+    final byId = {for (final member in members) member.id: member};
     return ListView.builder(
       reverse: true,
       padding: Responsive.pagePadding(),
-      itemCount: messages.length,
+      itemCount: messages.length + (onLoadOlder == null ? 0 : 1),
       itemBuilder: (context, index) {
+        if (index == messages.length) {
+          return TextButton(
+            onPressed: loadingOlder ? null : onLoadOlder,
+            child: loadingOlder
+                ? const CircularProgressIndicator.adaptive()
+                : Text(l10n.olderChatMessages),
+          );
+        }
         final message = messages[messages.length - 1 - index];
-        final align = message.isMine
-            ? Alignment.centerRight
-            : Alignment.centerLeft;
-        final member = message.senderId == null
-            ? null
-            : groups.memberById(message.senderId!);
-        final senderName = l10n.digits(
-          member != null ? MemberDisplayName.resolve(member) : message.sender,
-        );
+        final isMine =
+            currentUserId != null && message.senderId == currentUserId;
+        final align =
+            (isMine
+                    ? AlignmentDirectional.centerEnd
+                    : AlignmentDirectional.centerStart)
+                .resolve(Directionality.of(context));
+        final member = byId[message.senderId];
+        final profileName = isMine ? currentUserName?.trim() : null;
+        final name = profileName?.isNotEmpty == true
+            ? profileName!
+            : message.sender.trim().isNotEmpty
+            ? message.sender.trim()
+            : member != null
+            ? MemberDisplayName.resolve(member)
+            : l10n.chatUnknownSender;
+        final senderName = isMine ? '$name (${l10n.you})' : name;
         return Padding(
           padding: EdgeInsets.only(
             bottom: index == messages.length - 1 ? 0 : 10.h,
@@ -50,7 +72,7 @@ class OutingChatMessageList extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (!message.isMine) ...[
+                if (!isMine) ...[
                   AppNetworkImage.avatar(
                     url: message.avatar ?? '',
                     width: 28.w,
@@ -59,20 +81,18 @@ class OutingChatMessageList extends StatelessWidget {
                   ),
                   8.gapW,
                 ],
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: (MediaQuery.sizeOf(context).width * 0.72)
-                        .clamp(200.w, 320.w)
-                        .toDouble(),
-                  ),
+                Flexible(
                   child: Container(
+                    constraints: BoxConstraints(
+                      maxWidth: (MediaQuery.sizeOf(context).width * 0.72)
+                          .clamp(200.w, 320.w)
+                          .toDouble(),
+                    ),
                     padding: Responsive.padding(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: message.isMine
-                          ? AppColors.brand600
-                          : palette.surface,
+                      color: isMine ? AppColors.brand600 : palette.surface,
                       borderRadius: BorderRadius.circular(16.r),
-                      boxShadow: message.isMine
+                      boxShadow: isMine
                           ? null
                           : [
                               BoxShadow(
@@ -85,28 +105,23 @@ class OutingChatMessageList extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (!message.isMine)
-                          Text(
-                            senderName,
-                            style: TextStyle(
-                              color: AppColors.brand600,
-                              fontSize: 10.sp,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        Text(
+                          senderName,
+                          style: context.texts.labelMedium?.copyWith(
+                            color: isMine ? Colors.white : palette.textPrimary,
+                            fontWeight: FontWeight.w700,
                           ),
+                        ),
+                        4.gapH,
                         OutingChatMentionText(
                           text: message.text,
                           members: members,
                           style: TextStyle(
-                            color: message.isMine
-                                ? Colors.white
-                                : palette.textPrimary,
+                            color: isMine ? Colors.white : palette.textPrimary,
                             fontSize: Responsive.fontSm,
                           ),
                           mentionStyle: TextStyle(
-                            color: message.isMine
-                                ? Colors.white
-                                : AppColors.brand600,
+                            color: isMine ? Colors.white : AppColors.brand600,
                             fontSize: Responsive.fontSm,
                             fontWeight: FontWeight.w800,
                           ),
@@ -118,18 +133,25 @@ class OutingChatMessageList extends StatelessWidget {
                             Text(
                               _formatTime(context, message),
                               style: TextStyle(
-                                color: message.isMine
+                                color: isMine
                                     ? Colors.white70
                                     : palette.textMuted,
                                 fontSize: Responsive.fontXs,
                               ),
                             ),
-                            if (message.isMine) ...[
+                            if (isMine) ...[
                               4.gapW,
                               Icon(
                                 _statusIcon(message.deliveryStatus),
                                 size: 14.sp,
                                 color: _statusColor(message.deliveryStatus),
+                                semanticLabel: switch (message.deliveryStatus) {
+                                  MessageDeliveryStatus.pending =>
+                                    context.l10n.chatMessagePending,
+                                  MessageDeliveryStatus.failed =>
+                                    context.l10n.chatMessageFailed,
+                                  _ => null,
+                                },
                               ),
                             ],
                           ],
@@ -156,6 +178,8 @@ String _formatTime(BuildContext context, ChatMessage message) {
 
 IconData _statusIcon(MessageDeliveryStatus status) {
   return switch (status) {
+    MessageDeliveryStatus.pending => Icons.schedule,
+    MessageDeliveryStatus.failed => Icons.error_outline,
     MessageDeliveryStatus.sent => Icons.check,
     MessageDeliveryStatus.delivered ||
     MessageDeliveryStatus.seen => Icons.done_all,

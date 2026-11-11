@@ -13,6 +13,8 @@ class NotificationModel extends NotificationItem {
     super.action,
     super.createdAt,
     super.type,
+    super.eventType,
+    super.messageId,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,8 @@ class NotificationModel extends NotificationItem {
       groupId: apiString(json['groupId']),
       action: apiBool(json['action']),
       type: apiString(json['type']),
+      eventType: apiString(json['eventType']),
+      messageId: apiString(json['messageId']),
       createdAt: DateTime.tryParse(apiString(json['createdAt']) ?? ''),
     );
   }

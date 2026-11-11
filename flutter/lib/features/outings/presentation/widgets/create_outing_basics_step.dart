@@ -35,57 +35,14 @@ class CreateOutingBasicsStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final preview = form.image ?? '';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Material(
-          borderRadius: BorderRadius.circular(22.r),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onUploadPhoto,
-            child: Stack(
-              alignment: AlignmentDirectional.bottomEnd,
-              children: [
-                PlanningCover(
-                  url: preview,
-                  art: form.occasion.coverArt,
-                  width: double.infinity,
-                  height: 140.h,
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: context.palette.surface,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.add_a_photo_outlined, size: 18),
-                          Responsive.spaceSm.gapW,
-                          Flexible(
-                            child: Text(
-                              preview.isEmpty
-                                  ? l10n.outingPhotoOptional
-                                  : l10n.changePhoto,
-                              style: context.texts.labelLarge,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        PlanningCoverPicker(
+          url: form.image ?? '',
+          art: form.occasion.coverArt,
+          optionalLabel: l10n.outingPhotoOptional,
+          onTap: onUploadPhoto,
         ),
         Responsive.spaceMd.gapH,
         CustomTextField(
@@ -133,7 +90,7 @@ class CreateOutingBasicsStep extends StatelessWidget {
           Responsive.spaceSm.gapH,
           Text(
             l10n.youInvitedPeopleToEvent(
-              form.guestIds.length,
+              form.guestIds.length + form.guestPhones.length,
               form.occasion == OutingOccasion.wedding
                   ? l10n.wedding
                   : l10n.birthday,
@@ -155,12 +112,7 @@ class CreateOutingBasicsStep extends StatelessWidget {
           ),
           Responsive.spaceSm.gapH,
           VibePicker(
-            options: [
-              VibeOption(Icons.restaurant_outlined, l10n.food),
-              VibeOption(Icons.sports_esports_outlined, l10n.activity),
-              VibeOption(Icons.park_outlined, l10n.outdoor),
-              VibeOption(Icons.movie_outlined, l10n.movie),
-            ],
+            options: VibeOption.outingVibes(l10n),
             index: form.vibe,
             onChanged: form.setVibe,
           ),

@@ -41,8 +41,8 @@ export class PlaceRepository implements IPlaceRepository {
   upsertHour(data: UpsertPlaceHourInput) {
     return this.datasource.upsertHour(data);
   }
-  deleteHour(id: string) {
-    return this.datasource.deleteHour(id);
+  deleteHour(placeId: string, id: string) {
+    return this.datasource.deleteHour(placeId, id);
   }
 
   listImages(placeId: string) {
@@ -51,8 +51,8 @@ export class PlaceRepository implements IPlaceRepository {
   createImage(data: CreatePlaceImageInput) {
     return this.datasource.createImage(data);
   }
-  deleteImage(id: string) {
-    return this.datasource.deleteImage(id);
+  deleteImage(placeId: string, id: string) {
+    return this.datasource.deleteImage(placeId, id);
   }
 
   listPrices(placeId: string) {
@@ -61,7 +61,7 @@ export class PlaceRepository implements IPlaceRepository {
   createPrice(data: CreatePlacePriceInput) {
     return this.datasource.createPrice(data);
   }
-  deletePrice(id: string) {
-    return this.datasource.deletePrice(id);
+  deletePrice(placeId: string, id: string) {
+    return this.datasource.deletePrice(placeId, id);
   }
 }

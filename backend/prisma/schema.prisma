@@ -10,26 +10,23 @@ datasource db {
 model users {
   id                                          String              @id @db.VarChar(128)
   name                                        String              @db.VarChar(30)
-  phone                                       String?             @unique @db.VarChar(16)
-  /// Retained for existing accounts during the phone-auth transition; never exposed by Prisma.
-  email                                       String?             @unique @ignore @db.VarChar(254)
-  /// bcrypt hash for phone/password accounts.
+  phone                                       String              @unique @db.VarChar(16)
   password_hash                               String?             @db.VarChar(255)
-  password_updated_at                         DateTime?           @db.Timestamptz(6)
   image_url                                   String?             @db.VarChar(2048)
   created_at                                  DateTime            @default(now()) @db.Timestamptz(6)
   updated_at                                  DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  password_recoveries                         password_recoveries[]
   chat_messages                               chat_messages[]
   chat_reads                                  chat_reads[]
   group_members                               group_members[]
   groups                                      groups[]
   notifications                               notifications[]
+  outing_arrivals                           outing_arrivals[]
   outing_attendance                           outing_attendance[]
   outing_drafts                               outing_drafts[]
   outing_guests                               outing_guests[]
   outing_votes                                outing_votes[]
   outings_outings_created_byTousers           outings[]           @relation("outings_created_byTousers")
-  outings_outings_suggested_by_user_idTousers outings[]           @relation("outings_suggested_by_user_idTousers")
   saved_outings                               saved_outings[]
   saved_places                                saved_places[]
   user_fcm_tokens                             user_fcm_tokens[]
@@ -84,7 +81,6 @@ model group_invitations {
   invitee            users?            @relation("group_invitations_user", fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([group_id], map: "idx_group_invitations_group")
-  @@index([invited_phone], map: "idx_group_invitations_phone")
   @@index([status], map: "idx_group_invitations_status")
   @@index([invited_phone, status], map: "idx_group_invitations_phone_status")
   @@index([user_id], map: "idx_group_invitations_user")
@@ -158,6 +154,7 @@ model outings {
   title                                     String                @db.VarChar(20)
   image_url                                 String                @default("") @db.VarChar(2048)
   group_id                                  String?               @db.Uuid
+  create_request_key                        String?               @db.VarChar(80)
   created_by                                String                @db.VarChar(128)
   status                                    outing_status         @default(draft)
   /// Discriminator: group outing (requires group_id) vs special event (birthday/wedding).
@@ -176,12 +173,12 @@ model outings {
   vote_close_reason                         vote_close_reason?
   /// Winning candidate; must belong to this outing (enforced via composite FK).
   winning_option_id                         String?               @db.Uuid
-  suggested_by_user_id                      String?               @db.VarChar(128)
   created_at                                DateTime              @default(now()) @db.Timestamptz(6)
   updated_at                                DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
   chat_messages                             chat_messages[]
   chat_reads                                chat_reads[]
   notifications                             notifications[]
+  outing_arrivals                           outing_arrivals[]
   outing_attendance                         outing_attendance[]
   outing_guests                             outing_guests[]
   outing_vote_options                       outing_vote_options[]
@@ -190,16 +187,14 @@ model outings {
   users_outings_created_byTousers           users                 @relation("outings_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   groups                                    groups?               @relation(fields: [group_id], references: [id], onUpdate: NoAction)
   places                                    places?               @relation(fields: [location_place_id], references: [id], onUpdate: NoAction)
-  users_outings_suggested_by_user_idTousers users?                @relation("outings_suggested_by_user_idTousers", fields: [suggested_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   saved_outings                             saved_outings[]
 
-  @@index([status], map: "idx_outings_status")
+  @@unique([created_by, create_request_key], map: "uq_outings_creator_request")
   @@index([group_id], map: "idx_outings_group")
   @@index([scheduled_at], map: "idx_outings_scheduled")
   @@index([created_by], map: "idx_outings_created_by")
   @@index([vote_ends_at], map: "idx_outings_vote_ends_at")
   @@index([status, vote_ends_at], map: "idx_outings_voting_deadline")
-  @@index([suggested_by_user_id], map: "idx_outings_suggested_by")
   @@index([location_place_id], map: "idx_outings_location_place")
 }
 
@@ -209,15 +204,28 @@ model outings {
 model outing_guests {
   outing_id  String            @db.Uuid
   user_id    String            @db.VarChar(128)
-  status     invitation_status @default(accepted)
+  status     invitation_status @default(pending)
   invited_at DateTime          @default(now()) @db.Timestamptz(6)
   outings    outings           @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   users      users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([outing_id, user_id])
-  @@index([user_id], map: "idx_outing_attendance_user")
   @@index([user_id], map: "idx_outing_guests_user")
   @@index([outing_id, status], map: "idx_outing_guests_status")
+}
+
+model outing_arrivals {
+  outing_id  String   @db.Uuid
+  user_id    String   @db.VarChar(128)
+  arrived_at DateTime @default(now()) @db.Timestamptz(6)
+  verification_method   String @default("legacy") @db.VarChar(24)
+  verification_distance Float?
+  location_accuracy     Float?
+  outings    outings  @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([outing_id, user_id])
+  @@index([user_id], map: "idx_outing_arrivals_user")
 }
 
 model outing_attendance {
@@ -229,6 +237,7 @@ model outing_attendance {
   users      users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([outing_id, user_id])
+  @@index([user_id], map: "idx_outing_attendance_user")
 }
 
 model outing_vote_options {
@@ -307,7 +316,6 @@ model chat_messages {
   users             users                   @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([outing_id, sender_id, client_message_id], map: "uq_chat_messages_client_msg")
-  @@index([outing_id, sent_at(sort: Desc)], map: "idx_chat_messages_outing_sent")
   @@index([outing_id, sent_at(sort: Desc), id(sort: Desc)], map: "idx_chat_messages_outing_sent_id")
   @@index([sender_id], map: "idx_chat_messages_sender")
 }
@@ -354,7 +362,7 @@ model user_fcm_tokens {
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([user_id, token])
+  @@index([user_id], map: "idx_user_fcm_tokens_user")
   @@unique([token], map: "uq_user_fcm_tokens_token")
 }
 
@@ -367,6 +375,7 @@ model saved_outings {
 
   @@id([user_id, outing_id])
   @@index([outing_id], map: "idx_saved_outings_outing")
+  @@index([user_id, saved_at(sort: Desc)], map: "idx_saved_outings_user_saved")
 }
 
 model saved_places {
@@ -378,6 +387,7 @@ model saved_places {
 
   @@id([user_id, place_id])
   @@index([place_id], map: "idx_saved_places_place")
+  @@index([user_id, saved_at(sort: Desc)], map: "idx_saved_places_user_saved")
 }
 
 enum attendance_status {
@@ -424,6 +434,7 @@ enum vote_close_reason {
   deadline
   unique_winner
   tie_break
+  owner_confirmed
   zero_votes
 }
 
@@ -477,8 +488,6 @@ enum notification_event_type {
 enum notification_channel {
   whatsapp
   push
-  sms
-  email
 }
 
 enum notification_event_status {
@@ -530,4 +539,26 @@ model notification_delivery_logs {
   event               notification_events  @relation(fields: [event_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([event_id], map: "idx_notification_delivery_logs_event")
+}
+
+// Opaque recovery secrets are stored only as SHA-256 digests.
+model password_recoveries {
+  request_hash String @id @db.Char(64)
+  user_id String @db.VarChar(128)
+  phone String @db.VarChar(16)
+  password_version String @db.Char(64)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  expires_at DateTime @db.Timestamptz(6)
+  proof_hash String? @unique @db.Char(64)
+  reset_hash String? @unique @db.Char(64)
+  consumed_at DateTime? @db.Timestamptz(6)
+  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  @@index([expires_at])
+}
+
+model password_recovery_limits {
+  key String @id @db.Char(64)
+  attempts Int
+  expires_at DateTime @db.Timestamptz(6)
+  @@index([expires_at])
 }

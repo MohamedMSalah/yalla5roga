@@ -52,6 +52,8 @@ backend/tests/           # lifecycle, authz, concurrency, etc.
 
 Realtime modules: `src/realtime/` (`socket-server`, `socket-auth`, `chat.gateway`, `chat-emitter`, `rooms`). In-memory Socket.IO adapter only (single Node process; no Redis).
 
+`data-changes.ts` emits post-write `data:changed` invalidations to deduplicated, server-resolved user rooms. Controllers publish group/outing/profile hints, invitation linking publishes membership changes, and vote resolution/completion jobs invalidate outing state. Audience lookup failures are logged without undoing committed state; clients repair missed events via REST on reconnect/resume. Chat delivery checks the current participant audience even if a socket remains in an old outing room. Chat client UUIDs reuse the existing PostgreSQL unique key for offline replay; no generic replay endpoint exists.
+
 ## 4. Request lifecycle
 
 ```mermaid
@@ -100,11 +102,14 @@ Controllers are thin HTTP adapters (e.g. `OutingController`). Business logic liv
 
 - `CreateOutingUseCase`, `UpdateOutingUseCase`, `DeleteOutingUseCase`
 - Voting: classes in `usecases/outings/voting.usecase.ts`
-- `UpsertAttendanceUseCase`, guests invite/accept/decline
+- `UpsertAttendanceUseCase`, guests invite/accept/decline, and `OutingArrivalsUseCase` for participant-scoped check-ins
+- Special-event create writes phone invitation outbox rows with the outing in the same Prisma transaction when the WhatsApp sender is configured
 - Chat send / mark read
 - Auth login/signup; user sync
 - FCM register/unregister
 - Group invite / members
+
+Phone membership binding uses `services/phone/phone-identity.ts`. Signup verifies recent Firebase OTP proof and retains its UID. Login links pending associations for the canonical identity’s verified phone. Authenticated sync can repair an unused legacy OTP identity after fresh proof without changing Neon IDs. Pending membership linking uses locked rows, a bulk insert and a bulk status update in one transaction. Nested group creation writes its first owner atomically. The roster reads active profiles and pending associations from one repeatable-read snapshot. REST and Socket.IO accept Firebase phone and custom-session ID tokens. `GroupDatasource` accepts an optional Prisma transaction client so HTTP/database regression tests can exercise production membership queries in a rolled-back fixture transaction.
 
 ## 7. Authentication middleware
 
@@ -182,3 +187,33 @@ Under `backend/tests/` — notably `outing-lifecycle.test.ts`, `resource-authz.t
 - [`AUTHENTICATION_AND_AUTHORIZATION.md`](AUTHENTICATION_AND_AUTHORIZATION.md)
 
 The places datasource uses `services/places/nearby-search-bounds.ts` to select geographic candidates, including searches near a pole or the date line. PostgreSQL applies the final distance and category filters.
+
+### Geocoding provider configuration
+
+Geocoding is disabled by default. Set `GEOCODING_PROVIDER=pelias` and `GEOCODING_BASE_URL` to the HTTPS base URL of a Pelias-compatible service that supports autocomplete and reverse lookup. Set `GEOCODING_ATTRIBUTION` to the operator-required credit and `GEOCODING_API_KEY` only when required. Keep that key server-side, scope it to these APIs and restrict it by server egress IP where supported. The authenticated endpoint enforces a process-wide `GEOCODING_REQUESTS_PER_MINUTE` budget (default 60). Set an aggregate limit at the gateway when running several replicas. Requests time out after five seconds and disconnects abort upstream fetches.
+
+Set `GEOCODING_CACHE_SECONDS` only if the provider permits it (0 by default, max 300). Verify that the operator permits selection metadata to be persisted with outings and displayed on the OSM map. Do not configure the public Nominatim endpoint. Verify upstream Arabic label coverage and required attribution with the configured provider before enabling it.
+
+### Outing RSVP, venue, arrivals, and chat
+
+Attendance uses a PostgreSQL conflict update on the existing outing/user key. A duplicate state preserves its timestamp. Explicit creator venue confirmation uses the same row lock and winning-option persistence as automatic resolution. Actual Attendance validates the authenticated current participant’s fresh GPS fix against the confirmed venue. The arrival table stores the first valid timestamp, GPS method, distance and accuracy. A committed arrival invalidates the roster for current participants over authenticated Socket.IO user rooms. Chat repositories attach a narrow sender projection to history and send results. Cursor paging uses the existing outing, timestamp and ID index.
+
+
+## Chat mentions and reconnect reconciliation — 2026-11-11
+
+`services/chat/chat-mentions.ts` validates stable inline mention IDs against chat participation (creator, group members, pending/accepted outing guests), canonicalizes labels from Neon, and enforces the 2000-character stored-text limit. Send retries reuse committed text and IDs. Mention and ordinary chat recipients share `chat_message:<messageId>:<recipientId>` notification keys, with one distinct body per recipient and no self-notifications.
+
+`realtime/data-changes.ts` retains up to 512 invalidations for ten minutes in the existing single Node process. Authenticated `data:reconcile` returns only the caller's missed invalidations plus a cursor. Restart, expiry or an invalid cursor requests stale-cache reconciliation. This buffer is not durable application storage; PostgreSQL remains authoritative. Notification fan-out and read mutations emit inbox invalidations after persistence.
+
+
+## Centralized session transport — 2026-11-11
+
+`group.gateway.ts` adds authorized group join/leave to the existing `attachRealtime` server. It does not instantiate another server. User-room assignment uses the verified Firebase UID; outing authorization retains `assertChatParticipant`; group authorization uses `assertGroupMember`. Domain mutations continue to publish only after their awaited persistence/transaction resolves. Attendance now emits a complete committed row to its narrower attendance-authorized audience before the follow-up roster read. Chat read receipts, like messages, filter current recipients rather than trusting old room membership.
+
+`data-changes.ts` keeps the existing bounded, process-local journal (512 events / ten minutes); replay entries carry their original sequence. It replays identifiers for attendance rather than historical rows, requiring REST authorization after a reconnect. This is best-effort post-commit publication, not a transactional event outbox. See [event matrix and tests](audit/CENTRALIZED_REALTIME_SYNC.md).
+
+## Password recovery — 2026-11-11
+
+The auth router exposes start/verify/reset and can be constructed with a controller for HTTP integration fixtures. `AuthController` delegates to `PasswordRecoveryUseCase`; `PasswordRecoveryRepository` persists opaque-secret digests and shared rate limits through Prisma. `FirebasePhoneIdentity.verifyRecoveryProof` extends the existing phone-proof validation with the sign-in time without changing `verifyProof`'s existing signup/sync return contract. Grant consumption plus compare-and-update of the existing password run in one transaction. No Firebase user creation, credential transfer, session issuance or Neon profile provisioning occurs in the recovery use case.
+
+Recovery limits are PostgreSQL upserts and apply across workers/restarts. Additive migration `20261111180000_password_recovery` must be deployed before these APIs. Only expired security state is opportunistically cleaned, with replay markers retained past proof acceptance. Verification uses the real router/use cases/repository/bcrypt and a disposable schema via HTTP/OpenAPI; the Firebase SDK boundary is controlled. See [report](audit/PASSWORD_RECOVERY_REPORT.md).

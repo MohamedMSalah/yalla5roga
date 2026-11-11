@@ -9,14 +9,14 @@ import {
 } from "../../utils/errors.js";
 
 const INVALID_PASSWORD = "Invalid current password";
-const NO_PASSWORD = "This account does not use an email password";
+const NO_PASSWORD = "This account does not have an application password";
 
 export class ChangePasswordUseCase {
   constructor(private readonly users: IUserRepository = new UserRepository()) {}
 
   async execute(input: ChangePasswordInput): Promise<void> {
-    const currentPassword = input.currentPassword?.trim() ?? "";
-    const newPassword = input.newPassword?.trim() ?? "";
+    const currentPassword = input.currentPassword ?? "";
+    const newPassword = input.newPassword ?? "";
     if (!currentPassword || !newPassword) {
       throw new ValidationError("currentPassword and newPassword are required");
     }
@@ -40,7 +40,6 @@ export class ChangePasswordUseCase {
 
     await this.users.update(input.userId, {
       password_hash: await hashPassword(newPassword),
-      password_updated_at: new Date(),
     });
   }
 }

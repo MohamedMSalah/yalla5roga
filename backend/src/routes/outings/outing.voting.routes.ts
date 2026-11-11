@@ -33,6 +33,8 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *   post:
  *     tags: [Outing Voting]
  *     summary: Add a voting option
@@ -67,6 +69,10 @@ import {
  *     responses:
  *       "200":
  *         description: Replaced vote options
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/VoteOptionListResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  * /api/outings/{id}/vote-options/{optionId}:
@@ -90,6 +96,16 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: The request conflicts with the current resource state
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  * /api/outings/{id}/votes:
  *   get:
  *     tags: [Outing Voting]
@@ -112,6 +128,8 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *   post:
  *     tags: [Outing Voting]
  *     summary: Cast a vote
@@ -127,7 +145,7 @@ import {
  *         content:
  *           application/json:
  *             schema:
- *               $ref: "#/components/schemas/VoteResponse"
+ *               $ref: "#/components/schemas/CastVoteResponse"
  *       "400":
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
@@ -136,6 +154,14 @@ import {
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "409":
+ *         description: The request conflicts with the current resource state
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  *   delete:
  *     tags: [Outing Voting]
  *     summary: Remove my vote
@@ -145,8 +171,24 @@ import {
  *     responses:
  *       "200":
  *         description: Removed vote(s)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/VoteResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: The request conflicts with the current resource state
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  * /api/outings/{id}/votes/{optionId}:
  *   delete:
  *     tags: [Outing Voting]
@@ -168,6 +210,16 @@ import {
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: The request conflicts with the current resource state
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
  * /api/outings/{id}/voting-state:
  *   get:
  *     tags: [Outing Voting]
@@ -178,8 +230,16 @@ import {
  *     responses:
  *       "200":
  *         description: Voting tallies and closure meta
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/VotingStateResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
  * /api/outings/{id}/tie-break:
  *   post:
  *     tags: [Outing Voting]
@@ -190,6 +250,10 @@ import {
  *     responses:
  *       "200":
  *         description: Tie broken
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/VoteResolutionResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  */
@@ -252,6 +316,43 @@ router.post(
   "/:id/tie-break",
   validate({ params: outingIdParamsSchema }),
   controller.breakTie,
+);
+
+/**
+ * @openapi
+ * /api/outings/{id}/confirmed-venue:
+ *   put:
+ *     tags: [Outing Voting]
+ *     summary: Creator confirms a proposed venue and closes voting
+ *     operationId: confirmOutingVenue
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     requestBody:
+ *       $ref: "#/components/requestBodies/CastVote"
+ *     responses:
+ *       "200":
+ *         description: Confirmed outing and selected option
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/VoteResolutionResponse"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: Outing is no longer awaiting a venue
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ */
+router.put(
+  "/:id/confirmed-venue",
+  validate({ params: outingIdParamsSchema, body: castVoteBodySchema }),
+  controller.confirmVenue,
 );
 
 export default router;

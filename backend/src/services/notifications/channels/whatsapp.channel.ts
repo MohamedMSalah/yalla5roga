@@ -12,8 +12,7 @@ type MetaMessageResponse = {
 
 /**
  * Primary notification channel for non-user group invites.
- * Uses Meta WhatsApp Cloud API when configured; otherwise a stub so the
- * outbox worker can still complete the pipeline in local/dev.
+ * Uses the configured Meta WhatsApp Cloud API and requires recipient opt-in.
  */
 export class WhatsAppChannel implements NotificationChannelSender {
   readonly channel = "whatsapp" as const;
@@ -33,23 +32,17 @@ export class WhatsAppChannel implements NotificationChannelSender {
     }
 
     if (this.config.whatsapp.provider === "meta") {
+      if (input.payload.whatsappOptIn !== true) {
+        return { provider: "meta", status: "failed", retryable: false, error: "WhatsApp recipient opt-in is required" };
+      }
       return this.sendViaMeta(input);
     }
 
-    const payload = input.payload as {
-      body?: string;
-      deepLink?: string;
-    };
     return {
-      provider: "stub",
-      providerMessageId: `stub-${input.eventId}`,
-      status: "sent",
-      response: {
-        mode: "stub",
-        to: input.recipientPhone,
-        body: payload.body,
-        deepLink: payload.deepLink,
-      },
+      provider: this.config.whatsapp.provider,
+      status: "failed",
+      retryable: false,
+      error: "WhatsApp Business delivery is not configured",
     };
   }
 
@@ -63,6 +56,7 @@ export class WhatsAppChannel implements NotificationChannelSender {
       return {
         provider: "meta",
         status: "failed",
+        retryable: false,
         error:
           "WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are required for meta provider",
       };
@@ -71,21 +65,33 @@ export class WhatsAppChannel implements NotificationChannelSender {
     const to = input.recipientPhone!.replace(/^\+/, "");
     const url = `https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`;
 
+    const event = (input.payload as Record<string, unknown>).specialEvent as {
+      title: string;
+      dateTime: string;
+      location: string;
+      calendarUrl: string;
+      appUrl: string;
+    } | undefined;
+    const template = event
+      ? this.config.whatsapp.specialEventTemplateName ?? "special_event_invite"
+      : templateName;
+    const values = event
+      ? [event.title, event.dateTime, event.location, event.calendarUrl, event.appUrl]
+      : [input.payload.inviterName || "A friend", input.payload.groupName || "a group", input.payload.deepLink];
     const body = {
       messaging_product: "whatsapp",
       to,
       type: "template",
       template: {
-        name: templateName,
+        name: template,
         language: { code: templateLanguage },
         components: [
           {
             type: "body",
-            parameters: [
-              { type: "text", text: input.payload.inviterName || "A friend" },
-              { type: "text", text: input.payload.groupName || "a group" },
-              { type: "text", text: input.payload.deepLink },
-            ],
+            parameters: values.map((value) => ({
+              type: "text",
+              text: String(value).replace(/\s+/g, " ").trim(),
+            })),
           },
         ],
       },
@@ -99,6 +105,7 @@ export class WhatsAppChannel implements NotificationChannelSender {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15_000),
       });
 
       const json = (await response.json()) as MetaMessageResponse;
@@ -107,15 +114,21 @@ export class WhatsAppChannel implements NotificationChannelSender {
           provider: "meta",
           status: "failed",
           response: json,
+          retryable: response.status === 429 || response.status >= 500,
           error:
             json.error?.message ??
             `WhatsApp Cloud API HTTP ${response.status}`,
         };
       }
 
+      const messageId = json.messages?.[0]?.id;
+      if (!messageId) {
+        return { provider: "meta", status: "failed", retryable: false,
+          error: "WhatsApp did not confirm message acceptance" };
+      }
       return {
         provider: "meta",
-        providerMessageId: json.messages?.[0]?.id,
+        providerMessageId: messageId,
         status: "sent",
         response: json,
       };

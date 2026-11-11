@@ -1,4 +1,5 @@
 import { prisma } from "../config/database.js";
+import { publishOutingChange } from "../realtime/data-changes.js";
 
 const INTERVAL_MS = 60 * 1000;
 
@@ -14,7 +15,9 @@ export async function completeFinishedOutings(): Promise<string[]> {
       AND COALESCE(ends_at, scheduled_at + interval '6 hours') <= now()
     RETURNING id
   `;
-  return finished.map((row) => row.id);
+  const ids = finished.map((row) => row.id);
+  await Promise.all(ids.map((id) => publishOutingChange(id)));
+  return ids;
 }
 
 /** Runs the completion step once a minute. Returns a stop function. */

@@ -7,9 +7,7 @@ import groupMembersRoutes from "./group.members.routes.js";
 const api = Router();
 api.use(authMiddleware);
 
-// `/cuser` (crud) and static decline (invitations) before bare `/:id` consumers.
-// Crud first so `/cuser` precedes `/:id` in the stack; invitations still match
-// `/invitations/:invitationId/decline` and `/:id/invitations` (extra segments).
+// Static collection routes precede dynamic IDs.
 api.use(groupCrudRoutes);
 api.use(groupInvitationsRoutes);
 api.use(groupMembersRoutes);

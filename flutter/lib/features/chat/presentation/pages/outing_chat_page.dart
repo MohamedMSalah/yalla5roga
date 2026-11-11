@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -27,24 +28,26 @@ class OutingChatPage extends StatefulWidget {
   State<OutingChatPage> createState() => _OutingChatPageState();
 }
 
-class _OutingChatPageState extends State<OutingChatPage>
-    with WidgetsBindingObserver {
+class _OutingChatPageState extends State<OutingChatPage> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
 
   /// Query after `@` while mentioning; null when the picker is hidden.
+  final _selectedMentions = <({int start, int end, String id, String name})>[];
+  String _previousText = '';
   String? _mentionQuery;
   int? _mentionStart;
   var _ignoreMentionUpdates = false;
   Timer? _closeTimer;
   OutingChatProvider? _chat;
+  OutingsProvider? _outings;
 
   String get _outingId => widget.event.id;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    _outings = context.read<OutingsProvider>()..openOuting(_outingId);
     _controller.addListener(_onTextChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -64,17 +67,8 @@ class _OutingChatPageState extends State<OutingChatPage>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
-    final chat = _chat;
-    if (chat == null) return;
-    // Avoid BuildContext here — provider already tracks the subscribed user.
-    unawaited(chat.recoverAfterResume());
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _outings?.closeOuting(_outingId);
     _closeTimer?.cancel();
     // Fire-and-forget leave; provider outlives this page.
     final chat = _chat;
@@ -101,6 +95,41 @@ class _OutingChatPageState extends State<OutingChatPage>
   }
 
   void _onTextChanged() {
+    final next = _controller.text;
+    if (next != _previousText) {
+      var prefix = 0;
+      while (prefix < next.length &&
+          prefix < _previousText.length &&
+          next[prefix] == _previousText[prefix]) {
+        prefix++;
+      }
+      var suffix = 0;
+      while (suffix < next.length - prefix &&
+          suffix < _previousText.length - prefix &&
+          next[next.length - suffix - 1] ==
+              _previousText[_previousText.length - suffix - 1]) {
+        suffix++;
+      }
+      final oldEnd = _previousText.length - suffix;
+      final delta = next.length - _previousText.length;
+      final retained = <({int start, int end, String id, String name})>[];
+      for (final mention in _selectedMentions) {
+        if (mention.end <= prefix) {
+          retained.add(mention);
+        } else if (mention.start >= oldEnd) {
+          retained.add((
+            start: mention.start + delta,
+            end: mention.end + delta,
+            id: mention.id,
+            name: mention.name,
+          ));
+        }
+      }
+      _selectedMentions
+        ..clear()
+        ..addAll(retained);
+      _previousText = next;
+    }
     if (_ignoreMentionUpdates) return;
 
     final text = _controller.text;
@@ -131,7 +160,7 @@ class _OutingChatPageState extends State<OutingChatPage>
     }
 
     final query = before.substring(atIndex + 1);
-    if (query.contains('\n') || query.contains(' ')) {
+    if (query.contains('\n') || query.length > 80) {
       _clearMention();
       return;
     }
@@ -210,7 +239,16 @@ class _OutingChatPageState extends State<OutingChatPage>
   }
 
   void _insertMention(GroupMember member) {
-    _insertMentionToken(MemberDisplayName.resolve(member));
+    final name = MemberDisplayName.resolve(member);
+    final start = _mentionStart;
+    if (start == null) return;
+    _insertMentionToken(name);
+    _selectedMentions.add((
+      start: start,
+      end: start + name.length + 1,
+      id: member.id,
+      name: name,
+    ));
   }
 
   void _insertMentionAll() {
@@ -218,8 +256,23 @@ class _OutingChatPageState extends State<OutingChatPage>
   }
 
   Future<void> _send() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    final draft = _controller.value;
+    var text = draft.text;
+    if (text.trim().isEmpty) return;
+    final mentions = [..._selectedMentions]
+      ..sort((a, b) => b.start.compareTo(a.start));
+    for (final mention in mentions) {
+      if (text.substring(mention.start, mention.end) == '@${mention.name}' &&
+          (mention.end == text.length ||
+              RegExp(r'[\s,.!?;:]').hasMatch(text[mention.end]))) {
+        text = text.replaceRange(
+          mention.start,
+          mention.end,
+          '<@${Uri.encodeComponent(mention.id)}|${Uri.encodeComponent(mention.name)}>',
+        );
+      }
+    }
+    text = text.trim();
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
     final sent = await context.read<OutingChatProvider>().sendMessage(
@@ -229,8 +282,9 @@ class _OutingChatPageState extends State<OutingChatPage>
       senderName: user.name,
       avatar: user.imageUrl,
     );
-    if (!sent || !mounted) return;
+    if (!sent || !mounted || _controller.value != draft) return;
     _controller.clear();
+    _selectedMentions.clear();
     _clearMention();
   }
 
@@ -276,7 +330,8 @@ class _OutingChatPageState extends State<OutingChatPage>
     final outing = _liveOuting(outings);
     final closed = outing.isChatClosed;
     final members = _groupMembers(groups, outings, outing);
-    final currentUserId = context.watch<AuthProvider>().user?.id;
+    final currentUser = context.watch<AuthProvider>().user;
+    final currentUserId = currentUser?.id;
     final messages = chat.messagesFor(_outingId);
     final mentionCandidates = closed
         ? const <GroupMember>[]
@@ -289,6 +344,37 @@ class _OutingChatPageState extends State<OutingChatPage>
       appBar: AppPageBar(title: outing.title, subtitle: l10n.outingChat),
       body: Column(
         children: [
+          Padding(
+            padding: Responsive.padding(horizontal: 16, vertical: 4),
+            child: Semantics(
+              liveRegion: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.circle,
+                    size: 8,
+                    color: chat.isRoomConnected(_outingId)
+                        ? AppColors.emerald500
+                        : chat.isRoomReconnecting(_outingId)
+                        ? AppColors.amber700
+                        : AppColors.rose600,
+                  ),
+                  6.gapW,
+                  Flexible(
+                    child: Text(
+                      chat.isRoomConnected(_outingId)
+                          ? l10n.chatConnected
+                          : chat.isRoomReconnecting(_outingId)
+                          ? l10n.chatReconnecting
+                          : l10n.chatDisconnected,
+                      style: context.texts.labelSmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           Expanded(
             child: chat.isInitialLoadingFor(_outingId)
                 ? const OutingChatSkeleton()
@@ -303,7 +389,12 @@ class _OutingChatPageState extends State<OutingChatPage>
                 : OutingChatMessageList(
                     messages: messages,
                     members: members,
-                    groups: groups,
+                    currentUserId: currentUserId,
+                    currentUserName: currentUser?.name,
+                    loadingOlder: chat.isLoadingOlder(_outingId),
+                    onLoadOlder: chat.hasOlder(_outingId)
+                        ? () => chat.loadOlder(_outingId)
+                        : null,
                   ),
           ),
           if (showMentions)

@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_icon_button.dart';
 import 'package:yalla_5roga/core/widgets/filter_chip_row.dart';
 import 'package:yalla_5roga/core/widgets/notification_button.dart';
-import 'package:yalla_5roga/core/widgets/section_header.dart';
-import 'package:yalla_5roga/features/groups/presentation/widgets/lists/active_votes_list.dart';
 import 'package:yalla_5roga/features/groups/presentation/widgets/lists/groups_list.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/create_group_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
@@ -46,7 +42,17 @@ class _GroupsPageState extends State<GroupsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final groups = context.watch<GroupsProvider>();
+    final groups = context.read<GroupsProvider>();
+    context.select<GroupsProvider, (bool, bool, int, int, int, String?)>(
+      (provider) => (
+        provider.isInitialLoading,
+        provider.searching,
+        provider.filter,
+        provider.groups.length,
+        provider.groups.fold<int>(0, (sum, group) => sum + group.memberCount),
+        provider.errorMessage,
+      ),
+    );
     // Instant swap — a page-level FadeSwitcher here ran during tab switches
     // and dropped frames over the groups list.
     if (groups.isInitialLoading) {
@@ -57,26 +63,39 @@ class _GroupsPageState extends State<GroupsPage> {
     final palette = context.palette;
 
     return SafeArea(
+      bottom: false,
       child: CustomScrollView(
         slivers: [
           SliverPadding(
-            padding: Responsive.pagePadding(),
+            padding: Responsive.pagePadding().add(
+              EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+            ),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: SectionHeader(
-                        eyebrow: l10n.yourCircles,
-                        title: l10n.groupsTitle,
-                        subtitle: l10n.activeGroupsFriends(
-                          groups.groups.length,
-                          groups.groups.fold<int>(
-                            0,
-                            (sum, group) => sum + group.memberCount,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.groupsTitle,
+                            style: context.texts.headlineSmall,
                           ),
-                        ),
+                          Text(
+                            l10n.activeGroupsFriends(
+                              groups.groups.length,
+                              groups.groups.fold<int>(
+                                0,
+                                (sum, group) => sum + group.memberCount,
+                              ),
+                            ),
+                            style: context.texts.bodyMedium?.copyWith(
+                              color: palette.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const NotificationButton(),
@@ -104,6 +123,8 @@ class _GroupsPageState extends State<GroupsPage> {
                                 size: 20.w,
                               ),
                               suffixIcon: IconButton(
+                                tooltip: MaterialLocalizations.of(context)
+                                    .closeButtonTooltip,
                                 icon: Icon(
                                   Icons.close,
                                   size: 18.w,
@@ -120,21 +141,32 @@ class _GroupsPageState extends State<GroupsPage> {
                         ),
                       )
                     else
-                      AppIconButton(
-                        icon: Icons.search,
-                        onTap: () => _openSearch(groups),
+                      IconButton.outlined(
+                        tooltip: l10n.searchGroups,
+                        icon: const Icon(Icons.search),
+                        onPressed: () => _openSearch(groups),
                       ),
                     Responsive.spaceSm.gapW,
-                    AppIconButton(
-                      icon: Icons.add,
-                      background: AppColors.brand600,
-                      foreground: Colors.white,
-                      onTap: () => Get.to(() => const CreateGroupPage()),
-                    ),
+                    if (groups.searching)
+                      IconButton.filled(
+                        tooltip: l10n.newGroup,
+                        icon: const Icon(Icons.add),
+                        onPressed: () => Get.to(() => const CreateGroupPage()),
+                      )
+                    else
+                      Expanded(
+                        child: FilledButton.icon(
+                          icon: const Icon(Icons.add),
+                          label: Text(l10n.newGroup),
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 48),
+                          ),
+                          onPressed: () =>
+                              Get.to(() => const CreateGroupPage()),
+                        ),
+                      ),
                   ],
                 ),
-                Responsive.spaceMd.gapH,
-                const ActiveVotesList(),
                 Responsive.spaceMd.gapH,
                 FilterChipRow(
                   labels: [l10n.allGroups, l10n.mostActive, l10n.recentlyAdded],
@@ -142,7 +174,13 @@ class _GroupsPageState extends State<GroupsPage> {
                   onChanged: groups.setFilter,
                 ),
                 Responsive.spaceMd.gapH,
-                const GroupsList(),
+                if (groups.errorMessage != null && groups.groups.isEmpty)
+                  TextButton(
+                    onPressed: () => groups.refresh(forceRefresh: true),
+                    child: Text(l10n.tryAgain),
+                  )
+                else
+                  const GroupsList(),
                 Responsive.spaceLg.gapH,
               ]),
             ),

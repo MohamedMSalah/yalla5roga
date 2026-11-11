@@ -9,13 +9,13 @@ import {
 } from "../../utils/errors.js";
 
 const INVALID_PASSWORD = "Invalid password";
-const NO_PASSWORD = "This account does not use an email password";
+const NO_PASSWORD = "This account does not have an application password";
 
 export class VerifyPasswordUseCase {
   constructor(private readonly users: IUserRepository = new UserRepository()) {}
 
   async execute(input: VerifyPasswordInput): Promise<void> {
-    const password = input.password?.trim() ?? "";
+    const password = input.password ?? "";
     if (!password) {
       throw new ValidationError("password is required");
     }

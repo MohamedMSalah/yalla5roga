@@ -3,6 +3,7 @@ import type { Prisma, vote_close_reason } from "@prisma/client";
 import { prisma } from "../../config/database.js";
 import type { Outing } from "../../types/outings/outing.types.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../utils/errors.js";
+import { publishOutingChange } from "../../realtime/data-changes.js";
 import { notifyOutingParticipants } from "../notifications/outing-notifier.js";
 import { listEligibleVoterIds } from "./outing-participants.js";
 
@@ -183,7 +184,7 @@ export async function tryCloseIfAllVoted(
       return null;
     }
 
-    const eligible = await listEligibleVoterIds(outing);
+    const eligible = await listEligibleVoterIds(outing, tx);
     if (eligible.length === 0) return null;
 
     const votes = await tx.outing_votes.findMany({
@@ -278,10 +279,39 @@ export async function breakTieRandomly(
   return result;
 }
 
+export async function confirmProposedVenue(
+  outingId: string,
+  callerUid: string,
+  optionId: string,
+): Promise<VoteResolutionResult> {
+  const result = await prisma.$transaction(async (tx) => {
+    const [outing] = await tx.$queryRaw<Outing[]>`
+      SELECT * FROM outings WHERE id = ${outingId}::uuid FOR UPDATE
+    `;
+    if (!outing) throw new NotFoundError("Outing");
+    if (outing.created_by !== callerUid) {
+      throw new ForbiddenError("Only the outing owner can confirm the venue");
+    }
+    if (outing.status === "confirmed" && outing.winning_option_id === optionId) {
+      return { outing, outcome: "confirmed" as const, winningOptionId: optionId };
+    }
+    if (outing.status !== "voting") {
+      throw new ConflictError("This outing is no longer awaiting a venue");
+    }
+    const confirmed = await applyWinner(tx, outingId, optionId, "owner_confirmed");
+    return { outing: confirmed, outcome: "confirmed" as const, winningOptionId: optionId };
+  });
+  await emitResolutionNotifications(result).catch((error: unknown) => {
+    console.error("[voting] venue confirmation notification failed", error);
+  });
+  return result;
+}
+
 export async function emitResolutionNotifications(
   result: VoteResolutionResult,
 ): Promise<void> {
   const { outing, outcome } = result;
+  await publishOutingChange(outing.id);
   if (outcome === "confirmed" && result.winningOptionId) {
     const eventType =
       outing.vote_close_reason === "tie_break"

@@ -5,16 +5,23 @@ import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/responsive/responsive.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/saved_outing.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/create_outing_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_basics_step.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_location_step.dart';
 
 void main() {
-  testWidgets('place voting is optional in the location step', (tester) async {
+  testWidgets('place voting selects catalog and map candidates in one step', (
+    tester,
+  ) async {
     final form = CreateOutingProvider(
       groups: const [],
       contacts: const [],
-      catalogPlaces: const [],
+      catalogPlaces: const [
+        Place(id: 'cafe', name: 'Cafe', area: 'Cairo'),
+        Place(id: 'bistro', name: 'Bistro', area: 'Cairo'),
+      ],
       specialEventImage: (_) => '',
     );
     addTearDown(form.dispose);
@@ -52,15 +59,46 @@ void main() {
     await show(
       (_) => CreateOutingLocationStep(
         form: form,
-        onPickCustomLocation: () {},
-        onAddVotePlace: () {},
+        onPickCustomLocation: () => form.addSelectedPlace(
+          Place(
+            area: '',
+            latitude: 30.04 + form.selectedPlaces.length / 100,
+            longitude: 31.23,
+            name: 'Map pin',
+          ),
+        ),
       ),
     );
     await tester.tap(find.text(l10n.addPlacesForVoting));
     await tester.pumpAndSettle();
     expect(form.multiPlaceMode, isTrue);
-    expect(find.text(l10n.voteDeadlineHours), findsOneWidget);
-    expect(find.text(l10n.addPlace), findsOneWidget);
+    expect(find.text(l10n.voteDeadlineHours), findsNothing);
+    for (final label in [
+      'Cafe',
+      'Bistro',
+      l10n.mapManagePlaces,
+      l10n.mapManagePlaces,
+    ]) {
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+    expect(form.selectedPlaces.map((place) => place.name), [
+      'Cafe',
+      'Bistro',
+      'Map pin',
+      'Map pin',
+    ]);
+    final restored = OutingDraft.fromJson(form.toDraft().toJson());
+    expect(restored.selectedPlaces.map((place) => place.id), [
+      'cafe',
+      'bistro',
+      '',
+      '',
+    ]);
+    expect(
+      restored.selectedPlaces[2].latitude,
+      isNot(restored.selectedPlaces[3].latitude),
+    );
 
     await tester.tap(find.text(l10n.useSingleLocation));
     await tester.pumpAndSettle();

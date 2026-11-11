@@ -87,7 +87,7 @@ app.get("/health", async (_req, res) => {
       success: false,
       message: "Database connection failed",
       database: "disconnected",
-      error: error instanceof Error ? error.message : "Unknown error",
+      error: "Database unavailable",
     });
   }
 });
@@ -104,6 +104,9 @@ app.use(
 );
 
 app.use(routes);
+app.use((_req, res) => {
+  res.status(404).json({ success: false, message: "Route not found" });
+});
 app.use(errorMiddleware);
 
 export default app;

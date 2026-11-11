@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -7,23 +6,23 @@ import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_shimmer.dart';
 import 'package:yalla_5roga/core/widgets/section_header.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/lists/featured_places_list.dart';
-import 'package:yalla_5roga/features/discover/presentation/pages/discover_page.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 
-/// Discover section list used on Home / Outings tabs.
+/// Featured places preview on Home.
 class DiscoverSection extends StatelessWidget {
   const DiscoverSection({
     super.key,
     this.compact = true,
     this.limit = 5,
+    this.onDiscover,
     this.heroSurface = 'section',
   });
 
   final bool compact;
   final int limit;
+  final VoidCallback? onDiscover;
 
-  /// Home and Outings tabs both embed this section on one route; each passes
-  /// its own surface so place Hero tags never collide.
+  /// Identifies the preview surface in place Hero tags.
   final String heroSurface;
 
   @override
@@ -38,8 +37,8 @@ class DiscoverSection extends StatelessWidget {
         SectionHeader(
           title: l10n.discover,
           subtitle: l10n.exploreNearby,
-          actionLabel: l10n.seeAll,
-          onAction: () => Get.to(() => const DiscoverPage()),
+          actionLabel: onDiscover == null ? null : l10n.seeAll,
+          onAction: onDiscover,
         ),
         12.gapH,
         // Shimmer -> list reveals once per load state; the key does not

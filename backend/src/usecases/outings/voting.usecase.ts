@@ -3,7 +3,7 @@ import type { IOutingRepository } from "../../repositories/outings/i-outing.repo
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
 import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import { assertIsOutingCreator } from "../../services/outings/outing-access.js";
-import { assertEligibleVoter } from "../../services/outings/outing-participants.js";
+import { assertEligibleVoter, listEligibleVoterIds } from "../../services/outings/outing-participants.js";
 import {
   assertCanAddVoteOption,
   assertVotingOpen,
@@ -88,9 +88,10 @@ export class DeleteVoteOptionUseCase {
   async execute(
     optionId: string,
     callerUid: string,
+    outingId?: string,
   ): Promise<OutingVoteOption> {
     const option = await this.outings.findVoteOptionById(optionId);
-    if (!option) throw new NotFoundError("Vote option");
+    if (!option || (outingId && option.outing_id !== outingId)) throw new NotFoundError("Vote option");
 
     const outing = await this.outings.findById(option.outing_id);
     if (!outing) throw new NotFoundError("Outing");
@@ -236,11 +237,12 @@ export class RemoveVoteUseCase {
     private readonly outings: IOutingRepository = new OutingRepository(),
   ) {}
 
-  async execute(outingId: string, userId: string): Promise<OutingVote> {
+  async execute(outingId: string, userId: string, optionId?: string): Promise<OutingVote> {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
     assertVotingOpen(outing);
-    return this.outings.removeVote(outingId, userId);
+    await assertEligibleVoter(outing, userId);
+    return this.outings.removeVote(outingId, userId, optionId);
   }
 }
 
@@ -265,14 +267,16 @@ export class GetVotingStateUseCase {
     options: OutingVoteOption[];
     votes: OutingVote[];
     tiedOptionIds: string[];
+    eligible_voter_count: number;
     isTied: boolean;
     isClosed: boolean;
   }> {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
-    const [options, votes] = await Promise.all([
+    const [options, votes, voters] = await Promise.all([
       this.outings.listVoteOptions(outingId),
       this.outings.listVotes(outingId),
+      listEligibleVoterIds(outing),
     ]);
 
     const counts = new Map<string, number>();
@@ -303,6 +307,7 @@ export class GetVotingStateUseCase {
       options,
       votes,
       tiedOptionIds: isTied ? leaders : [],
+      eligible_voter_count: voters.length,
       isTied,
       isClosed,
     };

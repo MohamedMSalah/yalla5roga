@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/features/auth/presentation/pages/password_recovery_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -196,6 +197,20 @@ class _AuthFormState extends State<AuthForm> {
                 ? Validators.required(value, l10n)
                 : Validators.password(value, l10n),
           ),
+          if (isLogin)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                onPressed: auth.isLoading
+                    ? null
+                    : () {
+                        _passwordController.clear();
+                        Get.to(() => const PasswordRecoveryPage());
+                      },
+                child: Text(l10n.forgotPassword),
+              ),
+            ),
           if (!isLogin) ...[
             Responsive.spaceMd.gapH,
             PhoneTextField(controller: _phoneController),

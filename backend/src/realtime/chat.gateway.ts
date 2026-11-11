@@ -47,6 +47,7 @@ export function registerChatGateway(io: Server): void {
       try {
         await assertChatParticipant(outingId, uid);
       } catch {
+        await socket.leave(outingChatRoom(outingId));
         safeAck(ack, { ok: false, error: "FORBIDDEN" });
         return;
       }

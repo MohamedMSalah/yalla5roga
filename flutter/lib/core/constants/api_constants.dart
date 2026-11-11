@@ -21,6 +21,10 @@ class ApiConstants {
   /// Confirm Neon password without changing it (authenticated).
   static const String verifyPassword = '/api/auth/verify-password';
 
+  static const recoveryStart = '/api/auth/recovery/start';
+  static const recoveryVerify = '/api/auth/recovery/verify';
+  static const recoveryReset = '/api/auth/recovery/reset';
+
   // User
   static const String profile = '/api/users/cuser';
   static const String savedOutings = '/api/outings/saved';
@@ -45,6 +49,9 @@ class ApiConstants {
   static String groupMember(String groupId, String userId) =>
       '/api/groups/$groupId/members/$userId';
 
+  static String pendingGroupMember(String groupId, String invitationId) =>
+      '/api/groups/$groupId/pending-memberships/$invitationId';
+
   static String groupInvitations(String groupId) =>
       '/api/groups/$groupId/invitations';
 
@@ -65,11 +72,16 @@ class ApiConstants {
   static String outingVotingState(String outingId) =>
       '/api/outings/$outingId/voting-state';
 
+  static String outingConfirmedVenue(String outingId) =>
+      '/api/outings/$outingId/confirmed-venue';
+
   static String outingTieBreak(String outingId) =>
       '/api/outings/$outingId/tie-break';
 
   static String outingCancel(String outingId) =>
       '/api/outings/$outingId/cancel';
+
+  static String outingArrivals(String id) => '${outing(id)}/arrivals';
 
   static String outingAttendance(String outingId) =>
       '/api/outings/$outingId/attendance';
@@ -97,6 +109,7 @@ class ApiConstants {
   // Discover / places
   static const String places = '/api/places';
   static const String nearbyPlaces = '/api/places/nearby';
+  static const String placeGeocoding = '/api/places/geocoding';
 
   static String place(String placeId) => '/api/places/$placeId';
 }

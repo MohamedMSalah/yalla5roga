@@ -1,3 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:yalla_5roga/core/constants/api_constants.dart';
+import 'package:yalla_5roga/core/error/error_codes.dart';
+import 'package:yalla_5roga/core/error/exception_mapper.dart';
+import 'package:yalla_5roga/core/network/request_deduper.dart';
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:yalla_5roga/core/error/exceptions.dart';
@@ -236,6 +243,59 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     required this.firebaseAuth,
   });
 
+  Future<Either<Failure, T>> _recovery<T>(Future<T> Function() action) async {
+    try {
+      if (!await networkInfo.isConnected) return const Left(NetworkFailure());
+      return Right(await action());
+    } on TimeoutException {
+      return const Left(
+        NetworkFailure('Connection timed out', ErrorCodes.timeout),
+      );
+    } catch (error) {
+      return Left(ExceptionMapper.toFailure(error));
+    }
+  }
+
+  @override
+  Future<Either<Failure, String>> startPasswordRecovery(String phone) =>
+      _recovery(() async {
+        final data = await remote.recovery(ApiConstants.recoveryStart, {
+          'phone': phone,
+        });
+        return data['requestToken'] as String;
+      });
+
+  @override
+  Future<Either<Failure, String>> verifyPasswordRecovery({
+    required String requestToken,
+    required String verificationId,
+    required String smsCode,
+  }) => _recovery(() async {
+    final proof = await firebaseAuth.recoveryPhoneProof(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    final data = await remote.recovery(ApiConstants.recoveryVerify, {
+      'requestToken': requestToken,
+      'phoneVerificationToken': proof,
+    });
+    return data['resetToken'] as String;
+  });
+
+  @override
+  Future<Either<Failure, void>> resetRecoveredPassword({
+    required String resetToken,
+    required String newPassword,
+    required String confirmPassword,
+  }) => _recovery(() async {
+    await remote.recovery(ApiConstants.recoveryReset, {
+      'resetToken': resetToken,
+      'newPassword': newPassword,
+      'confirmPassword': confirmPassword,
+    });
+  });
+
+  final _accountSyncs = RequestDeduper();
   final AuthRemoteDataSource remote;
   @override
   final AuthLocalDataSource local;
@@ -267,12 +327,17 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     }
     try {
       // OTP stays on Firebase; password account is created on the backend.
-      await firebaseAuth.verifyPhoneOtpThenSignOut(
+      final phoneProof = await firebaseAuth.verifyPhoneOtpThenSignOut(
         verificationId: verificationId,
         smsCode: smsCode,
       );
       return _emailPasswordSession(
-        () => remote.signup(name: name, password: password, phone: phone),
+        () => remote.signup(
+          name: name,
+          password: password,
+          phone: phone,
+          phoneVerificationToken: phoneProof,
+        ),
         fallbackName: name,
         fallbackPhone: phone,
       );
@@ -281,7 +346,7 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     } on AppException catch (error) {
       return Left(
         error is NetworkException
-            ? NetworkFailure(error.message)
+            ? NetworkFailure(error.message, error.code, error.statusCode)
             : ServerFailure(error.message),
       );
     } catch (_) {
@@ -337,7 +402,7 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     } on AppException catch (error) {
       return Left(
         error is NetworkException
-            ? NetworkFailure(error.message)
+            ? NetworkFailure(error.message, error.code, error.statusCode)
             : ServerFailure(error.message),
       );
     } catch (_) {
@@ -386,7 +451,13 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
   @override
   Future<Either<Failure, User>> getCachedUser() async {
     try {
-      return Right(await local.getCachedUser());
+      final cached = await local.getCachedUser();
+      if (firebaseAuth.currentUser?.uid != cached.id) {
+        return const Left(
+          CacheFailure('Cached profile belongs to another session'),
+        );
+      }
+      return Right(cached);
     } on CacheException catch (error) {
       return Left(CacheFailure(error.message));
     }
@@ -398,8 +469,13 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       return getCachedUser();
     }
     try {
-      await firebaseAuth.idToken(forceRefresh: true);
+      await firebaseAuth.idToken();
+      final uid = firebaseAuth.currentUser?.uid;
+      if (uid == null) return const Left(AuthFailure());
       final model = await remote.getProfile();
+      if (firebaseAuth.currentUser?.uid != uid || model.id != uid) {
+        return const Left(AuthFailure());
+      }
       final token = await firebaseAuth.idToken();
       return Right(await _mergeBackendProfile(model, token: token));
     } on AppException catch (error) {
@@ -407,7 +483,7 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       return cached.fold(
         (_) => Left(
           error is NetworkException
-              ? NetworkFailure(error.message)
+              ? NetworkFailure(error.message, error.code, error.statusCode)
               : ServerFailure(error.message),
         ),
         Right.new,
@@ -484,8 +560,10 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     } on AppException catch (error) {
       return Left(
         error is NetworkException
-            ? NetworkFailure(error.message)
-            : AuthFailure(error.message, AuthErrorCodes.invalidCredential),
+            ? NetworkFailure(error.message, error.code, error.statusCode)
+            : error is AuthException
+            ? AuthFailure(error.message, error.code, error.statusCode)
+            : ServerFailure(error.message, error.code, error.statusCode),
       );
     } catch (_) {
       return const Left(AuthFailure('Incorrect password'));
@@ -497,29 +575,64 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     String? name,
     String? phone,
     String? imageUrl,
+  }) => _accountSyncs.run(
+    jsonEncode([firebaseAuth.currentUser?.uid, name, phone, imageUrl]),
+    () => _syncProfileToBackend(name: name, phone: phone, imageUrl: imageUrl),
+    endpoint: '/api/users/sync',
+    method: 'POST',
+  );
+
+  Future<Either<Failure, User>> _syncProfileToBackend({
+    String? name,
+    String? phone,
+    String? imageUrl,
   }) async {
-    if (name == null && phone == null && imageUrl == null) {
-      final cached = await getCachedUser();
-      return cached;
-    }
     if (!await networkInfo.isConnected) {
       return const Left(NetworkFailure());
     }
     try {
-      // Fresh token after email/phone/password Firebase updates.
-      final token = await firebaseAuth.idToken(forceRefresh: true);
-      final model = await remote.updateProfile(
-        name: name,
-        phone: phone,
-        imageUrl: imageUrl,
-      );
+      final uid = firebaseAuth.currentUser?.uid;
+      if (uid == null) return const Left(AuthFailure());
+      // Fresh identity claims after phone verification.
+      var token = await firebaseAuth.idToken(forceRefresh: true);
+      final phoneProof = firebaseAuth.pendingPhoneVerificationToken;
+      final model = name == null && phone == null && imageUrl == null
+          ? await remote.syncUser()
+          : phone != null
+          ? await remote.syncUser(
+              phone: phone,
+              phoneVerificationToken: phoneProof,
+            )
+          : await remote.updateProfile(name: name, imageUrl: imageUrl);
+      if (firebaseAuth.currentUser?.uid != uid || model.id != uid)
+        return const Left(AuthFailure());
+      if (phone != null) {
+        firebaseAuth.clearPhoneVerificationToken();
+        if (phoneProof != null) {
+          await firebaseAuth.currentUser?.reload();
+          token = await firebaseAuth.idToken(forceRefresh: true);
+        }
+      }
       return Right(await _mergeBackendProfile(model, token: token));
     } on CacheException catch (error) {
       return Left(CacheFailure(error.message));
     } on AppException catch (error) {
+      if (phone != null && firebaseAuth.pendingPhoneVerificationToken != null) {
+        // The backend may have bound the phone before its response was lost.
+        // A retry then uses the canonical identity's claims instead of stale proof.
+        try {
+          await firebaseAuth.currentUser?.reload();
+          if (Validators.normalizePhone(
+                firebaseAuth.currentUser?.phoneNumber ?? '',
+              ) ==
+              Validators.normalizePhone(phone)) {
+            firebaseAuth.clearPhoneVerificationToken();
+          }
+        } catch (_) {}
+      }
       return Left(
         error is NetworkException
-            ? NetworkFailure(error.message)
+            ? NetworkFailure(error.message, error.code, error.statusCode)
             : ServerFailure(error.message),
       );
     } catch (_) {
@@ -561,8 +674,10 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     } on AppException catch (error) {
       return Left(
         error is NetworkException
-            ? NetworkFailure(error.message)
-            : AuthFailure(error.message, AuthErrorCodes.invalidCredential),
+            ? NetworkFailure(error.message, error.code, error.statusCode)
+            : error is AuthException
+            ? AuthFailure(error.message, error.code, error.statusCode)
+            : ServerFailure(error.message, error.code, error.statusCode),
       );
     } catch (_) {
       return const Left(AuthFailure('Could not update password'));

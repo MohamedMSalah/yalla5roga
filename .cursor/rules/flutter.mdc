@@ -16,3 +16,6 @@ alwaysApply: false
 - Localization via `L10n`; theme via existing `ThemeProvider` / palette.
 - After Flutter code changes that affect architecture or API usage, update the matching docs in the same task.
 - Prefer existing shared widgets under `lib/core/widgets/`.
+
+- Read RSVP and voting state from the outing-scoped provider. Preserve pending RSVP rollback and the server-returned viewer choice.
+- Actual Attendance starts automatically in the visible outing route with foreground OS location permission. Show Location unavailable for the viewer and keep other unverified participants distinct from arrivals.

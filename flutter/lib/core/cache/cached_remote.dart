@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/cache/ttl_cache.dart';
+import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
@@ -22,12 +23,16 @@ Future<Either<Failure, T>> cachedRemote<T>({
   required String key,
   required Future<T> Function() fetch,
   bool forceRefresh = false,
+  bool offlineRead = false,
   bool allowStaleOnError = true,
   String? reason,
   String? feature,
   String? source,
   RequestDeduper? deduper,
 }) async {
+  if (OfflineSnapshots.cacheOnly) {
+    return guardRemote(networkInfo, fetch, reason: reason, offlineRead: true);
+  }
   final diagnostics = RequestDiagnostics.instance;
   final endpoint = reason ?? key;
 
@@ -57,10 +62,11 @@ Future<Either<Failure, T>> cachedRemote<T>({
   return activeDeduper.run<Either<Failure, T>>(
     dedupeKey,
     () async {
-      final result = await guardRemote(networkInfo, fetch, reason: reason);
+      final result = await guardRemote(networkInfo, fetch, reason: reason, offlineRead: offlineRead);
       return result.fold(
         (failure) {
-          if (allowStaleOnError) {
+          if (allowStaleOnError && (!offlineRead ||
+              failure is NetworkFailure || (failure.statusCode ?? 0) >= 500)) {
             final stale = cache.getStale(key);
             if (stale != null) return Right(stale);
           }

@@ -123,11 +123,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         "The auth middleware reads `Authorization: Bearer <token>` and verifies it with Firebase Admin `verifyIdToken`.",
         "In Swagger UI: click Authorize, paste the ID token only, then Execute. Swagger adds the `Bearer` prefix — do not paste `Bearer ` yourself.",
         "Neon PostgreSQL is the only application data store (profiles, passwords, groups, outings, etc.).",
-        "Email/password credentials are stored in Neon (`users.password_hash`). Canonical clients call `POST /api/auth/signup` and `POST /api/auth/login`, which return `idToken` + `customToken`.",
-        "Firebase Auth is identity-only: a UID plus ID tokens. Email/password signup creates a bare Firebase UID with no email, displayName, or password in Firebase.",
-        "Google, Apple, and phone OTP still use Firebase Auth on the client for those provider sessions, then `POST /api/users/sync` writes the Neon profile.",
+        "Phone/password credentials are stored in Neon (`users.password_hash`). Canonical clients call `POST /api/auth/signup` and `POST /api/auth/login`, which return `idToken` + `customToken`.",
+        "Firebase Auth is identity-only: a UID, verified phone credential and ID tokens. Signup verifies phoneVerificationToken and retains its OTP UID. Application profiles and passwords stay in Neon.",
+        "POST /api/users/sync claims verified-phone group invitations. An optional recent phoneVerificationToken can repair an unused legacy OTP identity without merging registered accounts.",
         "Mobile clients can also use Flutter `currentUser.getIdToken(true)`. ID tokens expire after one hour.",
-        "A valid token that has never been synced still authenticates. Create the database row with `POST /api/users/sync` after Google, Apple, or phone sign-in; email/password signup already creates the Neon profile.",
+        "Authorize with a Firebase phone OTP ID token or the ID token returned by signup or login. Sync a new phone identity before accessing account resources.",
         "`GET /api/users/cuser` returns 404 until a Neon profile row exists.",
         "",
         "Successful responses use `{ success: true, data }`.",
@@ -148,7 +148,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
       {
         name: "Authentication",
         description:
-          "Email/password against Neon; Firebase ID tokens for API authorization",
+          "Phone/password against Neon with Firebase OTP proof at signup",
       },
       {
         name: "Users",
@@ -165,7 +165,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
       },
       {
         name: "Group Invitations",
-        description: "Invite by phone and decline pending invitations",
+        description: "Add by phone and revoke pending phone memberships",
       },
       {
         name: "Outings",
@@ -476,18 +476,22 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         SignupRequest: {
           type: "object",
-          required: ["name", "password", "phone"],
+          required: ["name", "password", "phone", "phoneVerificationToken"],
           properties: {
             name: { type: "string", minLength: 1, maxLength: 30 },
-            password: { type: "string", minLength: 6, maxLength: 128 },
+            password: { type: "string", minLength: 6, maxLength: 128, description: "New passwords are limited to 72 UTF-8 bytes." },
             phoneNumber: {
               ...phone,
               description: "Accepted alias of phone",
             },
             phone: phone,
+            phoneVerificationToken: {
+              type: "string", minLength: 1, maxLength: 10000,
+              description: "Firebase ID token from a phone OTP sign-in within ten minutes, matching the signup phone.",
+            },
           },
           description:
-            "Provide phone or phoneNumber. The phone is stored on the profile but is not verified.",
+            "Provide phone or phoneNumber plus phoneVerificationToken. Signup retains the verified OTP UID and claims pending group invitations.",
         },
         AuthSession: {
           type: "object",
@@ -513,7 +517,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               allOf: [ref("User")],
               nullable: true,
               description:
-                "Neon profile without credential fields. Present after email/password signup or login when a password_hash row exists.",
+                "Neon profile without credential fields. Present after phone/password signup or login when a password_hash row exists.",
             },
           },
         },
@@ -521,19 +525,16 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         SyncUserRequest: {
           type: "object",
           properties: {
+            phoneVerificationToken: {
+              type: "string", minLength: 1, maxLength: 10000,
+              description: "Optional recent Firebase phone OTP ID token to repair an unused OTP identity. Caller remains the Bearer UID. Registered identities are never merged.",
+            },
             name: {
               type: "string",
               minLength: 1,
               maxLength: 200,
               description:
                 "Optional create-time bootstrap only. Ignored when a profile already exists.",
-            },
-            email: {
-              type: "string",
-              format: "email",
-              maxLength: 254,
-              description:
-                "Optional create-time fallback when the token has no email. Never overwrites a stored email.",
             },
             phoneNumber: {
               ...phone,
@@ -555,7 +556,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             },
           },
           description:
-            "All fields optional. Sync creates a minimal profile on first call and returns the existing profile afterward without overwriting name, phone, email, or image_url from the body. Send phone or phoneNumber, not conflicting values of both.",
+            "Use the application session from signup or login. Body fields cannot overwrite an existing profile.",
         },
         InvitationSyncState: {
           type: "object",
@@ -591,14 +592,6 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           properties: {
             name: { type: "string", minLength: 1, maxLength: 30 },
-            email: {
-              type: "string",
-              format: "email",
-              maxLength: 254,
-              nullable: true,
-            },
-            phoneNumber: phone,
-            phone: phone,
             image_url: {
               type: "string",
               format: "uri",
@@ -609,17 +602,16 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         User: {
           type: "object",
-          required: ["id", "name", "created_at", "updated_at"],
+          required: ["id", "name", "has_password", "created_at", "updated_at"],
           properties: {
             id: firebaseUid,
             name: { type: "string", maxLength: 30 },
             phone: {
               type: "string",
               maxLength: 16,
-              nullable: true,
-              description: "E.164 phone when one is stored. Null for Google or Apple until a phone is verified.",
+              description: "Unique E.164 lookup number.",
             },
-            email: { type: "string", format: "email", nullable: true },
+            has_password: { type: "boolean" },
             image_url: { type: "string", nullable: true },
             created_at: dateTime,
             updated_at: dateTime,
@@ -705,11 +697,34 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           },
         },
         GroupMemberResponse: itemResponse("GroupMember"),
-        GroupMemberListResponse: listResponse("GroupMember"),
+        GroupMemberListResponse: {
+          allOf: [
+            listResponse("GroupMember"),
+            {
+              type: "object",
+              required: ["pending_members"],
+              properties: {
+                pending_members: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    required: ["invitation_id", "phone", "status"],
+                    properties: {
+                      invitation_id: uuid,
+                      phone: { type: "string", example: "+201001234567" },
+                      status: { type: "string", enum: ["pending"] },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
         InviteToGroupRequest: {
           type: "object",
           required: ["phoneNumber"],
           properties: {
+            whatsappOptIn: { type: "boolean", description: "Organizer attests that the recipient agreed to a WhatsApp invitation." },
             phoneNumber: {
               type: "string",
               minLength: 8,
@@ -727,12 +742,13 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               enum: ["member_added", "invited"],
             },
             invitation_id: { ...uuid, nullable: true },
+            notification_queued: { type: "boolean" },
             whatsapp_url: {
               type: "string",
               format: "uri",
               nullable: true,
               description:
-                "WhatsApp click-to-chat URL. Present for a new invitee. Generating it does not send the message.",
+                "Legacy field. Group invitations no longer require a click-to-chat URL.",
             },
             status: {
               type: "string",
@@ -789,7 +805,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           required: ["text"],
           properties: {
-            text: { type: "string", minLength: 1, maxLength: 2000 },
+            text: { type: "string", minLength: 1, maxLength: 2000, description: "Plain text or stable mention tokens <@URI-encoded-user-id|URI-encoded-name>. Mention IDs must be current chat participants. Names are canonicalized from Neon; malformed encodings and overlength canonical text return 400. Legacy @name remains plain text." },
             clientMessageId: {
               ...uuid,
               description:
@@ -810,13 +826,19 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             id: uuid,
             outing_id: uuid,
             sender_id: firebaseUid,
+            sender: { type: "string" },
+            avatar: { type: "string", nullable: true },
             text: { type: "string", maxLength: 2000 },
             client_message_id: { ...uuid, nullable: true },
             sent_at: dateTime,
           },
         },
         ChatMessageResponse: itemResponse("ChatMessage"),
-        ChatMessageListResponse: listResponse("ChatMessage"),
+        ChatMessageListResponse: {
+          allOf: [listResponse("ChatMessage"), {
+            type: "object", properties: { next_cursor: { ...uuid, nullable: true } },
+          }],
+        },
         ChatRead: {
           type: "object",
           required: ["outing_id", "user_id", "last_read_at"],
@@ -847,6 +869,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               type: "string",
               enum: ["outing", "group", "chat", "vote", "invitation", "system"],
             },
+            eventType: { type: "string", description: "Specific event used by the inbox to select a destination" },
+            messageId: { ...uuid, description: "Chat message targeted by the notification" },
             outing_id: { ...uuid, nullable: true },
             group_id: { ...uuid, nullable: true },
             action_required: { type: "boolean" },
@@ -876,6 +900,16 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           description:
             "Group outings require group_id and occasion 'none' (default). Special events omit group_id and must set occasion to 'birthday' or 'wedding'.",
           properties: {
+            create_request_key: { type: "string", maxLength: 80, description: "Creator-scoped idempotency key. Required for special-event phone invitations and recommended for group voting." },
+            initial_vote_options: {
+              type: "array",
+              minItems: 2,
+              maxItems: 5,
+              description: "Ordered candidates for a group outing with no fixed location. Saved atomically with the outing.",
+              items: { $ref: "#/components/schemas/CreateVoteOptionRequest" },
+            },
+            guest_phones: { type: "array", maxItems: 50, items: { type: "string" }, description: "Special-event phone guests." },
+            guest_phones_whatsapp_opt_in: { type: "boolean", description: "Required recipient opt-in confirmation when guest_phones is supplied." },
             title: { type: "string", minLength: 3, maxLength: 20 },
             image_url: { type: "string", format: "uri", maxLength: 2048 },
             group_id: { ...uuid, nullable: true },
@@ -930,7 +964,6 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_longitude: { type: "number", nullable: true },
             vote_deadline_hours: { type: "integer", nullable: true },
             vote_ends_at: { ...dateTime, nullable: true },
-            suggested_by_user_id: { ...firebaseUid, nullable: true },
           },
         },
         Outing: {
@@ -961,12 +994,12 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
                 "deadline",
                 "unique_winner",
                 "tie_break",
+                "owner_confirmed",
                 "zero_votes",
               ],
               nullable: true,
             },
             winning_option_id: { ...uuid, nullable: true },
-            suggested_by_user_id: { ...firebaseUid, nullable: true },
             created_at: dateTime,
             updated_at: dateTime,
           },
@@ -990,8 +1023,28 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             updated_at: dateTime,
           },
         },
-        AttendanceResponse: itemResponse("Attendance"),
-        AttendanceListResponse: listResponse("Attendance"),
+        AttendanceSummary: {
+          type: "object",
+          properties: {
+            my_response: { type: "string", enum: attendanceEnum, nullable: true },
+            summary: {
+              type: "object",
+              properties: {
+                going: { type: "integer" },
+                maybe: { type: "integer" },
+                not_going: { type: "integer" },
+              },
+            },
+          },
+        },
+        AttendanceResponse: {
+          allOf: [itemResponse("Attendance"), ref("AttendanceSummary"), {
+            type: "object", properties: { items: { type: "array", items: ref("Attendance") } },
+          }],
+        },
+        AttendanceListResponse: {
+          allOf: [listResponse("Attendance"), ref("AttendanceSummary")],
+        },
         AddGuestRequest: {
           type: "object",
           required: ["user_id"],
@@ -1054,6 +1107,111 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             created_at: dateTime,
           },
         },
+        VoteResolution: {
+          type: "object",
+          required: ["outing", "outcome"],
+          properties: {
+            outing: ref("Outing"),
+            outcome: { type: "string", enum: ["confirmed", "tie", "cancelled", "still_open"] },
+            winningOptionId: uuid,
+            tiedOptionIds: { type: "array", items: uuid },
+          },
+        },
+        VoteResolutionResponse: itemResponse("VoteResolution"),
+        CastVoteResponse: envelope({
+          type: "object",
+          required: ["vote", "resolution"],
+          properties: {
+            vote: ref("Vote"),
+            resolution: { oneOf: [ref("VoteResolution"), { type: "object", nullable: true, enum: [null] }] },
+          },
+        }),
+        VotingStateResponse: envelope({
+          type: "object",
+          required: ["outing", "options", "votes", "tiedOptionIds", "isTied", "isClosed"],
+          properties: {
+            outing: ref("Outing"),
+            options: { type: "array", items: { allOf: [ref("VoteOption"), {
+              type: "object", properties: { vote_count: { type: "integer" } },
+            }] } },
+            my_option_id: { ...uuid, nullable: true },
+            eligible_voter_count: { type: "integer" },
+            votes: { type: "array", items: ref("Vote") },
+            tiedOptionIds: { type: "array", items: uuid },
+            isTied: { type: "boolean" },
+            isClosed: { type: "boolean" },
+          },
+        }),
+        OutingArrivalsResponse: envelope({
+          type: "object",
+          required: ["arrivals", "open"],
+          properties: {
+            open: { type: "boolean" },
+            closes_at: { ...dateTime, nullable: true },
+            radius_meters: { type: "number" },
+            opens_at: { ...dateTime, nullable: true },
+            max_accuracy_meters: { type: "number" },
+            venue: {
+              type: "object", nullable: true,
+              properties: { latitude: { type: "number" }, longitude: { type: "number" } },
+            },
+            automatic_eligible: { type: "boolean", enum: [true] },
+            can_confirm_arrivals: { type: "boolean" },
+            total_confirmed: { type: "integer" },
+            unconfirmed: { type: "array", items: {
+              type: "object", properties: { id: firebaseUid, name: { type: "string" } },
+            } },
+            arrivals: {
+              type: "array",
+              items: {
+                type: "object",
+                required: ["user_id", "name", "arrived_at"],
+                properties: {
+                  user_id: firebaseUid,
+                  name: { type: "string" },
+                  arrived_at: dateTime,
+                  verification_method: { type: "string", enum: ["legacy", "manual_gps", "automatic_gps", "gps"] },
+                },
+              },
+            },
+          },
+        }),
+        OutingArrivalResponse: envelope({
+          type: "object",
+          required: ["arrived"],
+          properties: { arrived: { type: "boolean" } },
+        }),
+        PasswordUpdateResponse: envelope({
+          type: "object",
+          required: ["updated"],
+          properties: { updated: { type: "boolean", enum: [true] } },
+        }),
+        PasswordVerificationResponse: envelope({
+          type: "object",
+          required: ["verified"],
+          properties: { verified: { type: "boolean", enum: [true] } },
+        }),
+        RegisteredFcmTokenResponse: envelope({
+          type: "object",
+          required: ["user_id", "token", "platform"],
+          properties: {
+            user_id: firebaseUid,
+            token: { type: "string" },
+            platform: { type: "string", nullable: true },
+          },
+        }),
+        UnregisteredFcmTokenResponse: envelope({
+          type: "object",
+          required: ["deleted"],
+          properties: { deleted: { type: "integer", minimum: 0 } },
+        }),
+        SavedPlace: {
+          type: "object",
+          required: ["user_id", "place_id", "saved_at"],
+          properties: { user_id: firebaseUid, place_id: uuid, saved_at: dateTime },
+        },
+        SavedPlaceResponse: itemResponse("SavedPlace"),
+        SavedPlaceListResponse: listResponse("SavedPlace"),
         VoteResponse: itemResponse("Vote"),
         VoteListResponse: listResponse("Vote"),
         OutingDraftRequest: {

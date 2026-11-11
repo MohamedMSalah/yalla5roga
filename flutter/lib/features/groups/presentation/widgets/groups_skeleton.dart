@@ -27,7 +27,6 @@ class GroupsSkeleton extends StatelessWidget {
             children: [
               Expanded(
                 child: SectionHeader(
-                  eyebrow: l10n.yourCircles,
                   title: l10n.groupsTitle,
                   subtitle: l10n.activeGroupsFriends(0, 0),
                 ),
@@ -49,41 +48,12 @@ class GroupsSkeleton extends StatelessWidget {
             ],
           ),
           Responsive.spaceMd.gapH,
-          Text(
-            l10n.activeVotes,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: Responsive.fontMd,
-            ),
-          ),
-          Responsive.spaceSm.gapH,
-          AppShimmer(
-            child: SizedBox(
-              height: Responsive.voteCardHeight,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: 2,
-                separatorBuilder: (_, _) => Responsive.spaceMd.gapW,
-                itemBuilder: (_, _) => const ShimmerVoteCard(),
-              ),
-            ),
-          ),
-          Responsive.spaceMd.gapH,
           FilterChipRow(
             labels: [l10n.allGroups, l10n.mostActive, l10n.recentlyAdded],
             index: 0,
             onChanged: (_) {},
           ),
           Responsive.spaceMd.gapH,
-          Text(
-            l10n.groupsTitle,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: Responsive.fontMd,
-            ),
-          ),
-          Responsive.spaceSm.gapH,
           AppShimmer(
             child: Column(
               children: [

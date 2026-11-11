@@ -18,6 +18,7 @@ import 'package:yalla_5roga/features/setting/presentation/pages/profile_info_pag
 import 'package:yalla_5roga/features/setting/presentation/widgets/cards/about_developer_card.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_header.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_stats.dart';
+import 'package:yalla_5roga/features/outings/presentation/pages/outing_history_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/saved_outings_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/lists/settings_list.dart';
@@ -88,265 +89,239 @@ class _SettingsPageState extends State<SettingsPage> {
     final theme = context.watch<ThemeProvider>();
     final savedOutings = context.watch<SavedOutingsProvider>();
 
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: [
-        // ProfileHeader — avatar, name, logout
-        Container(
-          padding: Responsive.padding(horizontal: 20, top: 48, bottom: 24),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                AppColors.slate950,
-                AppColors.brand700,
-                Color(0xFF8B5CF6),
-              ],
-            ),
-          ),
-          child: ProfileHeader(
+    return SafeArea(
+      bottom: false,
+      child: ListView(
+        padding: Responsive.pagePadding().add(
+          EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+        ),
+        children: [
+          ProfileHeader(
             user: user,
             onLogout: () => _logout(context),
             onEditProfile: () => _openEditProfile(context),
           ),
-        ),
-        Padding(
-          padding: Responsive.padding(horizontal: 20, bottom: 24),
-          child: Column(
+          Responsive.spaceMd.gapH,
+          const ProfileStats(),
+          Responsive.spaceXl.gapH,
+          SettingsGroup(
+            title: l10n.accountSettings,
             children: [
-              Transform.translate(
-                offset: Offset(0, -18.h),
-                // ProfileStats — groups / outings counts
-                child: const ProfileStats(),
+              SettingsTile(
+                icon: Icons.phone_outlined,
+                title: l10n.phone,
+                subtitle: l10n.digits(user?.phone ?? ''),
+                background: const Color(0xFFEDE9FE),
+                foreground: const Color(0xFF7C3AED),
+                trailing: PhoneVerificationChip(
+                  verified: user?.phoneVerified ?? false,
+                  onVerify:
+                      user != null &&
+                          user.phone.trim().isNotEmpty &&
+                          !user.phoneVerified
+                      ? () => ProfilePhoneSheet.open(context, phone: user.phone)
+                      : null,
+                ),
               ),
-              // SettingsGroup — account tiles (phone, saved, theme)
-              SettingsGroup(
-                title: l10n.accountSettings,
-                children: [
-                  SettingsTile(
-                    icon: Icons.manage_accounts_outlined,
-                    title: l10n.editProfile,
-                    subtitle: l10n.digits(user?.phone ?? ''),
-                    background: AppColors.brand50,
-                    foreground: AppColors.brand600,
-                    onTap: () => _openEditProfile(context),
-                  ),
-                  SettingsTile(
-                    icon: Icons.phone_outlined,
-                    title: l10n.phone,
-                    subtitle: l10n.digits(user?.phone ?? ''),
-                    background: const Color(0xFFEDE9FE),
-                    foreground: const Color(0xFF7C3AED),
-                    trailing: PhoneVerificationChip(
-                      verified: user?.phoneVerified ?? false,
-                      onVerify:
-                          user != null &&
-                              user.phone.trim().isNotEmpty &&
-                              !user.phoneVerified
-                          ? () => ProfilePhoneSheet.open(
-                              context,
-                              phone: user.phone,
-                            )
-                          : null,
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.calendar_today_outlined,
-                    title: l10n.memberSince,
-                    subtitle: user?.createdAt != null
-                        ? l10n.formatMemberSince(user!.createdAt!)
-                        : null,
-                    background: AppColors.amber100,
-                    foreground: AppColors.amber700,
-                  ),
-                  SettingsTile(
-                    icon: Icons.bookmark_outline,
-                    title: l10n.mySaved,
-                    subtitle: savedOutings.totalCount == 0
-                        ? l10n.mySavedSubtitle
-                        : l10n.savedCount(savedOutings.totalCount),
-                    background: AppColors.brand50,
-                    foreground: AppColors.brand600,
-                    trailing: _chevron(context),
-                    onTap: () => Get.to(() => const SavedOutingsPage()),
-                  ),
-                  SettingsTile(
-                    icon: theme.isDark
-                        ? Icons.wb_sunny_outlined
-                        : Icons.dark_mode_outlined,
-                    title: l10n.darkTheme,
-                    subtitle: l10n.useDarkColors,
-                    background: const Color(0xFFEDE9FE),
-                    foreground: const Color(0xFF7C3AED),
-                    trailing: AppSwitch(
-                      value: theme.isDark,
-                      onChanged: (value) async {
-                        await theme.setDark(value);
-                        AppSnackBar.show(l10n.themeChanged);
-                      },
-                    ),
-                  ),
-                ],
+              SettingsTile(
+                icon: Icons.calendar_today_outlined,
+                title: l10n.memberSince,
+                subtitle: user?.createdAt != null
+                    ? l10n.formatMemberSince(user!.createdAt!)
+                    : null,
+                background: AppColors.amber100,
+                foreground: AppColors.amber700,
               ),
-              12.gapH,
-              // SettingsGroup — notifications + LanguageChoice
-              SettingsGroup(
-                title: l10n.preferences,
-                children: [
-                  SettingsTile(
-                    icon: Icons.notifications_active_outlined,
-                    title: l10n.notifications,
-                    subtitle: l10n.votesPlansReminders,
-                    background: AppColors.rose50,
-                    foreground: AppColors.rose500,
-                    trailing: AppSwitch(
-                      value: context.watch<SettingsProvider>().pushEnabled,
-                      onChanged: context
-                          .read<SettingsProvider>()
-                          .setPushEnabled,
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.language,
-                    title: l10n.appLanguage,
-                    subtitle: locale.isRtl ? l10n.arabic : l10n.english,
-                    background: const Color(0xFFD1FAE5),
-                    foreground: const Color(0xFF059669),
-                    trailing: const LanguageChoice(),
-                  ),
-                ],
+              SettingsTile(
+                icon: Icons.bookmark_outline,
+                title: l10n.mySaved,
+                subtitle: savedOutings.totalCount == 0
+                    ? l10n.mySavedSubtitle
+                    : l10n.savedCount(savedOutings.totalCount),
+                background: AppColors.brand50,
+                foreground: AppColors.brand600,
+                trailing: _chevron(context),
+                onTap: () => Get.to(() => const SavedOutingsPage()),
               ),
-              12.gapH,
-              // SettingsGroup — help, contact
-              SettingsGroup(
-                title: l10n.support,
-                children: [
-                  SettingsTile(
-                    icon: Icons.help_outline,
-                    title: l10n.helpAndFaq,
-                    background: AppColors.amber100,
-                    foreground: AppColors.amber700,
-                    trailing: _chevron(context),
-                    onTap: () => Get.to(
-                      () => ProfileInfoPage(
-                        title: l10n.helpAndFaq,
-                        children: [
-                          ProfileInfoBlock(
-                            title: l10n.faqCreateOuting,
-                            body: l10n.faqCreateOutingAnswer,
-                          ),
-                          ProfileInfoBlock(
-                            title: l10n.faqGroups,
-                            body: l10n.faqGroupsAnswer,
-                          ),
-                          ProfileInfoBlock(
-                            title: l10n.faqInvite,
-                            body: l10n.faqInviteAnswer,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.mail_outline,
-                    title: l10n.contactUs,
-                    subtitle: l10n.getInTouch,
-                    background: const Color(0xFFE0F2FE),
-                    foreground: const Color(0xFF0284C7),
-                    trailing: Icon(
-                      Icons.arrow_outward,
-                      size: 16.w,
-                      color: context.palette.textMuted,
-                    ),
-                    onTap: () => _openLink(
-                      context,
-                      'mailto:${AboutDeveloperCard.contactEmail}?subject=Yalla%205roga',
-                    ),
-                  ),
-                ],
+              SettingsTile(
+                icon: Icons.history,
+                title: l10n.outingHistory,
+                subtitle: l10n.outingHistoryHint,
+                trailing: _chevron(context),
+                onTap: () => Get.to(() => const OutingHistoryPage()),
               ),
-              12.gapH,
-              // SettingsGroup — about, privacy, terms
-              SettingsGroup(
-                title: l10n.about,
-                children: [
-                  SettingsTile(
-                    icon: Icons.info_outline,
-                    title: l10n.aboutYalla5roga,
-                    background: AppColors.brand50,
-                    foreground: AppColors.brand600,
-                    trailing: _chevron(context),
-                    onTap: () => Get.to(
-                      () => ProfileInfoPage(
-                        title: l10n.aboutYalla5roga,
-                        children: [
-                          ProfileInfoBlock(
-                            title: l10n.appName,
-                            body: l10n.aboutAppBody,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.lock_outline,
-                    title: l10n.privacyPolicy,
-                    background: const Color(0xFFEDE9FE),
-                    foreground: const Color(0xFF7C3AED),
-                    trailing: _chevron(context),
-                    onTap: () => Get.to(
-                      () => ProfileInfoPage(
-                        title: l10n.privacyPolicy,
-                        children: [
-                          ProfileInfoBlock(
-                            title: l10n.privacyPolicy,
-                            body: l10n.privacyPolicyBody,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.description_outlined,
-                    title: l10n.termsAndConditions,
-                    background: context.palette.surfaceMuted,
-                    foreground: context.palette.textPrimary,
-                    trailing: _chevron(context),
-                    onTap: () => Get.to(
-                      () => ProfileInfoPage(
-                        title: l10n.termsAndConditions,
-                        children: [
-                          ProfileInfoBlock(
-                            title: l10n.termsAndConditions,
-                            body: l10n.termsBody,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              12.gapH,
-              // SettingsGroup — AboutDeveloperPage
-              SettingsGroup(
-                title: l10n.developer,
-                children: [
-                  SettingsTile(
-                    icon: Icons.computer_outlined,
-                    title: l10n.aboutDeveloper,
-                    //subtitle: l10n.developerName,
-                    background: AppColors.brand50,
-                    foreground: AppColors.brand600,
-                    trailing: _chevron(context),
-                    onTap: () => Get.to(() => const AboutDeveloperPage()),
-                  ),
-                ],
+              SettingsTile(
+                icon: theme.isDark
+                    ? Icons.wb_sunny_outlined
+                    : Icons.dark_mode_outlined,
+                title: l10n.darkTheme,
+                subtitle: l10n.useDarkColors,
+                background: const Color(0xFFEDE9FE),
+                foreground: const Color(0xFF7C3AED),
+                trailing: AppSwitch(
+                  value: theme.isDark,
+                  onChanged: (value) async {
+                    await theme.setDark(value);
+                    AppSnackBar.show(l10n.themeChanged);
+                  },
+                ),
               ),
             ],
           ),
-        ),
-      ],
+          12.gapH,
+          // SettingsGroup — notifications + LanguageChoice
+          SettingsGroup(
+            title: l10n.preferences,
+            children: [
+              SettingsTile(
+                icon: Icons.notifications_active_outlined,
+                title: l10n.notifications,
+                subtitle: l10n.votesPlansReminders,
+                background: AppColors.rose50,
+                foreground: AppColors.rose500,
+                trailing: AppSwitch(
+                  value: context.watch<SettingsProvider>().pushEnabled,
+                  onChanged: context.read<SettingsProvider>().setPushEnabled,
+                ),
+              ),
+              SettingsTile(
+                icon: Icons.language,
+                title: l10n.appLanguage,
+                subtitle: locale.isRtl ? l10n.arabic : l10n.english,
+                background: const Color(0xFFD1FAE5),
+                foreground: const Color(0xFF059669),
+                trailing: const LanguageChoice(),
+              ),
+            ],
+          ),
+          12.gapH,
+          // SettingsGroup — help, contact
+          SettingsGroup(
+            title: l10n.support,
+            children: [
+              SettingsTile(
+                icon: Icons.help_outline,
+                title: l10n.helpAndFaq,
+                background: AppColors.amber100,
+                foreground: AppColors.amber700,
+                trailing: _chevron(context),
+                onTap: () => Get.to(
+                  () => ProfileInfoPage(
+                    title: l10n.helpAndFaq,
+                    children: [
+                      ProfileInfoBlock(
+                        title: l10n.faqCreateOuting,
+                        body: l10n.faqCreateOutingAnswer,
+                      ),
+                      ProfileInfoBlock(
+                        title: l10n.faqGroups,
+                        body: l10n.faqGroupsAnswer,
+                      ),
+                      ProfileInfoBlock(
+                        title: l10n.faqInvite,
+                        body: l10n.faqInviteAnswer,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SettingsTile(
+                icon: Icons.mail_outline,
+                title: l10n.contactUs,
+                subtitle: l10n.getInTouch,
+                background: const Color(0xFFE0F2FE),
+                foreground: const Color(0xFF0284C7),
+                trailing: Icon(
+                  Icons.arrow_outward,
+                  size: 16.w,
+                  color: context.palette.textMuted,
+                ),
+                onTap: () => _openLink(
+                  context,
+                  'mailto:${AboutDeveloperCard.contactEmail}?subject=Yalla%205roga',
+                ),
+              ),
+            ],
+          ),
+          12.gapH,
+          // SettingsGroup — about, privacy, terms
+          SettingsGroup(
+            title: l10n.about,
+            children: [
+              SettingsTile(
+                icon: Icons.info_outline,
+                title: l10n.aboutYalla5roga,
+                background: AppColors.brand50,
+                foreground: AppColors.brand600,
+                trailing: _chevron(context),
+                onTap: () => Get.to(
+                  () => ProfileInfoPage(
+                    title: l10n.aboutYalla5roga,
+                    children: [
+                      ProfileInfoBlock(
+                        title: l10n.appName,
+                        body: l10n.aboutAppBody,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SettingsTile(
+                icon: Icons.lock_outline,
+                title: l10n.privacyPolicy,
+                background: const Color(0xFFEDE9FE),
+                foreground: const Color(0xFF7C3AED),
+                trailing: _chevron(context),
+                onTap: () => Get.to(
+                  () => ProfileInfoPage(
+                    title: l10n.privacyPolicy,
+                    children: [
+                      ProfileInfoBlock(
+                        title: l10n.privacyPolicy,
+                        body: l10n.privacyPolicyBody,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SettingsTile(
+                icon: Icons.description_outlined,
+                title: l10n.termsAndConditions,
+                background: context.palette.surfaceMuted,
+                foreground: context.palette.textPrimary,
+                trailing: _chevron(context),
+                onTap: () => Get.to(
+                  () => ProfileInfoPage(
+                    title: l10n.termsAndConditions,
+                    children: [
+                      ProfileInfoBlock(
+                        title: l10n.termsAndConditions,
+                        body: l10n.termsBody,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          12.gapH,
+          // SettingsGroup — AboutDeveloperPage
+          SettingsGroup(
+            title: l10n.developer,
+            children: [
+              SettingsTile(
+                icon: Icons.computer_outlined,
+                title: l10n.aboutDeveloper,
+                //subtitle: l10n.developerName,
+                background: AppColors.brand50,
+                foreground: AppColors.brand600,
+                trailing: _chevron(context),
+                onTap: () => Get.to(() => const AboutDeveloperPage()),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

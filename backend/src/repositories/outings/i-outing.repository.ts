@@ -39,7 +39,7 @@ export interface IOutingRepository {
   deleteVoteOption(id: string): Promise<OutingVoteOption>;
   listVotes(outingId: string): Promise<OutingVote[]>;
   castVote(data: CastVoteInput): Promise<OutingVote>;
-  removeVote(outingId: string, userId: string): Promise<OutingVote>;
+  removeVote(outingId: string, userId: string, optionId?: string): Promise<OutingVote>;
   clearVotes(outingId: string): Promise<number>;
 
   findDraftById(id: string): Promise<OutingDraft | null>;

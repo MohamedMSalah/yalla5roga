@@ -61,11 +61,21 @@ export class PushChannel implements NotificationChannelSender {
         ? payload.body
         : "You have a new notification";
 
-    const data: Record<string, string> = {};
-    for (const [key, value] of Object.entries(payload)) {
-      if (value == null) continue;
-      data[key] = typeof value === "string" ? value : String(value);
+    const inbox = input.inboxEventKey
+      ? await prisma.notifications.findFirst({
+          where: { event_key: input.inboxEventKey, user_id: input.recipientUserId },
+          select: { id: true },
+        })
+      : null;
+    const data: Record<string, string> = {
+      pushId: input.eventId,
+      recipientUserId: input.recipientUserId,
+    };
+    for (const key of ["type", "groupId", "outingId", "messageId"] as const) {
+      const value = payload[key];
+      if (typeof value === "string" && value) data[key] = value;
     }
+    if (inbox) data.notificationId = inbox.id;
 
     const messaging = getMessaging();
     const response = await messaging.sendEachForMulticast({

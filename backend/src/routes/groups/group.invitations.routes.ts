@@ -3,7 +3,7 @@ import { GroupController } from "../../controllers/groups/group.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   groupIdParamsSchema,
-  invitationIdParamsSchema,
+  pendingMembershipParamsSchema,
   inviteToGroupBodySchema,
 } from "../../validators/groups/group.validator.js";
 
@@ -12,13 +12,13 @@ import {
  * /api/groups/{id}/invitations:
  *   post:
  *     tags: [Group Invitations]
- *     summary: Invite a phone number to a group
+ *     summary: Add a phone number to a group
  *     description: >
  *       The caller must already belong to the group. A verified Firebase account
- *       with this phone is added as a member immediately. Otherwise a pending
- *       invitation is stored and a WhatsApp click-to-chat URL is returned.
- *       Opening that URL does not send the message; the inviter sends it.
- *       The message does not include store links until the app is published.
+ *       with this phone and a synced profile is added immediately. Otherwise a
+ *       phone association is saved until verified signup or sync. A consented
+ *       WhatsApp Business template is queued when the provider is configured.
+ *       Registration links the group without an acceptance step.
  *     operationId: inviteToGroup
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -47,20 +47,18 @@ import {
  *               $ref: "#/components/schemas/GroupInvitationConflict"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
- * /api/groups/invitations/{invitationId}/decline:
- *   post:
+ * /api/groups/{id}/pending-memberships/{invitationId}:
+ *   delete:
  *     tags: [Group Invitations]
- *     summary: Decline a pending group invitation
- *     description: >
- *       The invitation must be pending and addressed to the phone number verified on the
- *       caller's Firebase ID token. The UID and phone come from the token only. A repeated
- *       call finds no pending row and returns 404.
- *     operationId: declineGroupInvitation
+ *     summary: Revoke a pending phone membership
+ *     description: A group owner can revoke a pending phone association before it links to an account.
+ *     operationId: revokePendingGroupMembership
  *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
  *       - $ref: "#/components/parameters/InvitationId"
  *     responses:
  *       "200":
- *         description: The invitation, now with status declined
+ *         description: The pending association was revoked
  *         content:
  *           application/json:
  *             schema:
@@ -70,28 +68,17 @@ import {
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  *       "403":
- *         description: The token carries no verified phone number
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
- *         description: No pending invitation for this id and verified phone
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- *       "500":
- *         $ref: "#/components/responses/InternalServerError"
+ *         $ref: "#/components/responses/NotFound"
  */
 const router = Router();
 const controller = new GroupController();
 
-// Static `/invitations/:invitationId/decline` before `/:id`.
-router.post(
-  "/invitations/:invitationId/decline",
-  validate({ params: invitationIdParamsSchema }),
-  controller.decline,
+router.delete(
+  "/:id/pending-memberships/:invitationId",
+  validate({ params: pendingMembershipParamsSchema }),
+  controller.revokePendingMembership,
 );
 router.post(
   "/:id/invitations",

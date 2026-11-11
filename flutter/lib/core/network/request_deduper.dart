@@ -45,7 +45,7 @@ class RequestDeduper {
     final future = run();
     _inFlight[key] = future;
     return future.whenComplete(() {
-      _inFlight.remove(key);
+      if (identical(_inFlight[key], future)) _inFlight.remove(key);
     });
   }
 

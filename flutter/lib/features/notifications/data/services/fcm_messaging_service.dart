@@ -39,10 +39,11 @@ class FcmMessagingService {
     try {
       await _localNotifications.initialize(onTap: onOpened);
 
+      // The local service presents foreground messages on both platforms.
       await _messaging.setForegroundNotificationPresentationOptions(
-        alert: true,
-        badge: true,
-        sound: true,
+        alert: false,
+        badge: false,
+        sound: false,
       );
 
       _subscriptions.add(
@@ -97,6 +98,13 @@ class FcmMessagingService {
 
   /// Cold-start: user launched the app by tapping a notification.
   Future<PushNotificationPayload?> takeInitialMessage() async {
+    try {
+      final local = await _localNotifications.takeInitialMessage();
+      if (local != null) return local;
+    } catch (error) {
+      debugPrint('[FCM] local launch details failed: $error');
+    }
+
     try {
       final message = await _messaging.getInitialMessage();
       if (message == null) return null;

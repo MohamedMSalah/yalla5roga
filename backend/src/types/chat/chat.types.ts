@@ -1,6 +1,7 @@
 import type { chat_messages, chat_reads } from "@prisma/client";
 
-export type ChatMessage = chat_messages;
+export type ChatMessage = chat_messages & { sender?: string; avatar?: string | null };
+export type ChatHistoryPage = { limit: number; before?: string };
 export type ChatRead = chat_reads;
 
 export type CreateChatMessageInput = {

@@ -1,6 +1,5 @@
 import type { Socket } from "socket.io";
-import { getFirebaseAuth } from "../config/firebase.js";
-import { extractBearerToken } from "../middleware/auth.middleware.js";
+import { extractBearerToken, verifyAppSession } from "../middleware/auth.middleware.js";
 
 export type AuthenticatedSocket = Socket & {
   data: {
@@ -41,7 +40,7 @@ export async function authenticateSocket(
       return;
     }
 
-    const decoded = await getFirebaseAuth().verifyIdToken(token);
+    const decoded = await verifyAppSession(token);
     if (!decoded.uid) {
       next(new Error("UNAUTHORIZED"));
       return;

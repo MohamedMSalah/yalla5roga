@@ -6,6 +6,7 @@ import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
+import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
@@ -22,11 +23,15 @@ class OutingVoteWidget extends StatefulWidget {
     required this.outing,
     this.showHeader = true,
     this.compact = false,
+    this.placeVotingKey,
+    this.attendanceKey,
   });
 
   final Outing outing;
   final bool showHeader;
   final bool compact;
+  final Key? placeVotingKey;
+  final Key? attendanceKey;
 
   @override
   State<OutingVoteWidget> createState() => _OutingVoteWidgetState();
@@ -35,6 +40,7 @@ class OutingVoteWidget extends StatefulWidget {
 class _OutingVoteWidgetState extends State<OutingVoteWidget> {
   var _saving = false;
   var _breakingTie = false;
+  var _voting = false;
 
   Future<void> _selectAttendance(AttendanceStatus status) async {
     if (_saving || status == AttendanceStatus.unset) return;
@@ -67,9 +73,48 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
       return;
     }
 
+    if (_voting || outings.voteIndexesFor(widget.outing.id).contains(index)) {
+      return;
+    }
+    setState(() => _voting = true);
     final ok = await outings.selectVoteFor(widget.outing.id, index);
     if (!mounted) return;
+    setState(() => _voting = false);
     if (ok) AppSnackBar.show(l10n.voteUpdated);
+  }
+
+  Future<void> _chooseVenue(List<VoteOption> options) async {
+    final l10n = context.l10n;
+    final choice = await showDialog<VoteOption>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(l10n.confirmVenue),
+        children: [
+          for (final option in options)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, option),
+              child: ListTile(
+                title: Text(option.label),
+                subtitle: Text(l10n.votesPercent(option.votes, option.percent)),
+              ),
+            ),
+        ],
+      ),
+    );
+    if (!mounted || choice == null) return;
+    final confirmed = await AppAlert.confirm(
+      title: l10n.confirmVenue,
+      message: l10n.confirmVenuePrompt(choice.label),
+      confirmText: l10n.confirmVenue,
+      cancelText: l10n.cancel,
+    );
+    if (!mounted || !confirmed) return;
+    setState(() => _voting = true);
+    await context.read<OutingsProvider>().confirmVenue(
+      widget.outing.id,
+      choice.placeId,
+    );
+    if (mounted) setState(() => _voting = false);
   }
 
   Future<void> _runTieBreak() async {
@@ -121,17 +166,28 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final userId = context.watch<AuthProvider>().user?.id;
     final outing = outings.findById(widget.outing.id) ?? widget.outing;
     final options = outings.optionsFor(outing.id);
-    final showPlaces =
-        outing.status == OutingStatus.voting && options.isNotEmpty;
+    final showPlaces = options.isNotEmpty;
+    final canConfirm =
+        (userId != null && outing.createdById == userId) &&
+        outing.status == OutingStatus.voting &&
+        showPlaces;
     final selectedIndexes = outings.voteIndexesFor(outing.id);
     final mine = outings.cuserAttendance(outing.id, userId);
     final isCreator =
         outing.createdById != null && outing.createdById == userId;
     final locked = outings.isVoteFinalized(outing.id);
+    final attendanceLoaded = outings.hasAttendanceFor(outing.id);
     final attendanceOpen =
-        outings.canChangeAttendance(outing.id, userId: userId) && !_saving;
-    final placesEnabled = !locked && showPlaces;
-    final totalMembers = math.max(outing.going, 1);
+        userId != null &&
+        attendanceLoaded &&
+        outings.canChangeAttendance(outing.id, userId: userId) &&
+        !outings.isSavingAttendance(outing.id);
+    final placesEnabled =
+        !locked && !_voting && outing.status == OutingStatus.voting;
+    final totalMembers = math.max(
+      outings.eligibleVoterCountFor(outing.id),
+      outings.votedCountFor(outing.id),
+    );
     final voted = outings.votedCountFor(outing.id).clamp(0, totalMembers);
     final showTieBreak = isCreator && outings.isTied(outing.id);
 
@@ -183,6 +239,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
           ],
           Text(
             l10n.attendanceTitle,
+            key: widget.attendanceKey,
             style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: Responsive.fontSm,
@@ -221,8 +278,8 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                     label: l10n.imIn,
                     icon: Icons.check,
                     selected: mine == AttendanceStatus.going,
-                    loading: _saving && mine != AttendanceStatus.going,
-                    enabled: attendanceOpen,
+                    loading: _saving && mine == AttendanceStatus.going,
+                    enabled: attendanceOpen && mine != AttendanceStatus.going,
                     color: const Color(0xFF059669),
                     onTap: () => _selectAttendance(AttendanceStatus.going),
                   ),
@@ -233,8 +290,8 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                     label: l10n.maybe,
                     icon: Icons.help_outline,
                     selected: mine == AttendanceStatus.maybe,
-                    loading: _saving && mine != AttendanceStatus.maybe,
-                    enabled: attendanceOpen,
+                    loading: _saving && mine == AttendanceStatus.maybe,
+                    enabled: attendanceOpen && mine != AttendanceStatus.maybe,
                     color: AppColors.amber700,
                     onTap: () => _selectAttendance(AttendanceStatus.maybe),
                   ),
@@ -245,8 +302,9 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                     label: l10n.notIn,
                     icon: Icons.close,
                     selected: mine == AttendanceStatus.notGoing,
-                    loading: _saving && mine != AttendanceStatus.notGoing,
-                    enabled: attendanceOpen,
+                    loading: _saving && mine == AttendanceStatus.notGoing,
+                    enabled:
+                        attendanceOpen && mine != AttendanceStatus.notGoing,
                     color: AppColors.rose600,
                     onTap: () => _selectAttendance(AttendanceStatus.notGoing),
                   ),
@@ -254,7 +312,35 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
               ],
             ),
           ],
-          if (locked) ...[
+          8.gapH,
+          if (attendanceLoaded)
+            Wrap(
+              spacing: Responsive.spaceSm,
+              runSpacing: Responsive.spaceXs,
+              children: [
+                for (final status in [
+                  AttendanceStatus.going,
+                  AttendanceStatus.maybe,
+                  AttendanceStatus.notGoing,
+                ])
+                  Text(
+                    l10n.attendanceTally(
+                      switch (status) {
+                        AttendanceStatus.going => l10n.imIn,
+                        AttendanceStatus.maybe => l10n.maybe,
+                        _ => l10n.notIn,
+                      },
+                      outings
+                          .attendanceMapFor(outing.id)
+                          .values
+                          .where((value) => value == status)
+                          .length,
+                    ),
+                    style: context.texts.bodySmall,
+                  ),
+              ],
+            ),
+          if (locked && showPlaces) ...[
             8.gapH,
             Text(
               l10n.voteLocked,
@@ -265,10 +351,15 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
               ),
             ),
           ],
+          if (!showPlaces && widget.placeVotingKey != null) ...[
+            14.gapH,
+            Text(l10n.noPlacesAddedYet, key: widget.placeVotingKey),
+          ],
           if (showPlaces) ...[
             14.gapH,
             Text(
               l10n.pickFavoritePlace,
+              key: widget.placeVotingKey,
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: Responsive.fontSm,
@@ -282,7 +373,18 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
               enabled: placesEnabled,
               onSelected: _togglePlace,
             ),
-            if (outings.voteEndsAt(outing.id) != null) ...[
+            if (canConfirm) ...[
+              12.gapH,
+              CustomButton(
+                label: l10n.confirmVenue,
+                icon: Icons.place_outlined,
+                size: AppButtonSize.small,
+                onPressed: _voting || _breakingTie
+                    ? null
+                    : () => _chooseVenue(options),
+              ),
+            ],
+            if (!locked && outings.voteEndsAt(outing.id) != null) ...[
               12.gapH,
               VoteCountdownText(endsAt: outings.voteEndsAt(outing.id)!),
             ],
@@ -432,7 +534,10 @@ class OutingVoteOptions extends StatelessWidget {
                     Responsive.spaceSm.gapW,
                     Expanded(
                       child: Text(
-                        options[i].label,
+                        [
+                          options[i].label,
+                          options[i].area,
+                        ].where((part) => part.isNotEmpty).join(' Ãƒâ€šÃ‚Â· '),
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: Responsive.fontSm,

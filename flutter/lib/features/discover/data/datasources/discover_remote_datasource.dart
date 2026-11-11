@@ -31,21 +31,29 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
     OutingVibe? vibe,
   }) async {
     try {
-      final response = await _client.get<Map<String, dynamic>>(
-        ApiConstants.nearbyPlaces,
-        queryParameters: {
-          'lat': latitude,
-          'lng': longitude,
-          if (vibe != null) 'vibe': vibe.name,
-        },
-      );
-      return [
-        for (final item in apiObjectList(
+      const pageSize = 50;
+      final places = <String, SuggestedPlace>{};
+      for (var offset = 0; ; offset += pageSize) {
+        final response = await _client.get<Map<String, dynamic>>(
+          ApiConstants.nearbyPlaces,
+          queryParameters: {
+            'lat': latitude,
+            'lng': longitude,
+            if (vibe != null) 'vibe': vibe.name,
+            'limit': pageSize,
+            'offset': offset,
+          },
+        );
+        final items = apiObjectList(
           response.data,
           aliases: const ['places', 'items'],
-        ))
-          _fromJson(item),
-      ];
+        );
+        for (final item in items) {
+          final place = _fromJson(item);
+          places[place.id] = place;
+        }
+        if (items.length < pageSize) return places.values.toList();
+      }
     } on DioException catch (error) {
       throw _unwrap(error);
     }

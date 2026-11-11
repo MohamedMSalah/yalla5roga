@@ -19,16 +19,11 @@ export type InvitationRecord = {
 
 export interface InvitationClaimStore {
   listPendingByPhone(phone: string): Promise<InvitationRecord[]>;
-  getById(id: string): Promise<InvitationRecord | null>;
-  markExpired(id: string, now: Date): Promise<void>;
-  markRevoked(id: string, now: Date): Promise<void>;
-  markAccepted(
-    id: string,
+  activate(
+    pending: InvitationRecord[],
     userId: string,
     now: Date,
-  ): Promise<InvitationRecord>;
-  groupExists(groupId: string): Promise<boolean>;
-  addInvitedMember(groupId: string, userId: string): Promise<void>;
+  ): Promise<InvitationRecord[]>;
 }
 
 /**
@@ -40,28 +35,6 @@ export async function claimPendingInvitations(
   input: { userId: string; phone: string; now: Date },
 ): Promise<InvitationRecord[]> {
   const pending = await store.listPendingByPhone(input.phone);
-  const accepted: InvitationRecord[] = [];
-
-  for (const invitation of pending) {
-    const current = await store.getById(invitation.id);
-    if (!current || current.status !== "pending") continue;
-    if (current.invited_phone !== input.phone) continue;
-
-    if (current.expires_at.getTime() <= input.now.getTime()) {
-      await store.markExpired(current.id, input.now);
-      continue;
-    }
-
-    if (!(await store.groupExists(current.group_id))) {
-      await store.markRevoked(current.id, input.now);
-      continue;
-    }
-
-    await store.addInvitedMember(current.group_id, input.userId);
-    accepted.push(
-      await store.markAccepted(current.id, input.userId, input.now),
-    );
-  }
-
-  return accepted;
+  if (pending.length === 0) return [];
+  return store.activate(pending, input.userId, input.now);
 }

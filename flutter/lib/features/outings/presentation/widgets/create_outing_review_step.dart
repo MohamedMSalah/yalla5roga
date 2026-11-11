@@ -56,13 +56,31 @@ class CreateOutingReviewStep extends StatelessWidget {
               ),
               if (form.multiPlaceMode) ...[
                 Responsive.spaceXs.gapH,
-                Text(
-                  l10n.voteClosesInHours(form.voteDeadlineHours),
-                  style: TextStyle(
-                    color: AppColors.amber700,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 10.sp,
-                  ),
+                Text(l10n.voteDeadlineHours, style: context.texts.titleSmall),
+                Text(l10n.voteDeadlineHint, style: context.texts.bodySmall),
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: l10n.decreaseVoteHours,
+                      onPressed: form.voteDeadlineHours <= 1
+                          ? null
+                          : () => form.setVoteDeadlineHours(
+                              form.voteDeadlineHours - 1,
+                            ),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                    Text(l10n.hoursCount(form.voteDeadlineHours)),
+                    IconButton(
+                      tooltip: l10n.increaseVoteHours,
+                      onPressed: form.voteDeadlineHours >= 72
+                          ? null
+                          : () => form.setVoteDeadlineHours(
+                              form.voteDeadlineHours + 1,
+                            ),
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                  ],
                 ),
               ],
               if (form.selectedLocation?.hasCoordinates ?? false) ...[
@@ -84,7 +102,9 @@ class CreateOutingReviewStep extends StatelessWidget {
               Responsive.spaceSm.gapH,
               Text(
                 form.specialEvent
-                    ? l10n.guestsInvited(form.guestIds.length)
+                    ? l10n.guestsInvited(
+                        form.guestIds.length + form.guestPhones.length,
+                      )
                     : form.group == null
                     ? l10n.chooseGroup
                     : l10n.membersWillBeInvited(form.group!.memberCount),
@@ -93,7 +113,9 @@ class CreateOutingReviewStep extends StatelessWidget {
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              if (form.specialEvent)
+              if (form.guestPhones.isNotEmpty)
+                Text(l10n.whatsappGuestCount(form.guestPhones.length)),
+              if (form.specialEvent && form.guestIds.isNotEmpty)
                 Text(
                   form.guestNames.join(', '),
                   style: const TextStyle(fontWeight: FontWeight.w800),

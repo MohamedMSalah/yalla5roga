@@ -9,6 +9,7 @@ export type SignupInput = {
   name: string;
   password: string;
   phone: string;
+  phoneVerificationToken: string;
 };
 
 export type ChangePasswordInput = {

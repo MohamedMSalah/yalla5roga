@@ -10,18 +10,16 @@ import { syncUserBodySchema } from "../../validators/users/user.validator.js";
  *     tags: [Users]
  *     summary: Sync a Firebase user into the database (canonical provisioning)
  *     description: >
- *       CANONICAL user provisioning after any Firebase sign-in (phone, Google,
- *       Apple, or Firebase email/password). The user id is the Firebase UID from
- *       the Bearer token. Do not send a password.
- *       First call creates a minimal profile from trusted token claims (and
- *       optional body bootstrap fields). Later calls return the existing
- *       profile without overwriting name, email, phone, or image_url from the
- *       body. A verified token phone may update the stored phone and claim
- *       invitations. Body phone is never treated as verified. Google and Apple
- *       accounts without a verified phone still receive a profile;
- *       `invitations.status` is then `phone_verification_required`. A verified
- *       phone already stored for a different user returns 409.
- *       Profile edits after sync use `PATCH /api/users/cuser`.
+ *       Use a Firebase phone OTP or phone/password session ID token as Bearer.
+ *       The token UID identifies the Neon profile. A verified Firebase phone
+ *       may update the stored number and claim invitations. Existing display
+ *       fields are edited through PATCH /api/users/cuser. A verified phone
+ *       already stored for a different user returns 409.
+ *       Optional phoneVerificationToken is a recent phone OTP ID token. It can
+ *       rebind a phone credential from an unused OTP UID to the Bearer UID;
+ *       another registered identity is never merged. Claims invitations in
+ *       the same sync request after verification. An OTP-authenticated caller can
+ *       create a profile here and later enroll a password through POST /api/auth/signup.
  *     operationId: syncUser
  *     requestBody:
  *       $ref: "#/components/requestBodies/SyncUser"

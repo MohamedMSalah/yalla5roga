@@ -29,6 +29,10 @@ export class UserRepository implements IUserRepository {
     return this.datasource.update(id, data);
   }
 
+  enrollPassword(id: string, phone: string, passwordHash: string): Promise<User | null> {
+    return this.datasource.enrollPassword(id, phone, passwordHash);
+  }
+
   sync(data: CreateUserInput): Promise<User> {
     return this.datasource.upsert(data);
   }

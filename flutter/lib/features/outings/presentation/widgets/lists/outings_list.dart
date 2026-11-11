@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
@@ -15,15 +17,15 @@ class OutingsList extends StatelessWidget {
     super.key,
     this.title,
     this.limit,
-    this.filtered = false,
-    this.titleStyle,
+    this.items,
+    this.emptyMessage,
     this.heroSurface = 'outings',
   });
 
   final String? title;
   final int? limit;
-  final bool filtered;
-  final TextStyle? titleStyle;
+  final List<Outing>? items;
+  final String? emptyMessage;
 
   /// Keeps Hero tags unique when this list and another list showing the same
   /// outings live on one route (Home and Outings tabs share an IndexedStack).
@@ -32,32 +34,21 @@ class OutingsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final provider = context.watch<OutingsProvider>();
-    final outings = filtered ? provider.filtered : provider.outings;
+    final outings = this.items ?? context.watch<OutingsProvider>().outings;
     final items = limit == null ? outings : outings.take(limit!).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null) ...[
-          Text(
-            title!,
-            style:
-                titleStyle ??
-                TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: Responsive.fontMd,
-                ),
-          ),
+          Text(title!, style: context.texts.titleMedium),
           Responsive.spaceSm.gapH,
         ],
         if (items.isEmpty)
           AppEmptyState(
             icon: Icons.explore_outlined,
-            message: filtered ? l10n.noOutingsInFilter : l10n.noOutings,
-            subtitle: filtered
-                ? l10n.noOutingsInFilterHint
-                : l10n.noOutingsHint,
+            message: emptyMessage ?? l10n.noOutings,
+            subtitle: emptyMessage == null ? l10n.noOutingsHint : null,
             compact: true,
           )
         else
@@ -76,7 +67,12 @@ class OutingsList extends StatelessWidget {
                   title: outing.title,
                   subtitle: [
                     outing.localizedWhen(l10n),
-                    l10n.goingCount(outing.going),
+                    if (outing.status == OutingStatus.past)
+                      l10n.completedOuting
+                    else if (outing.status == OutingStatus.cancelled)
+                      l10n.cancelledOuting
+                    else
+                      l10n.goingCount(outing.going),
                   ].where((part) => part.trim().isNotEmpty).join(' · '),
                   image: outing.image,
                   occasion: outing.occasion,

@@ -10,6 +10,7 @@ export interface IUserRepository {
   findMany(): Promise<User[]>;
   create(data: CreateUserInput): Promise<User>;
   update(id: string, data: UpdateUserInput): Promise<User>;
+  enrollPassword(id: string, phone: string, passwordHash: string): Promise<User | null>;
   sync(data: CreateUserInput): Promise<User>;
   delete(id: string): Promise<User>;
 }

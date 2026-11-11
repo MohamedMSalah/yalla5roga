@@ -28,6 +28,29 @@ class OutingChatMentionText extends StatelessWidget {
           .where((name) => name.trim().isNotEmpty),
     ]..sort((a, b) => b.length.compareTo(a.length));
 
+    final stable = RegExp(r'<@([^|<>]+)\|([^<>]*)>');
+    if (stable.hasMatch(text)) {
+      final spans = <InlineSpan>[];
+      var end = 0;
+      for (final match in stable.allMatches(text)) {
+        spans.add(
+          TextSpan(text: text.substring(end, match.start), style: style),
+        );
+        String name;
+        try {
+          final id = Uri.decodeComponent(match[1]!);
+          name =
+              members.where((m) => m.id == id).firstOrNull?.name ??
+              Uri.decodeComponent(match[2]!);
+        } on FormatException {
+          name = match[2]!;
+        }
+        spans.add(TextSpan(text: '@$name', style: mentionStyle));
+        end = match.end;
+      }
+      spans.add(TextSpan(text: text.substring(end), style: style));
+      return Text.rich(TextSpan(children: spans));
+    }
     if (!text.contains('@')) {
       return Text(text, style: style);
     }

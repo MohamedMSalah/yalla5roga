@@ -4,6 +4,8 @@ import { issueFirebaseSession } from "../../services/auth/firebase-identity.js";
 import { verifyPassword } from "../../services/auth/password.js";
 import { toPublicUser } from "../../services/auth/to-public-user.js";
 import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
+import { FirebasePhoneIdentity } from "../../services/phone/phone-identity.js";
+import { ClaimGroupInvitationsUseCase } from "../groups/claim-group-invitations.usecase.js";
 import type {
   AuthSessionResult,
   LoginInput,
@@ -13,7 +15,12 @@ import { UnauthorizedError, ValidationError } from "../../utils/errors.js";
 const INVALID_CREDENTIALS = "Invalid phone number or password";
 
 export class LoginUseCase {
-  constructor(private readonly users: IUserRepository = new UserRepository()) {}
+  constructor(
+    private readonly users: IUserRepository = new UserRepository(),
+    private readonly phones: Pick<FirebasePhoneIdentity, "verifiedPhone"> = new FirebasePhoneIdentity(),
+    private readonly claims: Pick<ClaimGroupInvitationsUseCase, "execute"> = new ClaimGroupInvitationsUseCase(),
+    private readonly issueSession = issueFirebaseSession,
+  ) {}
 
   async execute(input: LoginInput): Promise<AuthSessionResult> {
     if (!input.phone || !input.password) {
@@ -34,7 +41,10 @@ export class LoginUseCase {
       throw new UnauthorizedError(INVALID_CREDENTIALS);
     }
 
-    const session = await issueFirebaseSession(user.id);
+    const session = await this.issueSession(user.id);
+    if (await this.phones.verifiedPhone(user.id) === phone) {
+      await this.claims.execute({ userId: user.id, verifiedPhone: phone });
+    }
 
     return {
       idToken: session.idToken,

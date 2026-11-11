@@ -153,9 +153,12 @@ function logInboundToken(
   });
 }
 
-async function defaultVerifyToken(token: string): Promise<FirebaseDecodedToken> {
-  const auth = getFirebaseAuth();
-  return auth.verifyIdToken(token);
+export async function verifyAppSession(token: string): Promise<FirebaseDecodedToken> {
+  const decoded = await getFirebaseAuth().verifyIdToken(token);
+  if (!["custom", "phone"].includes(decoded.firebase.sign_in_provider)) {
+    throw new UnauthorizedError("Sign in with your verified phone");
+  }
+  return decoded;
 }
 
 function toAuthUser(decoded: FirebaseDecodedToken) {
@@ -201,7 +204,7 @@ function isFirebaseConfigError(error: unknown): boolean {
 }
 
 export function createAuthMiddleware(
-  verifyToken: FirebaseTokenVerifier = defaultVerifyToken,
+  verifyToken: FirebaseTokenVerifier = verifyAppSession,
 ) {
   return async function authMiddleware(
     req: Request,
@@ -264,7 +267,7 @@ export function createAuthMiddleware(
 }
 
 export function createOptionalAuthMiddleware(
-  verifyToken: FirebaseTokenVerifier = defaultVerifyToken,
+  verifyToken: FirebaseTokenVerifier = verifyAppSession,
 ) {
   return async function optionalAuthMiddleware(
     req: Request,

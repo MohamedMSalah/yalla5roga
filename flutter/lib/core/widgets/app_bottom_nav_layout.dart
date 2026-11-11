@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_bottom_nav.dart';
 
 class AppBottomNavLayout extends StatelessWidget {
@@ -32,7 +33,13 @@ class AppBottomNavLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _TabSwap(index: currentIndex, pages: pages),
+      extendBody: true,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+          child: _TabSwap(index: currentIndex, pages: pages),
+        ),
+      ),
       bottomNavigationBar: AppBottomNav(
         items: items,
         currentIndex: currentIndex,

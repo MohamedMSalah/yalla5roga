@@ -17,11 +17,14 @@ class Outing {
     this.occasion = OutingOccasion.none,
     this.type = OutingType.group,
     this.guestIds = const [],
+    this.guestPhones = const [],
+    this.createRequestKey,
     this.status = OutingStatus.draft,
     this.votePlaces = const [],
     this.voteDeadlineHours,
     this.suggestedBy,
     this.scheduledAt,
+    this.endsAt,
     this.createdById,
   });
 
@@ -41,6 +44,8 @@ class Outing {
   final OutingOccasion occasion;
   final OutingType type;
   final List<String> guestIds;
+  final List<String> guestPhones;
+  final String? createRequestKey;
   final OutingStatus status;
 
   /// Places the group can vote on (2+ when status is voting).
@@ -54,6 +59,7 @@ class Outing {
 
   /// When the outing is scheduled (source of truth for past / chat closed).
   final DateTime? scheduledAt;
+  final DateTime? endsAt;
 
   /// Chat stays open this long after [scheduledAt].
   static const Duration chatOpenAfterStart = Duration(hours: 2);
@@ -82,12 +88,10 @@ class Outing {
   }
 
   /// True when status is past or [scheduledAt] has passed.
-  bool get isPastOuting {
-    if (status == OutingStatus.past) return true;
-    final at = scheduledAt;
-    if (at == null) return false;
-    return !at.isAfter(DateTime.now());
-  }
+  bool get isPastOuting => isPastAt(DateTime.now());
+
+  bool isPastAt(DateTime now) =>
+      status == OutingStatus.past || (scheduledAt?.isAfter(now) == false);
 
   /// Chat unlocks once at least one place has been suggested.
   bool get hasSuggestedPlaces => votePlaces.isNotEmpty || location != null;
@@ -166,11 +170,14 @@ class Outing {
       occasion: occasion ?? this.occasion,
       type: type ?? this.type,
       guestIds: guestIds ?? this.guestIds,
+      guestPhones: guestPhones,
+      createRequestKey: createRequestKey,
       status: status ?? this.status,
       votePlaces: votePlaces ?? this.votePlaces,
       voteDeadlineHours: voteDeadlineHours ?? this.voteDeadlineHours,
       suggestedBy: suggestedBy ?? this.suggestedBy,
       scheduledAt: scheduledAt ?? this.scheduledAt,
+      endsAt: endsAt,
       createdById: createdById ?? this.createdById,
     );
   }

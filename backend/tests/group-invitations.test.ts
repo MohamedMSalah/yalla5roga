@@ -32,6 +32,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  UnauthorizedError,
   ValidationError,
 } from "../src/utils/errors.js";
 
@@ -113,6 +114,9 @@ class FakeGroups implements IGroupRepository {
   }
   removeMember(): Promise<GroupMember> {
     throw new Error("not used");
+  }
+  async listRoster(groupId: string) {
+    return { members: await this.listMembers(), pendingMembers: [] };
   }
   listMembers() {
     throw new Error("not used");
@@ -244,6 +248,7 @@ function inviteUseCase(options?: {
   users?: FakeUsers;
   phones?: FakeVerifiedPhones;
   notifications?: NoopNotificationPublisher;
+  automaticWhatsApp?: boolean;
 }) {
   const groups = options?.groups ?? new FakeGroups();
   const invitations = options?.invitations ?? new FakeInvitations();
@@ -263,6 +268,7 @@ function inviteUseCase(options?: {
       phones,
       () => NOW,
       notifications,
+      () => options?.automaticWhatsApp ?? false,
     ),
   };
 }
@@ -296,10 +302,17 @@ class MemoryClaimStore implements InvitationClaimStore {
     );
   }
 
-  async markExpired(id: string, now: Date) {
-    const row = await this.required(id);
-    row.status = "expired";
-    row.updated_at = now;
+  async activate(pending: InvitationRecord[], userId: string, now: Date) {
+    const accepted: InvitationRecord[] = [];
+    for (const row of pending) {
+      if (!(await this.groupExists(row.group_id))) {
+        await this.markRevoked(row.id, now);
+        continue;
+      }
+      await this.addInvitedMember(row.group_id, userId);
+      accepted.push(await this.markAccepted(row.id, userId, now));
+    }
+    return accepted;
   }
 
   async markRevoked(id: string, now: Date) {
@@ -377,7 +390,7 @@ describe("phone normalization", () => {
 
 describe("WhatsApp click-to-chat", () => {
   it("encodes the message and omits the leading plus", () => {
-    const message = "Hello & welcome?\nSee you 🎉";
+    const message = "Hello & welcome?\nSee you ðŸŽ‰";
     const url = buildWhatsAppClickToChatUrl(E164, message);
     const parsed = new URL(url);
 
@@ -455,17 +468,32 @@ describe("invite to group", () => {
     assert.equal(result.invitation.invited_phone, E164);
     assert.equal(result.invitation.status, "pending");
     assert.equal(result.invitation.user_id, null);
-    assert.match(result.whatsappUrl, /^https:\/\/wa\.me\/201001234567\?text=/);
+    assert.equal(result.whatsappUrl, null);
     assert.match(
       result.deepLink,
       new RegExp(`^https://yalla5roga.com/invite/${result.invitation.id}\\?groupId=${GROUP_ID}$`),
     );
     assert.equal(invitations.rows.length, 1);
     assert.equal(groups.added.length, 0);
+    assert.equal(notifications.published.length, 0);
+  });
+
+  it("queues an automatic WhatsApp message for an opted-in non-user", async () => {
+    const { useCase, notifications } = inviteUseCase({ automaticWhatsApp: true });
+    const result = await useCase.execute({
+      groupId: GROUP_ID,
+      phoneNumber: E164,
+      invitedByUserId: INVITER_ID,
+      whatsappOptIn: true,
+    });
+    assert.equal(result.outcome, "invited");
+    if (result.outcome !== "invited") return;
+    assert.equal(result.whatsappUrl, null);
+    assert.equal(result.notificationQueued, true);
     assert.equal(notifications.published.length, 1);
     assert.equal(notifications.published[0]?.channel, "whatsapp");
+    assert.equal(notifications.published[0]?.whatsappOptIn, true);
     assert.equal(notifications.published[0]?.deepLink, result.deepLink);
-    assert.match(notifications.published[0]?.body ?? "", /Open your invite here:/);
   });
 
   it("adds an existing user whose Firebase phone is verified", async () => {
@@ -567,6 +595,7 @@ describe("invite to group", () => {
           invitedByUserId: INVITER_ID,
         }),
       NotFoundError,
+  UnauthorizedError,
     );
   });
 
@@ -586,12 +615,12 @@ describe("invite to group", () => {
     assert.equal(duplicate.outcome, "already_pending");
     assert.equal(invitations.rows.length, 1);
     if (duplicate.outcome !== "already_pending") return;
-    assert.match(duplicate.whatsappUrl, /^https:\/\/wa\.me\/201001234567\?text=/);
+    assert.equal(duplicate.whatsappUrl, null);
   });
 
   it("does not add a duplicate membership", async () => {
     const users = new FakeUsers();
-    users.users.set(EXISTING_ID, { id: EXISTING_ID } as User);
+    users.users.set(EXISTING_ID, { id: EXISTING_ID, phone: E164 } as User);
     const phones = new FakeVerifiedPhones();
     phones.ids.set(E164, EXISTING_ID);
     const groups = new FakeGroups();
@@ -684,7 +713,7 @@ describe("claim pending invitations", () => {
     assert.equal(state.invitations[0]?.user_id, NEW_USER_ID);
   });
 
-  it("expires an invitation instead of creating a membership", async () => {
+  it("links a pending membership after the legacy expiry timestamp", async () => {
     const state: ClaimState = {
       invitations: [
         invitation({ expires_at: new Date("2026-10-01T00:00:00.000Z") }),
@@ -695,9 +724,9 @@ describe("claim pending invitations", () => {
     };
 
     const accepted = await claimInTransaction(state, NEW_USER_ID, E164);
-    assert.deepEqual(accepted, []);
-    assert.equal(state.members.length, 0);
-    assert.equal(state.invitations[0]?.status, "expired");
+    assert.equal(accepted.length, 1);
+    assert.equal(state.members.length, 1);
+    assert.equal(state.invitations[0]?.status, "accepted");
   });
 
   it("leaves revoked invitations untouched", async () => {
@@ -821,70 +850,25 @@ describe("account sync", () => {
     assert.deepEqual(claimed, [{ userId: NEW_USER_ID, verifiedPhone: E164 }]);
   });
 
-  it("lets Google and Apple accounts register without claiming by email", async () => {
-    for (const signInProvider of ["google.com", "apple.com"] as const) {
-      const { users, claimed, useCase } = syncHarness();
-      const result = await useCase.execute({
-        id: signInProvider,
-        name: "Nour",
-        email: "nour@example.com",
-        signInProvider,
-      });
-
-      assert.equal(result.user.id, signInProvider);
-      assert.equal(result.user.phone, null);
-      assert.equal(result.invitations.phoneVerified, false);
-      assert.equal(result.invitations.status, "phone_verification_required");
-      assert.deepEqual(result.invitations.claimedGroupIds, []);
-      assert.equal(JSON.stringify(result.invitations).includes("invite"), false);
-      assert.equal(claimed.length, 0);
-      assert.equal(users.users.size, 1);
-    }
-  });
-
-  it("claims after Google or Apple links a verified phone on the same account", async () => {
-    for (const signInProvider of ["google.com", "apple.com"] as const) {
-      const { users, claimed, useCase } = syncHarness();
-      await useCase.execute({
-        id: "social-user",
-        name: "Nour",
-        email: "nour@example.com",
-        signInProvider,
-      });
-      const linked = await useCase.execute({
-        id: "social-user",
-        name: "Nour",
-        email: "nour@example.com",
-        verifiedPhone: "01001234567",
-        signInProvider,
-      });
-
-      assert.equal(users.users.size, 1);
-      assert.equal(linked.user.id, "social-user");
-      assert.equal(linked.user.phone, E164);
-      assert.equal(linked.invitations.phoneVerified, true);
-      assert.equal(linked.invitations.status, "claimed");
-      assert.deepEqual(claimed, [
-        { userId: "social-user", verifiedPhone: E164 },
-      ]);
-    }
-  });
-
-  it("does not claim an unverified phone submitted in the profile", async () => {
+  it("rejects an unverified new profile and does not claim group invitations", async () => {
     const { users, claimed, useCase } = syncHarness();
-    const result = await useCase.execute({
-      id: NEW_USER_ID,
-      name: "Nour",
-      email: "nour@example.com",
-      phone: "01001234567",
-      verifiedPhone: null,
-      signInProvider: "password",
-    });
-
-    assert.equal(result.user.phone, E164);
-    assert.equal(result.invitations.status, "phone_verification_required");
+    await assert.rejects(
+      useCase.execute({ id: NEW_USER_ID, name: "Nour", phone: "01001234567" }),
+      UnauthorizedError,
+    );
+    assert.equal(users.users.size, 0);
     assert.equal(claimed.length, 0);
+  });
+
+  it("links a verified phone to an existing UID before claiming invitations", async () => {
+    const { users, claimed, useCase } = syncHarness();
+    users.users.set(NEW_USER_ID, { id: NEW_USER_ID, name: "Nour", phone: null } as User);
+    const result = await useCase.execute({ id: NEW_USER_ID, verifiedPhone: "01001234567" });
     assert.equal(users.users.size, 1);
+    assert.equal(result.user.id, NEW_USER_ID);
+    assert.equal(result.user.phone, E164);
+    assert.equal(result.invitations.status, "claimed");
+    assert.deepEqual(claimed, [{ userId: NEW_USER_ID, verifiedPhone: E164 }]);
   });
 
   it("refuses to attach a phone that already belongs to another account", async () => {

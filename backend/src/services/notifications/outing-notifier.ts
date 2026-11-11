@@ -5,6 +5,7 @@ import type {
 import { prisma } from "../../config/database.js";
 import type { Outing } from "../../types/outings/outing.types.js";
 import { listParticipantIds } from "../outings/outing-participants.js";
+import { emitDataChange } from "../../realtime/data-changes.js";
 
 type NotifyInput = {
   outing: Outing;
@@ -30,59 +31,35 @@ export async function notifyOutingParticipants(
   );
   if (input.excludeUserId) recipients.delete(input.excludeUserId);
 
-  for (const userId of recipients) {
-    const perUserKey = `${input.eventKey}:${userId}`;
-    try {
-      await prisma.notifications.create({
-        data: {
-          user_id: userId,
-          body: input.body.slice(0, 500),
-          type: input.type,
-          outing_id: input.outing.id,
-          group_id: input.outing.group_id,
-          action_required: input.actionRequired ?? false,
-          event_key: perUserKey,
-        },
-      });
-    } catch (error: unknown) {
-      // Unique violation on event_key → already notified (idempotent retry).
-      if (
-        typeof error === "object" &&
-        error &&
-        "code" in error &&
-        (error as { code?: string }).code === "P2002"
-      ) {
-        continue;
-      }
-      throw error;
-    }
+  if (recipients.size === 0) return;
 
-    try {
-      await prisma.notification_events.create({
-        data: {
-          type: input.eventType,
-          channel: "push",
-          recipient_user_id: userId,
-          outing_id: input.outing.id,
-          group_id: input.outing.group_id,
-          event_key: `outbox:${perUserKey}`,
-          payload: {
-            body: input.body,
-            outing_id: input.outing.id,
-            notification_type: input.type,
-          },
+  const rows = [...recipients].map(userId => ({
+    user_id: userId,
+    body: input.body.slice(0, 500),
+    type: input.type,
+    outing_id: input.outing.id,
+    group_id: input.outing.group_id,
+    action_required: input.actionRequired ?? false,
+    event_key: `${input.eventKey}:${userId}`,
+  }));
+  await prisma.$transaction([
+    prisma.notifications.createMany({ data: rows, skipDuplicates: true }),
+    prisma.notification_events.createMany({
+      data: rows.map(row => ({
+        type: input.eventType,
+        channel: "push",
+        recipient_user_id: row.user_id,
+        outing_id: row.outing_id,
+        group_id: row.group_id,
+        event_key: `outbox:${row.event_key}`,
+        payload: {
+          body: input.body,
+          outing_id: row.outing_id,
+          notification_type: row.type,
         },
-      });
-    } catch (error: unknown) {
-      if (
-        typeof error === "object" &&
-        error &&
-        "code" in error &&
-        (error as { code?: string }).code === "P2002"
-      ) {
-        continue;
-      }
-      throw error;
-    }
-  }
+      })),
+      skipDuplicates: true,
+    }),
+  ]);
+  emitDataChange({ kind: "inbox" }, [...recipients]);
 }

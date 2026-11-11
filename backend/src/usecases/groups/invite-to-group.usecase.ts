@@ -5,7 +5,7 @@ import { GroupRepository } from "../../repositories/groups/group.repository.js";
 import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
 import { UserRepository } from "../../repositories/users/user.repository.js";
 import { invitationExpiresAt } from "../../services/groups/invitation-policy.js";
-import { getNotificationConfig } from "../../config/notifications.js";
+import { getNotificationConfig, hasAutomaticWhatsApp } from "../../config/notifications.js";
 import {
   buildGroupInviteDeepLinks,
   primaryInviteDeepLink,
@@ -21,15 +21,16 @@ import {
 import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
 import {
   buildInvitationMessage,
-  buildWhatsAppClickToChatUrl,
 } from "../../services/whatsapp/invitation-message.js";
 import type { GroupInvitation } from "../../types/groups/group-invitation.types.js";
 import type { GroupMember } from "../../types/groups/group.types.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
+import { publishGroupChange } from "../../realtime/data-changes.js";
 
 export type InviteToGroupInput = {
   groupId: string;
   phoneNumber: string;
+  whatsappOptIn?: boolean;
   invitedByUserId: string;
 };
 
@@ -39,19 +40,20 @@ export type InviteToGroupResult =
   | {
       outcome: "invited";
       invitation: GroupInvitation;
-      whatsappUrl: string;
+      whatsappUrl: string | null;
+      notificationQueued: boolean;
       deepLink: string;
     }
   | {
       outcome: "already_pending";
       invitation: GroupInvitation;
-      whatsappUrl: string;
+      whatsappUrl: string | null;
+      notificationQueued: boolean;
       deepLink: string;
     };
 
 type BuiltPendingInvite = {
   invitation: GroupInvitation;
-  whatsappUrl: string;
   deepLink: string;
   appDeepLink: string;
   messageBody: string;
@@ -66,6 +68,7 @@ export class InviteToGroupUseCase {
     private readonly verifiedPhones: VerifiedPhoneLookup = new FirebaseVerifiedPhoneLookup(),
     private readonly now: () => Date = () => new Date(),
     private readonly notifications: NotificationPublisher = new OutboxNotificationPublisher(),
+    private readonly automaticWhatsApp = hasAutomaticWhatsApp,
   ) {}
 
   async execute(input: InviteToGroupInput): Promise<InviteToGroupResult> {
@@ -86,58 +89,71 @@ export class InviteToGroupUseCase {
       await this.verifiedPhones.findUserIdByVerifiedPhone(phone);
     if (verifiedUserId) {
       const localUser = await this.users.findById(verifiedUserId);
-      if (localUser?.id === verifiedUserId) {
-        return this.addExistingMember(input.groupId, verifiedUserId);
+      if (localUser?.phone === phone) {
+        return this.addExistingMember(input.groupId, verifiedUserId, input.invitedByUserId);
       }
     }
 
-    const pending = await this.invitations.findPending(input.groupId, phone);
-    if (pending) {
-      const built = await this.buildPendingInvite(
-        group.name,
-        input.invitedByUserId,
-        pending,
-      );
-      return {
-        outcome: "already_pending",
-        invitation: built.invitation,
-        whatsappUrl: built.whatsappUrl,
-        deepLink: built.deepLink,
-      };
-    }
+    const now = this.now();
+    const pending = await this.invitations.findPending(input.groupId, phone, now);
+    const result = pending
+      ? { created: false, invitation: pending }
+      : await this.invitations.createPending({
+          group_id: input.groupId,
+          invited_by_user_id: input.invitedByUserId,
+          invited_phone: phone,
+          expires_at: invitationExpiresAt(now),
+        }, now);
 
-    const created = await this.invitations.createPending({
-      group_id: input.groupId,
-      invited_by_user_id: input.invitedByUserId,
-      invited_phone: phone,
-      expires_at: invitationExpiresAt(this.now()),
-    });
+    // Registration can finish between the first Firebase lookup and the
+    // pending insert. Recheck after persistence and claim only live rows.
+    const registeredId = await this.verifiedPhones.findUserIdByVerifiedPhone(phone);
+    if (registeredId && (await this.users.findById(registeredId))?.phone === phone) {
+      const claimed = await this.invitations.claimForVerifiedPhone(registeredId, phone);
+      // This race-repair claim can link other groups too. The controller
+      // publishes this group; publish every other committed link here.
+      await Promise.all([...new Set(claimed.map(row => row.group_id))]
+        .filter(id => id !== input.groupId)
+        .map(id => publishGroupChange(id, "membership", [registeredId])));
+      const member = await this.groups.findMember(input.groupId, registeredId);
+      if (member) {
+        return {
+          outcome: claimed.some((row) => row.group_id === input.groupId) ? "member_added" : "already_member",
+          member,
+        };
+      }
+    }
 
     const built = await this.buildPendingInvite(
       group.name,
-      input.invitedByUserId,
-      created.invitation,
+      result.invitation.invited_by_user_id,
+      result.invitation,
     );
-
-    if (created.created) {
+    let notificationQueued = input.whatsappOptIn === true && this.automaticWhatsApp();
+    if (notificationQueued) {
       await this.notifications.publishGroupInvite({
-        invitationId: created.invitation.id,
+        whatsappOptIn: true,
+        invitationId: result.invitation.id,
         groupId: input.groupId,
         groupName: group.name,
-        inviterUserId: input.invitedByUserId,
+        inviterUserId: result.invitation.invited_by_user_id,
         inviterName: built.inviterName,
         invitedPhone: phone,
         deepLink: built.deepLink,
         appDeepLink: built.appDeepLink,
         body: built.messageBody,
         channel: "whatsapp",
+      }).catch((error: unknown) => {
+        notificationQueued = false;
+        console.error("[group-invitation] enqueue failed", error);
       });
     }
 
     return {
-      outcome: created.created ? "invited" : "already_pending",
-      invitation: built.invitation,
-      whatsappUrl: built.whatsappUrl,
+      outcome: result.created ? "invited" : "already_pending",
+      invitation: result.invitation,
+      whatsappUrl: null,
+      notificationQueued,
       deepLink: built.deepLink,
     };
   }
@@ -164,14 +180,8 @@ export class InviteToGroupUseCase {
       deepLink,
       downloadUrl,
     });
-    const whatsappUrl = buildWhatsAppClickToChatUrl(
-      invitation.invited_phone,
-      messageBody,
-    );
-
     return {
       invitation,
-      whatsappUrl,
       deepLink,
       appDeepLink: links.app,
       messageBody,
@@ -182,11 +192,9 @@ export class InviteToGroupUseCase {
   private async addExistingMember(
     groupId: string,
     userId: string,
+    callerId: string,
   ): Promise<InviteToGroupResult> {
-    const existing = await this.groups.findMember(groupId, userId);
-    if (existing) return { outcome: "already_member", member: existing };
-
-    const { member } = await this.groups.addInvitedMember(groupId, userId);
-    return { outcome: "member_added", member };
+    const { member, created } = await this.groups.addInvitedMember(groupId, userId, callerId);
+    return { outcome: created ? "member_added" : "already_member", member };
   }
 }

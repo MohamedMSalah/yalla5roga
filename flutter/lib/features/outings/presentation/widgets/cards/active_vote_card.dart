@@ -14,7 +14,7 @@ import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
-/// Compact horizontal active-vote card for the Groups screen.
+/// Compact horizontal active-vote card for the Outings tab.
 class ActiveVoteCard extends StatelessWidget {
   const ActiveVoteCard({super.key, required this.outing, this.width});
 
@@ -50,7 +50,7 @@ class ActiveVoteCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: AppColors.brand700,
+                color: palette.brandStrong,
                 fontWeight: FontWeight.w800,
                 fontSize: Responsive.fontSm,
               ),
@@ -84,7 +84,7 @@ class ActiveVoteCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: palette.textMuted,
+                          color: palette.textSecondary,
                           fontSize: Responsive.fontCaption,
                         ),
                       ),
@@ -100,7 +100,7 @@ class ActiveVoteCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: palette.textMuted,
+                  color: palette.textSecondary,
                   fontSize: Responsive.fontCaption,
                   fontWeight: FontWeight.w600,
                 ),
@@ -122,7 +122,7 @@ class ActiveVoteCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: palette.textMuted,
+                    color: palette.textSecondary,
                     fontSize: Responsive.fontCaption,
                     fontWeight: FontWeight.w700,
                   ),

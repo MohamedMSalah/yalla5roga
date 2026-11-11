@@ -2,10 +2,19 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
 import type {
   ChatMessage,
+  ChatHistoryPage,
   ChatRead,
   CreateChatMessageInput,
   UpsertChatReadInput,
 } from "../../types/chat/chat.types.js";
+
+const senderProfile = { users: { select: { name: true, image_url: true } } } as const;
+
+function withSender({ users, ...message }: ChatMessage & {
+  users: { name: string; image_url: string | null } | null;
+}): ChatMessage {
+  return { ...message, sender: users?.name ?? "", avatar: users?.image_url ?? null };
+}
 
 function isUniqueViolation(error: unknown): boolean {
   return (
@@ -15,15 +24,36 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export class ChatDatasource {
-  findMessageById(id: string): Promise<ChatMessage | null> {
-    return prisma.chat_messages.findUnique({ where: { id } });
+  async findMessageById(id: string): Promise<ChatMessage | null> {
+    const message = await prisma.chat_messages.findUnique({
+      where: { id },
+      include: senderProfile,
+    });
+    return message ? withSender(message) : null;
   }
 
-  findMessagesByOutingId(outingId: string): Promise<ChatMessage[]> {
+  async findMessageByClientId(
+    outingId: string, senderId: string, clientMessageId: string,
+  ): Promise<ChatMessage | null> {
+    const message = await prisma.chat_messages.findUnique({
+      where: {
+        outing_id_sender_id_client_message_id: {
+          outing_id: outingId, sender_id: senderId, client_message_id: clientMessageId,
+        },
+      },
+      include: senderProfile,
+    });
+    return message ? withSender(message) : null;
+  }
+
+  findMessagesByOutingId(outingId: string, page?: ChatHistoryPage): Promise<ChatMessage[]> {
     return prisma.chat_messages.findMany({
       where: { outing_id: outingId },
-      orderBy: { sent_at: "asc" },
-    });
+      include: senderProfile,
+      orderBy: [{ sent_at: page ? "desc" : "asc" }, { id: page ? "desc" : "asc" }],
+      ...(page && { take: page.limit }),
+      ...(page?.before && { cursor: { id: page.before, outing_id: outingId }, skip: 1 }),
+    }).then((rows) => (page ? rows.reverse() : rows).map(withSender));
   }
 
   /**
@@ -33,39 +63,27 @@ export class ChatDatasource {
    */
   async createMessage(data: CreateChatMessageInput): Promise<ChatMessage> {
     try {
-      return await prisma.chat_messages.create({ data });
+      return withSender(await prisma.chat_messages.create({ data, include: senderProfile }));
     } catch (error) {
       if (!isUniqueViolation(error) || !data.client_message_id) throw error;
 
-      const existing = await prisma.chat_messages.findFirst({
-        where: {
-          outing_id: data.outing_id,
-          sender_id: data.sender_id,
-          client_message_id: data.client_message_id,
-        },
-      });
+      const existing = await this.findMessageByClientId(
+        data.outing_id, data.sender_id, data.client_message_id,
+      );
       if (!existing) throw error;
       return existing;
     }
   }
 
-  upsertRead(data: UpsertChatReadInput): Promise<ChatRead> {
-    return prisma.chat_reads.upsert({
-      where: {
-        outing_id_user_id: {
-          outing_id: data.outing_id,
-          user_id: data.user_id,
-        },
-      },
-      create: {
-        outing_id: data.outing_id,
-        user_id: data.user_id,
-        last_read_at: data.last_read_at ?? new Date(),
-      },
-      update: {
-        last_read_at: data.last_read_at ?? new Date(),
-      },
-    });
+  async upsertRead(data: UpsertChatReadInput): Promise<ChatRead> {
+    const [read] = await prisma.$queryRaw<ChatRead[]>`
+      INSERT INTO chat_reads (outing_id, user_id, last_read_at)
+      VALUES (${data.outing_id}::uuid, ${data.user_id}, ${data.last_read_at ?? new Date()})
+      ON CONFLICT (outing_id, user_id) DO UPDATE
+      SET last_read_at = GREATEST(chat_reads.last_read_at, EXCLUDED.last_read_at)
+      RETURNING outing_id, user_id, last_read_at
+    `;
+    return read!;
   }
 
   deleteMessage(id: string): Promise<ChatMessage> {

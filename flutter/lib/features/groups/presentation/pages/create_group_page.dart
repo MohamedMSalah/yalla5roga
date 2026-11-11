@@ -14,6 +14,7 @@ import 'package:yalla_5roga/core/widgets/custom_textfield.dart';
 import 'package:yalla_5roga/core/widgets/image_source_sheet.dart';
 import 'package:yalla_5roga/core/widgets/phone_text_field.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_details_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/pick_device_contacts_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
@@ -29,9 +30,8 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
+  var _whatsappOptIn = false;
   final _phoneController = TextEditingController();
-
-  static const _maxBioLength = 160;
 
   @override
   void initState() {
@@ -63,9 +63,11 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     final selected = await Get.to<List<String>>(
       () => PickDeviceContactsPage(
         initialSelectedPhones: groups.createPhones.toSet(),
+        allowInternational: true,
       ),
     );
     if (!mounted || selected == null) return;
+    setState(() => _whatsappOptIn = false);
     groups.setCreatePhones(selected);
   }
 
@@ -79,6 +81,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       return;
     }
     _phoneController.clear();
+    setState(() => _whatsappOptIn = false);
   }
 
   void _create() async {
@@ -92,6 +95,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       ownerName: user?.name ?? l10n.guestFallback,
       ownerAvatar: user?.imageUrl,
       bio: _bioController.text.trim(),
+      whatsappOptIn: _whatsappOptIn,
     );
     if (!mounted || group == null) return;
     AppSnackBar.show(context.l10n.groupCreated);
@@ -118,24 +122,13 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                 child: ListView(
                   padding: Responsive.pagePadding(),
                   children: [
-                    Material(
-                      color: palette.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      clipBehavior: Clip.antiAlias,
-                      child: ListTile(
-                        onTap: groups.isCreating ? null : _pickImage,
-                        leading: PlanningCover(
-                          url: image ?? '',
-                          art: PlanningCoverArt.group,
-                          width: 54,
-                          height: 54,
-                          radius: 10,
-                        ),
-                        title: Text(l10n.groupPhotoOptional),
-                        trailing: const Icon(Icons.add_a_photo_outlined),
-                      ),
+                    PlanningCoverPicker(
+                      url: image ?? '',
+                      art: PlanningCoverArt.group,
+                      optionalLabel: l10n.groupPhotoOptional,
+                      onTap: groups.isCreating ? null : _pickImage,
                     ),
-                    Responsive.spaceLg.gapH,
+                    Responsive.spaceMd.gapH,
                     CustomTextField(
                       controller: _nameController,
                       label: l10n.groupName,
@@ -157,7 +150,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                       minLines: 2,
                       maxLines: 4,
                       inputFormatters: [
-                        InputFormatters.maxLength(_maxBioLength),
+                        InputFormatters.maxLength(Group.maxBioLength),
                       ],
                     ),
                     Responsive.spaceLg.gapH,
@@ -190,6 +183,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     PhoneTextField(
                       controller: _phoneController,
                       validate: false,
+                      allowInternational: true,
                     ),
                     Responsive.spaceSm.gapH,
                     CustomButton(
@@ -220,6 +214,16 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                               backgroundColor: palette.surfaceMuted,
                             ),
                         ],
+                      ),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: _whatsappOptIn,
+                        title: Text(l10n.groupWhatsAppConsent),
+                        onChanged: groups.isCreating
+                            ? null
+                            : (value) {
+                                setState(() => _whatsappOptIn = value ?? false);
+                              },
                       ),
                     ],
                   ],

@@ -10,11 +10,16 @@ abstract class GroupsRepository {
   Future<Either<Failure, Group>> getGroup(
     String groupId, {
     bool forceRefresh = false,
+    bool allowStale = true,
   });
 
   Future<Either<Failure, Group>> createGroup(Group group);
 
-  Future<Either<Failure, Group>> updateGroup(Group group);
+  Future<Either<Failure, Group>> updateGroup(
+    String groupId, {
+    String? bio,
+    String? image,
+  });
 
   Future<Either<Failure, Group>> addMember(String groupId, GroupMember member);
 
@@ -23,9 +28,14 @@ abstract class GroupsRepository {
   Future<Either<Failure, GroupInviteResult>> inviteByPhone({
     required String groupId,
     required String phoneNumber,
+    bool whatsappOptIn = false,
   });
 
-  Future<Either<Failure, Group>> removeMember(String groupId, String memberId);
+  Future<Either<Failure, Group>> removeMember(
+    String groupId,
+    String memberId, {
+    bool pending = false,
+  });
 
   Future<Either<Failure, void>> leaveGroup(String groupId);
 

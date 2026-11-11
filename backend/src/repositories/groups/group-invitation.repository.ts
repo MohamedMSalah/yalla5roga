@@ -13,12 +13,13 @@ export class GroupInvitationRepository implements IGroupInvitationRepository {
     private readonly datasource = new GroupInvitationDatasource(),
   ) {}
 
-  findPending(groupId: string, phone: string): Promise<GroupInvitation | null> {
+  findPending(groupId: string, phone: string, now?: Date): Promise<GroupInvitation | null> {
     return this.datasource.findPending(groupId, phone);
   }
 
   createPending(
     input: CreatePendingInvitationInput,
+    now?: Date,
   ): Promise<CreatePendingInvitationResult> {
     return this.datasource.createPending(input);
   }
@@ -31,15 +32,7 @@ export class GroupInvitationRepository implements IGroupInvitationRepository {
     return this.datasource.claimForVerifiedPhone(userId, phone, now);
   }
 
-  findById(id: string): Promise<GroupInvitation | null> {
-    return this.datasource.findById(id);
-  }
-
-  declineForVerifiedPhone(
-    invitationId: string,
-    userId: string,
-    phone: string,
-  ): Promise<number> {
-    return this.datasource.declineForVerifiedPhone(invitationId, userId, phone);
+  revokePending(groupId: string, id: string): Promise<GroupInvitation | null> {
+    return this.datasource.revokePending(groupId, id);
   }
 }

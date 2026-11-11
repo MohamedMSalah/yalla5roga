@@ -39,6 +39,8 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     datasources: url ? { db: { url } } : undefined,
+    // Row-locked workflows can queue behind a concurrent request over Neon.
+    transactionOptions: { maxWait: 10_000, timeout: 15_000 },
     log:
       process.env.NODE_ENV === "development"
         ? ["query", "error", "warn"]

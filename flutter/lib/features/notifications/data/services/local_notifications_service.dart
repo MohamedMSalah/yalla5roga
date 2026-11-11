@@ -66,8 +66,8 @@ class LocalNotificationsService {
     if (!payload.hasDisplayContent) return;
 
     final dedupeKey =
-        payload.messageId ??
-        '${payload.type.name}|${payload.title}|${payload.body}|${payload.outingId}|${payload.groupId}';
+        payload.deduplicationId ??
+        '${payload.type}|${payload.title}|${payload.body}|${payload.outingId}|${payload.groupId}';
     if (_shownMessageIds.contains(dedupeKey)) return;
     _shownMessageIds.add(dedupeKey);
     if (_shownMessageIds.length > 100) {
@@ -106,18 +106,29 @@ class LocalNotificationsService {
     }
   }
 
+  Future<PushNotificationPayload?> takeInitialMessage() async {
+    if (!_initialized) return null;
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    return details?.didNotificationLaunchApp == true
+        ? _decode(details?.notificationResponse?.payload)
+        : null;
+  }
+
   void _onNotificationResponse(NotificationResponse response) {
-    final raw = response.payload;
-    if (raw == null || raw.isEmpty) return;
+    final payload = _decode(response.payload);
+    if (payload != null) onNotificationTap?.call(payload);
+  }
+
+  PushNotificationPayload? _decode(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
     try {
       final decoded = jsonDecode(raw);
-      if (decoded is! Map) return;
-      final payload = PushNotificationPayload.fromLocalPayload(
-        Map<String, dynamic>.from(decoded),
-      );
-      onNotificationTap?.call(payload);
+      if (decoded is Map<String, dynamic>) {
+        return PushNotificationPayload.fromLocalData(decoded);
+      }
     } catch (error) {
       debugPrint('[LocalNotifications] tap parse failed: $error');
     }
+    return null;
   }
 }

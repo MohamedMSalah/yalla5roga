@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/features/notifications/data/datasources/fcm_token_remote_datasource.dart';
@@ -23,7 +25,7 @@ class PushMessagingRepositoryImpl implements PushMessagingRepository {
     messaging.tokenStream.listen(_syncTokenQuietly);
     final current = messaging.token;
     if (current != null) {
-      await _syncTokenQuietly(current);
+      unawaited(_syncTokenQuietly(current));
     }
   }
 

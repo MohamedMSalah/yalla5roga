@@ -55,7 +55,13 @@ flowchart TB
   end
 
   UI --> Providers --> Repos --> Dio --> Express
-  Providers --> IO
+  Providers --> Transport[One session Socket.IO client]
+  Transport --> IO
+  Providers --> Sync[AppSyncProvider]
+  Sync --> Repos
+  Dio --> Cache[(Account-scoped snapshots)]
+  Repos --> Queue[(Durable chat send queue)]
+  IO --> Sync
   FA --> FAuth
   Providers --> FA
   FM --> FCM
@@ -70,7 +76,7 @@ flowchart TB
 
 ## 3. Flutter ↔ backend communication
 
-- Protocol: HTTPS JSON REST under `/api/*`, plus Socket.IO on the same host/port (`/socket.io`) for outing chat delivery.
+- Protocol: HTTPS JSON REST under `/api/*`, plus Socket.IO on the same host/port (`/socket.io`) for chat delivery and scoped invalidations. Cached views hydrate before REST revalidation; only idempotent chat sends support offline replay (ADR-014).
 - Auth header: `Authorization: Bearer <Firebase ID token>` via Flutter `AuthInterceptor`; sockets use handshake `auth.token` (same ID token).
 - Envelope convention (backend): `{ success: boolean, data?: T, message?: string }` (errors via `errorMiddleware`).
 - Flutter paths are defined in `flutter/lib/core/constants/api_constants.dart` and include the `/api` prefix; `API_BASE_URL` is host-only (also the Socket.IO base URL).
@@ -108,21 +114,31 @@ sequenceDiagram
   participant API as Express
   participant Neon as Neon
 
-  alt Email/password
-    U->>F: signup/login
-    F->>API: POST /api/auth/signup or /login
-    API->>Neon: hash verify / upsert user
-    API->>FB: create/custom token exchange
-    API-->>F: idToken + customToken + user
-    F->>FB: signInWithCustomToken
-  else Google / Apple / phone
-    U->>F: social/OTP
-    F->>FB: Firebase sign-in
-    F->>API: POST /api/users/sync (Bearer)
-    API->>Neon: upsert users by Firebase UID
+  alt Phone/password signup
+    U->>F: name, phone, password, OTP
+    F->>FB: phone OTP sign-in
+    FB-->>F: verified UID and ID token
+    F->>API: POST /api/auth/signup with phoneVerificationToken
+    API->>FB: verify recent phone proof
+    API->>Neon: create or enroll user under OTP UID and link pending groups
+    API->>FB: custom token exchange
+  else Phone/password login
+    U->>F: phone and password
+    F->>API: POST /api/auth/login
+    API->>Neon: verify password hash
+    API->>FB: custom token exchange
+    API->>FB: read canonical identity phone
+    API->>Neon: link pending groups for the verified phone
   end
+  API-->>F: idToken + customToken + user
+  F->>FB: signInWithCustomToken
+  Note over F,API: Cached shell renders first; deferred users/sync precedes online group revalidation
   F->>API: subsequent calls with Bearer ID token
-  API->>API: authMiddleware verifyIdToken
+  API->>API: verify a Firebase phone or custom-session ID token
+  opt First OTP profile sync
+    API->>FB: check the current phone against the token claim
+    API->>Neon: provision profile and link pending groups
+  end
 ```
 
 ## 5. Main data flow (outing + vote)
@@ -144,6 +160,9 @@ flowchart LR
   Worker --> Push[PushChannel FCM]
   Worker --> WA[WhatsAppChannel]
   Worker --> Log[notification_delivery_logs]
+  Push --> Flutter[Flutter notification tap handlers]
+  InApp --> Flutter
+  Flutter --> API[Authenticated destination and read APIs]
 ```
 
 ## 7. Layer responsibilities
@@ -172,7 +191,7 @@ Neon holds all durable application state. See [`DATABASE_ARCHITECTURE.md`](DATAB
 | Firebase Auth | Sign-in, ID tokens | App domain data |
 | FCM | Push delivery | Business decisions |
 | WhatsApp | Group invite messages (when configured) | Chat |
-| Nominatim | Flutter map reverse geocode | Place catalog |
+| OSM tiles and optional geocoder | Shared Flutter map loads OSM tiles. The backend brokers configured autocomplete and reverse lookup. | Cached catalog search and manual pins remain available |
 
 ## 9. Dependencies Flutter ↔ Backend
 
@@ -183,3 +202,18 @@ Flutter depends on backend contracts listed in [`API_CONTRACTS.md`](API_CONTRACT
 - [`SYSTEM_DESIGN.md`](SYSTEM_DESIGN.md) — workflow-level design
 - [`FLUTTER_ARCHITECTURE.md`](FLUTTER_ARCHITECTURE.md)
 - [`BACKEND_ARCHITECTURE.md`](BACKEND_ARCHITECTURE.md)
+
+The visible outing route requests bounded foreground GPS fixes and submits nearby samples to the authenticated API. The backend validates membership and the confirmed venue, persists the first verified arrival in Neon and sends a roster invalidation over the participant’s authenticated Socket.IO user room. Group phone invitations use the existing pending membership and notification outbox. The Meta channel is separate from Firebase authentication and membership claim.
+
+
+## Scoped realtime recovery — 2026-11-11
+
+The same authenticated Socket.IO connection now delivers domain invalidations as well as chat. A bounded in-process journal lets reconnect/resume recover missed invalidations for that UID; an unavailable cursor falls back to stale list caches and mounted details/active chats. No periodic polling, global banner, new transport or database is introduced. API notification writes publish inbox invalidations. Account synchronization is separated from ordinary profile reads.
+
+## Session synchronization refinement — 2026-11-11
+
+The diagram now explicitly shows one shared client transport. `AppSyncProvider`, chat and arrivals reuse it; authorized user/group/outing rooms do not create feature-specific connections. Complete attendance rows update Provider/repository caches directly, while incomplete domain events use targeted REST reads. Replay acknowledgement, live deduplication and session generations prevent skipped gaps and stale account callbacks. See [contracts and validation](audit/CENTRALIZED_REALTIME_SYNC.md). No database topology or schema change is required.
+
+## Recovery communication — 2026-11-11
+
+Password recovery uses the existing Flutter → auth repository → Dio → Express controller/use case → Prisma/Neon path. Firebase Phone Authentication supplies OTP proof in a secondary client Auth instance; Admin SDK validation binds it to the canonical existing UID. Neon retains the existing bcrypt authority plus hashed short-lived recovery state and shared limits. No new service, identity provider or password store is introduced. See [workflow](SYSTEM_DESIGN.md#password-recovery-workflow--2026-11-11) and [verification report](audit/PASSWORD_RECOVERY_REPORT.md).

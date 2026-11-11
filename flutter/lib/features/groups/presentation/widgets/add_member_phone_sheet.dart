@@ -10,9 +10,9 @@ import 'package:yalla_5roga/core/widgets/phone_text_field.dart';
 class AddMemberPhoneSheet {
   const AddMemberPhoneSheet._();
 
-  static Future<String?> show() {
+  static Future<({String phone, bool whatsappOptIn})?> show() {
     final phoneController = TextEditingController();
-    return Get.bottomSheet<String>(
+    return Get.bottomSheet<({String phone, bool whatsappOptIn})>(
       SafeArea(child: _AddMemberPhoneSheetBody(controller: phoneController)),
       enterBottomSheetDuration: AppMotion.sheetEnter,
       exitBottomSheetDuration: AppMotion.sheetExit,
@@ -20,10 +20,18 @@ class AddMemberPhoneSheet {
   }
 }
 
-class _AddMemberPhoneSheetBody extends StatelessWidget {
+class _AddMemberPhoneSheetBody extends StatefulWidget {
   const _AddMemberPhoneSheetBody({required this.controller});
 
   final TextEditingController controller;
+
+  @override
+  State<_AddMemberPhoneSheetBody> createState() =>
+      _AddMemberPhoneSheetBodyState();
+}
+
+class _AddMemberPhoneSheetBodyState extends State<_AddMemberPhoneSheetBody> {
+  var _whatsappOptIn = false;
 
   @override
   Widget build(BuildContext context) {
@@ -48,17 +56,33 @@ class _AddMemberPhoneSheetBody extends StatelessWidget {
             ),
           ),
           Responsive.spaceMd.gapH,
-          PhoneTextField(controller: controller, validate: false),
+          PhoneTextField(
+            controller: widget.controller,
+            validate: false,
+            allowInternational: true,
+            onChanged: (_) {
+              if (_whatsappOptIn) setState(() => _whatsappOptIn = false);
+            },
+          ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _whatsappOptIn,
+            title: Text(l10n.groupWhatsAppConsent),
+            onChanged: (value) =>
+                setState(() => _whatsappOptIn = value ?? false),
+          ),
           Responsive.spaceMd.gapH,
           CustomButton(
             label: l10n.addPhone,
             onPressed: () {
-              final error = Validators.phone(controller.text, l10n);
-              if (error != null) {
-                AppSnackBar.show(error);
+              final phone = Validators.normalizeGroupPhone(
+                widget.controller.text,
+              );
+              if (phone == null) {
+                AppSnackBar.show(l10n.invalidPhone);
                 return;
               }
-              Get.back(result: Validators.normalizePhone(controller.text));
+              Get.back(result: (phone: phone, whatsappOptIn: _whatsappOptIn));
             },
           ),
         ],

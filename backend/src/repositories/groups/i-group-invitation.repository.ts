@@ -12,19 +12,15 @@ export interface IGroupInvitationRepository {
   findPending(
     groupId: string,
     phone: string,
+    now?: Date,
   ): Promise<GroupInvitation | null>;
   createPending(
     input: CreatePendingInvitationInput,
+    now?: Date,
   ): Promise<CreatePendingInvitationResult>;
   claimForVerifiedPhone(
     userId: string,
     phone: string,
     now?: Date,
   ): Promise<GroupInvitation[]>;
-  findById(id: string): Promise<GroupInvitation | null>;
-  declineForVerifiedPhone(
-    invitationId: string,
-    userId: string,
-    phone: string,
-  ): Promise<number>;
 }

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
 import type { Outing } from "../../types/outings/outing.types.js";
 import { ForbiddenError } from "../../utils/errors.js";
@@ -10,32 +11,34 @@ import { ForbiddenError } from "../../utils/errors.js";
  *
  * Pending invitations are never eligible. Attendance does not affect eligibility.
  */
-export async function listEligibleVoterIds(outing: Outing): Promise<string[]> {
-  const ids = new Set<string>([outing.created_by]);
-
-  const members = await prisma.outing_guests.findMany({
-    where: { outing_id: outing.id, status: "accepted" },
-    select: { user_id: true },
-  });
-  for (const member of members) ids.add(member.user_id);
-
-  if (outing.group_id) {
-    const groupMembers = await prisma.group_members.findMany({
-      where: { group_id: outing.group_id },
-      select: { user_id: true },
-    });
-    for (const member of groupMembers) ids.add(member.user_id);
-  }
-
-  return [...ids];
+export async function listEligibleVoterIds(outing: Outing, db: Prisma.TransactionClient = prisma): Promise<string[]> {
+  const rows = await db.$queryRaw<{ user_id: string }[]>`
+    SELECT ${outing.created_by}::varchar AS user_id
+    UNION
+    SELECT user_id FROM outing_guests
+    WHERE outing_id = ${outing.id}::uuid AND status = 'accepted'
+    UNION
+    SELECT user_id FROM group_members WHERE group_id = ${outing.group_id}::uuid
+  `;
+  return rows.map(({ user_id }) => user_id);
 }
 
 export async function assertEligibleVoter(
   outing: Outing,
   userId: string,
 ): Promise<void> {
-  const eligible = await listEligibleVoterIds(outing);
-  if (!eligible.includes(userId)) {
+  if (outing.created_by === userId) return;
+  const eligible = await prisma.outings.findUnique({
+    where: {
+      id: outing.id,
+      OR: [
+        { outing_guests: { some: { user_id: userId, status: "accepted" } } },
+        { groups: { group_members: { some: { user_id: userId } } } },
+      ],
+    },
+    select: { id: true },
+  });
+  if (!eligible) {
     throw new ForbiddenError("Only outing members can vote");
   }
 }

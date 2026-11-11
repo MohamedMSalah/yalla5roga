@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
@@ -6,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
 import 'package:yalla_5roga/core/di/app_dependencies.dart';
+import 'package:yalla_5roga/core/network/app_sync_provider.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
 import 'package:yalla_5roga/core/navigation/app_page_transition.dart';
@@ -22,6 +25,7 @@ import 'package:yalla_5roga/features/invites/presentation/providers/invite_deep_
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
+import 'package:yalla_5roga/features/outings/presentation/providers/outing_arrival_service.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/providers/settings_provider.dart';
@@ -38,6 +42,7 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<AppSyncProvider>.value(value: deps.sync),
         Provider<AppConfig>.value(value: deps.config),
         ChangeNotifierProvider<ThemeProvider>.value(value: deps.theme),
         ChangeNotifierProvider<LocaleProvider>.value(value: deps.locale),
@@ -53,6 +58,7 @@ class App extends StatelessWidget {
           value: deps.outingChat,
         ),
         ChangeNotifierProvider<OutingsProvider>.value(value: deps.outings),
+        Provider<OutingArrivalService>.value(value: deps.outingArrivals),
         ChangeNotifierProvider<SavedOutingsProvider>.value(
           value: deps.savedOutings,
         ),
@@ -137,16 +143,12 @@ class _PushBootstrapState extends State<_PushBootstrap> {
       if (!mounted) return;
 
       final inviteLinks = context.read<InviteDeepLinkProvider>();
-      await inviteLinks.initialize();
-
-      if (!mounted) return;
-
+      unawaited(inviteLinks.initialize());
       final fcm = context.read<FcmProvider>();
       // Listeners and local notifications run after the first frame.
       // getToken waits until notification permission is settled.
       await fcm.initialize();
       if (!mounted) return;
-      fcm.flushPendingNavigation();
       if (!await AppPermissions.isNotificationGranted || !mounted) return;
       await fcm.refreshToken();
     });

@@ -120,8 +120,8 @@ export class PlaceDatasource {
     });
   }
 
-  deleteHour(id: string): Promise<PlaceHour> {
-    return prisma.place_hours.delete({ where: { id } });
+  deleteHour(placeId: string, id: string): Promise<PlaceHour> {
+    return prisma.place_hours.delete({ where: { id, place_id: placeId } });
   }
 
   // Images
@@ -136,8 +136,8 @@ export class PlaceDatasource {
     return prisma.place_images.create({ data });
   }
 
-  deleteImage(id: string): Promise<PlaceImage> {
-    return prisma.place_images.delete({ where: { id } });
+  deleteImage(placeId: string, id: string): Promise<PlaceImage> {
+    return prisma.place_images.delete({ where: { id, place_id: placeId } });
   }
 
   // Prices
@@ -149,7 +149,7 @@ export class PlaceDatasource {
     return prisma.place_prices.create({ data });
   }
 
-  deletePrice(id: string): Promise<PlacePrice> {
-    return prisma.place_prices.delete({ where: { id } });
+  deletePrice(placeId: string, id: string): Promise<PlacePrice> {
+    return prisma.place_prices.delete({ where: { id, place_id: placeId } });
   }
 }

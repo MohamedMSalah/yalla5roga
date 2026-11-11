@@ -19,6 +19,7 @@
 **/*service-account*.json
 
 # Backend generated output
+backend/.database-backups/
 backend/node_modules/
 backend/dist/
 

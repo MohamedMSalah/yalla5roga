@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/animations/flying_item_animator.dart';
+import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
+import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/app_launcher.dart';
@@ -26,13 +28,24 @@ import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/outing_arrivals_section.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/outing_going_sheet.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/outing_vote_widget.dart';
 
+enum OutingDetailsSection { placeVoting, attendance }
+
 class EventPage extends StatefulWidget {
-  const EventPage({super.key, required this.event, this.coverHeroTag});
+  const EventPage({
+    super.key,
+    required this.event,
+    this.coverHeroTag,
+    this.initialSection,
+    this.manualWhatsAppUrls = const [],
+  });
 
   final Outing event;
+  final OutingDetailsSection? initialSection;
+  final List<String> manualWhatsAppUrls;
 
   /// Hero tag of the card thumbnail that opened this page; null for deep
   /// links, notifications and post-create navigation (no source image).
@@ -45,6 +58,7 @@ class EventPage extends StatefulWidget {
 class _EventPageState extends State<EventPage>
     with SingleTickerProviderStateMixin {
   final _coverKey = GlobalKey();
+  final _initialSectionKey = GlobalKey();
   final _bookmarkKey = GlobalKey();
 
   Animation<double>? _routeAnimation;
@@ -52,19 +66,28 @@ class _EventPageState extends State<EventPage>
   late final AnimationController _bookmarkBounce;
   var _saving = false;
   var _deleting = false;
+  var _loadingDetails = true;
+  OutingsProvider? _openOutingProvider;
 
   @override
   void initState() {
     super.initState();
+    _openOutingProvider = context.read<OutingsProvider>()..openOuting(widget.event.id);
     _bookmarkBounce = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshAfterPush());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final target = _initialSectionKey.currentContext;
+      if (target != null) Scrollable.ensureVisible(target);
+      _refreshAfterPush();
+    });
   }
 
   @override
   void dispose() {
+    _openOutingProvider?.closeOuting(widget.event.id);
     FlyingItemAnimator.cancel();
     _bookmarkBounce.dispose();
     _stopRouteListener();
@@ -101,9 +124,14 @@ class _EventPageState extends State<EventPage>
 
   Future<void> _refreshLifecycle() async {
     if (!mounted) return;
-    await context.read<OutingsProvider>().refreshLifecycle(
-      outingId: widget.event.id,
+    if (!_loadingDetails) setState(() => _loadingDetails = true);
+    final outings = context.read<OutingsProvider>();
+    final changed = await OfflineSnapshots.preview(
+      () => outings.refreshLifecycle(outingId: widget.event.id),
     );
+    if (mounted && changed) setState(() => _loadingDetails = false);
+    await outings.refreshLifecycle(outingId: widget.event.id);
+    if (mounted && _loadingDetails) setState(() => _loadingDetails = false);
   }
 
   Future<void> _delete(Outing outing) async {
@@ -134,6 +162,12 @@ class _EventPageState extends State<EventPage>
     final l10n = context.l10n;
     final palette = context.palette;
     final outings = context.watch<OutingsProvider>();
+    if (outings.isUnavailable(widget.event.id)) {
+      return Scaffold(
+        appBar: AppPageBar(title: l10n.navOutings),
+        body: AppEmptyState(icon: Icons.event_busy_outlined, message: l10n.dataLoadFailed),
+      );
+    }
     final live = outings.findById(widget.event.id) ?? widget.event;
     final saved = context.watch<SavedOutingsProvider>().isSaved(live.id);
     final userId = context.watch<AuthProvider>().user?.id;
@@ -186,177 +220,236 @@ class _EventPageState extends State<EventPage>
       ),
       body: SafeArea(
         top: false,
-        child: ListView(
+        child: SingleChildScrollView(
           padding: Responsive.pagePadding(),
-          children: [
-            KeyedSubtree(
-              key: _coverKey,
-              child: AppHero(
-                tag: widget.coverHeroTag,
-                url: _coverUrl(live),
-                radius: 24.r,
-                child: PlanningCover(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              KeyedSubtree(
+                key: _coverKey,
+                child: AppHero(
+                  tag: widget.coverHeroTag,
                   url: _coverUrl(live),
-                  art: live.occasion.coverArt,
-                  width: double.infinity,
-                  height: 220.h,
+                  radius: 24.r,
+                  child: PlanningCover(
+                    url: _coverUrl(live),
+                    art: live.occasion.coverArt,
+                    width: double.infinity,
+                    height: 220.h,
+                  ),
                 ),
               ),
-            ),
-            Responsive.spaceMd.gapH,
-            Text(
-              live.title,
-              style: TextStyle(fontSize: 26.sp, fontWeight: FontWeight.w800),
-            ),
-            Responsive.spaceXs.gapH,
-            Wrap(
-              spacing: 8.w,
-              runSpacing: 8.h,
-              children: [
-                // Status reflects provider state; the badge only animates
-                // once the outing actually moves (voting -> confirmed -> past).
-                AppFadeSwitcher(
-                  axis: AppRevealAxis.vertical,
-                  alignment: AlignmentDirectional.centerStart,
-                  child: AppBadge(
-                    key: ValueKey(live.status),
-                    label: switch (live.status) {
-                      OutingStatus.voting => l10n.voting,
-                      OutingStatus.past => l10n.past,
-                      _ => l10n.confirmed,
-                    },
-                    color: live.status == OutingStatus.voting
-                        ? AppColors.amber100
-                        : AppColors.emerald500,
-                    textColor: live.status == OutingStatus.voting
-                        ? AppColors.amber700
-                        : Colors.white,
-                  ),
-                ),
-                if (live.occasion == OutingOccasion.birthday)
-                  AppBadge(
-                    label: l10n.birthday,
-                    color: AppColors.brand50,
-                    textColor: AppColors.brand700,
-                  ),
-                if (live.occasion == OutingOccasion.wedding)
-                  AppBadge(
-                    label: l10n.wedding,
-                    color: const Color(0xFFEDE9FE),
-                    textColor: const Color(0xFF7C3AED),
-                  ),
-              ],
-            ),
-            Responsive.spaceSm.gapH,
-            Text(
-              live.localizedMeta(l10n),
-              style: TextStyle(
-                color: palette.textMuted,
-                fontSize: Responsive.fontBody,
+              Responsive.spaceMd.gapH,
+              Text(
+                live.title,
+                style: TextStyle(fontSize: 26.sp, fontWeight: FontWeight.w800),
               ),
-            ),
-            Responsive.spaceMd.gapH,
-            Row(
-              children: [
-                Icon(
-                  Icons.event,
-                  size: Responsive.iconMd,
-                  color: AppColors.brand600,
-                ),
-                8.gapW,
-                Text(
-                  live.localizedDate(l10n),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: Responsive.fontBody,
-                  ),
-                ),
-                const Spacer(),
-                Icon(
-                  Icons.schedule,
-                  size: Responsive.iconMd,
-                  color: AppColors.brand600,
-                ),
-                8.gapW,
-                Text(
-                  live.localizedTime(l10n),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: Responsive.fontBody,
-                  ),
-                ),
-              ],
-            ),
-            Responsive.spaceMd.gapH,
-            OutingVoteWidget(outing: live),
-            Responsive.spaceMd.gapH,
-            AppCard(
-              onTap: () => OutingGoingSheet.show(live),
-              radius: 18,
-              padding: EdgeInsets.all(14.w),
-              child: Row(
+              Responsive.spaceXs.gapH,
+              Wrap(
+                spacing: 8.w,
+                runSpacing: 8.h,
                 children: [
-                  if (going > 0) ...[
-                    AvatarStack(
-                      urls: goingAvatarUrls,
-                      extra: (going - goingAvatarUrls.length).clamp(0, 99),
-                    ),
-                    12.gapW,
-                  ],
-                  Expanded(
-                    child: Text(
-                      l10n.goingCount(going),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: Responsive.fontSm,
-                      ),
+                  // Status reflects provider state; the badge only animates
+                  // once the outing actually moves (voting -> confirmed -> past).
+                  AppFadeSwitcher(
+                    axis: AppRevealAxis.vertical,
+                    alignment: AlignmentDirectional.centerStart,
+                    child: AppBadge(
+                      key: ValueKey(live.status),
+                      label: switch (live.status) {
+                        OutingStatus.voting => l10n.voting,
+                        OutingStatus.past => l10n.past,
+                        _ => l10n.confirmed,
+                      },
+                      color: live.status == OutingStatus.voting
+                          ? AppColors.amber100
+                          : AppColors.emerald500,
+                      textColor: live.status == OutingStatus.voting
+                          ? AppColors.amber700
+                          : Colors.white,
                     ),
                   ),
-                  AppBadge(
-                    label: switch (attendance) {
-                      AttendanceStatus.going => l10n.imIn,
-                      AttendanceStatus.notGoing => l10n.notIn,
-                      AttendanceStatus.maybe => l10n.maybe,
-                      AttendanceStatus.unset => l10n.stillNotVoted,
-                    },
-                    color: switch (attendance) {
-                      AttendanceStatus.going => AppColors.emerald50,
-                      AttendanceStatus.notGoing => AppColors.rose50,
-                      AttendanceStatus.maybe => AppColors.amber100,
-                      AttendanceStatus.unset => palette.surfaceMuted,
-                    },
-                    textColor: switch (attendance) {
-                      AttendanceStatus.going => const Color(0xFF059669),
-                      AttendanceStatus.notGoing => AppColors.rose600,
-                      AttendanceStatus.maybe => AppColors.amber700,
-                      AttendanceStatus.unset => palette.textMuted,
-                    },
+                  if (live.occasion == OutingOccasion.birthday)
+                    AppBadge(
+                      label: l10n.birthday,
+                      color: AppColors.brand50,
+                      textColor: AppColors.brand700,
+                    ),
+                  if (live.occasion == OutingOccasion.wedding)
+                    AppBadge(
+                      label: l10n.wedding,
+                      color: const Color(0xFFEDE9FE),
+                      textColor: const Color(0xFF7C3AED),
+                    ),
+                ],
+              ),
+              Responsive.spaceSm.gapH,
+              Text(
+                live.localizedMeta(l10n),
+                style: TextStyle(
+                  color: palette.textMuted,
+                  fontSize: Responsive.fontBody,
+                ),
+              ),
+              if (widget.manualWhatsAppUrls.isNotEmpty) ...[
+                Responsive.spaceLg.gapH,
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.whatsappInvites,
+                        style: context.texts.titleMedium,
+                      ),
+                      Text(l10n.sendEventInvitesManually),
+                      for (final url in widget.manualWhatsAppUrls)
+                        TextButton.icon(
+                          icon: const Icon(Icons.send_outlined),
+                          label: Text(
+                            l10n.digits(
+                              '+${Uri.parse(url).pathSegments.first}',
+                            ),
+                          ),
+                          onPressed: () async {
+                            if (!await AppLauncher.openWhatsAppUrl(url) &&
+                                context.mounted) {
+                              AppSnackBar.show(l10n.couldNotOpenLink);
+                            }
+                          },
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+              if (userId != null && live.scheduledAt != null)
+                OutingArrivalsSection(
+                  key: ValueKey(live.id),
+                  outing: live,
+                  userId: userId,
+                ),
+              Responsive.spaceMd.gapH,
+              Row(
+                children: [
+                  Icon(
+                    Icons.event,
+                    size: Responsive.iconMd,
+                    color: AppColors.brand600,
+                  ),
+                  8.gapW,
+                  Text(
+                    live.localizedDate(l10n),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: Responsive.fontBody,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.schedule,
+                    size: Responsive.iconMd,
+                    color: AppColors.brand600,
+                  ),
+                  8.gapW,
+                  Text(
+                    live.localizedTime(l10n),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: Responsive.fontBody,
+                    ),
                   ),
                 ],
               ),
-            ),
-            Responsive.spaceLg.gapH,
-            if (!live.isLocationHidden && live.location != null) ...[
-              _MapsButton(event: live),
-              Responsive.spaceSm.gapH,
-            ],
-            CustomButton(
-              label: l10n.outingChat,
-              icon: Icons.chat_bubble_outline,
-              variant: AppButtonVariant.outlined,
-              onPressed: _deleting ? null : () => _openChat(context, live),
-            ),
-            if (userId != null && userId == live.createdById) ...[
-              Responsive.spaceXl.gapH,
-              CustomButton(
-                label: l10n.deleteOuting,
-                icon: Icons.delete_outline,
-                variant: AppButtonVariant.danger,
-                isLoading: _deleting,
-                onPressed: _deleting || _saving ? null : () => _delete(live),
+              Responsive.spaceMd.gapH,
+              if (!outings.hasAttendanceFor(live.id)) ...[
+                if (_loadingDetails)
+                  const LinearProgressIndicator()
+                else
+                  TextButton(
+                    onPressed: _refreshLifecycle,
+                    child: Text(l10n.tryAgain),
+                  ),
+              ],
+              OutingVoteWidget(
+                outing: live,
+                placeVotingKey:
+                    widget.initialSection == OutingDetailsSection.placeVoting
+                    ? _initialSectionKey
+                    : null,
+                attendanceKey:
+                    widget.initialSection == OutingDetailsSection.attendance
+                    ? _initialSectionKey
+                    : null,
               ),
+              Responsive.spaceMd.gapH,
+              if (outings.hasAttendanceFor(live.id))
+                AppCard(
+                  onTap: () => OutingGoingSheet.show(live),
+                  radius: 18,
+                  padding: EdgeInsets.all(14.w),
+                  child: Row(
+                    children: [
+                      if (going > 0) ...[
+                        AvatarStack(
+                          urls: goingAvatarUrls,
+                          extra: (going - goingAvatarUrls.length).clamp(0, 99),
+                        ),
+                        12.gapW,
+                      ],
+                      Expanded(
+                        child: Text(
+                          l10n.goingCount(going),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: Responsive.fontSm,
+                          ),
+                        ),
+                      ),
+                      AppBadge(
+                        label: switch (attendance) {
+                          AttendanceStatus.going => l10n.imIn,
+                          AttendanceStatus.notGoing => l10n.notIn,
+                          AttendanceStatus.maybe => l10n.maybe,
+                          AttendanceStatus.unset => l10n.stillNotVoted,
+                        },
+                        color: switch (attendance) {
+                          AttendanceStatus.going => AppColors.emerald50,
+                          AttendanceStatus.notGoing => AppColors.rose50,
+                          AttendanceStatus.maybe => AppColors.amber100,
+                          AttendanceStatus.unset => palette.surfaceMuted,
+                        },
+                        textColor: switch (attendance) {
+                          AttendanceStatus.going => const Color(0xFF059669),
+                          AttendanceStatus.notGoing => AppColors.rose600,
+                          AttendanceStatus.maybe => AppColors.amber700,
+                          AttendanceStatus.unset => palette.textMuted,
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              Responsive.spaceLg.gapH,
+              if (!live.isLocationHidden && live.location != null) ...[
+                _MapsButton(event: live),
+                Responsive.spaceSm.gapH,
+              ],
+              CustomButton(
+                label: l10n.outingChat,
+                icon: Icons.chat_bubble_outline,
+                variant: AppButtonVariant.outlined,
+                onPressed: _deleting ? null : () => _openChat(context, live),
+              ),
+              if (userId != null && userId == live.createdById) ...[
+                Responsive.spaceXl.gapH,
+                CustomButton(
+                  label: l10n.deleteOuting,
+                  icon: Icons.delete_outline,
+                  variant: AppButtonVariant.danger,
+                  isLoading: _deleting,
+                  onPressed: _deleting || _saving ? null : () => _delete(live),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -445,7 +538,7 @@ class _MapsButtonState extends State<_MapsButton> {
     final opened = await AppLauncher.openMaps(
       latitude: location?.latitude,
       longitude: location?.longitude,
-      query: location?.label ?? widget.event.meta.split('·').first.trim(),
+      query: location?.label ?? widget.event.meta.split('Â·').first.trim(),
     );
     if (!mounted) return;
     setState(() => _opening = false);

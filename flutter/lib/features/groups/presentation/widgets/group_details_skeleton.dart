@@ -44,26 +44,6 @@ class GroupDetailsSkeleton extends StatelessWidget {
         ),
         Responsive.spaceLg.gapH,
         Text(
-          l10n.activeVotes,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Responsive.fontMd,
-          ),
-        ),
-        Responsive.spaceSm.gapH,
-        const AppShimmer(child: ShimmerOutingList(count: 2)),
-        Responsive.spaceLg.gapH,
-        Text(
-          l10n.suggestPlaces,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Responsive.fontMd,
-          ),
-        ),
-        Responsive.spaceSm.gapH,
-        const AppShimmer(child: ShimmerOutingList(count: 2)),
-        Responsive.spaceLg.gapH,
-        Text(
           l10n.outingsTitle,
           style: TextStyle(
             fontWeight: FontWeight.w800,

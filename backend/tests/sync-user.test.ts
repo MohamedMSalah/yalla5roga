@@ -8,7 +8,7 @@ import {
   syncUserBodySchema,
   updateUserBodySchema,
 } from "../src/validators/users/user.validator.js";
-import { ConflictError, UnauthorizedError } from "../src/utils/errors.js";
+import { ConflictError, UnauthorizedError, ValidationError } from "../src/utils/errors.js";
 import { UserController } from "../src/controllers/users/user.controller.js";
 import type { NextFunction, Request, Response } from "express";
 
@@ -116,23 +116,13 @@ function syncHarness(options?: {
 }
 
 describe("POST /api/users/sync identity vs profile", () => {
-  it("creates a minimal PostgreSQL profile for a new Google user", async () => {
+  it("requires a verified phone to create a profile", async () => {
     const { users, claimed, useCase } = syncHarness();
-
-    const result = await useCase.execute({
-      id: USER_ID,
-      tokenEmail: "nour@gmail.com",
-      tokenName: "Nour Google",
-      signInProvider: "google.com",
-    });
-
-    assert.equal(users.users.size, 1);
-    assert.equal(result.user.id, USER_ID);
-    assert.equal(result.user.name, "Nour Google");
-    assert.equal(result.user.email, "nour@gmail.com");
-    assert.equal(result.user.phone, null);
-    assert.equal(result.user.image_url, null);
-    assert.equal(result.invitations.status, "phone_verification_required");
+    await assert.rejects(
+      useCase.execute({ id: USER_ID, tokenName: "Nour", phone: E164 }),
+      UnauthorizedError,
+    );
+    assert.equal(users.users.size, 0);
     assert.equal(claimed.length, 0);
   });
 
@@ -171,7 +161,7 @@ describe("POST /api/users/sync identity vs profile", () => {
 
     await useCase.execute({
       id: USER_ID,
-      tokenEmail: "nour@example.com",
+      verifiedPhone: E164,
       tokenName: "Nour",
       signInProvider: "google.com",
     });
@@ -186,7 +176,7 @@ describe("POST /api/users/sync identity vs profile", () => {
 
     assert.equal(users.users.size, 1);
     assert.equal(users.users.get(USER_ID)?.name, "Nour");
-    assert.equal(users.users.get(USER_ID)?.email, "nour@example.com");
+    assert.equal(users.users.get(USER_ID)?.phone, E164);
   });
 
   it("keeps a valid name and image when sync body is empty or incorrect", async () => {
@@ -215,18 +205,10 @@ describe("POST /api/users/sync identity vs profile", () => {
   });
 
   it("does not treat an unverified body phone as verified or claim invitations", async () => {
-    const { claimed, useCase } = syncHarness();
-
-    const result = await useCase.execute({
-      id: USER_ID,
-      name: "Nour",
-      email: "nour@example.com",
-      phone: "01001234567",
-      verifiedPhone: null,
-      signInProvider: "password",
-    });
-
-    assert.equal(result.user.phone, E164);
+    const { users, claimed, useCase } = syncHarness();
+    await users.create({ id: USER_ID, name: "Nour", phone: null, email: null });
+    const result = await useCase.execute({ id: USER_ID, phone: "01001234567" });
+    assert.equal(result.user.phone, null);
     assert.equal(result.invitations.phoneVerified, false);
     assert.equal(result.invitations.status, "phone_verification_required");
     assert.deepEqual(result.invitations.claimedGroupIds, []);
@@ -306,7 +288,7 @@ describe("POST /api/users/sync identity vs profile", () => {
     assert.equal(result.user.phone, OTHER_E164);
   });
 
-  it("fills a missing email from the trusted token without erasing existing email", async () => {
+  it("ignores legacy email values in sync", async () => {
     const { users, useCase } = syncHarness();
     users.users.set(USER_ID, {
       id: USER_ID,
@@ -324,7 +306,7 @@ describe("POST /api/users/sync identity vs profile", () => {
       tokenEmail: "token@example.com",
       signInProvider: "google.com",
     });
-    assert.equal(filled.user.email, "token@example.com");
+    assert.equal(filled.user.email, null);
 
     const kept = await useCase.execute({
       id: USER_ID,
@@ -332,37 +314,23 @@ describe("POST /api/users/sync identity vs profile", () => {
       email: null,
       signInProvider: "google.com",
     });
-    assert.equal(kept.user.email, "token@example.com");
+    assert.equal(kept.user.email, null);
     assert.equal(users.users.size, 1);
   });
 
-  it("does not create a duplicate after email/password signup then sync", async () => {
+  it("does not overwrite the profile created by phone/password signup", async () => {
     const { users, useCase } = syncHarness();
-
-    await useCase.execute({
-      id: USER_ID,
-      name: "Nour",
-      email: "nour@example.com",
-      phone: E164,
-      tokenEmail: "nour@example.com",
-      tokenName: "Nour",
-      verifiedPhone: null,
-      signInProvider: "password",
-    });
-
-    const second = await useCase.execute({
+    await users.create({ id: USER_ID, name: "Nour", phone: E164, email: null, password_hash: "hash" });
+    const synced = await useCase.execute({
       id: USER_ID,
       name: "Other",
-      email: "other@example.com",
       phone: OTHER_E164,
-      tokenEmail: "nour@example.com",
-      signInProvider: "password",
+      verifiedPhone: E164,
     });
-
     assert.equal(users.users.size, 1);
-    assert.equal(second.user.name, "Nour");
-    assert.equal(second.user.phone, E164);
-    assert.equal(second.user.email, "nour@example.com");
+    assert.equal(synced.user.name, "Nour");
+    assert.equal(synced.user.phone, E164);
+    assert.equal(synced.user.password_hash, "hash");
   });
 
   it("updates a verified phone on an existing account and claims invitations", async () => {
@@ -427,7 +395,7 @@ describe("PATCH /api/users/cuser profile updates", () => {
       id: USER_ID,
       name: "Nour",
       email: "nour@example.com",
-      phone: null,
+      phone: E164,
       image_url: null,
       created_at: NOW,
       updated_at: NOW,
@@ -437,7 +405,6 @@ describe("PATCH /api/users/cuser profile updates", () => {
     const updated = await update.execute(USER_ID, {
       name: "Nour Updated",
       image_url: "https://cdn.example.com/new.png",
-      phone: "01001234567",
     });
 
     assert.equal(updated.name, "Nour Updated");
@@ -471,7 +438,7 @@ describe("PATCH /api/users/cuser profile updates", () => {
     );
   });
 
-  it("rejects a phone already linked to another account", async () => {
+  it("requires Firebase proof for profile phone changes", async () => {
     const users = new FakeUsers();
     users.users.set(USER_ID, {
       id: USER_ID,
@@ -495,7 +462,7 @@ describe("PATCH /api/users/cuser profile updates", () => {
     const update = new UpdateUserUseCase(users);
     await assert.rejects(
       () => update.execute(USER_ID, { phone: E164 }),
-      (error: unknown) => error instanceof ConflictError,
+      (error: unknown) => error instanceof ValidationError,
     );
   });
 });
@@ -506,6 +473,7 @@ describe("sync controller identity binding", () => {
     const useCase = new SyncUserUseCase(users, {
       execute: () => Promise.resolve([]),
     });
+    await users.create({ id: USER_ID, name: "Stored Name", phone: E164, email: null });
     const controller = new UserController(useCase);
 
     const req = {
@@ -547,7 +515,7 @@ describe("sync controller identity binding", () => {
     assert.equal(statusCode, 200);
     assert.equal(payload?.data?.id, USER_ID);
     assert.equal(users.users.has("attacker-uid"), false);
-    assert.equal(users.users.get(USER_ID)?.name, "Body Name");
+    assert.equal(users.users.get(USER_ID)?.name, "Stored Name");
   });
 
   it("returns 401 when the Firebase user is missing", async () => {

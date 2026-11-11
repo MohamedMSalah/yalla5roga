@@ -2,12 +2,15 @@ import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_role.dart';
 
 class Group {
+  static const maxBioLength = 160;
+
   const Group({
     required this.id,
     required this.name,
     required this.outings,
     required this.image,
     required this.members,
+    this.pendingMembers = const [],
     this.bio = '',
     this.listedMemberCount,
     this.cuserRole = GroupRole.member,
@@ -20,6 +23,7 @@ class Group {
 
   /// Canonical membership list. Count and avatars are derived from this when loaded.
   final List<GroupMember> members;
+  final List<GroupMember> pendingMembers;
 
   /// Optional group description / bio from the API.
   final String bio;
@@ -79,6 +83,7 @@ class Group {
     int? outings,
     String? image,
     List<GroupMember>? members,
+    List<GroupMember>? pendingMembers,
     String? bio,
     int? listedMemberCount,
     String? lastMessage,
@@ -93,6 +98,7 @@ class Group {
       outings: outings ?? this.outings,
       image: image ?? this.image,
       members: members ?? this.members,
+      pendingMembers: pendingMembers ?? this.pendingMembers,
       bio: bio ?? this.bio,
       listedMemberCount: listedMemberCount ?? this.listedMemberCount,
       cuserRole: cuserRole ?? this.cuserRole,
@@ -109,13 +115,15 @@ class Group {
     'member_count': memberCount,
     'members': memberCount,
     'people': [for (final member in members) member.toJson()],
+    'pendingMembers': [for (final member in pendingMembers) member.toJson()],
     'avatars': avatars,
   };
 
   factory Group.fromJson(Map<String, dynamic> json) {
     final peopleRaw = json['people'] ?? json['membersList'];
     final membersField = json['members'];
-    final membersRaw = peopleRaw ?? (membersField is List ? membersField : null);
+    final membersRaw =
+        peopleRaw ?? (membersField is List ? membersField : null);
     final parsedMembers = <GroupMember>[
       if (membersRaw is List)
         for (final item in membersRaw)
@@ -137,7 +145,8 @@ class Group {
               GroupMember(id: 'preview_$i', name: '', avatar: avatarUrls[i]),
           ];
 
-    final listedMemberCount = _readOptionalInt(json['member_count']) ??
+    final listedMemberCount =
+        _readOptionalInt(json['member_count']) ??
         (membersField is num || membersField is String
             ? _readOptionalInt(membersField)
             : null);
@@ -149,6 +158,11 @@ class Group {
       bio: json['bio'] as String? ?? json['description'] as String? ?? '',
       image: json['image'] as String? ?? json['coverUrl'] as String? ?? '',
       members: members,
+      pendingMembers: [
+        for (final item in json['pendingMembers'] as List? ?? const [])
+          if (item is Map)
+            GroupMember.fromJson(Map<String, dynamic>.from(item)),
+      ],
       listedMemberCount: listedMemberCount,
       cuserRole: GroupRole.fromApi(
         json['cuserRole'] as String? ??

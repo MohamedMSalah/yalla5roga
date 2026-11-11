@@ -15,3 +15,9 @@ alwaysApply: false
 - Backend is source of truth for voting closure, winner, tie-break, cancel, and notification triggers.
 - Prefer extending existing endpoints over duplicate routes.
 - Update `docs/API_CONTRACTS.md` / related docs in the same task when routes or behavior change.
+
+- Groups support multiple overlapping outings. Keep writes and deduplication scoped to the relevant outing ID.
+- Use `outing_attendance` for intentions and `outing_arrivals` for verified presence. Arrival checks require the confirmed pinned venue. Keep GPS coordinates out of stored arrival records.
+- Queue group WhatsApp messages only with recipient consent and configured WhatsApp Business credentials. Keep pending membership independent of delivery.
+
+- Record GPS arrival only for the authenticated current participant, independent of RSVP. Notify current participants with a roster invalidation after commit.
