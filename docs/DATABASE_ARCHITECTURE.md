@@ -2,10 +2,10 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-10 |
-| Documentation version | 1.0.0 |
+| Last verified | 2026-11-13 |
+| Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | Eleven migrations applied through `20261111180000_password_recovery` on 2026-11-11. Recovery migration deployment and account preflight are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md). |
+| Configured Neon schema | Twelve migrations applied through `20261112120000_media_assets` on 2026-11-12. Recovery and media migration deployments are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md) and [media report](audit/MEDIA_STORAGE_REPORT.md). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -41,6 +41,10 @@ erDiagram
   users ||--o{ saved_places : bookmarks
   users ||--o{ notifications : receives
   users ||--o{ user_fcm_tokens : devices
+  users ||--o{ media_assets : owns
+  groups |o--o{ media_assets : linked
+  outings |o--o{ media_assets : linked
+  places |o--o{ media_assets : linked
   places ||--o{ place_images : images
   places ||--o{ place_prices : prices
   places ||--o{ place_hours : hours
@@ -74,7 +78,8 @@ Composite PK `(group_id, user_id)`. `role` enum `group_role` default `member`. C
 
 Phone association for group membership. PK UUID. `invited_phone`, `status` (`invitation_status` default `pending`), legacy `expires_at`, and optional `user_id`. The partial unique index permits one pending association per group and E.164 phone. Pending associations remain eligible until linked or revoked. The expiry timestamp is retained for schema compatibility and existing historical statuses retain their meaning.
 
-Phone values use E.164 normalization (default region Egypt), shared by signup/login/invites/sync. A pending association has `user_id=null`. Verified signup, login or sync locks the matching profile and pending rows, inserts active memberships in bulk and records the links as `accepted` with the same UID in one transaction. Owner revocation changes a still-pending row to `revoked`. Removing a registered member also revokes any still-pending row for the same group and phone. The current-user groups query uses `group_members.some(user_id=Bearer UID)`, not creator-only filtering. The integrity migration enforces the phone format and pending uniqueness while preserving all existing primary keys. Its real PostgreSQL/HTTP regression test rolls back all fixture writes and verifies no fixture users persist.
+Phone values use E.164 normalization (default region Egypt). Invitations begin pending for registered and unregistered recipients. Verified signup/login/sync locks the matching profile and unlinked pending rows and sets user_id only. Explicit accept/decline locks the invitation row before reading status. Accept inserts group_members with skipDuplicates and records accepted in the same transaction; decline links identity for history without membership. Existing active memberships and historical rows are preserved. Owner revocation changes only pending rows. Current-user group lists continue to use actual group_members.
+
 
 ### `places`
 
@@ -123,7 +128,7 @@ UUID PK. FK outing (cascade). Optional `place_id`. Unique `(outing_id, place_id)
 
 ### `outing_drafts`
 
-Server-side drafts (Flutter may also keep local prefs drafts). PostgreSQL checks that `guest_ids` and `selected_places` are JSON arrays.
+Server-side drafts are canonical for authenticated users; Flutter keeps the existing account/origin-scoped preferences cache and pending changes. PostgreSQL checks that `guest_ids` and `selected_places` are JSON arrays.
 
 ### `chat_messages` / `chat_reads`
 
@@ -145,9 +150,17 @@ Composite PKs `(user_id, outing_id)` and `(user_id, place_id)`. Each table has a
 
 Outbox + delivery audit. Unique `event_key` on events. Claim index `(status, next_attempt_at)`.
 
+### `media_assets`
+
+Object-storage metadata only — image bytes never enter Neon. `object_key` is unique and immutable per stored version; replacing an image creates a new asset/key. `bucket`, `mime_type`, `file_size` (refreshed from storage on confirm), `visibility` (`public` | `private`), `status` (`pending` → `ready`, or `failed`), `purpose` (`profile` | `group` | `outing` | `place` | `chat`), `owner_id` (Firebase UID), optional `user_id`/`group_id`/`outing_id`/`place_id` links, `verified_at`, and `upload_expires_at` for orphan cleanup.
+
+Entity image fields (`users.image_url`, `groups.image_url`, `outings.image_url`, `places.cover_image_url`, `place_images.image_url`) keep storing strings. A row may hold a legacy absolute http(s) URL or the stable reference `media://<media_assets.id>`. Public place assets resolve to the CDN URL; private assets resolve on demand through short-lived signed GET URLs after permission checks. Linking the asset to an entity is a separate column update, so covers may be uploaded before the group/outing row exists (`group_id`/`outing_id` null until attach).
+
+Indexes: owner, cleanup `(status, upload_expires_at)`, and each optional entity link.
+
 ## 3. Enums (Prisma)
 
-`attendance_status`, `group_role`, `notification_type`, `outing_occasion`, `outing_type`, `outing_status`, `vote_close_reason`, `outing_vibe`, `price_level`, `weekday`, `invitation_status`, `notification_event_type`, `notification_channel`, `notification_event_status`.
+`attendance_status`, `group_role`, `notification_type`, `outing_occasion`, `outing_type`, `outing_status`, `vote_close_reason`, `outing_vibe`, `price_level`, `weekday`, `invitation_status`, `notification_event_type`, `notification_channel`, `notification_event_status`, `media_visibility`, `media_status`, `media_purpose`.
 
 ## 4. Important invariants
 
@@ -161,6 +174,9 @@ Outbox + delivery audit. Unique `event_key` on events. Claim index `(status, nex
 8. Pending invitations are not eligible voters.
 9. Database constraints enforce outing type/group consistency, an end after a start, vote-deadline range (1–72 hours), and draft clock fields (hour 0–23, minute 0–59). Existing historical rows must be audited before constraints are validated.
 10. Chat seen state is derived from `chat_reads`; `chat_messages.delivery_status` was removed.
+11. Media binaries are never stored in Neon; only `media_assets` metadata/object keys are persisted.
+12. An entity image field holds either an absolute http(s) URL or a `media://<uuid>` reference — never a signed URL, local path, or binary.
+13. `media_assets.status` must be `ready` and the reference must match the entity purpose before an asset can be attached.
 
 ## 5. Transaction requirements
 
@@ -183,6 +199,7 @@ Outbox + delivery audit. Unique `event_key` on events. Claim index `(status, nex
 | Attendance | Participant (owner forced Going) |
 | Chat | Participants |
 | Saves | User |
+| Media assets | Uploader (`owner_id`); group/outing/chat visibility follows participants |
 | Places catalog | Backend content APIs (auth for mutations) |
 
 ## 7. Current vs future
@@ -217,3 +234,11 @@ Additive migration `20261111180000_password_recovery` introduces two tables. It 
 - `password_recovery_limits`: digest key PK, integer attempts, indexed expiry. Atomic upsert provides shared fixed-window limits, without storing raw IP addresses or opaque credentials.
 
 No plaintext passwords, OTPs, Firebase ID tokens or raw recovery secrets are persisted. Only the existing `users.password_hash` is updated. Replay markers survive beyond accepted proof lifetime; rows expired more than a day ago and expired limit buckets are cleaned during recovery starts.
+
+## Confirmed-fixes persistence notes — 2026-11-13
+
+No schema or migration changed. Retry-safe draft creation reuses the existing UUID primary key via Idempotency-Key. Update/delete optional If-Match checks reuse updated_at inside a row lock. Updates advance the timestamp by at least one API millisecond to distinguish consecutive writes. No tables, roles, Redis store or location-verification provider were added. The existing draft schema has no guest-phone column; phone-contact selections stay in the local cache and are not cross-device canonical data. Legacy unscoped preferences are retained untouched and are not silently attributed to another signed-in account.
+
+## Neon migration synchronization check — 2026-11-13
+
+The owner requested deployment of any pending database changes before committing and pushing the local working tree. Live Prisma Migrate status on the configured Neon direct endpoint reported all 12 local migrations applied, through `20261112120000_media_assets`. A separate read of `_prisma_migrations` confirmed 12 completed/non-rolled-back migrations and matching SHA-256 checksums for every local migration.sql. There were no pending or mismatched migrations, so no migration deployment or application-data change was needed. The initial pooled connection failed; retry used the same direct-host/channel-binding normalization already present in backend database configuration. No schema diagram change was required.

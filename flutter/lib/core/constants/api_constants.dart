@@ -55,8 +55,22 @@ class ApiConstants {
   static String groupInvitations(String groupId) =>
       '/api/groups/$groupId/invitations';
 
+  // Invitations (user-scoped)
+  static const String invitations = '/api/invitations';
+
+  static String invitationAccept(String invitationId) =>
+      '/api/invitations/$invitationId/accept';
+
+  static String invitationDecline(String invitationId) =>
+      '/api/invitations/$invitationId/decline';
+
   // Outings
   static const String outings = '/api/outings';
+  static const String outingDrafts = '/api/outings/drafts';
+  static String outingDraft(String id) => '$outingDrafts/$id';
+  static String outingGuest(String id, String userId) =>
+      '${outingGuests(id)}/${Uri.encodeComponent(userId)}';
+
   static const String outingsCuser = '/api/outings/cuser';
 
   static String outing(String outingId) => '/api/outings/$outingId';
@@ -112,4 +126,14 @@ class ApiConstants {
   static const String placeGeocoding = '/api/places/geocoding';
 
   static String place(String placeId) => '/api/places/$placeId';
+
+  // Media — direct-to-R2 uploads and access-checked delivery URLs.
+  static const String mediaUploadUrl = '/api/media/upload-url';
+  static const String mediaSignedUrls = '/api/media/signed-urls';
+
+  static String mediaConfirm(String mediaId) => '/api/media/$mediaId/confirm';
+
+  static String mediaAssetUrl(String mediaId) => '/api/media/$mediaId/url';
+
+  static String mediaDelete(String mediaId) => '/api/media/$mediaId';
 }

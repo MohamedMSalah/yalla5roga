@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { PlaceController } from "../../controllers/places/place.controller.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
+import { requirePlaceCurator } from "../../middleware/place-curator.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   createPlaceBodySchema,
@@ -87,7 +88,7 @@ import {
  *   post:
  *     tags: [Places]
  *     summary: Create a place
- *     description: Creates a new place. Requires authentication.
+ *     description: Creates a new place. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: createPlace
  *     requestBody:
  *       $ref: "#/components/requestBodies/CreatePlace"
@@ -102,6 +103,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  * /api/places/{id}:
@@ -129,7 +132,7 @@ import {
  *   patch:
  *     tags: [Places]
  *     summary: Update a place
- *     description: Updates place fields. Requires authentication.
+ *     description: Updates place fields. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: updatePlace
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -146,6 +149,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -153,7 +158,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete a place
- *     description: Deletes the place. Requires authentication.
+ *     description: Deletes the place. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: deletePlace
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -168,6 +173,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -197,7 +204,7 @@ import {
  *   put:
  *     tags: [Places]
  *     summary: Upsert opening hours for a weekday
- *     description: Creates or replaces the hours for one weekday. Requires authentication.
+ *     description: Creates or replaces the hours for one weekday. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: upsertPlaceHour
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -214,6 +221,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -222,7 +231,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete an opening-hours row
- *     description: Deletes one opening-hours row. Requires authentication.
+ *     description: Deletes one opening-hours row. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: deletePlaceHour
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -238,6 +247,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *       "404":
@@ -267,7 +278,7 @@ import {
  *   post:
  *     tags: [Places]
  *     summary: Add a place image
- *     description: Adds an image to the place. Requires authentication.
+ *     description: Adds an image to the place. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: createPlaceImage
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -284,6 +295,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -292,7 +305,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete a place image
- *     description: Deletes an image from the place. Requires authentication.
+ *     description: Deletes an image from the place. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: deletePlaceImage
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -308,6 +321,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *       "404":
@@ -337,7 +352,7 @@ import {
  *   post:
  *     tags: [Places]
  *     summary: Add a place price
- *     description: Adds a price row to the place. Requires authentication.
+ *     description: Adds a price row to the place. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: createPlacePrice
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -354,6 +369,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -362,7 +379,7 @@ import {
  *   delete:
  *     tags: [Places]
  *     summary: Delete a place price
- *     description: Deletes a price row from the place. Requires authentication.
+ *     description: Deletes a price row from the place. Requires a place curator account (`PLACES_CURATOR_UIDS`).
  *     operationId: deletePlacePrice
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -378,6 +395,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *       "404":
@@ -400,6 +419,7 @@ router.get(
 router.post(
   "/",
   authMiddleware,
+  requirePlaceCurator,
   validate({ body: createPlaceBodySchema }),
   controller.create,
 );
@@ -411,12 +431,14 @@ router.get(
 router.patch(
   "/:id",
   authMiddleware,
+  requirePlaceCurator,
   validate({ params: placeIdParamsSchema, body: updatePlaceBodySchema }),
   controller.update,
 );
 router.delete(
   "/:id",
   authMiddleware,
+  requirePlaceCurator,
   validate({ params: placeIdParamsSchema }),
   controller.remove,
 );

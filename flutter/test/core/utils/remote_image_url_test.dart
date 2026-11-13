@@ -14,6 +14,12 @@ void main() {
       );
     });
 
+    test('keeps stable media references', () {
+      const reference = 'media://0f8fad5b-d9cb-469f-a165-70867728950e';
+      expect(remoteImageUrlOrNull(reference), reference);
+      expect(remoteImageUrlOrNull('  $reference  '), reference);
+    });
+
     test('drops local paths and empty values', () {
       expect(remoteImageUrlOrNull(null), isNull);
       expect(remoteImageUrlOrNull(''), isNull);
@@ -23,6 +29,7 @@ void main() {
         isNull,
       );
       expect(remoteImageUrlOrNull('C:\\Users\\me\\Pictures\\a.jpg'), isNull);
+      expect(remoteImageUrlOrNull('media://not-a-uuid'), isNull);
     });
   });
 }

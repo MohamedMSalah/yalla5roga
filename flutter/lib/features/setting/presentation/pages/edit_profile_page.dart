@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/media/media_reference.dart';
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
+import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/image_source_sheet.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
@@ -60,12 +65,43 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
 
     if (!mounted) return;
+    final previousImage = auth.user?.imageUrl;
+    final wantsNewImage =
+        _imagePath != null && _imagePath != auth.user?.imageUrl;
+    String? imageRef;
+    if (wantsNewImage) {
+      try {
+        if (isLocalFilePath(_imagePath)) {
+          final uploaded = await context.read<MediaUploadService>().uploadLocalImage(
+            path: _imagePath!,
+            purpose: MediaPurpose.profile,
+          );
+          imageRef = uploaded.reference;
+        } else {
+          imageRef = _imagePath;
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() => _saving = false);
+          AppSnackBar.show(l10n.imageUploadFailed);
+        }
+        return;
+      }
+    }
+
+    if (!mounted) return;
     final success = await auth.syncProfileToBackend(
       name: _name == auth.user?.name ? null : _name,
-      imageUrl: _imagePath == auth.user?.imageUrl ? null : _imagePath,
+      imageUrl: imageRef,
     );
     if (!mounted) return;
     if (success) {
+      final uploads = context.read<MediaUploadService>();
+      if (wantsNewImage &&
+          isMediaReference(previousImage) &&
+          previousImage != imageRef) {
+        unawaited(uploads.deleteMediaReference(previousImage));
+      }
       setState(() {
         _name = null;
         _imagePath = null;

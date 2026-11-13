@@ -57,6 +57,15 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 - **Backend:** `GET /api/users/cuser`; `POST /api/auth/change-password` / `verify-password`.  
 - **Status:** Implemented  
 
+### MEDIA-01 Upload and display images (profile, group, outing)
+
+- **Preconditions:** Authenticated; camera/gallery permission when taking or choosing a photo.
+- **Actions:** Pick a local image in Edit Profile, Create Group, Group cover change, or Create Outing. The app uploads it directly to storage, then saves the returned `media://` reference with the profile/group/outing. Images render from the persistent cache; previously viewed images remain visible offline.
+- **Backend:** `POST /api/media/upload-url` → direct storage `PUT` → `POST /api/media/:id/confirm`; display via `POST /api/media/signed-urls` or `GET /api/media/:id/url`. Local paths and unsupported/oversized files are rejected.
+- **DB:** `media_assets` metadata only; entity `image_url` keeps the stable reference.
+- **Flutter:** `MediaUploadService`, `MediaUrlResolver`, `AppNetworkImage`; cache keys are stable per asset and account-scoped for private media. Logout/account switch clears private URL metadata and cached images. Missing media falls back to the existing default avatar/cover.
+- **Status:** Implemented (mock storage locally; real R2/CDN activation pending credentials)
+
 ---
 
 ## 14.3 Outing creation
@@ -65,9 +74,9 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 
 - **Preconditions:** Authenticated; group exists; user allowed.  
 - **Actions:** Enter title, schedule and an optional cover photo. In step 2, pick a single location or tap **Add places for voting** to select 2–5 places from the list, the map, or both. Set the deadline on Review, then submit.
-- **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going; `image_url` optional http(s) only; vote options posted when multi-place.  
+- **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going; `image_url` optional http(s) or `media://<uuid>`; vote options posted when multi-place.
 - **DB:** `outings`, `outing_attendance`, optional `outing_vote_options`.  
-- **Flutter:** Shared `CreateOutingPage` for create + suggest; always sends `vote_deadline_hours`; omits local file paths from `image_url` (no upload pipeline yet).  
+- **Flutter:** Shared `CreateOutingPage` for create + suggest; always sends `vote_deadline_hours`; uploads a picked local cover first and sends the stable `media://` reference.
 - **Status:** Implemented (API/tests); Flutter sends deadline fields  
 
 **Create Outing UI:** The form starts with a full-width optional photo cover, followed by the outing name and rounded category choices. The progress header and footer guide users through location and review. Group and outing screens use a local illustration when the cover photo is absent. Birthday and wedding events have distinct default covers.
@@ -97,7 +106,7 @@ Group Details puts the group name, role, and Create outing action together. Grou
 ### GRP-01 Create group — creator is first member
 
 - **API:** `POST /api/groups` → creator row in `group_members` with `role=owner`; response `member_count` starts at **1**
-- **Flutter:** The form opens with the same optional, full-width cover picker as Create Outing, with group artwork as the placeholder. After create, members are reloaded; Group Info / Details call `ensureGroupLoaded` so the creator card appears in the members list
+- **Flutter:** The form opens with the same optional, full-width cover picker as Create Outing, with group artwork as the placeholder. A picked cover is uploaded before create and sent as a `media://` reference. After create, members are reloaded; Group Info / Details call `ensureGroupLoaded` so the creator card appears in the members list
 - **Status:** Implemented
 
 ### GRP-02 Edit group bio
@@ -114,11 +123,12 @@ The group owner can open Group Info and use **Edit bio** in the About card. Save
 ### INV-02 Add a group member by phone
 
 - **API:** `POST /api/groups/:id/invitations` adds by phone. A group owner can revoke a still-pending association with `DELETE /api/groups/:id/pending-memberships/:invitationId`.
-- **Flutter:** Create-group member picker loads device contacts (`PickDeviceContactsPage` + `READ_CONTACTS`); manual phone still supported. Create/add flows use the invitation endpoint. The inline checkbox records recipient agreement. The backend queues the consented message when configured; after invitee installs + verifies that phone, `POST /api/users/sync` claims pending `group_invitations` into `group_members`. Group cover `image_url` is optional.
+- **Flutter:** Create-group member picker loads device contacts (`PickDeviceContactsPage` + `READ_CONTACTS`); manual phone still supported. Create/add flows use the invitation endpoint. The inline checkbox records recipient agreement. The backend queues the consented message when configured; after invitee installs + verifies that phone, `POST /api/users/sync` links pending `group_invitations` to the verified account without membership. Group cover `image_url` is optional.
 - **Special events:** Choose device contacts in the guest picker. Confirm recipient opt-in before creating the event. Phone guests receive the title, time, venue, Google Calendar link and optional app link. When automatic delivery is unavailable, send the prefilled invitations from the new outing’s details. Phone invitees do not become app members.
 - **Status:** Implemented  
 
-The verified registered user joins immediately. For an unregistered number, Neon stores the normalized phone and no user ID. Verified signup or sync links all pending groups automatically and the member can open the group and its outings. Group Info shows pending contacts alongside active members with a localized “Pending registration” label. The roster reloads after an add and when Group Info opens. The owner can remove a pending association before signup or remove an active member afterward. A revoked association stays revoked after login. Signup uses the same Firebase UID that completed OTP. Existing accounts from the former split-UID signup must verify once in Settings; repair preserves all account/group IDs, then refreshes the group list. Session restoration displays matching cached state immediately, then defers invitation/account sync before online group revalidation. Logout clears the visible list and account-scoped caches; late responses from the previous session are ignored.
+Inviting a registered or unregistered phone creates a pending invitation. Verified signup/login/sync links identity only. The invitee opens Invitations and explicitly accepts or declines. Acceptance creates membership and refreshes groups; decline preserves history without membership. Before identity linking, pending unlinked rows are discoverable through the current Firebase-verified phone. Group Info shows a localized “Pending invitation” label and permits owner revocation.
+
 
 ### INV-03 Explicit accept outing invite
 
@@ -170,7 +180,7 @@ The verified registered user joins immediately. For an unregistered number, Neon
 ### ATT-03 Multiple changes — upsert — Implemented  
 ### ATT-04 During voting / after confirm — allowed until cancelled/past — Implemented
 
-### ATT-05 Who’s arrived — Enable automatic check-in on the outing and grant foreground location. The list opens at the scheduled start. A participant is added when their device reports a sufficiently accurate position within 150 m while the app is open. RSVP stays separate.
+### ATT-05 Who’s arrived — Enable automatic check-in on the outing and grant foreground location. The list opens at the scheduled start. A participant is added when their device reports a sufficiently accurate position within the configured radius (100 m by default) while the app is open. RSVP stays separate.
 ### ATT-05 Must not alter votes — Implemented invariant
 ### ATT-06 Owner cannot leave Going — coerced — Implemented  
 
@@ -310,7 +320,7 @@ Additional journey diagrams for vote change, candidate reset, attendance, chat, 
 | OUT-01 | Outings | Create group | `POST /api/outings` | outings, outing_attendance | Owner Going | Implemented |
 | OUT-02 | Outings | Create special | `POST /api/outings` | outings, outing_attendance | Created | Implemented |
 | GRP-01 | Groups | Create group | `POST /api/groups` | groups, group_members | Creator owner; count 1 | Implemented |
-| INV-02 | Groups | Add by phone | `POST /api/groups/:id/invitations` | group_invitations, group_members | Immediate membership or automatic linking after verified registration | Implemented |
+| INV-02 | Groups | Add by phone | `POST /api/groups/:id/invitations` | group_invitations, group_members | Pending invitation; verified identity linking; explicit acceptance creates membership | Implemented |
 | INV-03 | Outings | Accept invite | `POST /api/outings/:id/invitations/accept` | outing_guests | Member | Partial UI |
 | VOT-05 | Voting | Cast vote | `POST /api/outings/:id/votes` | outing_votes | Upsert | Implemented |
 | VOT-09 | Voting | Replace options | `PUT /api/outings/:id/vote-options` | options, votes | Reset votes | Implemented |
@@ -368,3 +378,13 @@ Backend proof binds the phone to its existing UID; no new profile is synced. Pas
 ### AUTH-08 recovery and feedback follow-up — 2026-11-11
 
 Recovery reuses signup’s six-digit OTP widget and submits the completed code automatically. Failed resends retain the previous verification screen and proof pair. Firebase owns SMS sending and verification; the backend account preflight now has its required deployed tables. Shared snackbars include the app logo and concise localized feedback, including map errors with settings actions. Focused Flutter tests cover delayed callbacks, invocation errors, late callbacks after timeout, failed resend preservation and snackbar locale/size/theme handling. Physical-device SMS and visual checks are left to the owner.
+
+## Confirmed integration journeys — 2026-11-13
+
+- Outing Details shows creators Edit and Cancel for open outings. Edit pre-fills title, cover, schedule and draft venue using existing controls/map picker; confirmed/voting venues are not exposed for editing. Save uses PATCH and merges refreshed outing state. Cancel requires confirmation, calls POST cancel, refreshes details and moves the outing to history. Backend permissions remain authoritative.
+- The creator manages invited participants in Outing Details. Removal requires confirmation and reloads the guest list. These are outing invitations, independent of group invitations. A pending outing invitee sees explicit Accept/Decline controls in Details; neither opening a page nor a deep link accepts it.
+- Group Info shows an owner Delete action with confirmation. Groups containing outings cannot be deleted (409). After success, group/outing state refreshes and navigation returns to the root. The existing confirmed Leave Group operation remains available alongside owner deletion; the last owner cannot leave.
+- Save Draft writes to the existing local cache first. Online recovery creates/updates the backend draft and updates the cache; offline changes remain pending after restart. Reconnect/resume performs serialized sync without polling. A stable UUID prevents response-loss duplicate creates; a changed server version preserves the pending copy and displays a conflict notice. Local phone-contact selections are retained on this device because the existing draft schema has no guest-phone column; see the implementation report's limitations.
+- The inbox retains its existing full-feed presentation while fetching bounded pages. Pending group invitation count excludes accepted/declined history returned by the API.
+
+Source wiring and static checks are complete for these additions. Phone/wide/foldable, English/Arabic, light/dark, offline-device and interactive UI behavior were **NOT EXERCISED**: the owner prohibited Flutter tests and app launches. Authenticated API business scenarios remain **NOT VERIFIED** without supplied test identities.

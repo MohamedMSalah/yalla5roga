@@ -32,9 +32,7 @@ class CreateOutingProvider extends ChangeNotifier {
            specialEvent ||
            (draft?.specialEvent ?? false) ||
            (saved?.occasion ?? OutingOccasion.none) != OutingOccasion.none,
-       _draftId =
-           draft?.id ??
-           'draft-${DateTime.now().millisecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}' {
+       _draftId = draft?.id ?? _newDraftId() {
     nameController = TextEditingController(
       text: saved?.title ?? draft?.title ?? '',
     );
@@ -88,6 +86,15 @@ class CreateOutingProvider extends ChangeNotifier {
       }
     }
     _date = clampDate(_date);
+  }
+
+  static String _newDraftId() {
+    final random = Random.secure();
+    final bytes = List.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
   final List<Group> _groups;
@@ -548,6 +555,7 @@ class CreateOutingProvider extends ChangeNotifier {
   OutingDraft toDraft() {
     return OutingDraft(
       id: _draftId,
+      remoteVersion: draft?.remoteVersion,
       title: nameController.text.trim(),
       image: resolvedImage,
       location: selectedLocation ?? PlaceLocation(name: locationLabel),

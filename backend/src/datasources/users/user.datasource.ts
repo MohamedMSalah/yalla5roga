@@ -14,8 +14,42 @@ export class UserDatasource {
     return prisma.users.findUnique({ where: { phone } });
   }
 
+  /**
+   * Registration-safe phone lookup: only matches a profile that shares an
+   * active group with the caller. Callers without a group, and phones that do
+   * not belong to a co-member, return null — so the endpoint cannot be used to
+   * test whether an arbitrary number is registered.
+   */
+  async findByPhoneInSharedGroup(
+    phone: string,
+    callerUid: string,
+  ): Promise<User | null> {
+    const memberships = await prisma.group_members.findMany({
+      where: { user_id: callerUid },
+      select: { group_id: true },
+    });
+    if (memberships.length === 0) return null;
+
+    return prisma.users.findFirst({
+      where: {
+        phone,
+        group_members: {
+          some: { group_id: { in: memberships.map((row) => row.group_id) } },
+        },
+      },
+    });
+  }
+
   findMany(): Promise<User[]> {
     return prisma.users.findMany({ orderBy: { created_at: "desc" } });
+  }
+
+  findManyByIds(ids: string[]): Promise<User[]> {
+    if (ids.length === 0) return Promise.resolve([]);
+    return prisma.users.findMany({
+      where: { id: { in: ids } },
+      orderBy: { created_at: "desc" },
+    });
   }
 
   create(data: CreateUserInput): Promise<User> {

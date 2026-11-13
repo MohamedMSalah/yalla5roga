@@ -8,6 +8,7 @@ import 'package:yalla_5roga/features/chat/presentation/pages/outing_chat_page.da
 import 'package:yalla_5roga/features/groups/presentation/pages/group_details_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_info_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/invitations/presentation/pages/invitations_page.dart';
 import 'package:yalla_5roga/features/notifications/domain/entities/push_notification_payload.dart';
 import 'package:yalla_5roga/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
@@ -23,6 +24,16 @@ class PushNotificationNavigator {
     required bool Function() isCurrent,
     required bool fromInbox,
   }) async {
+    // Handle group_invite notifications → InvitationsPage
+    if (payload.type == 'group_invite' ||
+        (payload.type == 'invitation' && payload.outingId == null)) {
+      Get.to(
+        () => const InvitationsPage(),
+        routeName: '/notification/invitation',
+      );
+      return;
+    }
+
     final destination = payload.destination;
     if (destination == NotificationDestination.inbox) {
       if (!fromInbox) Get.to(() => const NotificationsPage());

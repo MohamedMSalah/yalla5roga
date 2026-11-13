@@ -8,30 +8,32 @@ datasource db {
 }
 
 model users {
-  id                                          String              @id @db.VarChar(128)
-  name                                        String              @db.VarChar(30)
-  phone                                       String              @unique @db.VarChar(16)
-  password_hash                               String?             @db.VarChar(255)
-  image_url                                   String?             @db.VarChar(2048)
-  created_at                                  DateTime            @default(now()) @db.Timestamptz(6)
-  updated_at                                  DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
-  password_recoveries                         password_recoveries[]
-  chat_messages                               chat_messages[]
-  chat_reads                                  chat_reads[]
-  group_members                               group_members[]
-  groups                                      groups[]
-  notifications                               notifications[]
-  outing_arrivals                           outing_arrivals[]
-  outing_attendance                           outing_attendance[]
-  outing_drafts                               outing_drafts[]
-  outing_guests                               outing_guests[]
-  outing_votes                                outing_votes[]
-  outings_outings_created_byTousers           outings[]           @relation("outings_created_byTousers")
-  saved_outings                               saved_outings[]
-  saved_places                                saved_places[]
-  user_fcm_tokens                             user_fcm_tokens[]
-  group_invitations_sent                      group_invitations[] @relation("group_invitations_invited_by")
-  group_invitations_received                  group_invitations[] @relation("group_invitations_user")
+  id                                String                @id @db.VarChar(128)
+  name                              String                @db.VarChar(30)
+  phone                             String                @unique @db.VarChar(16)
+  password_hash                     String?               @db.VarChar(255)
+  image_url                         String?               @db.VarChar(2048)
+  created_at                        DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                        DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  password_recoveries               password_recoveries[]
+  chat_messages                     chat_messages[]
+  chat_reads                        chat_reads[]
+  group_members                     group_members[]
+  groups                            groups[]
+  notifications                     notifications[]
+  outing_arrivals                   outing_arrivals[]
+  outing_attendance                 outing_attendance[]
+  outing_drafts                     outing_drafts[]
+  outing_guests                     outing_guests[]
+  outing_votes                      outing_votes[]
+  outings_outings_created_byTousers outings[]             @relation("outings_created_byTousers")
+  saved_outings                     saved_outings[]
+  saved_places                      saved_places[]
+  user_fcm_tokens                   user_fcm_tokens[]
+  group_invitations_sent            group_invitations[]   @relation("group_invitations_invited_by")
+  group_invitations_received        group_invitations[]   @relation("group_invitations_user")
+  media_assets_owned                media_assets[]        @relation("media_assets_owner")
+  media_assets_linked               media_assets[]        @relation("media_assets_user")
 }
 
 model groups {
@@ -48,6 +50,7 @@ model groups {
   notifications     notifications[]
   outing_drafts     outing_drafts[]
   outings           outings[]
+  media_assets      media_assets[]
 
   @@index([created_by], map: "idx_groups_created_by")
 }
@@ -110,6 +113,7 @@ model places {
   place_images        place_images[]
   place_prices        place_prices[]
   saved_places        saved_places[]
+  media_assets        media_assets[]
 
   @@index([vibe], map: "idx_places_vibe")
   @@index([latitude, longitude], map: "idx_places_lat_lng")
@@ -150,44 +154,45 @@ model place_hours {
 }
 
 model outings {
-  id                                        String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title                                     String                @db.VarChar(20)
-  image_url                                 String                @default("") @db.VarChar(2048)
-  group_id                                  String?               @db.Uuid
-  create_request_key                        String?               @db.VarChar(80)
-  created_by                                String                @db.VarChar(128)
-  status                                    outing_status         @default(draft)
+  id                              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title                           String                @db.VarChar(20)
+  image_url                       String                @default("") @db.VarChar(2048)
+  group_id                        String?               @db.Uuid
+  create_request_key              String?               @db.VarChar(80)
+  created_by                      String                @db.VarChar(128)
+  status                          outing_status         @default(draft)
   /// Discriminator: group outing (requires group_id) vs special event (birthday/wedding).
-  type                                      outing_type           @default(group)
-  occasion                                  outing_occasion       @default(none)
-  scheduled_at                              DateTime?             @db.Timestamptz(6)
-  ends_at                                   DateTime?             @db.Timestamptz(6)
-  location_place_id                         String?               @db.Uuid
-  location_name                             String?               @db.VarChar(100)
-  location_area                             String?               @db.VarChar(100)
-  location_latitude                         Float?
-  location_longitude                        Float?
-  vote_deadline_hours                       Int?                  @db.SmallInt
-  vote_ends_at                              DateTime?             @db.Timestamptz(6)
-  vote_closed_at                            DateTime?             @db.Timestamptz(6)
-  vote_close_reason                         vote_close_reason?
+  type                            outing_type           @default(group)
+  occasion                        outing_occasion       @default(none)
+  scheduled_at                    DateTime?             @db.Timestamptz(6)
+  ends_at                         DateTime?             @db.Timestamptz(6)
+  location_place_id               String?               @db.Uuid
+  location_name                   String?               @db.VarChar(100)
+  location_area                   String?               @db.VarChar(100)
+  location_latitude               Float?
+  location_longitude              Float?
+  vote_deadline_hours             Int?                  @db.SmallInt
+  vote_ends_at                    DateTime?             @db.Timestamptz(6)
+  vote_closed_at                  DateTime?             @db.Timestamptz(6)
+  vote_close_reason               vote_close_reason?
   /// Winning candidate; must belong to this outing (enforced via composite FK).
-  winning_option_id                         String?               @db.Uuid
-  created_at                                DateTime              @default(now()) @db.Timestamptz(6)
-  updated_at                                DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
-  chat_messages                             chat_messages[]
-  chat_reads                                chat_reads[]
-  notifications                             notifications[]
-  outing_arrivals                           outing_arrivals[]
-  outing_attendance                         outing_attendance[]
-  outing_guests                             outing_guests[]
-  outing_vote_options                       outing_vote_options[]
-  outing_votes                              outing_votes[]
-  winning_option                            outing_vote_options?  @relation("outing_winning_option", fields: [winning_option_id, id], references: [id, outing_id], onDelete: NoAction, onUpdate: NoAction)
-  users_outings_created_byTousers           users                 @relation("outings_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  groups                                    groups?               @relation(fields: [group_id], references: [id], onUpdate: NoAction)
-  places                                    places?               @relation(fields: [location_place_id], references: [id], onUpdate: NoAction)
-  saved_outings                             saved_outings[]
+  winning_option_id               String?               @db.Uuid
+  created_at                      DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at                      DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  chat_messages                   chat_messages[]
+  chat_reads                      chat_reads[]
+  notifications                   notifications[]
+  outing_arrivals                 outing_arrivals[]
+  outing_attendance               outing_attendance[]
+  outing_guests                   outing_guests[]
+  outing_vote_options             outing_vote_options[]
+  outing_votes                    outing_votes[]
+  winning_option                  outing_vote_options?  @relation("outing_winning_option", fields: [winning_option_id, id], references: [id, outing_id], onDelete: NoAction, onUpdate: NoAction)
+  users_outings_created_byTousers users                 @relation("outings_created_byTousers", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  groups                          groups?               @relation(fields: [group_id], references: [id], onUpdate: NoAction)
+  places                          places?               @relation(fields: [location_place_id], references: [id], onUpdate: NoAction)
+  saved_outings                   saved_outings[]
+  media_assets                    media_assets[]
 
   @@unique([created_by, create_request_key], map: "uq_outings_creator_request")
   @@index([group_id], map: "idx_outings_group")
@@ -215,14 +220,14 @@ model outing_guests {
 }
 
 model outing_arrivals {
-  outing_id  String   @db.Uuid
-  user_id    String   @db.VarChar(128)
-  arrived_at DateTime @default(now()) @db.Timestamptz(6)
-  verification_method   String @default("legacy") @db.VarChar(24)
+  outing_id             String   @db.Uuid
+  user_id               String   @db.VarChar(128)
+  arrived_at            DateTime @default(now()) @db.Timestamptz(6)
+  verification_method   String   @default("legacy") @db.VarChar(24)
   verification_distance Float?
   location_accuracy     Float?
-  outings    outings  @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  outings               outings  @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users                 users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([outing_id, user_id])
   @@index([user_id], map: "idx_outing_arrivals_user")
@@ -241,20 +246,20 @@ model outing_attendance {
 }
 
 model outing_vote_options {
-  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  outing_id      String         @db.Uuid
-  place_id       String?        @db.Uuid
-  label          String         @db.VarChar(100)
-  area           String         @default("") @db.VarChar(100)
-  image_url      String         @default("") @db.VarChar(2048)
-  vibe           outing_vibe    @default(food)
-  latitude       Float?
-  longitude      Float?
-  sort_order     Int            @default(0)
-  outings        outings        @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  places         places?        @relation(fields: [place_id], references: [id], onUpdate: NoAction)
-  outing_votes   outing_votes[]
-  winning_for    outings[]      @relation("outing_winning_option")
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  outing_id    String         @db.Uuid
+  place_id     String?        @db.Uuid
+  label        String         @db.VarChar(100)
+  area         String         @default("") @db.VarChar(100)
+  image_url    String         @default("") @db.VarChar(2048)
+  vibe         outing_vibe    @default(food)
+  latitude     Float?
+  longitude    Float?
+  sort_order   Int            @default(0)
+  outings      outings        @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  places       places?        @relation(fields: [place_id], references: [id], onUpdate: NoAction)
+  outing_votes outing_votes[]
+  winning_for  outings[]      @relation("outing_winning_option")
 
   @@unique([outing_id, place_id])
   @@unique([id, outing_id], map: "uq_vote_options_id_outing")
@@ -306,14 +311,14 @@ model outing_drafts {
 }
 
 model chat_messages {
-  id                String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  outing_id         String                  @db.Uuid
-  sender_id         String                  @db.VarChar(128)
-  text              String                  @db.VarChar(2000)
-  sent_at           DateTime                @default(now()) @db.Timestamptz(6)
-  client_message_id String?                 @db.Uuid
-  outings           outings                 @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  users             users                   @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  outing_id         String   @db.Uuid
+  sender_id         String   @db.VarChar(128)
+  text              String   @db.VarChar(2000)
+  sent_at           DateTime @default(now()) @db.Timestamptz(6)
+  client_message_id String?  @db.Uuid
+  outings           outings  @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users             users    @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([outing_id, sender_id, client_message_id], map: "uq_chat_messages_client_msg")
   @@index([outing_id, sent_at(sort: Desc), id(sort: Desc)], map: "idx_chat_messages_outing_sent_id")
@@ -362,8 +367,8 @@ model user_fcm_tokens {
   updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([user_id], map: "idx_user_fcm_tokens_user")
   @@unique([token], map: "uq_user_fcm_tokens_token")
+  @@index([user_id], map: "idx_user_fcm_tokens_user")
 }
 
 model saved_outings {
@@ -388,6 +393,25 @@ model saved_places {
   @@id([user_id, place_id])
   @@index([place_id], map: "idx_saved_places_place")
   @@index([user_id, saved_at(sort: Desc)], map: "idx_saved_places_user_saved")
+}
+
+enum media_visibility {
+  public
+  private
+}
+
+enum media_status {
+  pending
+  ready
+  failed
+}
+
+enum media_purpose {
+  profile
+  group
+  outing
+  place
+  chat
 }
 
 enum attendance_status {
@@ -499,26 +523,26 @@ enum notification_event_status {
 }
 
 model notification_events {
-  id                  String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  type                notification_event_type
-  channel             notification_channel        @default(push)
-  status              notification_event_status   @default(pending)
-  recipient_phone     String?                     @db.VarChar(16)
-  recipient_user_id   String?                     @db.VarChar(128)
-  group_id            String?                     @db.Uuid
-  invitation_id       String?                     @db.Uuid
-  outing_id           String?                     @db.Uuid
+  id                String                       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type              notification_event_type
+  channel           notification_channel         @default(push)
+  status            notification_event_status    @default(pending)
+  recipient_phone   String?                      @db.VarChar(16)
+  recipient_user_id String?                      @db.VarChar(128)
+  group_id          String?                      @db.Uuid
+  invitation_id     String?                      @db.Uuid
+  outing_id         String?                      @db.Uuid
   /// Idempotency key for outbox retries.
-  event_key           String?                     @unique @db.VarChar(191)
-  payload             Json
-  attempts            Int                         @default(0) @db.SmallInt
-  max_attempts        Int                         @default(5) @db.SmallInt
-  next_attempt_at     DateTime                    @default(now()) @db.Timestamptz(6)
-  last_error          String?                     @db.VarChar(1000)
-  sent_at             DateTime?                   @db.Timestamptz(6)
-  created_at          DateTime                    @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime                    @default(now()) @updatedAt @db.Timestamptz(6)
-  delivery_logs       notification_delivery_logs[]
+  event_key         String?                      @unique @db.VarChar(191)
+  payload           Json
+  attempts          Int                          @default(0) @db.SmallInt
+  max_attempts      Int                          @default(5) @db.SmallInt
+  next_attempt_at   DateTime                     @default(now()) @db.Timestamptz(6)
+  last_error        String?                      @db.VarChar(1000)
+  sent_at           DateTime?                    @db.Timestamptz(6)
+  created_at        DateTime                     @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime                     @default(now()) @updatedAt @db.Timestamptz(6)
+  delivery_logs     notification_delivery_logs[]
 
   @@index([status, next_attempt_at], map: "idx_notification_events_claim")
   @@index([invitation_id], map: "idx_notification_events_invitation")
@@ -542,23 +566,74 @@ model notification_delivery_logs {
 }
 
 // Opaque recovery secrets are stored only as SHA-256 digests.
+/// Metadata rows for objects stored in Cloudflare R2. Only object keys and
+/// metadata live in PostgreSQL — file binaries never touch the database.
+/// `image_url` columns across entities may reference a row here via the
+/// stable `media://<asset-id>` scheme resolved by clients to signed/public URLs.
+model media_assets {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// R2 object key, unique per stored object. Keys are immutable per version:
+  /// replacing an image uploads a new object with a new key.
+  object_key        String           @unique @db.VarChar(512)
+  /// R2 bucket name at confirm time (audit trail if the bucket is renamed).
+  bucket            String           @db.VarChar(255)
+  mime_type         String           @db.VarChar(100)
+  /// Bytes reported by the uploader at request time; refreshed from R2 on confirm.
+  file_size         Int
+  /// public assets are served through the CDN base URL; private assets only
+  /// through short-lived signed GET URLs.
+  visibility        media_visibility @default(private)
+  /// pending = upload URL issued; ready = object verified in R2;
+  /// failed = object never appeared or verification failed.
+  status            media_status     @default(pending)
+  /// Creator/uploader. Always the Firebase UID of the Bearer token.
+  owner_id          String           @db.VarChar(128)
+  /// Purpose the upload was requested for; drives visibility and key layout.
+  purpose           media_purpose
+  /// Optional entity links set when the asset is attached to a record.
+  user_id           String?          @db.VarChar(128)
+  group_id          String?          @db.Uuid
+  outing_id         String?          @db.Uuid
+  place_id          String?          @db.Uuid
+  users             users?           @relation("media_assets_owner", fields: [owner_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  linked_user       users?           @relation("media_assets_user", fields: [user_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  linked_group      groups?          @relation(fields: [group_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  linked_outing     outings?         @relation(fields: [outing_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  linked_place      places?          @relation(fields: [place_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  created_at        DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  /// When the uploaded object was verified in R2 (status became ready).
+  verified_at       DateTime?        @db.Timestamptz(6)
+  /// Upload URL expiry for pending rows; drives cleanup of orphan intents.
+  upload_expires_at DateTime?        @db.Timestamptz(6)
+
+  @@index([owner_id], map: "idx_media_assets_owner")
+  @@index([status, upload_expires_at], map: "idx_media_assets_cleanup")
+  @@index([user_id], map: "idx_media_assets_user")
+  @@index([group_id], map: "idx_media_assets_group")
+  @@index([outing_id], map: "idx_media_assets_outing")
+  @@index([place_id], map: "idx_media_assets_place")
+}
+
 model password_recoveries {
-  request_hash String @id @db.Char(64)
-  user_id String @db.VarChar(128)
-  phone String @db.VarChar(16)
-  password_version String @db.Char(64)
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  expires_at DateTime @db.Timestamptz(6)
-  proof_hash String? @unique @db.Char(64)
-  reset_hash String? @unique @db.Char(64)
-  consumed_at DateTime? @db.Timestamptz(6)
-  users users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  request_hash     String    @id @db.Char(64)
+  user_id          String    @db.VarChar(128)
+  phone            String    @db.VarChar(16)
+  password_version String    @db.Char(64)
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at       DateTime  @db.Timestamptz(6)
+  proof_hash       String?   @unique @db.Char(64)
+  reset_hash       String?   @unique @db.Char(64)
+  consumed_at      DateTime? @db.Timestamptz(6)
+  users            users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
   @@index([expires_at])
 }
 
 model password_recovery_limits {
-  key String @id @db.Char(64)
-  attempts Int
+  key        String   @id @db.Char(64)
+  attempts   Int
   expires_at DateTime @db.Timestamptz(6)
+
   @@index([expires_at])
 }

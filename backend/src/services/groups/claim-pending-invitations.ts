@@ -27,7 +27,7 @@ export interface InvitationClaimStore {
 }
 
 /**
- * Claims every valid pending invitation for a verified phone.
+ * Links pending invitations to a verified identity without accepting them.
  * Callers run this inside a transaction so a later failure undoes every write.
  */
 export async function claimPendingInvitations(

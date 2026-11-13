@@ -6,6 +6,7 @@ import { prisma } from "./config/database.js";
 import { startOutingCompletionJob } from "./jobs/complete-outings.job.js";
 import { startVotingDeadlineJob } from "./jobs/close-voting-deadline.job.js";
 import { startNotificationWorker } from "./jobs/notification-worker.job.js";
+import { startMediaCleanupJob } from "./jobs/media-cleanup.job.js";
 import { attachRealtime } from "./realtime/index.js";
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -58,6 +59,7 @@ async function start() {
     startOutingCompletionJob();
     startVotingDeadlineJob();
     startNotificationWorker();
+    startMediaCleanupJob();
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);

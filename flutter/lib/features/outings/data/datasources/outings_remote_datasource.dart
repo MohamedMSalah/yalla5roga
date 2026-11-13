@@ -27,6 +27,11 @@ abstract class OutingsDataSource {
   });
 
   Future<void> delete(String outingId);
+  Future<OutingSnapshot> update(String id, Map<String, dynamic> changes);
+  Future<OutingSnapshot> cancel(String id);
+  Future<OutingSnapshot> removeGuest(String id, String userId);
+  Future<OutingSnapshot> respondToInvitation(String id, {required bool accept});
+  Future<List<GroupMember>> guests(String id);
 
   Future<OutingCreation> add(Outing outing, {String? creatorId});
   Future<OutingSnapshot> suggestPlaces({
@@ -326,6 +331,96 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     );
   }
 
+  Future<OutingSnapshot> _committedRow(
+    Map<String, dynamic> row,
+    int generation,
+  ) async {
+    _checkSession(generation);
+    final outing = _outingFromJson(row);
+    final base = _lastSnapshot;
+    final rows = List<Outing>.of(base?.outings ?? const []);
+    final index = rows.indexWhere((o) => o.id == outing.id);
+    if (index < 0) {
+      rows.insert(0, outing);
+    } else {
+      rows[index] = outing;
+    }
+    final merged = _store(
+      OutingSnapshot(
+        outings: rows,
+        suggestions: base?.suggestions ?? const [],
+        votesByOuting: base?.votesByOuting ?? const {},
+        attendanceByOuting: base?.attendanceByOuting ?? const {},
+      ),
+    );
+    _lifecycleHints[outing.id] = _hintFromJson(row);
+    await _client.snapshots?.mergeCollectionItem(
+      ApiConstants.outingsCuser,
+      row,
+    );
+    _checkSession(generation);
+    return merged;
+  }
+
+  @override
+  Future<OutingSnapshot> update(String id, Map<String, dynamic> changes) async {
+    final generation = _generation;
+    final response = await _client.patch(
+      ApiConstants.outing(id),
+      data: changes,
+    );
+    return _committedRow(apiPayload(response.data), generation);
+  }
+
+  @override
+  Future<OutingSnapshot> cancel(String id) async {
+    final generation = _generation;
+    final response = await _client.post(ApiConstants.outingCancel(id));
+    return _committedRow(apiPayload(response.data), generation);
+  }
+
+  @override
+  Future<OutingSnapshot> removeGuest(String id, String userId) async {
+    await _client.delete(ApiConstants.outingGuest(id, userId));
+    return reloadOutingDetails(id);
+  }
+
+  @override
+  Future<OutingSnapshot> respondToInvitation(
+    String id, {
+    required bool accept,
+  }) async {
+    final generation = _generation;
+    await _client.post(
+      accept
+          ? ApiConstants.outingInvitationAccept(id)
+          : ApiConstants.outingInvitationDecline(id),
+    );
+    _checkSession(generation);
+    if (accept) return reloadOutingDetails(id);
+    final store = _client.snapshots;
+    await store?.mergeCollectionItem(ApiConstants.outingsCuser, {
+      'id': id,
+    }, remove: true);
+    final key = store?.keyFor(ApiConstants.outing(id), null);
+    if (key != null) await store?.removeResource(key);
+    return _store((_lastSnapshot ?? await load()).withoutOuting(id));
+  }
+
+  @override
+  Future<List<GroupMember>> guests(String id) async {
+    final response = await _client.get(ApiConstants.outingGuests(id));
+    return [
+      for (final row in apiObjectList(response.data))
+        GroupMember(
+          id: apiString(row['user_id']) ?? '',
+          name: apiString((row['users'] as Map?)?['name']) ?? '',
+          avatar: apiString((row['users'] as Map?)?['image_url']) ?? '',
+          isPending: row['status'] == 'pending',
+        ),
+    ];
+  }
+
   @override
   Future<OutingCreation> add(Outing outing, {String? creatorId}) async {
     try {
@@ -336,7 +431,6 @@ class OutingsRemoteDataSource implements OutingsDataSource {
         'title': outing.title,
         'image_url': ?imageUrl,
         'group_id': outing.groupId,
-        'status': outing.status.name,
         'occasion': outing.occasion.name,
         if (outing.guestPhones.isNotEmpty) ...{
           'guest_phones': outing.guestPhones,

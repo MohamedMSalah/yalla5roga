@@ -1,8 +1,9 @@
+import { z } from "zod";
 import { emitDataChange, outingRealtimeUsers, publishOutingChange } from "../../realtime/data-changes.js";
 import { GroupRepository } from "../../repositories/groups/group.repository.js";
 import { assertGroupMember } from "../../services/groups/group-access.js";
 import { confirmProposedVenue } from "../../services/outings/vote-resolution.js";
-import { assertChatParticipant } from "../../services/chat/chat-access.js";
+import { assertOutingAccess } from "../../services/outings/outing-access.js";
 import { hasAutomaticWhatsApp } from "../../config/notifications.js";
 import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
 import { buildWhatsAppClickToChatUrl } from "../../services/whatsapp/invitation-message.js";
@@ -142,7 +143,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      await assertChatParticipant(id, req.user.uid);
+      await assertOutingAccess(id, req.user.uid);
       const outing = await this.getOuting.execute(id);
       res.json({ success: true, data: outing });
     } catch (error) {
@@ -249,7 +250,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      await assertChatParticipant(id, req.user.uid);
+      await assertOutingAccess(id, req.user.uid);
       const data = await this.listGuests.execute(id);
       res.json({ success: true, data });
     } catch (error) {
@@ -292,7 +293,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      await assertChatParticipant(id, req.user.uid);
+      await assertOutingAccess(id, req.user.uid);
       const data = await this.listVoteOptions.execute(id);
       res.json({ success: true, data });
     } catch (error) {
@@ -380,7 +381,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      await assertChatParticipant(id, req.user.uid);
+      await assertOutingAccess(id, req.user.uid);
       const data = await this.listVotes.execute(id);
       res.json({ success: true, data });
     } catch (error) {
@@ -446,7 +447,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      await assertChatParticipant(id, req.user.uid);
+      await assertOutingAccess(id, req.user.uid);
       const state = await this.votingState.execute(id);
       const counts = new Map<string, number>();
       for (const vote of state.votes) counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
@@ -535,6 +536,7 @@ export class OutingController {
       const data = await this.createDraft.execute({
         ...req.body,
         user_id: req.user.uid,
+        id: req.get("Idempotency-Key") ? z.uuid().parse(req.get("Idempotency-Key")) : undefined,
       });
       res.status(201).json({ success: true, data });
     } catch (error) {
@@ -549,6 +551,7 @@ export class OutingController {
         req.params.id as string,
         req.user.uid,
         req.body,
+        req.get("If-Match") ? z.coerce.date().parse(req.get("If-Match")) : undefined,
       );
       res.json({ success: true, data });
     } catch (error) {
@@ -562,6 +565,7 @@ export class OutingController {
       const data = await this.deleteDraft.execute(
         req.params.id as string,
         req.user.uid,
+        req.get("If-Match") ? z.coerce.date().parse(req.get("If-Match")) : undefined,
       );
       res.json({ success: true, data });
     } catch (error) {

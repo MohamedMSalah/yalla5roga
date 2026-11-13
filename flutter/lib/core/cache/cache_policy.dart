@@ -18,4 +18,7 @@ class CachePolicy {
 
   /// Outing chat threads — short TTL; disk cache keeps older messages.
   static const Duration outingChat = Duration(seconds: 30);
+
+  /// User's pending group invitations — short window for freshness.
+  static const Duration invitations = Duration(seconds: 45);
 }

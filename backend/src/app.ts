@@ -7,16 +7,19 @@ import routes from "./routes/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { corsOrigin } from "./config/cors.js";
 
+import { apiRateLimit } from "./middleware/api-rate-limit.middleware.js";
+
 const app = express();
 
 app.use(
   cors({
     origin: corsOrigin,
     credentials: true,
-    allowedHeaders: ["Authorization", "Content-Type", "Accept"],
+    allowedHeaders: ["Authorization", "Content-Type", "Accept", "If-Match", "Idempotency-Key"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
 );
+app.use("/api", apiRateLimit);
 app.use(express.json());
 
 /**

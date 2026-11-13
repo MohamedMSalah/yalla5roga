@@ -1,3 +1,5 @@
+import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
+
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
@@ -10,6 +12,7 @@ import 'package:yalla_5roga/features/chat/data/datasources/chat_send_queue.dart'
 import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_socket_client.dart';
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/invitations/presentation/providers/invitations_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
@@ -28,6 +31,9 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     required this.groups,
     required this.outings,
     required this.notifications,
+    required this.invitations,
+    this.clearMediaCache,
+    this.savedOutings,
   }) {
     auth.addListener(_accountChanged);
     WidgetsBinding.instance.addObserver(this);
@@ -36,6 +42,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _dataSub = socket.dataChanges.listen(_dataChanged);
   }
 
+  final SavedOutingsProvider? savedOutings;
   final AuthProvider auth;
   final NetworkInfoImpl network;
   final OutingChatSocketClient socket;
@@ -46,6 +53,11 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final GroupsProvider groups;
   final OutingsProvider outings;
   final NotificationsProvider notifications;
+  final InvitationsProvider invitations;
+
+  /// Clears account-scoped media URL metadata and private image caches when
+  /// the signed-in account changes (including token revocation).
+  final Future<void> Function(String uid)? clearMediaCache;
   late final StreamSubscription<bool> _networkSub;
   late final StreamSubscription<bool> _socketSub;
   late final StreamSubscription<RealtimeChange> _dataSub;
@@ -118,13 +130,17 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _activeGroupIds.clear();
     _activeOutingIds.clear();
     if (previous != null) {
+      savedOutings?.clear();
       groups.clear();
       outings.clear();
       chat.clear();
       notifications.clear();
+      invitations.clear();
       unawaited(snapshots.clear(previous));
       unawaited(queue.clear(previous));
       unawaited(socket.disconnect());
+      final clearMedia = clearMediaCache;
+      if (clearMedia != null) unawaited(clearMedia(previous));
     }
     _startup = uid == null ? null : _initialize(uid, generation);
     notifyListeners();
@@ -132,7 +148,11 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> _initialize(String uid, int generation) async {
     await OfflineSnapshots.preview(
-      () => Future.wait([groups.loadGroups(), outings.load()]),
+      () => Future.wait([
+        groups.loadGroups(),
+        outings.load(),
+        if (savedOutings != null) savedOutings!.syncDrafts(),
+      ]),
     );
     final online = await network.isConnected;
     if (_disposed || (_uid != uid || generation != _generation)) return;
@@ -200,6 +220,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         // Synchronization returned the canonical profile already.
         _profileDirty = false;
       }
+      await savedOutings?.syncDrafts();
       await socket.ensureConnected();
       if (_disposed || (_uid != uid || generation != _generation)) return;
       replayed = await socket.reconcileData();
@@ -278,10 +299,12 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         _chatDirty = true;
         _outingsDirty = true;
         _groupsDirty = true;
+        invitations.invalidate();
         if (event.id case final id?) {
           _groupIds.add(id);
         }
       case 'group':
+        invitations.invalidate();
         if (event.id == null) _groupsDirty = true;
         if (event.id case final id?) {
           _groupIds.add(id);
@@ -408,8 +431,10 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       await Future.wait([
         for (final id in groupIds)
           groups.ensureGroupLoaded(id, forceRefresh: true),
-        for (final id in outingIds)
+        for (final id in outingIds) ...[
           outings.refreshLifecycle(outingId: id, forceRefresh: true),
+          outings.loadGuests(id),
+        ],
       ]);
       if (_disposed || (_uid != uid || generation != _generation)) return;
       unawaited(socket.syncGroups(groups.groups.map((group) => group.id)));

@@ -102,7 +102,13 @@ import {
  *   post:
  *     tags: [Outings]
  *     summary: Cancel an outing
- *     description: Allowed only for the outing creator (`created_by`).
+ *     description: >
+ *       Allowed only for the outing creator (`created_by`). Persists the
+ *       `cancelled` status, notifies affected participants with the existing
+ *       `outing_cancelled` event (the notification row carries the outing and
+ *       group IDs used for deep linking), and emits the realtime outing change.
+ *       Idempotent: a repeated cancel returns the existing row without a second
+ *       notification because the notification event key is stable and unique.
  *     operationId: cancelOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"

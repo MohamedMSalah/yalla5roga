@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
 import 'package:yalla_5roga/core/di/app_dependencies.dart';
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
+import 'package:yalla_5roga/core/media/media_url_resolver.dart';
 import 'package:yalla_5roga/core/network/app_sync_provider.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
@@ -21,6 +23,7 @@ import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.d
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/invitations/presentation/providers/invitations_provider.dart';
 import 'package:yalla_5roga/features/invites/presentation/providers/invite_deep_link_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
@@ -43,7 +46,10 @@ class App extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AppSyncProvider>.value(value: deps.sync),
+        Provider<AppDependencies>.value(value: deps),
         Provider<AppConfig>.value(value: deps.config),
+        Provider<MediaUrlResolver>.value(value: deps.mediaUrls),
+        Provider<MediaUploadService>.value(value: deps.mediaUploads),
         ChangeNotifierProvider<ThemeProvider>.value(value: deps.theme),
         ChangeNotifierProvider<LocaleProvider>.value(value: deps.locale),
         ChangeNotifierProvider<AuthProvider>.value(value: deps.auth),
@@ -64,6 +70,7 @@ class App extends StatelessWidget {
         ),
         ChangeNotifierProvider<ShellProvider>.value(value: deps.shell),
         ChangeNotifierProvider<GroupsProvider>.value(value: deps.groups),
+        ChangeNotifierProvider<InvitationsProvider>.value(value: deps.invitations),
         ChangeNotifierProvider<DiscoverProvider>.value(value: deps.discover),
         ChangeNotifierProvider<SettingsProvider>.value(value: deps.settings),
         Provider<LocationRepository>.value(value: deps.geocoding),

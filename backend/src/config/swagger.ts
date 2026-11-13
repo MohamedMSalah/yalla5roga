@@ -1,3 +1,4 @@
+import { notification_event_type } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -116,7 +117,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
       description: [
         "API documentation for the Yalla 5roga backend.",
         "",
-        "Sections (in order): System, Authentication, Users, Groups, Outings, Saved Outings, Places, Notifications, Chat.",
+        "Sections (in order): System, Authentication, Users, Groups, Group Invitations, Invitations, Outings, Saved Outings, Places, Notifications, Chat, Media.",
         "Every client uses the same `/api` paths and the same response shape.",
         "",
         "Protected operations require a Firebase Authentication ID token (JWT), not an FCM device token.",
@@ -125,7 +126,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         "Neon PostgreSQL is the only application data store (profiles, passwords, groups, outings, etc.).",
         "Phone/password credentials are stored in Neon (`users.password_hash`). Canonical clients call `POST /api/auth/signup` and `POST /api/auth/login`, which return `idToken` + `customToken`.",
         "Firebase Auth is identity-only: a UID, verified phone credential and ID tokens. Signup verifies phoneVerificationToken and retains its OTP UID. Application profiles and passwords stay in Neon.",
-        "POST /api/users/sync claims verified-phone group invitations. An optional recent phoneVerificationToken can repair an unused legacy OTP identity without merging registered accounts.",
+        "POST /api/users/sync links verified-phone pending invitations without accepting them. An optional recent phoneVerificationToken can repair an unused legacy OTP identity without merging registered accounts.",
         "Mobile clients can also use Flutter `currentUser.getIdToken(true)`. ID tokens expire after one hour.",
         "Authorize with a Firebase phone OTP ID token or the ID token returned by signup or login. Sync a new phone identity before accessing account resources.",
         "`GET /api/users/cuser` returns 404 until a Neon profile row exists.",
@@ -168,6 +169,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         description: "Add by phone and revoke pending phone memberships",
       },
       {
+        name: "Invitations",
+        description:
+          "Invitee inbox: list pending group invitations, accept, and decline",
+      },
+      {
         name: "Outings",
         description: "My outings, outing CRUD, and cancel",
       },
@@ -199,6 +205,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
       {
         name: "Notifications",
         description: "List notifications and mark them as read",
+      },
+      {
+        name: "Media",
+        description:
+          "Direct-to-R2 media uploads, access-checked delivery URLs, and owner deletes. Private media (profiles, groups, outings, chat) is only served through short-lived signed URLs; public place media uses the Cloudflare CDN.",
       },
     ],
     security: [{ bearerAuth: [] }],
@@ -275,6 +286,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
       },
       responses: {
+        Conflict: errorResponse("Resource changed or conflicts with existing state", "Draft changed; reload before saving"),
+        TooManyRequests: errorResponse("HTTP API request limit exceeded; honor Retry-After", "Too many requests. Try again later."),
         BadRequest: errorResponse(
           "The request body, query, or path failed validation",
           "name: name is required",
@@ -297,6 +310,18 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         ),
       },
       requestBodies: {
+        MediaUploadRequest: {
+          required: true,
+          content: {
+            "application/json": { schema: ref("MediaUploadRequest") },
+          },
+        },
+        MediaSignedUrlsRequest: {
+          required: true,
+          content: {
+            "application/json": { schema: ref("MediaSignedUrlsRequest") },
+          },
+        },
         Login: {
           required: true,
           content: {
@@ -476,22 +501,23 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         SignupRequest: {
           type: "object",
-          required: ["name", "password", "phone", "phoneVerificationToken"],
+          required: ["name", "password", "phoneVerificationToken"],
+          anyOf: [{ required: ["phone"] }, { required: ["phoneNumber"] }],
           properties: {
             name: { type: "string", minLength: 1, maxLength: 30 },
             password: { type: "string", minLength: 6, maxLength: 128, description: "New passwords are limited to 72 UTF-8 bytes." },
             phoneNumber: {
-              ...phone,
+              type: "string", minLength: 8, maxLength: 20, pattern: "^\\+?[0-9\\s().-]+$",
               description: "Accepted alias of phone",
             },
-            phone: phone,
+            phone: { type: "string", minLength: 8, maxLength: 20, pattern: "^\\+?[0-9\\s().-]+$" },
             phoneVerificationToken: {
               type: "string", minLength: 1, maxLength: 10000,
               description: "Firebase ID token from a phone OTP sign-in within ten minutes, matching the signup phone.",
             },
           },
           description:
-            "Provide phone or phoneNumber plus phoneVerificationToken. Signup retains the verified OTP UID and claims pending group invitations.",
+            "Provide phone or phoneNumber plus phoneVerificationToken. Signup retains the verified OTP UID and links pending invitation identities without accepting them.",
         },
         AuthSession: {
           type: "object",
@@ -567,7 +593,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               type: "string",
               enum: ["claimed", "none", "phone_verification_required"],
               description:
-                "phone_verification_required means no verified phone is on the token. It includes no invitation records.",
+                "claimed means pending rows were linked to this verified account, not accepted. phone_verification_required means no verified phone is available.",
             },
             claimedGroupIds: {
               type: "array",
@@ -619,6 +645,21 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         UserResponse: itemResponse("User"),
         UserListResponse: listResponse("User"),
+        UserSummary: {
+          type: "object",
+          required: ["id", "name", "created_at", "updated_at"],
+          properties: {
+            id: firebaseUid,
+            name: { type: "string", maxLength: 30 },
+            image_url: { type: "string", nullable: true },
+            created_at: dateTime,
+            updated_at: dateTime,
+          },
+          description:
+            "Directory-safe profile fields. Phone and credential state are never included.",
+        },
+        UserSummaryListResponse: listResponse("UserSummary"),
+        UserSummaryResponse: itemResponse("UserSummary"),
         CreateGroupRequest: {
           type: "object",
           required: ["name"],
@@ -646,7 +687,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           required: ["phoneNumber"],
           properties: {
             phoneNumber: phone,
-            role: { type: "string", enum: roleEnum, default: "member" },
+            role: { type: "string", enum: ["member"], default: "member" },
           },
         },
         Group: {
@@ -801,6 +842,50 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             },
           ],
         },
+        UserInvitation: {
+          type: "object",
+          required: [
+            "invitation_id",
+            "group_id",
+            "group_name",
+            "group_image",
+            "invited_phone",
+            "status",
+            "created_at",
+            "inviter_name",
+          ],
+          properties: {
+            invitation_id: uuid,
+            group_id: uuid,
+            group_name: { type: "string" },
+            group_image: { type: "string" },
+            invited_phone: {
+              type: "string",
+              example: "+201001234567",
+              description: "Normalized E.164 phone on the invitation record",
+            },
+            status: { type: "string", enum: invitationStatusEnum },
+            created_at: dateTime,
+            inviter_name: { type: "string" },
+          },
+        },
+        UserInvitationListResponse: listResponse("UserInvitation"),
+        InvitationDecisionResult: {
+          type: "object",
+          required: ["invitation_id", "group_id", "status"],
+          properties: {
+            invitation_id: uuid,
+            group_id: uuid,
+            status: {
+              type: "string",
+              enum: invitationStatusEnum,
+              description:
+                "Persisted status after the request. A repeated accept or decline returns the stored status instead of rewriting it.",
+            },
+          },
+        },
+        AcceptInvitationResponse: itemResponse("InvitationDecisionResult"),
+        DeclineInvitationResponse: itemResponse("InvitationDecisionResult"),
         SendMessageRequest: {
           type: "object",
           required: ["text"],
@@ -869,7 +954,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               type: "string",
               enum: ["outing", "group", "chat", "vote", "invitation", "system"],
             },
-            eventType: { type: "string", description: "Specific event used by the inbox to select a destination" },
+            eventType: { type: "string", enum: [...Object.values(notification_event_type), "outing_created", "place_vote", "outing", "group", "chat", "vote", "invitation", "system"], description: "Specific event used by the inbox to select a destination" },
             messageId: { ...uuid, description: "Chat message targeted by the notification" },
             outing_id: { ...uuid, nullable: true },
             group_id: { ...uuid, nullable: true },
@@ -879,7 +964,21 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           },
         },
         NotificationResponse: itemResponse("Notification"),
-        NotificationListResponse: listResponse("Notification"),
+        NotificationListResponse: {
+          allOf: [
+            listResponse("Notification"),
+            {
+              type: "object",
+              properties: {
+                pagination: { type: "object", required: ["limit", "nextCursor"], properties: { limit: { type: "integer", default: 20, maximum: 100 }, nextCursor: { type: "string", nullable: true } } },
+                next_cursor: {
+                  type: "string", nullable: true,
+                  description: "Opaque cursor for the next older page; null means no more rows.",
+                },
+              },
+            },
+          ],
+        },
         MarkAllNotificationsReadResult: {
           type: "object",
           required: ["count"],
@@ -898,7 +997,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           required: ["title"],
           description:
-            "Group outings require group_id and occasion 'none' (default). Special events omit group_id and must set occasion to 'birthday' or 'wedding'.",
+            "The server derives the initial status: voting with initial options, confirmed with a fixed venue, otherwise draft. A future vote_ends_at or vote_deadline_hours is required. Group outings require group_id and occasion 'none' (default). Special events omit group_id and must set occasion to 'birthday' or 'wedding'.",
           properties: {
             create_request_key: { type: "string", maxLength: 80, description: "Creator-scoped idempotency key. Required for special-event phone invitations and recommended for group voting." },
             initial_vote_options: {
@@ -913,13 +1012,6 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             title: { type: "string", minLength: 3, maxLength: 20 },
             image_url: { type: "string", format: "uri", maxLength: 2048 },
             group_id: { ...uuid, nullable: true },
-            status: { type: "string", enum: outingStatusEnum },
-            type: {
-              type: "string",
-              enum: outingTypeEnum,
-              description:
-                "Optional. Server derives this from group_id + occasion (group vs special_event).",
-            },
             occasion: { type: "string", enum: occasionEnum },
             scheduled_at: { ...dateTime, nullable: true },
             ends_at: {
@@ -1054,6 +1146,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           required: ["outing_id", "user_id", "invited_at"],
           properties: {
+            users: { type: "object", properties: { name: { type: "string" }, image_url: { type: "string" } } },
+            status: { type: "string", enum: invitationStatusEnum },
             outing_id: uuid,
             user_id: firebaseUid,
             invited_at: dateTime,
@@ -1266,7 +1360,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             occasion: { type: "string", enum: occasionEnum },
             special_event: { type: "boolean" },
             vibe: { type: "string", enum: vibeEnum },
-            scheduled_date: { type: "string", format: "date", nullable: true },
+            scheduled_date: { type: "string", format: "date-time", nullable: true },
             scheduled_hour: { type: "integer", nullable: true },
             scheduled_minute: { type: "integer", nullable: true },
             location_name: { type: "string", nullable: true },
@@ -1464,6 +1558,121 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         PlacePriceResponse: itemResponse("PlacePrice"),
         PlacePriceListResponse: listResponse("PlacePrice"),
+        MediaUploadRequest: {
+          type: "object",
+          required: ["purpose", "mime_type", "file_size"],
+          properties: {
+            purpose: {
+              type: "string",
+              enum: ["profile", "group", "outing", "place", "chat"],
+              description:
+                "Drives visibility (place is public, everything else private) and object-key layout.",
+            },
+            mime_type: {
+              type: "string",
+              enum: ["image/jpeg", "image/png", "image/webp", "image/gif"],
+            },
+            file_size: {
+              type: "integer",
+              minimum: 1,
+              maximum: 10485760,
+              description: "Bytes. Server re-verifies the real size on confirm.",
+            },
+            entity_id: {
+              ...uuid,
+              nullable: true,
+              description:
+                "Group/outing UUID required for group, outing, and chat uploads. Omit for profile and place uploads.",
+            },
+            media_id: {
+              ...uuid,
+              nullable: true,
+              description:
+                "Re-issue a fresh presigned PUT URL for a still-pending asset (expired URL retry).",
+            },
+          },
+        },
+        MediaSignedUrlsRequest: {
+          type: "object",
+          required: ["media_ids"],
+          properties: {
+            media_ids: {
+              type: "array",
+              minItems: 1,
+              maxItems: 50,
+              items: uuid,
+            },
+          },
+        },
+        MediaUploadIntentData: {
+          type: "object",
+          properties: {
+            media_id: uuid,
+            object_key: { type: "string", example: "profiles/2026-11/uuid.jpg" },
+            bucket: { type: "string" },
+            visibility: { type: "string", enum: ["public", "private"] },
+            status: { type: "string", enum: ["pending", "ready", "failed"] },
+            upload_url: {
+              type: "string",
+              format: "uri",
+              description:
+                "Presigned PUT URL. Send the file bytes directly; do not add the Firebase Authorization header.",
+            },
+            upload_expires_at: dateTime,
+            media_reference: {
+              type: "string",
+              example: "media://0f8fad5b-d9cb-469f-a165-70867728950e",
+              description:
+                "Stable reference to store in an entity image field (group/outing/profile) after confirm.",
+            },
+          },
+        },
+        MediaUploadIntentResponse: envelope(ref("MediaUploadIntentData")),
+        MediaAssetData: {
+          type: "object",
+          properties: {
+            media_id: uuid,
+            object_key: { type: "string" },
+            visibility: { type: "string", enum: ["public", "private"] },
+            status: { type: "string", enum: ["pending", "ready", "failed"] },
+            file_size: { type: "integer" },
+            media_reference: { type: "string", example: "media://0f8fad5b-d9cb-469f-a165-70867728950e" },
+            verified_at: { ...dateTime, nullable: true },
+          },
+        },
+        MediaAssetResponse: envelope(ref("MediaAssetData")),
+        MediaUrlData: {
+          type: "object",
+          properties: {
+            media_id: uuid,
+            object_key: { type: "string" },
+            url: {
+              type: "string",
+              format: "uri",
+              description:
+                "Permanent CDN URL for public assets; short-lived signed GET URL for private assets.",
+            },
+            visibility: { type: "string", enum: ["public", "private"] },
+            expires_at: {
+              ...dateTime,
+              nullable: true,
+              description: "Null for public CDN URLs.",
+            },
+          },
+        },
+        MediaUrlResponse: envelope(ref("MediaUrlData")),
+        MediaUrlListResponse: envelope({
+          type: "array",
+          items: ref("MediaUrlData"),
+        }),
+        MediaDeletedData: {
+          type: "object",
+          properties: {
+            deleted: { type: "boolean" },
+            media_id: uuid,
+          },
+        },
+        MediaDeletedResponse: envelope(ref("MediaDeletedData")),
       },
     },
   },
@@ -1471,3 +1680,14 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
 };
 
 export const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+// Shared /api middleware applies this response to every HTTP API operation.
+const generated = swaggerSpec as { paths?: Record<string, Record<string, { responses?: Record<string, unknown> }>> };
+for (const [route, item] of Object.entries(generated.paths ?? {})) {
+  if (!route.startsWith("/api/")) continue;
+  for (const [method, operation] of Object.entries(item)) {
+    if (!["get", "post", "put", "patch", "delete"].includes(method)) continue;
+    operation.responses ??= {};
+    operation.responses["429"] ??= { $ref: "#/components/responses/TooManyRequests" };
+  }
+}

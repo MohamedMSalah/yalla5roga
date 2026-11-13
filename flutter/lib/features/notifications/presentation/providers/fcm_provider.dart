@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/notifications/data/services/interactive_notification_handler.dart';
 import 'package:yalla_5roga/features/notifications/domain/entities/notification_item.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/notifications/domain/entities/push_authorization_status.dart';
@@ -14,9 +15,13 @@ import 'package:yalla_5roga/features/notifications/presentation/navigation/push_
 
 /// App-wide FCM state: device token + deferred navigation from taps.
 class FcmProvider extends ChangeNotifier {
-  FcmProvider({required this.messaging});
+  FcmProvider({
+    required this.messaging,
+    InteractiveNotificationHandler? interactiveHandler,
+  }) : _interactiveHandler = interactiveHandler;
 
   final PushMessagingRepository messaging;
+  final InteractiveNotificationHandler? _interactiveHandler;
 
   StreamSubscription<String?>? _tokenSub;
   var _ready = false;
@@ -90,28 +95,107 @@ class FcmProvider extends ChangeNotifier {
 
   void _queueOrOpen(PushNotificationPayload payload) {
     final id = payload.deduplicationId;
-    if (id != null && _handledPushes.contains(id)) return;
+    // For interactive actions, we allow reprocessing even if "handled"
+    // because the action may have failed (e.g., network error).
+    // The action handler will be called and we track success/failure separately.
+    if (id != null && !payload.isInteractiveAction && _handledPushes.contains(id)) return;
     _pendingTap = payload;
     unawaited(_flushPendingNavigation());
   }
 
   Future<void> _flushPendingNavigation() async {
     final shell = _shell;
-    final pending = _pendingTap;
     if (_opening ||
-        pending == null ||
         shell == null ||
         !shell.mounted ||
         !shell.read<AuthProvider>().isAuthenticated) {
       return;
     }
+
+    // Capture and clear _pendingTap immediately to prevent stale references.
+    final pending = _pendingTap;
     _pendingTap = null;
+
+    if (pending == null) return;
+
     final id = pending.deduplicationId;
-    if (id != null && !_handledPushes.add(id)) return;
-    if (_handledPushes.length > 100) {
-      _handledPushes.remove(_handledPushes.first);
+
+    // Handle interactive action first if present.
+    if (pending.isInteractiveAction && pending.actionType != null) {
+      await _handleInteractiveAction(shell, pending, id);
     }
+
+    // For non-interactive notifications, mark as handled immediately.
+    if (id != null && !pending.isInteractiveAction) {
+      if (!_handledPushes.add(id)) return; // Already handled
+      if (_handledPushes.length > 100) {
+        _handledPushes.remove(_handledPushes.first);
+      }
+    }
+
+    // Only proceed to _open if not already handled by a failed interactive action.
+    // A failed interactive action already showed feedback and we should let
+    // the user explicitly retry by tapping the notification again.
+    final alreadyHandled = id != null && _handledPushes.contains(id);
+    if (pending.isInteractiveAction && !alreadyHandled) {
+      // Interactive action failed - don't proceed to navigation yet.
+      // User can retry by tapping the notification again.
+      return;
+    }
+
     await _open(pending, fromInbox: false, markRead: true);
+  }
+
+  Future<void> _handleInteractiveAction(
+    BuildContext shell,
+    PushNotificationPayload payload,
+    String? id,
+  ) async {
+    final auth = shell.read<AuthProvider>();
+    final userId = auth.user?.id;
+    final userName = auth.user?.name;
+
+    if (userId == null) {
+      debugPrint('[FCM] Interactive action but no authenticated user');
+      return;
+    }
+
+    // For interactive actions, don't pre-mark as handled.
+    // We'll mark as handled only after success.
+    final alreadyHandled = id != null && _handledPushes.contains(id);
+
+    // Execute the action.
+    final success = await _interactiveHandler?.handleAction(
+      payload,
+      payload.actionType!,
+      currentUserId: userId,
+      currentUserName: userName,
+    );
+
+    if (success == true) {
+      // Action succeeded - mark as handled and show feedback.
+      if (id != null) {
+        _handledPushes.add(id);
+        if (_handledPushes.length > 100) {
+          _handledPushes.remove(_handledPushes.first);
+        }
+      }
+      // Show success feedback based on action type.
+      _showActionFeedback(shell, payload.actionType!);
+    } else if (!alreadyHandled) {
+      // Action failed but not yet handled - allow retry via notification tap.
+      // Show error feedback.
+      if (shell.mounted) {
+        AppSnackBar.showError(shell.l10n.unexpectedError);
+      }
+    }
+    // If already handled (retry after failure), we already showed feedback - do nothing more.
+  }
+
+  void _showActionFeedback(BuildContext shell, NotificationActionType actionType) {
+    // For interactive actions, feedback is shown in the target screen.
+    // Mark Read has no user-visible feedback needed.
+    // For now, we rely on the navigation target to show appropriate feedback.
   }
 
   Future<void> _open(

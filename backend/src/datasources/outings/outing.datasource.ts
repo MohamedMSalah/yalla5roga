@@ -1,3 +1,4 @@
+import { ConflictError, ForbiddenError } from "../../utils/errors.js";
 import { getNotificationConfig, hasAutomaticWhatsApp } from "../../config/notifications.js";
 import { specialEventInvitation } from "../../services/whatsapp/special-event-invitation.js";
 import { prisma } from "../../config/database.js";
@@ -155,7 +156,7 @@ export class OutingDatasource {
   }
 
   listGuests(outingId: string): Promise<OutingGuest[]> {
-    return prisma.outing_guests.findMany({ where: { outing_id: outingId } });
+    return prisma.outing_guests.findMany({ where: { outing_id: outingId }, include: { users: { select: { name: true, image_url: true } } } });
   }
 
   async addGuest(data: AddGuestInput): Promise<OutingGuest> {
@@ -252,19 +253,33 @@ export class OutingDatasource {
     });
   }
 
-  createDraft(data: CreateOutingDraftInput): Promise<OutingDraft> {
-    return prisma.outing_drafts.create({ data });
+  async createDraft(data: CreateOutingDraftInput): Promise<OutingDraft> {
+    if (!data.id) return prisma.outing_drafts.create({ data });
+    // The caller's stable UUID makes response-loss retries safe.
+    await prisma.outing_drafts.createMany({ data: [data], skipDuplicates: true });
+    const draft = await prisma.outing_drafts.findUniqueOrThrow({ where: { id: data.id } });
+    if (draft.user_id !== data.user_id) throw new ForbiddenError();
+    return draft;
   }
 
-  updateDraft(id: string, data: UpdateOutingDraftInput): Promise<OutingDraft> {
-    return prisma.outing_drafts.update({
-      where: { id },
-      data: { ...data, updated_at: new Date() },
+  async updateDraft(id: string, data: UpdateOutingDraftInput, expected?: Date): Promise<OutingDraft> {
+    return prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM outing_drafts WHERE id = ${id}::uuid FOR UPDATE`;
+      const current = await tx.outing_drafts.findUniqueOrThrow({ where: { id } });
+      if (expected && current.updated_at.getTime() !== expected.getTime()) throw new ConflictError("Draft changed; reload before saving");
+      return tx.outing_drafts.update({ where: { id }, data: {
+        ...data, updated_at: new Date(Math.max(Date.now(), current.updated_at.getTime() + 1)),
+      } });
     });
   }
 
-  deleteDraft(id: string): Promise<OutingDraft> {
-    return prisma.outing_drafts.delete({ where: { id } });
+  async deleteDraft(id: string, expected?: Date): Promise<OutingDraft> {
+    return prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM outing_drafts WHERE id = ${id}::uuid FOR UPDATE`;
+      const draft = await tx.outing_drafts.findUniqueOrThrow({ where: { id } });
+      if (expected && draft.updated_at.getTime() !== expected.getTime()) throw new ConflictError("Draft changed; reload before deleting");
+      return tx.outing_drafts.delete({ where: { id } });
+    });
   }
 
   listSavedByUser(userId: string): Promise<SavedOuting[]> {

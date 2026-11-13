@@ -13,6 +13,10 @@ export class GroupInvitationRepository implements IGroupInvitationRepository {
     private readonly datasource = new GroupInvitationDatasource(),
   ) {}
 
+  findById(id: string): Promise<GroupInvitation | null> {
+    return this.datasource.findById(id);
+  }
+
   findPending(groupId: string, phone: string, now?: Date): Promise<GroupInvitation | null> {
     return this.datasource.findPending(groupId, phone);
   }
@@ -34,5 +38,25 @@ export class GroupInvitationRepository implements IGroupInvitationRepository {
 
   revokePending(groupId: string, id: string): Promise<GroupInvitation | null> {
     return this.datasource.revokePending(groupId, id);
+  }
+
+  accept(
+    invitationId: string,
+    userId: string,
+    now?: Date,
+  ): Promise<GroupInvitation | null> {
+    return this.datasource.accept(invitationId, userId, now);
+  }
+
+  decline(
+    invitationId: string,
+    userId: string,
+    now?: Date,
+  ): Promise<GroupInvitation | null> {
+    return this.datasource.decline(invitationId, userId, now);
+  }
+
+  listPendingForUser(userId: string): Promise<GroupInvitation[]> {
+    return this.datasource.listPendingForUser(userId);
   }
 }

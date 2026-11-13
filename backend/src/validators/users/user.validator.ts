@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { tryNormalizePhoneNumber } from "../../services/phone/normalize-phone.js";
+import { mediaImageUrlSchema } from "../media/image-url.validator.js";
 
 const optionalPhoneField = z
   .string()
@@ -55,7 +56,7 @@ export const syncUserBodySchema = z.preprocess(
       name: z.string().trim().min(1).max(200).optional(),
       phoneNumber: optionalPhoneField,
       phone: optionalPhoneField,
-      image_url: z.url().max(2048).optional().nullable(),
+      image_url: mediaImageUrlSchema.nullable().optional(),
       phoneVerificationToken: z.string().trim().min(1).max(10000).optional(),
     })
     .superRefine(refinePhoneAliases)
@@ -72,7 +73,7 @@ export const updateUserBodySchema = z
     name: z.string().trim().min(1).max(30).optional(),
     phoneNumber: optionalUpdatePhoneField,
     phone: optionalUpdatePhoneField,
-    image_url: z.url().max(2048).optional().nullable(),
+    image_url: mediaImageUrlSchema.nullable().optional(),
   })
   .superRefine(refinePhoneAliases)
   .transform((data) => ({
@@ -84,3 +85,47 @@ export const updateUserBodySchema = z
 export const userIdParamsSchema = z.object({
   id: z.string().min(1),
 });
+
+/**
+ * Directory lookups must name what they are looking for. A bare
+ * `GET /api/users` previously returned every profile (including phones),
+ * which allowed enumeration. Callers now pass exact Firebase UIDs or an
+ * exact E.164 phone; the response omits phone and credential state.
+ */
+export const listUsersQuerySchema = z
+  .object({
+    ids: z.string().trim().optional(),
+    phone: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    const ids = data.ids
+      ? data.ids.split(",").map((value) => value.trim()).filter(Boolean)
+      : [];
+    if (ids.length === 0 && !data.phone) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ids"],
+        message: "Provide ids or phone",
+      });
+    }
+    if (ids.length > 100) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["ids"],
+        message: "At most 100 ids per request",
+      });
+    }
+    if (data.phone && !tryNormalizePhoneNumber(data.phone)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["phone"],
+        message: "must be a valid phone number",
+      });
+    }
+  })
+  .transform((data) => ({
+    ids: data.ids
+      ? [...new Set(data.ids.split(",").map((value) => value.trim()).filter(Boolean))]
+      : [],
+    phone: data.phone ? tryNormalizePhoneNumber(data.phone) : null,
+  }));

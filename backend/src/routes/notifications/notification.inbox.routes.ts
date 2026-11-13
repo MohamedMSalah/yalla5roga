@@ -9,8 +9,22 @@ import { notificationIdParamsSchema } from "../../validators/notifications/notif
  *   get:
  *     tags: [Notifications]
  *     summary: List notifications
- *     description: Returns notifications owned by the Firebase UID on the Bearer token.
+ *     description: >
+ *       Returns notifications owned by the Firebase UID on the Bearer token.
+ *       Returns a bounded newest-first page (default 20, maximum 100).
+ *       Pass pagination.nextCursor as cursor to fetch older rows.
+ *       The data array and next_cursor compatibility alias are preserved.
  *     operationId: listNotifications
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+ *       - in: query
+ *         name: cursor
+ *         required: false
+ *         schema: { type: string }
+ *         description: "The next_cursor value from the previous page."
  *     responses:
  *       "200":
  *         description: Notifications owned by the Firebase UID on the token
@@ -18,6 +32,8 @@ import { notificationIdParamsSchema } from "../../validators/notifications/notif
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/NotificationListResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":

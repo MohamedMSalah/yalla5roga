@@ -7,8 +7,12 @@ class GroupInfoActionsSection extends StatelessWidget {
     super.key,
     required this.leaving,
     required this.onLeaveGroup,
+    this.onDeleteGroup,
+    this.deleting = false,
   });
 
+  final VoidCallback? onDeleteGroup;
+  final bool deleting;
   final bool leaving;
   final VoidCallback? onLeaveGroup;
 
@@ -32,8 +36,18 @@ class GroupInfoActionsSection extends StatelessWidget {
           icon: Icons.logout_rounded,
           variant: AppButtonVariant.danger,
           isLoading: leaving,
-          onPressed: onLeaveGroup,
+          onPressed: deleting ? null : onLeaveGroup,
         ),
+        if (onDeleteGroup != null) ...[
+          Responsive.spaceSm.gapH,
+          CustomButton(
+            label: l10n.deleteGroup,
+            icon: Icons.delete_outline,
+            variant: AppButtonVariant.danger,
+            isLoading: deleting,
+            onPressed: leaving || deleting ? null : onDeleteGroup,
+          ),
+        ],
       ],
     );
   }

@@ -26,6 +26,8 @@ export class AddGroupMemberUseCase {
       throw new ValidationError("group_id and phoneNumber are required");
     }
 
+    if (input.role === "owner") throw new ValidationError("Owner cannot be assigned through member creation");
+
     await assertGroupOwner(this.groups, input.group_id, callerUid);
 
     const phone = normalizePhoneNumber(input.phoneNumber);

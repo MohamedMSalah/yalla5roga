@@ -4,7 +4,7 @@
 |----------|-------|
 | Last verified | 2026-11-07 |
 | Documentation version | 1.0.0 |
-| Needs verification | Production deployment topology; rate limiting; CDN/image hosting |
+| Needs verification | Production deployment topology; distributed rate limiting; CDN/image hosting |
 
 ## 1. Major components
 
@@ -19,6 +19,8 @@
 | Notification worker | `backend/src/jobs/notification-worker.job.ts` | Outbox consumer |
 | Voting deadline job | `backend/src/jobs/close-voting-deadline.job.ts` | Closes overdue voting |
 | Outing completion job | `backend/src/jobs/complete-outings.job.ts` | Marks confirmed → past |
+| Media storage | `backend/src/services/media/` | Presigned uploads, signed delivery, cleanup |
+| Cloudflare R2 / CDN | External | Image binaries + public place media |
 
 ## 2. Overall system architecture
 
@@ -191,6 +193,7 @@ Neon holds all durable application state. See [`DATABASE_ARCHITECTURE.md`](DATAB
 | Firebase Auth | Sign-in, ID tokens | App domain data |
 | FCM | Push delivery | Business decisions |
 | WhatsApp | Group invite messages (when configured) | Chat |
+| Cloudflare R2 + CDN | Image binaries, presigned PUT/GET, public place images | Application data (Neon remains authoritative) |
 | OSM tiles and optional geocoder | Shared Flutter map loads OSM tiles. The backend brokers configured autocomplete and reverse lookup. | Cached catalog search and manual pins remain available |
 
 ## 9. Dependencies Flutter ↔ Backend
@@ -217,3 +220,11 @@ The diagram now explicitly shows one shared client transport. `AppSyncProvider`,
 ## Recovery communication — 2026-11-11
 
 Password recovery uses the existing Flutter → auth repository → Dio → Express controller/use case → Prisma/Neon path. Firebase Phone Authentication supplies OTP proof in a secondary client Auth instance; Admin SDK validation binds it to the canonical existing UID. Neon retains the existing bcrypt authority plus hashed short-lived recovery state and shared limits. No new service, identity provider or password store is introduced. See [workflow](SYSTEM_DESIGN.md#password-recovery-workflow--2026-11-11) and [verification report](audit/PASSWORD_RECOVERY_REPORT.md).
+
+## Realtime journal and HTTP protection — 2026-11-13
+
+`backend/src/realtime/data-changes.ts` maintains a **512-entry in-memory journal** with **10-minute retention**. Each authenticated `data:reconcile` request carries an epoch/sequence cursor. Valid cursors replay only invalidation identifiers addressed to that UID; REST rechecks current access. Restarted/expired/out-of-range cursors return reset, and Flutter revalidates affected providers/active resources. Attendance payloads replay as outing invalidations. Audience lookup failures advance the recovery floor.
+
+The journal, Socket.IO adapter and global HTTP limiter are **single-process**. There is **no Redis adapter** or shared replay store. Multiple independent API processes cannot provide a shared journal/rate budget. No Redis was introduced. The HTTP limit is 300 requests/IP/minute under `/api`, with existing stricter authentication/recovery limits preserved; `/socket.io` is outside that middleware. Untrusted forwarded IP headers do not expand proxy trust.
+
+PostgreSQL is canonical for authenticated form drafts; the existing SharedPreferences draft cache stores account/origin-scoped snapshots and pending edit/delete metadata. AppSyncProvider invokes serialized recovery at reconnect/resume. UUID create idempotency and row-locked version checks prevent duplicate creates and stale overwrite. Closed outing reads use domain access separately from chat send policy. Catalog mutations retain the existing server curator allowlist and fail closed when absent.

@@ -1,15 +1,17 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   toPublicUser,
-  toPublicUsers,
+  toUserSummaries,
+  toUserSummary,
 } from "../../services/auth/to-public-user.js";
 import { DeleteUserUseCase } from "../../usecases/users/delete-user.usecase.js";
 import { GetUserUseCase } from "../../usecases/users/get-user.usecase.js";
 import { ListUsersUseCase } from "../../usecases/users/list-users.usecase.js";
 import { SyncUserUseCase } from "../../usecases/users/sync-user.usecase.js";
 import { UpdateUserUseCase } from "../../usecases/users/update-user.usecase.js";
-import { ForbiddenError, UnauthorizedError } from "../../utils/errors.js";
+import { ForbiddenError, UnauthorizedError, ValidationError } from "../../utils/errors.js";
 import { FirebasePhoneIdentity } from "../../services/phone/phone-identity.js";
+import { listUsersQuerySchema } from "../../validators/users/user.validator.js";
 
 import { emitDataChange, publishGroupChange } from "../../realtime/data-changes.js";
 import { prisma } from "../../config/database.js";
@@ -25,19 +27,42 @@ export class UserController {
     private readonly phones: Pick<FirebasePhoneIdentity, "verifiedPhone"> = new FirebasePhoneIdentity(),
   ) {}
 
-  list = async (_req: Request, res: Response, next: NextFunction) => {
+  list = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const users = await this.listUsers.execute();
-      res.json({ success: true, data: toPublicUsers(users) });
+      if (!req.user?.uid) throw new UnauthorizedError();
+
+      const parsed = listUsersQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        throw new ValidationError(
+          parsed.error.issues
+            .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
+            .join("; "),
+        );
+      }
+      const { ids, phone } = parsed.data;
+      const users = ids.length > 0
+        ? await this.listUsers.executeByIds(ids)
+        : await this.listUsers.executeByPhone(phone as string, req.user.uid);
+      res.json({ success: true, data: toUserSummaries(users) });
     } catch (error) {
       next(error);
     }
   };
 
+  /**
+   * Self → full profile (same shape as `/api/users/cuser`).
+   * Anyone else → directory-safe summary: no phone, no `has_password`, no
+   * credential or internal authentication fields. Authorized member phones are
+   * served by the group roster endpoint, not this route.
+   */
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = await this.getUser.execute(req.params.id as string);
-      res.json({ success: true, data: toPublicUser(user) });
+      if (!req.user?.uid) throw new UnauthorizedError();
+
+      const targetId = req.params.id as string;
+      const user = await this.getUser.execute(targetId);
+      const data = req.user.uid === targetId ? toPublicUser(user) : toUserSummary(user);
+      res.json({ success: true, data });
     } catch (error) {
       next(error);
     }

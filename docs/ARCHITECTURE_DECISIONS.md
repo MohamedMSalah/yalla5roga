@@ -89,10 +89,10 @@
 
 ## ADR-012: Images as URL strings
 
-- **Status:** Accepted (current)
+- **Status:** Superseded by ADR-017 (2026-11-12). Historical context: no verified object-storage pipeline existed when this ADR was written.
 - **Context:** No verified object-storage pipeline in-repo.
 - **Decision:** Persist URL fields only.
-- **Consequences:** Upload service would be a new ADR if added.
+- **Consequences:** Image fields remain strings; ADR-017 adds a stable reference scheme and an object-storage pipeline without changing the column types.
 
 ## ADR-013: Hybrid REST + Socket.IO outing chat
 
@@ -113,7 +113,7 @@
 
 - **Status:** Accepted (2026-11-11, requested offline-first workflow)
 - **Decision:** Reuse SharedPreferences for bounded account/backend-scoped JSON snapshots and the existing chat cache. Cache hydration precedes authenticated REST catch-up. PostgreSQL remains authoritative; sockets deliver invalidations or canonical chat messages. One app-scoped `AppSyncProvider` owns network, lifecycle and socket recovery listeners.
-- **Replay policy:** Only durable chat sends use the outbox, with a stable client UUID and existing PostgreSQL uniqueness over outing/sender/client UUID. Server authorization and chat-state checks remain enforced. Votes, attendance, GPS, invitations, membership, account/security changes, deletes and lifecycle commands require online success.
+- **Replay policy:** Only durable chat sends use the chat outbox (form-draft recovery uses the separate existing draft cache, per ADR-019), with a stable client UUID and existing PostgreSQL uniqueness over outing/sender/client UUID. Server authorization and chat-state checks remain enforced. Votes, attendance, GPS, invitations, membership, account/security changes, deletes and lifecycle commands require online success.
 - **Consequences:** No new dependency, database or write route. No OS background worker or durable server event log. Resume/reconnect repairs lists and open details using REST. Preferences are bounded and unencrypted; logout purges the previous account's snapshots, chat cache and sends. ADR-013's single-process Socket.IO restriction remains.
 
 When superseding a decision, mark the old ADR **Superseded** and add a new one — do not silently rewrite history.
@@ -135,3 +135,33 @@ When superseding a decision, mark the old ADR **Superseded** and add a new one �
 ### ADR-005 clarification: recovery — 2026-11-11
 
 The existing application password authority is Neon bcrypt, as verified in phone/password login and password change. Recovery updates that same credential after fresh server-verified Firebase phone proof; it must not set an unrelated Firebase password. Shared PostgreSQL digests provide five-minute single-use reset grants with atomic consumption/password update and proof replay rejection. Current Firebase phone must match the existing Neon UID/phone; unbound legacy accounts fail closed. Existing signup/sync proof contracts and sessions remain unchanged. This extends the established architecture, with no new password store or identity migration.
+
+## ADR-017: Cloudflare R2 media pipeline with stable `media://` references
+
+- **Status:** Accepted (2026-11-12).
+- **Context:** Profile/group/outing/chat images need private, authorization-checked delivery, while place images should be cacheable and public. The app must keep working offline, preserve existing rows/default artwork, and not move binaries into Neon or through the API. Cloudflare credentials are not available yet.
+- **Decision:**
+  - Object storage is Cloudflare R2 behind a `MediaStorageAdapter`. Provider selection is env-only: complete `R2_*` credentials → `r2`; otherwise an in-memory mock adapter for local development. Real credentials can be added later without code changes.
+  - The backend owns upload intents, ownership/purpose/MIME/size checks, HEAD verification before `ready`, signed GET URLs, deletion, and orphan cleanup. Binaries upload directly from Flutter to storage using a presigned PUT.
+  - Neon stores only `media_assets` metadata (object key, bucket, MIME, size, visibility, purpose, owner, optional entity links, timestamps). Entity image columns remain `VarChar` strings.
+  - Entity image fields accept legacy absolute http(s) URLs or the stable reference `media://<asset-uuid>`. No schema change is required for existing rows/default covers.
+  - Visibility is fixed by purpose: `place` → public CDN when `R2_PUBLIC_BASE_URL` is configured; all other purposes → private signed GET URLs. View checks mirror entity participation rules.
+  - Flutter caches by stable asset id (`media_public_<id>`, `media_private_<uid>_<id>`), persists delivery-URL metadata per account for offline rendering, revalidates private URLs in the background, and evicts account-scoped state on logout/account switch. Signed URLs never become cache identities.
+  - Covers may be uploaded before the entity row exists; attachment authorization is enforced when the create/update persists the reference.
+- **Consequences:** No binaries in Neon and backward-compatible APIs. Real deployment still needs the R2 bucket, API token/keys, bucket CORS for direct PUT, and a CDN custom domain; until then the mock provider serves local development and public assets remain `media://` references. Multi-instance API nodes rely on R2 as shared storage; the cleanup job remains in-process.
+
+## ADR-018: Server-configured place catalog curators
+
+- **Status:** Accepted (2026-11-13, Phase 1 security hardening).
+- **Context:** Place catalog mutations (place, hours, images, prices) were available to any authenticated user. The product authorization model has no global Admin/Curator role — only group roles and outing owners — so introducing a database role would change product scope and require owner approval.
+- **Decision:** Gate every place catalog write behind `requirePlaceCurator`, which compares the verified Bearer UID with the comma-separated server-only `PLACES_CURATOR_UIDS` environment variable. Reads stay unchanged. The allowlist fails closed when missing or empty, and no client or profile field can grant curator status.
+- **Consequences:** Ordinary authenticated users receive 403 for catalog writes. Deployment must set `PLACES_CURATOR_UIDS` to operate the catalog; local development can list a developer UID. This can later be replaced by an owner-approved database role without changing route structure.
+
+## ADR-019 — Explicit invitation decisions and bounded recovery (2026-11-13)
+
+- **Status:** Accepted by the owner's confirmed-fixes implementation request; supersedes automatic group invitation acceptance wherever described earlier.
+- **Decision:** New group invitations always remain pending until an explicit recipient decision. Firebase-verified identity linking associates inbox rows only. Acceptance transactionally inserts a member with duplicate protection; decline preserves history. Ordinary member creation cannot assign owner.
+- **Drafts:** Extend the existing remote/repository/provider/local-cache path, not a second draft service. Reuse draft UUIDs for POST idempotency and existing updated_at for optional If-Match checks under row locks. Persist pending changes and conflict state locally by account/origin. Do not automatically overwrite a newer server copy. Local-only phone-contact selections remain cached because the existing draft schema lacks that field; no schema was invented for this task.
+- **Realtime:** Retain the existing **512-entry**, **10-minute** in-memory invalidation journal and authenticated epoch/sequence `data:reconcile`. Invalid/expired/restarted cursors reset provider snapshots through REST. This remains **single-process**, with **no Redis adapter** or durable shared journal. No Redis is added.
+- **HTTP:** Reuse Express middleware for a bounded single-process 300 requests/IP/minute API limiter; preserve stricter auth/recovery limits and the consistent error envelope. Do not trust arbitrary proxy headers. Notification reads default to 20 with a maximum of 100 and ownership-filtered opaque cursors.
+- **Consequences:** No route or operation-ID rename and no database migration. Live authenticated business acceptance, multi-device draft conflict UI, mobile theme/RTL/responsive checks, and distributed deployment remain unverified. Source/static validation is not runtime proof.

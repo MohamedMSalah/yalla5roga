@@ -9,6 +9,9 @@ import 'package:yalla_5roga/core/cache/cached_remote.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/di/repository_factory.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
+import 'package:yalla_5roga/core/media/media_url_resolver.dart';
+import 'package:yalla_5roga/core/media/media_url_store.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics_interceptor.dart';
@@ -24,6 +27,7 @@ import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_pro
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/invites/presentation/providers/invite_deep_link_provider.dart';
+import 'package:yalla_5roga/features/invitations/presentation/providers/invitations_provider.dart';
 import 'package:yalla_5roga/features/notifications/data/datasources/fcm_token_remote_datasource.dart';
 import 'package:yalla_5roga/features/notifications/data/repositories/push_messaging_repository_impl.dart';
 import 'package:yalla_5roga/features/notifications/data/services/fcm_messaging_service.dart';
@@ -58,6 +62,9 @@ class AppDependencies {
     required this.geocoding,
     required this.prefs,
     required this.sync,
+    required this.invitations,
+    required this.mediaUrls,
+    required this.mediaUploads,
   });
 
   final AppConfig config;
@@ -78,6 +85,9 @@ class AppDependencies {
   final LocationRepository geocoding;
   final SharedPreferences prefs;
   final AppSyncProvider sync;
+  final InvitationsProvider invitations;
+  final MediaUrlResolver mediaUrls;
+  final MediaUploadService mediaUploads;
 
   static Future<AppDependencies> create({AppConfig? config}) async {
     final appConfig = config ?? AppConfig.instance;
@@ -134,11 +144,25 @@ class AppDependencies {
       config: appConfig,
     );
 
+    final mediaStore = MediaUrlStore(prefs);
+    final mediaUrls = MediaUrlResolver(
+      apiClient: apiClient,
+      store: mediaStore,
+      uidProvider: uid,
+    );
+    MediaUrlResolver.active = mediaUrls;
+    final mediaUploads = MediaUploadService(
+      apiClient: apiClient,
+      apiBaseUrl: appConfig.apiBaseUrl,
+    );
+
     final authRepository = repos.auth();
     final outingsRepository = repos.outings();
     final groupsRepository = repos.groups();
     final discoverRepository = repos.discover();
-    final savedOutingsRepository = repos.savedOutings();
+    final savedOutingsRepository = repos.savedOutings(
+      mediaUploads: mediaUploads,
+    );
 
     final auth = AuthProvider(repository: authRepository);
     await auth.restoreSession();
@@ -158,9 +182,16 @@ class AppDependencies {
     final fcm = FcmProvider(messaging: pushMessaging);
 
     // Feature data loads when MainShell mounts — not during splash/auth boot.
-    final outings = OutingsProvider(repository: outingsRepository);
+    final outings = OutingsProvider(
+      repository: outingsRepository,
+      mediaUploads: mediaUploads,
+    );
     final shell = ShellProvider();
-    final groups = GroupsProvider(repository: groupsRepository, shell: shell);
+    final groups = GroupsProvider(
+      repository: groupsRepository,
+      shell: shell,
+      mediaUploads: mediaUploads,
+    );
     final discover = DiscoverProvider(repository: discoverRepository);
     final savedOutings = SavedOutingsProvider(
       repository: savedOutingsRepository,
@@ -182,6 +213,7 @@ class AppDependencies {
     final notifications = NotificationsProvider(
       repository: repos.notifications(),
     );
+    final invitations = InvitationsProvider(repository: repos.invitations());
     late final AppSyncProvider sync;
     final outingChat = OutingChatProvider(
       repository: chatRepository,
@@ -192,6 +224,7 @@ class AppDependencies {
     );
     sync = AppSyncProvider(
       chat: outingChat,
+      savedOutings: savedOutings,
       auth: auth,
       network: networkInfo,
       socket: outingChatSocket,
@@ -201,6 +234,8 @@ class AppDependencies {
       groups: groups,
       outings: outings,
       notifications: notifications,
+      invitations: invitations,
+      clearMediaCache: mediaUrls.clearForAccount,
     );
     activeSync = sync;
     return AppDependencies(
@@ -225,6 +260,9 @@ class AppDependencies {
       settings: SettingsProvider(),
       geocoding: repos.geocoding(),
       prefs: prefs,
+      invitations: invitations,
+      mediaUrls: mediaUrls,
+      mediaUploads: mediaUploads,
     );
   }
 }

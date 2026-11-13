@@ -1,9 +1,8 @@
 import { z } from "zod";
+import { optionalMediaImageUrlSchema } from "../media/image-url.validator.js";
 
 /** Empty string is allowed and stored as the DB default cover. */
-const optionalImageUrl = z
-  .union([z.literal(""), z.url().max(2048)])
-  .optional();
+const optionalImageUrl = optionalMediaImageUrlSchema;
 
 export const createGroupBodySchema = z.object({
   name: z.string().trim().min(3).max(30),
@@ -32,7 +31,7 @@ export const addGroupMemberBodySchema = z.object({
     .min(10)
     .max(13)
     .regex(/^\+?[0-9]+$/, "phoneNumber must be a valid phone number"),
-  role: z.enum(["owner", "member"]).optional(),
+  role: z.enum(["member"]).optional(),
 });
 
 export const groupMemberParamsSchema = z.object({
@@ -47,5 +46,9 @@ export const inviteToGroupBodySchema = z.object({
 
 export const pendingMembershipParamsSchema = z.object({
   id: z.uuid(),
+  invitationId: z.uuid(),
+});
+
+export const invitationIdParamsSchema = z.object({
   invitationId: z.uuid(),
 });

@@ -1,0 +1,547 @@
+{
+  "generatedAt": "2026-11-13T18:54:40.379Z",
+  "productionApiRoutes": 95,
+  "operations": 97,
+  "uniqueOperationIds": 97,
+  "refsChecked": 820,
+  "structuralFailures": [],
+  "curatorConfigured": false,
+  "scenarios": [
+    {
+      "scenario": "Served OpenAPI matches generated specification",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "Swagger UI available",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "syncUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getCurrentUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "updateCurrentUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteCurrentUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listUsers: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "registerFcmToken: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "unregisterFcmToken: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "unregisterFcmTokenByPath: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listSavedPlaces: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "savePlace: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "unsavePlace: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "geocodePlace: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createPlace: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "updatePlace: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deletePlace: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "upsertPlaceHour: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deletePlaceHour: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createPlaceImage: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deletePlaceImage: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createPlacePrice: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deletePlacePrice: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listVoteOptions: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createVoteOption: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "replaceVoteOptions: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteVoteOption: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listVotes: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "castVote: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "removeMyVotes: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "removeVote: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getVotingState: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "breakTie: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "confirmOutingVenue: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listSavedOutings: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "saveOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "unsaveOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingAttendance: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "setOutingAttendance: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingGuests: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "inviteOutingGuest: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "removeOutingGuest: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "acceptOutingInvitation: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "declineOutingInvitation: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingArrivals: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "recordOutingArrival: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingDrafts: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createOutingDraft: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "updateOutingDraft: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteOutingDraft: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listCurrentUserOutings: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutings: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "cancelOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "updateOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingMessages: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "sendOutingMessage: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "markOutingChatRead: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listNotifications: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "markAllNotificationsRead: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "markNotificationRead: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "requestMediaUploadUrl: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getMediaDeliveryUrls: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "confirmMediaUpload: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getMediaDeliveryUrl: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteMediaAsset: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listUserInvitations: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "acceptGroupInvitation: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "declineGroupInvitation: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listGroupMembers: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "addGroupMember: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "removeGroupMember: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "inviteToGroup: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "revokePendingGroupMembership: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listCurrentUserGroups: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listGroups: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createGroup: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getGroup: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "updateGroup: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteGroup: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "changePassword: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "verifyPassword: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "signupWithPhonePassword: HTTP contract",
+      "result": "PASS",
+      "status": 400
+    },
+    {
+      "scenario": "loginWithPhonePassword: HTTP contract",
+      "result": "PASS",
+      "status": 400
+    },
+    {
+      "scenario": "getRoot: HTTP contract",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "getHealth: HTTP contract",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "listPlaces: HTTP contract",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "getPlace: no existing public place available",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "listPlaceHours: no existing public place available",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "listPlaceImages: no existing public place available",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "listPlacePrices: no existing public place available",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "listNearbyPlaces: HTTP contract",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "Authentication rate limit",
+      "result": "PASS",
+      "status": 429
+    },
+    {
+      "scenario": "Global API rate limit",
+      "result": "PASS",
+      "status": 429
+    },
+    {
+      "scenario": "AUTH successful signup/session/profile",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "GROUPS create/invite/accept/decline/membership/owner protection/deletion",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "INVITATIONS verified-phone discovery/history/concurrent decisions",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "OUTINGS create/update/cancel/list/creator permissions",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "DRAFTS CRUD/idempotency/version conflict",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "VOTING proposals/votes/state/closure",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "ATTENDANCE RSVP/check-in/location/access",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "CHAT authenticated REST/access",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "PLACES curator success/ordinary-user 403",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "NOTIFICATIONS pagination/read/read-all/cancellation",
+      "result": "NOT VERIFIED"
+    },
+    {
+      "scenario": "MEDIA presign/confirm/delete authorization",
+      "result": "NOT VERIFIED"
+    }
+  ],
+  "notes": [
+    "Ephemeral loopback listener of the current local Express app; no scheduled workers.",
+    "No authenticated test identity supplied; no users, credentials or successful responses invented.",
+    "No application data created, changed or deleted. Swagger browser Execute interaction and Socket.IO delivery not exercised.",
+    "No Flutter tests, launch, emulator or device checks."
+  ]
+}

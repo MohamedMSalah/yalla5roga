@@ -73,8 +73,16 @@ class OutingDraft {
     this.letVote = false,
     this.voteDeadlineHours,
     this.selectedPlaces = const [],
+    this.remoteVersion,
+    this.pending = false,
+    this.deleted = false,
+    this.conflict = false,
   });
 
+  final String? remoteVersion;
+  final bool pending;
+  final bool deleted;
+  final bool conflict;
   final String id;
   final String title;
   final String image;
@@ -92,11 +100,30 @@ class OutingDraft {
   final int? voteDeadlineHours;
   final List<Place> selectedPlaces;
 
+  OutingDraft withSync({
+    String? id,
+    String? version,
+    bool? pending,
+    bool? deleted,
+    bool? conflict,
+  }) => OutingDraft.fromJson({
+    ...toJson(),
+    'id': ?id,
+    'remoteVersion': version ?? remoteVersion,
+    'pending': pending ?? this.pending,
+    'deleted': deleted ?? this.deleted,
+    'conflict': conflict ?? this.conflict,
+  });
+
   TimeOfDay get time => TimeOfDay(hour: hour, minute: minute);
 
   factory OutingDraft.fromJson(Map<String, dynamic> json) {
     return OutingDraft(
       id: json['id'] as String? ?? '',
+      remoteVersion: json['remoteVersion'] as String?,
+      pending: json['pending'] == true,
+      deleted: json['deleted'] == true,
+      conflict: json['conflict'] == true,
       title: json['title'] as String? ?? '',
       image: json['image'] as String? ?? '',
       location: PlaceLocation.fromJson(
@@ -131,6 +158,10 @@ class OutingDraft {
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'remoteVersion': remoteVersion,
+    'pending': pending,
+    'deleted': deleted,
+    'conflict': conflict,
     'title': title,
     'image': image,
     'location': location.toJson(),

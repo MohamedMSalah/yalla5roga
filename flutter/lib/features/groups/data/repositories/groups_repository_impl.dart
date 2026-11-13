@@ -31,6 +31,20 @@ class GroupsRepositoryImpl implements GroupsRepository {
   final _groupCache = TtlCache<Group>(ttl: CachePolicy.groups);
 
   @override
+  Future<Either<Failure, void>> deleteGroup(String id) async {
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.deleteGroup(id),
+      reason: 'deleteGroup',
+    );
+    if (result.isRight()) {
+      _groupsCache.invalidate();
+      _groupCache.invalidate(_groupKey(id));
+    }
+    return result;
+  }
+
+  @override
   Future<Either<Failure, List<Group>>> getGroups({bool forceRefresh = false}) {
     return cachedRemote(
       networkInfo: networkInfo,

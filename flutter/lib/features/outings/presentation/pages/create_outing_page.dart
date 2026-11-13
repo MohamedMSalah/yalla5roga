@@ -321,7 +321,12 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     final userId = context.read<AuthProvider>().user?.id;
     final outing = form.buildOuting(createdById: userId);
     final created = await outings.add(outing);
-    if (!context.mounted || created == null) return;
+    if (!context.mounted) return;
+    if (created == null) {
+      final error = outings.errorMessage;
+      if (error != null) AppSnackBar.show(error);
+      return;
+    }
     if (form.draft != null) {
       await context.read<SavedOutingsProvider>().removeDraft(form.draft!.id);
     }
@@ -348,7 +353,14 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     }
     await context.read<SavedOutingsProvider>().saveDraft(form.toDraft());
     if (!context.mounted) return;
-    AppSnackBar.show(l10n.draftSaved);
+    final store = context.read<SavedOutingsProvider>();
+    AppSnackBar.show(
+      store.hasDraftConflicts
+          ? l10n.draftSyncConflict
+          : store.hasPendingDrafts
+          ? l10n.draftPending
+          : l10n.draftSaved,
+    );
   }
 
   @override

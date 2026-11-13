@@ -22,7 +22,7 @@ class OfflineSnapshots {
   String _prefix(String uid) => 'snapshots.v1:$origin:$uid:';
 
   static final _resource = RegExp(
-    r'^/api/(groups/(cuser|[a-f0-9-]{36}(/members)?)|outings/(cuser|[a-f0-9-]{36}(/voting-state|/attendance|/vote-options)?))$',
+    r'^/api/(groups/(cuser|[a-f0-9-]{36}(/members)?)|outings/(cuser|[a-f0-9-]{36}(/voting-state|/attendance|/vote-options|/guests)?))$',
   );
 
   String? keyFor(String path, Map<String, dynamic>? query) {
@@ -84,6 +84,30 @@ class OfflineSnapshots {
     } catch (_) {
       return 0;
     }
+  }
+
+  Future<void> mergeCollectionItem(
+    String path,
+    Map<String, dynamic> item, {
+    bool remove = false,
+  }) async {
+    final key = keyFor(path, null);
+    if (key == null) return;
+    final raw = read<Map<String, dynamic>>(key);
+    if (raw == null || raw['data'] is! List) return;
+    var found = false;
+    final rows = <Map>[];
+    for (final row in raw['data'] as List) {
+      if (row is! Map) continue;
+      if (row['id'] == item['id']) {
+        found = true;
+        if (!remove) rows.add(item);
+      } else {
+        rows.add(row);
+      }
+    }
+    if (!found && !remove) rows.insert(0, item);
+    await write(key, {...raw, 'data': rows}, generation);
   }
 
   Future<void> remove(String key) async {

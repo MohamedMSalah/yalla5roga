@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors.js";
@@ -8,6 +9,8 @@ export function errorMiddleware(
   res: Response,
   _next: NextFunction,
 ) {
+  if (err instanceof ZodError) return res.status(400).json({ success: false, message: "Invalid request header" });
+
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,

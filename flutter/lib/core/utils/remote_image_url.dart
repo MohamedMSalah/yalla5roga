@@ -1,9 +1,13 @@
-/// Backend `image_url` fields only accept absolute http(s) URLs (or empty).
-/// Local gallery/camera paths must never be sent on create/update payloads.
+import 'package:yalla_5roga/core/media/media_reference.dart';
+
+/// Backend `image_url` fields accept absolute http(s) URLs, stable
+/// `media://<asset-id>` references, or empty. Local gallery/camera paths must
+/// never be sent on create/update payloads.
 String? remoteImageUrlOrNull(String? value) {
   final text = value?.trim() ?? '';
   if (text.isEmpty) return null;
-  if (text.startsWith('http://') || text.startsWith('https://')) return text;
+  if (isRemoteHttpUrl(text)) return text;
+  if (isMediaReference(text)) return text;
   return null;
 }
 

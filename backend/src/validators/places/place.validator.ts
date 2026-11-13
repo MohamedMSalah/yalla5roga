@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { mediaImageUrlSchema } from "../media/image-url.validator.js";
 
 const vibeSchema = z.enum(["food", "activity", "outdoor", "movie"]);
 const priceLevelSchema = z.enum([
@@ -23,7 +24,7 @@ export const createPlaceBodySchema = z.object({
   area: z.string().trim().max(100).optional(),
   vibe: vibeSchema.optional(),
   description: z.string().trim().max(1000).optional(),
-  cover_image_url: z.url().max(2048).optional(),
+  cover_image_url: mediaImageUrlSchema.optional(),
   price_level: priceLevelSchema.optional(),
   price_min: z.number().nonnegative().optional().nullable(),
   price_max: z.number().nonnegative().optional().nullable(),
@@ -125,7 +126,7 @@ export const placeHourIdParamsSchema = z.object({
 });
 
 export const createPlaceImageBodySchema = z.object({
-  image_url: z.url().max(2048),
+  image_url: mediaImageUrlSchema,
   caption: z.string().trim().max(200).optional().nullable(),
   sort_order: z.number().int().optional(),
 });

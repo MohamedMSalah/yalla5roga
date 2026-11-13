@@ -99,6 +99,7 @@ export type CastVoteInput = {
 };
 
 export type CreateOutingDraftInput = {
+  id?: string;
   user_id: string;
   title?: string;
   image_url?: string;
@@ -120,5 +121,5 @@ export type CreateOutingDraftInput = {
 };
 
 export type UpdateOutingDraftInput = Partial<
-  Omit<CreateOutingDraftInput, "user_id">
+  Omit<CreateOutingDraftInput, "user_id" | "id">
 >;

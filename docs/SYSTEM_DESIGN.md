@@ -97,7 +97,7 @@ Group vs special event discriminated by `group_id` / `occasion` / `type`. Deadli
 
 | Path | Components | Status |
 |------|------------|--------|
-| Group phone invite | `InviteToGroupUseCase` → immediate `group_members` for a verified registered UID, otherwise normalized `group_invitations` + WhatsApp. Verified signup/login/sync claims pending invitations; deep-link restore via `InviteDeepLinkProvider` | Implemented |
+| Group phone invite | `InviteToGroupUseCase` → pending `group_invitations` + optional WhatsApp for all recipients. Verified signup/login/sync links account identity only; explicit acceptance creates `group_members`; deep-link restore via `InviteDeepLinkProvider` | Implemented |
 | Outing invite | `guests.usecase` + accept/decline for registered members. Special-event phone invitations use the notification outbox or click-to-chat and do not create members. | Implemented; Flutter member deep-link UI **Partial** |
 
 Pending ≠ Member. Outing guest responses transition a pending row once. The same response is idempotent and a competing response returns 409. Reissuing an invite preserves an existing pending or accepted row. Group phone associations use verified-phone linking. PostgreSQL permits one pending row per group and E.164 phone. Matching rows are locked while bulk membership insertion and link recording share a transaction. Owners can revoke a pending association and registered member removal prevents a pending row from restoring access. The add flow rechecks the account after persisting a pending row to close the race with signup. Roster reads use a single snapshot for active and pending rows so they reflect one side of a concurrent account link. Signup verifies OTP proof and keeps its UID; password login checks the canonical Firebase phone before claiming. Session restore displays cached state first; the coordinator defers one-time users/sync until after cache hydration and before online group revalidation. Settings verification uses sync (not a profile PATCH), then refreshes groups once. Legacy unused OTP identities can supply recent proof to bind their phone to the signed-in UID; no registered accounts are merged.
@@ -120,11 +120,17 @@ See §13.5. Core services: `voting.usecase.ts`, `vote-resolution.ts`, `outing-pa
 
 **Hybrid realtime (ADR-013):** REST persists; after success, Socket.IO emits `outing:message` to room `outing:{outingId}`. Mark-read updates a monotonic PostgreSQL watermark and emits `outing:read`. Clients authenticate sockets with Firebase ID tokens and must pass `assertChatParticipant` on `outing:join`. Flutter recovers missed messages with REST after reconnect.
 
-**Offline recovery (ADR-014):** Launch hydrates account-scoped snapshots, then revalidates profile, groups/outings, inbox and open details/chats. `data:changed` hints collect IDs for a 250 ms debounce. Membership changes also revalidate active chats; votes refresh the affected outing. Background events remain dirty until foreground recovery. Transient snapshot fallback schedules capped exponential retry and never writes to PostgreSQL. Durable chat sends reuse their UUID until acknowledged; permanent authorization/state conflicts mark that send failed while subsequent sends can proceed. Other writes are not replayed. See `audit/OFFLINE_REALTIME_REPORT.md` for cache bounds and verification limits.
+**Offline recovery (ADR-014):** Launch hydrates account-scoped snapshots, then revalidates profile, groups/outings, inbox and open details/chats. `data:changed` hints collect IDs for a 250 ms debounce. Membership changes also revalidate active chats; votes refresh the affected outing. Background events remain dirty until foreground recovery. Transient snapshot fallback schedules capped exponential retry and never writes to PostgreSQL. Durable chat sends reuse their UUID until acknowledged; permanent authorization/state conflicts mark that send failed while subsequent sends can proceed. Form draft edits/deletes use the existing draft cache with version-checked recovery; other writes are not replayed. See `audit/OFFLINE_REALTIME_REPORT.md` for cache bounds and verification limits.
 
 ### Saved outings / places
 
 Saved outing use cases + place bookmark endpoints; Neon composite PKs.
+
+### Media / images
+
+Flutter picks a local image → `POST /api/media/upload-url` (backend creates a `pending` `media_assets` row and returns a presigned PUT) → client `PUT`s bytes directly to R2/mock storage → `POST /api/media/:id/confirm` performs a HEAD check and marks the asset `ready` → the create/update payload persists `media://<asset-id>` (or the asset is linked after row creation). The API and Neon never receive bytes.
+
+Display: `AppNetworkImage` resolves `media://` in batches through `/api/media/signed-urls`. Public place media returns the CDN URL when `R2_PUBLIC_BASE_URL` is configured; private media returns a short-lived signed URL after ownership/participant checks. URL metadata is persisted per account and image-cache keys use the stable asset id, so expiry rotation does not re-download and account switches cannot render another account's private image. Failed uploads are deleted best effort; `media-cleanup.job.ts` reaps expired pending intents and failed assets.
 
 ### Push notifications
 
@@ -418,3 +424,21 @@ Phone/password login continues to verify the same Neon hash and issue a Firebase
 ### Recovery SMS reliability follow-up — 2026-11-11
 
 The existing sequence is unchanged: backend preflight → Firebase SMS → isolated Firebase proof → backend authorization/reset. The configured Neon schema now includes the recovery migration; missing security tables had blocked start before Firebase could be invoked. Flutter observes native invocation errors and callbacks together under a single 75-second deadline. Failed resends preserve the previous request/verification pair, committing replacement state only after Firebase dispatch succeeds. No password authority, proof-validation or session policy changed.
+
+## Confirmed backend/mobile implementation — 2026-11-13
+
+Group invitation decisions serialize on the invitation row. Accept creates membership and records accepted status in the same transaction; decline records history without membership. A conflicting/repeated decision returns stored status. Verified identity linking does not accept invitations. Initial outing status is derived from options and venue. Creator cancel uses the existing notification fan-out, stable event keys and scoped realtime publication.
+
+Draft recovery uses the existing Saved Outings repository/provider/cache. A client UUID in Idempotency-Key makes POST retries safe; If-Match carries the loaded updated_at for row-locked updates/deletes. Online writes update the server and cache; offline writes persist pending metadata. The existing AppSyncProvider runs one serialized recovery pass on reconnect/resume, preserves conflicts, and does not poll. Legacy clients omitting version headers retain their prior API behavior. No database schema change was made.
+
+```mermaid
+flowchart LR
+  Invite[Create invitation] --> Pending[Pending]
+  Pending -->|verified identity link| Pending
+  Pending -->|explicit accept in transaction| Member[Accepted and membership]
+  Pending -->|explicit decline| History[Declined history]
+  Form[Draft edit] --> Cache[Existing account cache and pending metadata]
+  Cache -->|reconnect serialized sync| Version[Check server version]
+  Version -->|unchanged| Server[Persist draft and refresh cache]
+  Version -->|changed| Conflict[Keep local copy and stop automatic retry]
+```

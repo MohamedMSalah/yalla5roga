@@ -1,9 +1,18 @@
+import 'package:yalla_5roga/core/error/exception_mapper.dart';
+import 'package:dartz/dartz.dart';
+import 'package:yalla_5roga/core/error/failures.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
+import 'package:yalla_5roga/core/localization/l10n.dart';
+import 'package:yalla_5roga/core/media/media_reference.dart';
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
+import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/group_place_suggestion.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
@@ -16,11 +25,15 @@ export 'package:yalla_5roga/features/outings/domain/entities/place_vote.dart'
     show VoteOption;
 
 class OutingsProvider extends ChangeNotifier {
-  OutingsProvider({required this.repository, DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  OutingsProvider({
+    required this.repository,
+    DateTime Function()? now,
+    this.mediaUploads,
+  }) : _now = now ?? DateTime.now;
 
   final OutingsRepository repository;
   final DateTime Function() _now;
+  final MediaUploadService? mediaUploads;
   Timer? _scheduleTimer;
 
   var _outings = <Outing>[];
@@ -37,6 +50,110 @@ class OutingsProvider extends ChangeNotifier {
 
   static const maxVotePlaces = 5;
 
+  int _managementEpoch = 0;
+  final _managing = <String>{};
+  final _guests = <String, List<GroupMember>>{};
+  final _guestLoads = <String, Future<void>>{};
+  final _guestErrors = <String, String>{};
+  bool guestsLoading(String id) => _guestLoads.containsKey(id);
+  String? guestsError(String id) => _guestErrors[id];
+  bool isManaging(String id) => _managing.contains(id);
+  List<GroupMember> guestsFor(String id) => _guests[id] ?? const [];
+  String? invitationStatus(String id, String uid) {
+    final guest = guestsFor(id).where((g) => g.id == uid).firstOrNull;
+    return guest == null
+        ? null
+        : guest.isPending
+        ? 'pending'
+        : 'accepted';
+  }
+
+  Future<void> loadGuests(String id) {
+    final epoch = _managementEpoch;
+    return _guestLoads[id] ??= _loadGuests(id).whenComplete(() {
+      if (epoch == _managementEpoch) {
+        _guestLoads.remove(id);
+        notifyListeners();
+      }
+    });
+  }
+
+  Future<void> _loadGuests(String id) async {
+    final epoch = _managementEpoch;
+    final result = await repository.guests(id);
+    if (epoch != _managementEpoch) return;
+    result.fold(
+      (failure) => _guestErrors[id] = AppErrorFeedback.messageOf(failure),
+      (items) {
+        _guestErrors.remove(id);
+        _guests[id] = items;
+      },
+    );
+    notifyListeners();
+  }
+
+  Future<bool> _manage(
+    String id,
+    Future<Either<Failure, OutingSnapshot>> Function() action,
+  ) async {
+    if (!_managing.add(id)) return false;
+    _errorMessage = null;
+    notifyListeners();
+    final epoch = _managementEpoch;
+    try {
+      final result = await action();
+      if (epoch != _managementEpoch) return false;
+      return result.fold<bool>(
+        (failure) {
+          _errorMessage = AppErrorFeedback.messageOf(failure);
+          return false;
+        },
+        (snapshot) {
+          _applySnapshot(snapshot);
+          return true;
+        },
+      );
+    } finally {
+      _managing.remove(id);
+      notifyListeners();
+    }
+  }
+
+  Future<bool> update(String id, Map<String, dynamic> changes) =>
+      _manage(id, () async {
+        final patch = Map<String, dynamic>.of(changes);
+        final image = patch['image_url'] as String?;
+        if (isLocalFilePath(image)) {
+          try {
+            if (mediaUploads == null) {
+              return const Left(ServerFailure('Image upload unavailable'));
+            }
+            patch['image_url'] = (await mediaUploads!.uploadLocalImage(
+              path: image!,
+              purpose: MediaPurpose.outing,
+            )).reference;
+          } catch (error) {
+            return Left(ExceptionMapper.toFailure(error));
+          }
+        }
+        return repository.update(id, patch);
+      });
+  Future<bool> cancel(String id) => _manage(id, () => repository.cancel(id));
+  Future<bool> removeGuest(String id, String uid) async {
+    final ok = await _manage(id, () => repository.removeGuest(id, uid));
+    if (ok) await loadGuests(id);
+    return ok;
+  }
+
+  Future<bool> respondToInvitation(String id, {required bool accept}) async {
+    final ok = await _manage(
+      id,
+      () => repository.respondToInvitation(id, accept: accept),
+    );
+    if (ok && accept) await loadGuests(id);
+    return ok;
+  }
+
   List<Place> get places => repository.catalogPlaces;
 
   List<Outing> get outings => List.unmodifiable(_outings);
@@ -48,6 +165,8 @@ class OutingsProvider extends ChangeNotifier {
   bool get isCreating => _isCreating;
 
   String? get errorMessage => _errorMessage;
+
+  L10n? get _l10n => Get.context?.l10n;
 
   List<Outing> get history {
     final now = _now();
@@ -494,7 +613,30 @@ class OutingsProvider extends ChangeNotifier {
     _isCreating = true;
     notifyListeners();
 
-    final result = await repository.add(outing, creatorId: creatorId);
+    var outgoing = outing;
+    if (isLocalFilePath(outgoing.image)) {
+      final uploads = mediaUploads;
+      if (uploads == null) {
+        _isCreating = false;
+        _errorMessage = _l10n?.imageUploadFailed;
+        notifyListeners();
+        return null;
+      }
+      try {
+        final uploaded = await uploads.uploadLocalImage(
+          path: outgoing.image,
+          purpose: MediaPurpose.outing,
+        );
+        outgoing = outgoing.copyWith(image: uploaded.reference);
+      } catch (_) {
+        _isCreating = false;
+        _errorMessage = _l10n?.imageUploadFailed;
+        notifyListeners();
+        return null;
+      }
+    }
+
+    final result = await repository.add(outgoing, creatorId: creatorId);
     final created = result.fold<OutingCreation?>(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -530,6 +672,29 @@ class OutingsProvider extends ChangeNotifier {
     _isCreating = true;
     notifyListeners();
 
+    var imageRef = image;
+    if (isLocalFilePath(imageRef)) {
+      final uploads = mediaUploads;
+      if (uploads == null) {
+        _isCreating = false;
+        _errorMessage = _l10n?.imageUploadFailed;
+        notifyListeners();
+        return null;
+      }
+      try {
+        final uploaded = await uploads.uploadLocalImage(
+          path: imageRef!,
+          purpose: MediaPurpose.outing,
+        );
+        imageRef = uploaded.reference;
+      } catch (_) {
+        _isCreating = false;
+        _errorMessage = _l10n?.imageUploadFailed;
+        notifyListeners();
+        return null;
+      }
+    }
+
     final result = await repository.suggestPlaces(
       groupId: groupId,
       title: title,
@@ -537,7 +702,7 @@ class OutingsProvider extends ChangeNotifier {
       deadlineHours: deadlineHours,
       createdBy: createdBy,
       createdById: createdById,
-      image: image,
+      image: imageRef,
       scheduledAt: scheduledAt,
     );
     Outing? created;
@@ -568,6 +733,11 @@ class OutingsProvider extends ChangeNotifier {
     _pendingAttendance.clear();
     _deletedOutingIds.clear();
     repository.clearCache();
+    _managementEpoch++;
+    _guests.clear();
+    _guestLoads.clear();
+    _guestErrors.clear();
+    _managing.clear();
     _outings = [];
     _suggestions = [];
     _votesByOuting = {};

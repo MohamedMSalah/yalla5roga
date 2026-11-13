@@ -24,12 +24,19 @@ import {
  *               $ref: "#/components/schemas/OutingDraftListResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "409":
+ *         $ref: "#/components/responses/Conflict"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *   post:
  *     tags: [Outing Drafts]
  *     summary: Create an outing draft
- *     description: "user_id is taken from the authenticated Firebase UID."
+ *     description: "user_id is taken from the authenticated Firebase UID. A stable UUID Idempotency-Key makes retries return the existing owned draft without overwriting it."
+ *     parameters:
+ *       - in: header
+ *         name: Idempotency-Key
+ *         required: false
+ *         schema: { type: string, format: uuid }
  *     operationId: createOutingDraft
  *     requestBody:
  *       $ref: "#/components/requestBodies/OutingDraft"
@@ -44,16 +51,23 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "409":
+ *         $ref: "#/components/responses/Conflict"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  * /api/outings/drafts/{id}:
  *   patch:
  *     tags: [Outing Drafts]
  *     summary: Update an outing draft
- *     description: Allowed only for the draft owner.
+ *     description: "Owner only. If-Match carries the exact updated_at from the loaded draft; stale writes/deletes return 409."
  *     operationId: updateOutingDraft
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
+ *       - in: header
+ *         name: If-Match
+ *         required: false
+ *         schema: { type: string, format: date-time }
+ *         description: "Exact updated_at returned by the last load."
  *     requestBody:
  *       $ref: "#/components/requestBodies/OutingDraft"
  *     responses:
@@ -71,15 +85,22 @@ import {
  *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         $ref: "#/components/responses/Conflict"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *   delete:
  *     tags: [Outing Drafts]
  *     summary: Delete an outing draft
- *     description: Allowed only for the draft owner.
+ *     description: "Owner only. If-Match carries the exact updated_at from the loaded draft; stale writes/deletes return 409."
  *     operationId: deleteOutingDraft
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
+ *       - in: header
+ *         name: If-Match
+ *         required: false
+ *         schema: { type: string, format: date-time }
+ *         description: "Exact updated_at returned by the last load."
  *     responses:
  *       "200":
  *         description: Deleted draft
@@ -95,6 +116,8 @@ import {
  *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         $ref: "#/components/responses/Conflict"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */

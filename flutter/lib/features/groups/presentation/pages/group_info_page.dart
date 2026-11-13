@@ -1,3 +1,5 @@
+import 'package:get/get.dart';
+import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -39,7 +41,8 @@ class _GroupInfoPageState extends State<GroupInfoPage> {
   @override
   void initState() {
     super.initState();
-    _openGroupProvider = context.read<GroupsProvider>()..openGroup(widget.groupId);
+    _openGroupProvider = context.read<GroupsProvider>()
+      ..openGroup(widget.groupId);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final target = _membersKey.currentContext;
@@ -81,6 +84,7 @@ class _GroupInfoPageState extends State<GroupInfoPage> {
 
     final canManage = groups.canManage(group);
     final leaving = groups.isLeaving;
+    final deleting = groups.isDeletingGroup;
     final outingCount = context
         .watch<OutingsProvider>()
         .forGroup(group.id)
@@ -118,7 +122,33 @@ class _GroupInfoPageState extends State<GroupInfoPage> {
             Responsive.spaceLg.gapH,
             GroupInfoActionsSection(
               leaving: leaving,
-              onLeaveGroup: leaving
+              deleting: deleting,
+              onDeleteGroup: canManage
+                  ? () async {
+                      if (leaving ||
+                          deleting ||
+                          !await AppAlert.confirm(
+                            title: l10n.deleteGroup,
+                            message: l10n.deleteGroupPrompt,
+                            confirmText: l10n.deleteGroup,
+                            cancelText: l10n.cancel,
+                            destructive: true,
+                          )) {
+                        return;
+                      }
+                      if (!context.mounted) return;
+                      final outings = context.read<OutingsProvider>();
+                      final ok = await groups.deleteGroup(group.id);
+                      if (!context.mounted) return;
+                      if (!ok) {
+                        AppSnackBar.show(groups.errorMessage ?? l10n.tryAgain);
+                        return;
+                      }
+                      await outings.load(forceRefresh: true);
+                      Get.until((route) => route.isFirst);
+                    }
+                  : null,
+              onLeaveGroup: leaving || deleting
                   ? null
                   : () => groups.confirmLeaveGroup(widget.groupId),
             ),

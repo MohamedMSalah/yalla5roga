@@ -30,7 +30,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
-  var _whatsappOptIn = false;
   final _phoneController = TextEditingController();
 
   @override
@@ -67,7 +66,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       ),
     );
     if (!mounted || selected == null) return;
-    setState(() => _whatsappOptIn = false);
     groups.setCreatePhones(selected);
   }
 
@@ -81,7 +79,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       return;
     }
     _phoneController.clear();
-    setState(() => _whatsappOptIn = false);
   }
 
   void _create() async {
@@ -95,9 +92,13 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       ownerName: user?.name ?? l10n.guestFallback,
       ownerAvatar: user?.imageUrl,
       bio: _bioController.text.trim(),
-      whatsappOptIn: _whatsappOptIn,
     );
-    if (!mounted || group == null) return;
+    if (!mounted) return;
+    if (group == null) {
+      final error = groups.errorMessage;
+      if (error != null) AppSnackBar.show(error);
+      return;
+    }
     AppSnackBar.show(context.l10n.groupCreated);
     Get.off(() => GroupDetailsPage(groupId: group.id));
   }
@@ -183,7 +184,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     PhoneTextField(
                       controller: _phoneController,
                       validate: false,
-                      allowInternational: true,
+                      allowInternational: false,
                     ),
                     Responsive.spaceSm.gapH,
                     CustomButton(
@@ -214,16 +215,6 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                               backgroundColor: palette.surfaceMuted,
                             ),
                         ],
-                      ),
-                      CheckboxListTile(
-                        contentPadding: EdgeInsets.zero,
-                        value: _whatsappOptIn,
-                        title: Text(l10n.groupWhatsAppConsent),
-                        onChanged: groups.isCreating
-                            ? null
-                            : (value) {
-                                setState(() => _whatsappOptIn = value ?? false);
-                              },
                       ),
                     ],
                   ],

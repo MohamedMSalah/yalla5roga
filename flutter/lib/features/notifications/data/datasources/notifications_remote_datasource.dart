@@ -22,13 +22,26 @@ class NotificationsRemoteDataSourceImpl
   @override
   Future<NotificationsFeedModel> getNotifications() async {
     try {
-      final response = await _client.get<Map<String, dynamic>>(
-        ApiConstants.notifications,
-      );
-      final items = apiObjectList(
-        response.data,
-        aliases: const ['notifications', 'items'],
-      );
+      final items = <Map<String, dynamic>>[];
+      final cursors = <String>{};
+      String? cursor;
+      do {
+        final response = await _client.get<Map<String, dynamic>>(
+          ApiConstants.notifications,
+          queryParameters: {'limit': 100, 'cursor': ?cursor},
+        );
+        items.addAll(
+          apiObjectList(
+            response.data,
+            aliases: const ['notifications', 'items'],
+          ),
+        );
+        final raw = response.data;
+        cursor =
+            apiString((raw?['pagination'] as Map?)?['nextCursor']) ??
+            apiString(raw?['next_cursor']);
+        if (cursor != null && !cursors.add(cursor)) break;
+      } while (cursor != null);
       final models = [
         for (final item in items) NotificationModel.fromJson(_normalize(item)),
       ];

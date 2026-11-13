@@ -25,7 +25,7 @@ import {
 import type { GroupInvitation } from "../../types/groups/group-invitation.types.js";
 import type { GroupMember } from "../../types/groups/group.types.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
-import { publishGroupChange } from "../../realtime/data-changes.js";
+import { emitDataChange, publishGroupChange } from "../../realtime/data-changes.js";
 
 export type InviteToGroupInput = {
   groupId: string;
@@ -85,13 +85,10 @@ export class InviteToGroupUseCase {
       throw new ForbiddenError("Only group members can invite");
     }
 
-    const verifiedUserId =
-      await this.verifiedPhones.findUserIdByVerifiedPhone(phone);
-    if (verifiedUserId) {
-      const localUser = await this.users.findById(verifiedUserId);
-      if (localUser?.phone === phone) {
-        return this.addExistingMember(input.groupId, verifiedUserId, input.invitedByUserId);
-      }
+    const verifiedId = await this.verifiedPhones.findUserIdByVerifiedPhone(phone);
+    if (verifiedId && (await this.users.findById(verifiedId))?.phone === phone) {
+      const member = await this.groups.findMember(input.groupId, verifiedId);
+      if (member) return { outcome: "already_member", member };
     }
 
     const now = this.now();
@@ -110,15 +107,16 @@ export class InviteToGroupUseCase {
     const registeredId = await this.verifiedPhones.findUserIdByVerifiedPhone(phone);
     if (registeredId && (await this.users.findById(registeredId))?.phone === phone) {
       const claimed = await this.invitations.claimForVerifiedPhone(registeredId, phone);
+      if (claimed.length) emitDataChange({ kind: "inbox" }, [registeredId]);
       // This race-repair claim can link other groups too. The controller
       // publishes this group; publish every other committed link here.
       await Promise.all([...new Set(claimed.map(row => row.group_id))]
         .filter(id => id !== input.groupId)
-        .map(id => publishGroupChange(id, "membership", [registeredId])));
+        .map(id => publishGroupChange(id, "group", [registeredId])));
       const member = await this.groups.findMember(input.groupId, registeredId);
       if (member) {
         return {
-          outcome: claimed.some((row) => row.group_id === input.groupId) ? "member_added" : "already_member",
+          outcome: "already_member",
           member,
         };
       }
@@ -189,12 +187,4 @@ export class InviteToGroupUseCase {
     };
   }
 
-  private async addExistingMember(
-    groupId: string,
-    userId: string,
-    callerId: string,
-  ): Promise<InviteToGroupResult> {
-    const { member, created } = await this.groups.addInvitedMember(groupId, userId, callerId);
-    return { outcome: created ? "member_added" : "already_member", member };
-  }
 }

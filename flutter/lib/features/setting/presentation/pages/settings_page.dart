@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/di/app_dependencies.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/theme_provider.dart';
@@ -11,6 +12,8 @@ import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/app_switch.dart';
 import 'package:yalla_5roga/core/widgets/language_choice.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/invitations/presentation/pages/invitations_page.dart';
+import 'package:yalla_5roga/features/invitations/presentation/providers/invitations_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/pages/about_developer_page.dart';
 import 'package:yalla_5roga/features/setting/presentation/providers/settings_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/pages/edit_profile_page.dart';
@@ -78,6 +81,27 @@ class _SettingsPageState extends State<SettingsPage> {
       context.chevronForward,
       color: context.palette.border,
       size: 20.w,
+    );
+  }
+
+  Widget _buildInvitationsBadge(BuildContext context) {
+    final invitations = context.watch<AppDependencies>().invitations;
+    final count = invitations.pendingCount;
+    if (count == 0) return _chevron(context);
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+      decoration: BoxDecoration(
+        color: AppColors.rose500,
+        borderRadius: BorderRadius.circular(12.r),
+      ),
+      child: Text(
+        invitations.items.length.toString(),
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 12.sp,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -183,6 +207,15 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: context.watch<SettingsProvider>().pushEnabled,
                   onChanged: context.read<SettingsProvider>().setPushEnabled,
                 ),
+              ),
+              SettingsTile(
+                icon: Icons.mail_outline,
+                title: l10n.invitations,
+                subtitle: l10n.invitedBy(context.l10n.appName),
+                background: AppColors.brand50,
+                foreground: AppColors.brand500,
+                trailing: _buildInvitationsBadge(context),
+                onTap: () => Get.to(() => const InvitationsPage()),
               ),
               SettingsTile(
                 icon: Icons.language,

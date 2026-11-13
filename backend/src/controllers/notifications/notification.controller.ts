@@ -2,9 +2,11 @@ import type { NextFunction, Request, Response } from "express";
 import { ListNotificationsUseCase } from "../../usecases/notifications/list-notifications.usecase.js";
 import { MarkAllNotificationsReadUseCase } from "../../usecases/notifications/mark-all-notifications-read.usecase.js";
 import { MarkNotificationReadUseCase } from "../../usecases/notifications/mark-notification-read.usecase.js";
-import { UnauthorizedError } from "../../utils/errors.js";
+import { UnauthorizedError, ValidationError } from "../../utils/errors.js";
 import { notificationTarget } from "../../services/notifications/notification-target.js";
 import { emitDataChange } from "../../realtime/data-changes.js";
+import { listNotificationsQuerySchema } from "../../validators/notifications/notification.validator.js";
+import type { Notification } from "../../types/notifications/notification.types.js";
 
 export class NotificationController {
   constructor(
@@ -17,13 +19,29 @@ export class NotificationController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
 
-      const notifications = await this.listNotifications.execute(req.user.uid);
+      const parsed = listNotificationsQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        throw new ValidationError(
+          parsed.error.issues
+            .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
+            .join("; "),
+        );
+      }
+      const { limit, cursor } = parsed.data;
+      const toResponse = (row: Notification) => {
+        const target = notificationTarget(row.event_key, row.type);
+        return { ...row, eventType: target.type, messageId: target.messageId };
+      };
+
+      const page = await this.listNotifications.executePage(req.user.uid, {
+        limit: limit ?? 20,
+        cursor,
+      });
       res.json({
         success: true,
-        data: notifications.map((row) => {
-          const target = notificationTarget(row.event_key, row.type);
-          return { ...row, eventType: target.type, messageId: target.messageId };
-        }),
+        data: page.items.map(toResponse),
+        next_cursor: page.nextCursor,
+        pagination: { limit: limit ?? 20, nextCursor: page.nextCursor },
       });
     } catch (error) {
       next(error);

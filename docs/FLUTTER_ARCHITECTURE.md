@@ -41,6 +41,7 @@ flutter/lib/
     di/              # AppDependencies, RepositoryFactory
     error/           # Failure, AppException
     localization/    # L10n, LocaleProvider
+    media/           # media:// refs, direct upload, signed-URL resolver, account cache keys
     monitoring/      # Analytics, Crashlytics, Performance
     network/         # ApiClient, interceptors, NetworkInfo
     theme/           # AppTheme, ThemeProvider
@@ -73,6 +74,7 @@ Each full-stack feature typically has `data/`, `domain/`, `presentation/`.
 | `chat` | `OutingChatProvider`, `OutingChatRemoteDataSource`, `OutingChatSocketClient` | REST list/send/read + Socket.IO; page resume recovery; id/`local_*` upsert dedupe |
 | `discover` | `DiscoverProvider`, places remote + saved places DS | Neon places |
 | `notifications` | `NotificationsProvider`, `FcmProvider`, `PushMessagingRepositoryImpl` | Feed + FCM |
+| `invitations` | `InvitationsProvider`, `InvitationsPage`, `GroupInvitation` | Pending group invitations list opened from Settings / group-invite push / deep links. Card shows invitation, group name, invitee message; Accept/Decline buttons. Uses `GET /api/invitations`, `POST …/accept|decline`. Provider is app-wide registered in `app.dart` |
 | `invites` | `InviteDeepLinkProvider`, `InviteLinkParser` | Group deep links primarily |
 | `setting` | `SettingsProvider`, profile pages | Account tiles: member-since from Neon `created_at`; unverified phone status opens a Firebase OTP sheet. The profile avatar opens Edit Profile, which uses field sheets, a separate password route, and reduced-motion-aware save confirmation. Outing history opens a route backed by the current-user outings snapshot. Logout resets the shell index and replaces the full route stack with login. Theme/locale via core providers |
 
@@ -86,14 +88,17 @@ App-wide providers registered in `AppDependencies` / `app.dart`:
 - `DiscoverProvider`, `OutingChatProvider`
 - `NotificationsProvider`, `FcmProvider`
 - `InviteDeepLinkProvider`, `SettingsProvider`
+- `InvitationsProvider` (pending group invitations list)
 
 Page-scoped: `CreateOutingProvider` (and similar) constructed with repos from `context.read`.
 
-Group membership freshness: registration forwards the OTP Firebase ID token as `phoneVerificationToken`; the backend retains that UID and claims pending invitations. `AuthProvider.restoreSession` exposes the matching cached profile immediately; deferred one-time account sync follows cached shell hydration before online group revalidation. Ordinary profile refresh uses GET /api/users/cuser; phone verification also syncs instead of PATCHing an unverified profile value and refreshes groups once on success. Legacy phone credential conflicts obtain proof in a temporary secondary Firebase Auth instance, preserving the canonical session; only an unused OTP identity may be rebound by the backend. Group list/detail cache and dedupe keys include caller UID and a generation changed on logout. `GroupsProvider.clear` empties visible groups, and list/detail loads ignore responses from an older epoch. No polling is added.
+Group membership freshness: registration forwards the OTP Firebase ID token as `phoneVerificationToken`; the backend retains that UID and links pending invitation identities without membership. `AuthProvider.restoreSession` exposes the matching cached profile immediately; deferred one-time account sync follows cached shell hydration before online group revalidation. Ordinary profile refresh uses GET /api/users/cuser; phone verification also syncs instead of PATCHing an unverified profile value and refreshes groups once on success. Legacy phone credential conflicts obtain proof in a temporary secondary Firebase Auth instance, preserving the canonical session; only an unused OTP identity may be rebound by the backend. Group list/detail cache and dedupe keys include caller UID and a generation changed on logout. `GroupsProvider.clear` empties visible groups, and list/detail loads ignore responses from an older epoch. No polling is added.
 
 ## 6. DI and repositories
 
 `RepositoryFactory` (`lib/core/di/repository_factory.dart`) builds API-backed implementations only. No mock/demo repository layer.
+
+`AppDependencies.create` also builds `MediaUrlResolver` (persistent URL metadata + batch signed-URL fetching + cache keys) and `MediaUploadService` (presigned direct upload). Both are exposed through Provider in `app.dart`; `MediaUrlResolver.active` is the process-wide fallback used by `AppNetworkImage` for leaf widgets without context.
 
 ## 7. Networking
 
@@ -123,7 +128,7 @@ The socket client keeps an in-memory invalidation cursor and reconciles missed r
 
 ## 9. Navigation
 
-Imperative GetX — no named route table. The shell extends tab content beneath the clipped, theme-tinted bottom blur. Scroll padding reserves the bar height at the end of each tab, and high contrast uses an opaque bar. Deep links handled by `InviteDeepLinkProvider` + navigator helpers. Outing deep-link accept UX is **partial** (group invites more complete).
+Imperative GetX — no named route table. The shell extends tab content beneath a floating capsule-shaped pill navigation bar with a StadiumBorder, theme-tinted backdrop blur, and animated pill selection indicator. Scroll padding reserves the bar height at the end of each tab, and high contrast uses an opaque bar with high-contrast outlines. Deep links handled by `InviteDeepLinkProvider` + navigator helpers. Outing deep-link accept UX is **partial** (group invites more complete).
 
 ## 10. Error handling
 
@@ -175,8 +180,27 @@ Rules:
 
 ## 14. Images / files
 
-- Display via `AppNetworkImage` and URL fields.
-- No verified binary upload pipeline; pickers may produce local paths but API expects URL strings. Chat’s preference cache retains at most 100 messages for each of 20 recent outings and coalesces burst writes.
+Entity image fields are strings: absolute http(s) URLs (legacy/external) or stable `media://<uuid>` references. `core/media/media_reference.dart` classifies values; pickers still return local paths and those are uploaded before the API call.
+
+Upload flow (`MediaUploadService`):
+
+1. `POST /api/media/upload-url` (purpose + MIME + size, optional entity id).
+2. `PUT` bytes directly to R2/mock storage — bypasses the API and Neon.
+3. `POST /api/media/:id/confirm`; only then is the reference sent on create/update.
+4. A failed upload triggers a best-effort `DELETE` for the pending asset.
+
+MIME (`jpeg/png/webp/gif`) and size limits are checked client-side before networking. `remote_image_url.dart` accepts http(s) or `media://`, so local paths are never sent. Profile (settings), group create/cover change, outing create/suggest are wired; place media remains backend/admin-managed.
+
+Display and caching (`AppNetworkImage` + `MediaUrlResolver`):
+
+- `media://` is resolved through `POST /api/media/signed-urls` (batched per microtask, max 50 ids) or `GET /api/media/:id/url`.
+- Delivery URL metadata (URL, visibility, expiry) is persisted in SharedPreferences per Firebase UID; private URLs are refreshed in the background when near expiry while the cached image keeps rendering (stale-while-revalidate).
+- Image-cache identities are stable: `media_public_<assetId>` / `media_private_<uid>_<assetId>`. Signed URLs are never used as cache keys, so rotation does not re-download and account switches cannot surface another account's private image.
+- Offline: persisted URL metadata + `CachedNetworkImage` disk cache render previously seen images; a network failure falls back to the stored entry rather than a blank state.
+- Invalidation: replacing/deleting an image evicts its entry; logout and account switch clear that account's URL metadata and private cache entries. Eviction is best effort/time-bounded and never blocks logout.
+- Missing/unavailable media renders the existing default cover/avatar placeholders.
+
+Cover uploads may happen before the group/outing row exists; the backend links the asset when the create/update persists the reference.
 
 ## 15. Typical feature flow (vote)
 
@@ -253,8 +277,20 @@ Incomplete group changes fetch the affected group, including newly created group
 
 `AuthForm` opens `PasswordRecoveryPage` with GetX. The route creates/disposes `PasswordRecoveryProvider` from the existing `AuthProvider.repository`; no app-wide DI change is required. Domain repository methods route recovery bodies through `AuthRemoteDataSource` and existing Dio error mapping. `FirebaseAuthService` reuses SMS sending and verifies the recovery credential in a secondary Firebase app, preserving primary session/cache/listeners. Proof and reset secrets are transient route memory only. No sync/provisioning is called during recovery. All recovery endpoints bypass automatic 401 retry so single-use steps are not silently replayed.
 
-The form uses `AppPageBar`, `PhoneTextField`, `OtpInput`, `CustomTextField`, `CustomButton`, `AppSnackBar`, theme palette, `Responsive.contentMaxWidth` and manual `L10n`. State includes an absolute-time 60-second resend cooldown, operation guards, loading, local password confirmation/UTF-8 limits and restart. Arabic phone/OTP normalization follows existing formatters. Recovery uses signup’s shared `OtpInput`, including automatic submission after six digits. A failed resend preserves the previous request/verification pair until a replacement SMS succeeds. The Firebase SMS flow has one 75-second callback deadline, allowing the SDK’s 60-second retrieval window and native app verification. Native invocation errors are observed immediately; late callbacks are ignored. Targeted analysis and 27 focused Flutter tests pass; device SMS and live rendering remain for owner testing. See [PASSWORD_RECOVERY_REPORT](audit/PASSWORD_RECOVERY_REPORT.md).
+The form uses `AppPageBar`, `PhoneTextField`, `OtpInput`, `CustomTextField`, `CustomButton`, `AppSnackBar`, theme palette, `Responsive.contentMaxWidth` and manual `L10n`. State includes an absolute-time 60-second resend cooldown, operation guards, loading, local password confirmation/UTF-8 limits and restart. Arabic phone/OTP normalization follows existing formatters. Recovery uses signup’s shared `OtpInput`, including automatic submission after six digits. A failed resend preserves the previous request/verification pair until a replacement SMS succeeds. The Firebase SMS flow has one 75-second callback deadline, allowing the SDK’s 60-second retrieval window and native app verification. Native invocation errors are observed immediately; late callbacks are ignored. Earlier recovery-task evidence recorded targeted analysis and 27 focused Flutter tests passing; these were not rerun in this task. Device SMS and live rendering remain for owner testing. See [PASSWORD_RECOVERY_REPORT](audit/PASSWORD_RECOVERY_REPORT.md).
 
 ## Shared snackbar feedback — 2026-11-11
 
 All snackbar call sites use `AppSnackBar`, including location permission failures. The shared bubble shows the existing app SVG logo, directional wrapping message text and a live-region announcement. Optional localized actions preserve the map’s settings shortcuts with a 48dp touch target. Success and recovery/error copy stays short in English/Arabic; text is not truncated. Phone/wide, light/dark, English/Arabic and enlarged-text widget checks pass.
+
+## Confirmed API integrations — 2026-11-13
+
+The existing ApiConstants → remote data source → repository Either → Provider → reusable widget/page path now supports outing PATCH/cancel, creator guest removal, explicit outing invitation decisions, and owner group deletion. EditOutingPage composes EditOutingForm; OutingManagementActions owns creator/invitee controls. Existing text fields, cover picker, date/time dialogs, map picker, alert confirmation, palette, manual L10n and Responsive limits are reused. Confirmed/voting venues are not editable in this form. Successful mutations refresh only the affected outing snapshot; group deletion refreshes lists and returns to the root. Socket invalidations refresh open guest state alongside the affected outing, and guests use the existing account snapshot cache. No screen imports Dio or a new networking service. suggested_by_user_id remains response-only.
+
+The existing SavedOutingsRemoteDataSource now implements the four existing draft operations, using the same SavedOutingsRepository/Provider and local datasource. The local draft entity carries remoteVersion/pending/deleted/conflict cache metadata only. Origin/account-scoped SharedPreferences stores pending edits/deletes before network work. A serialized repository queue plus Provider in-flight guard prevents recursive sync. AppSyncProvider invokes recovery on reconnect/resume; there is no polling. Stable UUID Idempotency-Key retries POST; If-Match uses the loaded server version for update/delete. Newer server data causes a preserved local conflict rather than overwrite. Local cover paths upload through the existing MediaUploadService and retain the returned reference for retries. Local guest-phone selections remain cached because the current backend draft shape has no guest-phone field; legacy unscoped draft preferences remain untouched for ownership safety.
+
+The existing notification feed follows bounded cursor pages without changing the domain feed/unread contract. Group invitations filter the API's history to pending UI cards/counts. Notification navigation and explicit actions distinguish outing IDs from group invitation IDs; legacy invitation payloads with an outing ID route to Outing Details. Conflicting persisted group decisions never display false accept/decline success. All new copy uses L10n Arabic/English; existing widgets inherit RTL and light/dark themes. Static analysis is recorded in the implementation report. Flutter tests, launch, hot reload and visual/device verification were not performed under the owner's execution restriction.
+
+Write requests bind the existing expected-user option at invocation so a token refresh/account switch cannot silently replay a mutation as another signed-in account.
+
+Committed outing updates/cancellations merge the returned row into the existing provider and persisted current-user collection without an extra GET. Group deletion also removes the group resource snapshot and collection entry; outing decline removes its inaccessible cached resource.

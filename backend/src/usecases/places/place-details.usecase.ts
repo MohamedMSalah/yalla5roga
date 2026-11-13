@@ -1,5 +1,6 @@
 import type { IPlaceRepository } from "../../repositories/places/i-place.repository.js";
 import { PlaceRepository } from "../../repositories/places/place.repository.js";
+import { MediaService } from "../../services/media/media.service.js";
 import type {
   CreatePlaceImageInput,
   CreatePlacePriceInput,
@@ -79,16 +80,29 @@ export class ListPlaceImagesUseCase {
 export class CreatePlaceImageUseCase {
   constructor(
     private readonly places: IPlaceRepository = new PlaceRepository(),
+    private readonly media = new MediaService(),
   ) {}
 
   async execute(
     placeId: string,
     data: Omit<CreatePlaceImageInput, "place_id">,
+    callerUid?: string,
   ): Promise<PlaceImage> {
     if (!data.image_url) throw new ValidationError("image_url is required");
     const place = await this.places.findById(placeId);
     if (!place) throw new NotFoundError("Place");
-    return this.places.createImage({ ...data, place_id: placeId });
+
+    const imageUrl = await this.media.resolveEntityImage({
+      uid: callerUid ?? "",
+      imageValue: data.image_url,
+      purpose: "place",
+      link: { place_id: placeId },
+    });
+    return this.places.createImage({
+      ...data,
+      image_url: imageUrl ?? data.image_url,
+      place_id: placeId,
+    });
   }
 }
 

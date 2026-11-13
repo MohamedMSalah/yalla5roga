@@ -1,3 +1,5 @@
+import 'package:yalla_5roga/features/outings/presentation/widgets/outing_management_actions.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -72,7 +74,8 @@ class _EventPageState extends State<EventPage>
   @override
   void initState() {
     super.initState();
-    _openOutingProvider = context.read<OutingsProvider>()..openOuting(widget.event.id);
+    _openOutingProvider = context.read<OutingsProvider>()
+      ..openOuting(widget.event.id);
     _bookmarkBounce = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 420),
@@ -131,6 +134,7 @@ class _EventPageState extends State<EventPage>
     );
     if (mounted && changed) setState(() => _loadingDetails = false);
     await outings.refreshLifecycle(outingId: widget.event.id);
+    await outings.loadGuests(widget.event.id);
     if (mounted && _loadingDetails) setState(() => _loadingDetails = false);
   }
 
@@ -165,7 +169,10 @@ class _EventPageState extends State<EventPage>
     if (outings.isUnavailable(widget.event.id)) {
       return Scaffold(
         appBar: AppPageBar(title: l10n.navOutings),
-        body: AppEmptyState(icon: Icons.event_busy_outlined, message: l10n.dataLoadFailed),
+        body: AppEmptyState(
+          icon: Icons.event_busy_outlined,
+          message: l10n.dataLoadFailed,
+        ),
       );
     }
     final live = outings.findById(widget.event.id) ?? widget.event;
@@ -438,6 +445,7 @@ class _EventPageState extends State<EventPage>
                 variant: AppButtonVariant.outlined,
                 onPressed: _deleting ? null : () => _openChat(context, live),
               ),
+              OutingManagementActions(outing: live, userId: userId),
               if (userId != null && userId == live.createdById) ...[
                 Responsive.spaceXl.gapH,
                 CustomButton(

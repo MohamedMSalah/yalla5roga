@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:get/get.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
+import 'package:yalla_5roga/core/media/media_reference.dart';
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
 import 'package:yalla_5roga/core/monitoring/analytics_service.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
@@ -18,11 +22,18 @@ import 'package:yalla_5roga/features/groups/presentation/widgets/add_member_phon
 import 'package:yalla_5roga/features/shell/presentation/providers/shell_provider.dart';
 
 class GroupsProvider extends ChangeNotifier {
-  GroupsProvider({required this.repository, required this.shell});
+  GroupsProvider({
+    required this.repository,
+    required this.shell,
+    this.mediaUploads,
+  });
 
   final GroupsRepository repository;
   final ShellProvider shell;
+  final MediaUploadService? mediaUploads;
 
+  bool _isDeletingGroup = false;
+  bool get isDeletingGroup => _isDeletingGroup;
   var _groups = <Group>[];
   int _unreadGroupCount = 0;
   int _filter = 0;
@@ -298,12 +309,37 @@ class GroupsProvider extends ChangeNotifier {
     required String ownerName,
     String? ownerAvatar,
     String bio = '',
-    bool whatsappOptIn = false,
   }) async {
     if (_isCreating || name.trim().isEmpty) return null;
 
     _isCreating = true;
     notifyListeners();
+
+    // A picked local file must be uploaded before the group row exists. The
+    // server verifies ownership and links the asset when the cover is saved.
+    var image = _createImage ?? '';
+    if (isLocalFilePath(image)) {
+      final uploads = mediaUploads;
+      if (uploads == null) {
+        _isCreating = false;
+        _errorMessage = _l10n?.imageUploadFailed;
+        notifyListeners();
+        return null;
+      }
+      try {
+        final uploaded = await uploads.uploadLocalImage(
+          path: image,
+          purpose: MediaPurpose.group,
+        );
+        image = uploaded.reference;
+        _createImage = image;
+      } catch (_) {
+        _isCreating = false;
+        _errorMessage = _l10n?.imageUploadFailed;
+        notifyListeners();
+        return null;
+      }
+    }
 
     final phonesToInvite = List<String>.from(_createPhones);
     final members = [
@@ -320,8 +356,8 @@ class GroupsProvider extends ChangeNotifier {
       name: name.trim(),
       outings: 0,
       bio: bio.trim(),
-      // Local paths stay client-side for preview; API only accepts http(s).
-      image: _createImage ?? '',
+      // Local paths are uploaded above; the API receives media:// or http(s).
+      image: image,
       members: members,
       cuserRole: GroupRole.owner,
     );
@@ -347,6 +383,10 @@ class GroupsProvider extends ChangeNotifier {
     var queuedInvites = 0;
     if (createdGroup != null) {
       for (final phone in phonesToInvite) {
+        // If the phone belongs to an existing app user, use API invitation (no WhatsApp).
+        // Otherwise, send a WhatsApp invitation to the non-user.
+        final known = repository.memberByPhone(phone);
+        final whatsappOptIn = known == null;
         final invite = await repository.inviteByPhone(
           groupId: createdGroup.id,
           phoneNumber: phone,
@@ -397,12 +437,39 @@ class GroupsProvider extends ChangeNotifier {
     final l10n = _l10n;
     if (l10n == null) return;
 
-    final url = await ImageSourceSheet.pick(title: l10n.changeGroupImage);
-    if (url == null) return;
+    final picked = await ImageSourceSheet.pick(title: l10n.changeGroupImage);
+    if (picked == null) return;
 
-    final ok = await updateImage(groupId, url);
+    var image = picked;
+    if (isLocalFilePath(image)) {
+      final uploads = mediaUploads;
+      if (uploads == null) {
+        AppSnackBar.show(l10n.imageUploadFailed);
+        return;
+      }
+      try {
+        final uploaded = await uploads.uploadLocalImage(
+          path: image,
+          purpose: MediaPurpose.group,
+          entityId: groupId,
+        );
+        image = uploaded.reference;
+      } catch (_) {
+        AppSnackBar.show(l10n.imageUploadFailed);
+        return;
+      }
+    }
+
+    final previous = _groups
+        .where((group) => group.id == groupId)
+        .map((group) => group.image)
+        .firstOrNull;
+    final ok = await updateImage(groupId, image);
     if (ok) {
       AppSnackBar.show(l10n.changesSaved);
+      if (isMediaReference(previous) && previous != image) {
+        unawaited(mediaUploads?.deleteMediaReference(previous));
+      }
     }
     // Failures already surface via AppErrorFeedback in updateImage.
   }
@@ -445,6 +512,27 @@ class GroupsProvider extends ChangeNotifier {
       AppSnackBar.show(l10n.memberRemoved(name));
     }
     // Failures already surface via AppErrorFeedback in removeMember.
+  }
+
+  Future<bool> deleteGroup(String id) async {
+    final group = findById(id);
+    if (_isDeletingGroup || group == null || !canManage(group)) return false;
+    _isDeletingGroup = true;
+    notifyListeners();
+    final result = await repository.deleteGroup(id);
+    final ok = result.fold(
+      (failure) {
+        _errorMessage = AppErrorFeedback.messageOf(failure);
+        return false;
+      },
+      (_) {
+        _groups.removeWhere((g) => g.id == id);
+        return true;
+      },
+    );
+    _isDeletingGroup = false;
+    notifyListeners();
+    return ok;
   }
 
   Future<void> confirmLeaveGroup(String groupId) async {
@@ -669,6 +757,7 @@ class GroupsProvider extends ChangeNotifier {
     _groups = [];
     _isLoading = false;
     _isLeaving = false;
+    _isDeletingGroup = false;
     _isCreating = false;
     _hasLoaded = false;
     _errorMessage = null;

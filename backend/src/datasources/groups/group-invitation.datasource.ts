@@ -24,7 +24,7 @@ export class PrismaInvitationClaimStore implements InvitationClaimStore {
   listPendingByPhone(phone: string): Promise<InvitationRecord[]> {
     return this.db.$queryRaw<InvitationRecord[]>`
       SELECT * FROM group_invitations
-      WHERE invited_phone = ${phone} AND status = 'pending'
+      WHERE invited_phone = ${phone} AND status = 'pending' AND user_id IS NULL
       ORDER BY created_at, id
       FOR UPDATE
     `;
@@ -35,18 +35,19 @@ export class PrismaInvitationClaimStore implements InvitationClaimStore {
     userId: string,
     now: Date,
   ): Promise<InvitationRecord[]> {
-    await this.db.group_members.createMany({
-      data: pending.map(row => ({ group_id: row.group_id, user_id: userId, role: "member" })),
-      skipDuplicates: true,
-    });
+    // Verified identity links the inbox only. Membership needs explicit acceptance.
     return this.db.group_invitations.updateManyAndReturn({
       where: { id: { in: pending.map(row => row.id) } },
-      data: { status: "accepted", user_id: userId, updated_at: now },
+      data: { user_id: userId, updated_at: now },
     });
   }
 }
 
 export class GroupInvitationDatasource {
+  findById(id: string): Promise<GroupInvitation | null> {
+    return prisma.group_invitations.findUnique({ where: { id } });
+  }
+
   findPending(
     groupId: string,
     phone: string,
@@ -94,6 +95,71 @@ export class GroupInvitationDatasource {
       data: { status: "revoked" },
     });
     return revoked ?? null;
+  }
+
+  async accept(
+    invitationId: string,
+    userId: string,
+    now = new Date(),
+  ): Promise<GroupInvitation | null> {
+    return prisma.$transaction(async (tx) => {
+      // Serialize conflicting decisions before reading status or writing membership.
+      await tx.$queryRaw`SELECT id FROM group_invitations WHERE id = ${invitationId}::uuid FOR UPDATE`;
+      const invitation = await tx.group_invitations.findUnique({ where: { id: invitationId } });
+      if (!invitation) return null;
+      if (invitation.user_id !== null && invitation.user_id !== userId) return null;
+      if (invitation.status !== "pending") return invitation;
+
+      // Create the group membership
+      await tx.group_members.createMany({
+        data: {
+          group_id: invitation.group_id,
+          user_id: userId,
+          role: "member",
+        },
+        skipDuplicates: true,
+      });
+
+      // Update the invitation status
+      const [updated] = await tx.group_invitations.updateManyAndReturn({
+        where: { id: invitationId },
+        data: { status: "accepted", user_id: userId, updated_at: now },
+      });
+      return updated ?? null;
+    });
+  }
+
+  async decline(
+    invitationId: string,
+    userId: string,
+    now = new Date(),
+  ): Promise<GroupInvitation | null> {
+    return prisma.$transaction(async (tx) => {
+      // Serialize conflicting decisions before reading status or writing membership.
+      await tx.$queryRaw`SELECT id FROM group_invitations WHERE id = ${invitationId}::uuid FOR UPDATE`;
+      const invitation = await tx.group_invitations.findUnique({ where: { id: invitationId } });
+      if (!invitation) return null;
+      if (invitation.user_id !== null && invitation.user_id !== userId) return null;
+      if (invitation.status !== "pending") return invitation;
+
+      const [updated] = await tx.group_invitations.updateManyAndReturn({
+        where: { id: invitationId, status: "pending" },
+        // Link a phone-only invitation to the caller for history; the status
+        // stays `declined`, so this never creates or implies membership.
+        data: { status: "declined", user_id: invitation.user_id ?? userId, updated_at: now },
+      });
+      return updated ?? null;
+    });
+  }
+
+  listPendingForUser(userId: string): Promise<GroupInvitation[]> {
+    return prisma.group_invitations.findMany({
+      where: {
+        user_id: userId,
+        status: "pending",
+      },
+      orderBy: { created_at: "desc" },
+    });
   }
 
   async claimForVerifiedPhone(

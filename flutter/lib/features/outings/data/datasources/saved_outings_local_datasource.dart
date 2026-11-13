@@ -15,11 +15,20 @@ abstract class SavedOutingsLocalDataSource {
 }
 
 class SavedOutingsLocalDataSourceImpl implements SavedOutingsLocalDataSource {
-  SavedOutingsLocalDataSourceImpl(this._prefs) {
+  SavedOutingsLocalDataSourceImpl(
+    this._prefs, {
+    this.userId,
+    this.origin = '',
+  }) {
     _load();
   }
 
   final SharedPreferences _prefs;
+  final String? Function()? userId;
+  final String origin;
+  String get _draftKey => userId == null
+      ? AppConstants.outingDraftsKey
+      : '${AppConstants.outingDraftsKey}:$origin:${userId!() ?? "signed-out"}';
   var _saved = <SavedOuting>[];
   var _drafts = <OutingDraft>[];
 
@@ -35,7 +44,8 @@ class SavedOutingsLocalDataSourceImpl implements SavedOutingsLocalDataSource {
         ];
       }
     }
-    final draftRaw = _prefs.getString(AppConstants.outingDraftsKey);
+    _drafts = [];
+    final draftRaw = _prefs.getString(_draftKey);
     if (draftRaw != null) {
       final decoded = jsonDecode(draftRaw);
       if (decoded is List) {
@@ -57,7 +67,7 @@ class SavedOutingsLocalDataSourceImpl implements SavedOutingsLocalDataSource {
 
   Future<void> _persistDrafts() {
     return _prefs.setString(
-      AppConstants.outingDraftsKey,
+      _draftKey,
       jsonEncode([for (final item in _drafts) item.toJson()]),
     );
   }
@@ -66,7 +76,10 @@ class SavedOutingsLocalDataSourceImpl implements SavedOutingsLocalDataSource {
   Future<List<SavedOuting>> getSaved() async => List.unmodifiable(_saved);
 
   @override
-  Future<List<OutingDraft>> getDrafts() async => List.unmodifiable(_drafts);
+  Future<List<OutingDraft>> getDrafts() async {
+    _load();
+    return List.unmodifiable(_drafts);
+  }
 
   @override
   Future<List<SavedOuting>> saveOuting(SavedOuting outing) async {
@@ -87,6 +100,7 @@ class SavedOutingsLocalDataSourceImpl implements SavedOutingsLocalDataSource {
 
   @override
   Future<List<OutingDraft>> saveDraft(OutingDraft draft) async {
+    _load();
     _drafts = [draft, ..._drafts.where((item) => item.id != draft.id)];
     await _persistDrafts();
     return getDrafts();
@@ -94,6 +108,7 @@ class SavedOutingsLocalDataSourceImpl implements SavedOutingsLocalDataSource {
 
   @override
   Future<List<OutingDraft>> removeDraft(String id) async {
+    _load();
     _drafts = [
       for (final item in _drafts)
         if (item.id != id) item,

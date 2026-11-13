@@ -10,6 +10,7 @@ import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_role.dart';
 
 abstract class GroupsDataSource {
+  Future<void> deleteGroup(String id);
   Future<List<Group>> getGroups();
   Future<Group> getGroup(String groupId);
   Future<Group> createGroup(Group group);
@@ -37,6 +38,20 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   GroupsRemoteDataSource(this._client);
 
   final ApiClient _client;
+
+  @override
+  Future<void> deleteGroup(String id) async {
+    final store = _client.snapshots;
+    final key = store?.keyFor(ApiConstants.group(id), null);
+    final uid = store?.userId();
+    await _client.delete(ApiConstants.group(id));
+    if (store != null && store.userId() == uid) {
+      await store.mergeCollectionItem(ApiConstants.groupsCuser, {
+        'id': id,
+      }, remove: true);
+      if (key != null) await store.removeResource(key);
+    }
+  }
 
   @override
   List<GroupMember> get contacts => const [];

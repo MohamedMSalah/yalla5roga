@@ -1,5 +1,6 @@
 import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
 import { UserRepository } from "../../repositories/users/user.repository.js";
+import { MediaService } from "../../services/media/media.service.js";
 import type { UpdateUserInput, User } from "../../types/users/user.types.js";
 import { NotFoundError, ValidationError } from "../../utils/errors.js";
 import { truncateDisplayName } from "./sync-user.usecase.js";
@@ -10,7 +11,10 @@ import { truncateDisplayName } from "./sync-user.usecase.js";
  * Verified phone changes go through SyncUserUseCase.
  */
 export class UpdateUserUseCase {
-  constructor(private readonly users: IUserRepository = new UserRepository()) {}
+  constructor(
+    private readonly users: IUserRepository = new UserRepository(),
+    private readonly media = new MediaService(),
+  ) {}
 
   async execute(id: string, data: UpdateUserInput): Promise<User> {
     const existing = await this.users.findById(id);
@@ -25,7 +29,14 @@ export class UpdateUserUseCase {
     }
 
     if (data.image_url !== undefined) {
-      patch.image_url = data.image_url;
+      // `media://<id>` references are verified (ownership + ready) and linked
+      // to this profile; plain http(s) URLs pass through unchanged.
+      patch.image_url = await this.media.resolveEntityImage({
+        uid: id,
+        imageValue: data.image_url,
+        purpose: "profile",
+        link: { user_id: id },
+      });
     }
 
     if (data.phone !== undefined) {

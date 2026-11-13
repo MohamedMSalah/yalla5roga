@@ -96,7 +96,9 @@ export class OutingArrivalsUseCase {
 
       const now = new Date();
       const venue = venueCoordinates(outing);
-      if (proof.is_mocked || !venue || !arrivalWindowOpen(outing, now)) {
+      // A reported mock fix is a negative signal only. False/omitted is never
+      // evidence of genuine GPS; access, venue, time and distance are checked here.
+      if (proof.is_mocked === true || !venue || !arrivalWindowOpen(outing, now)) {
         return { arrived: false, recipients: [] };
       }
       const capturedAt = Date.parse(proof.captured_at);

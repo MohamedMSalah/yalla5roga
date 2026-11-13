@@ -2,8 +2,8 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-08 (API request optimization) |
-| Documentation version | 1.0.0 |
+| Last verified | 2026-11-12 (Project structure audit & cleanup) |
+| Documentation version | 1.0.1 |
 | Purpose | Help agents locate files without full-repo scans |
 
 ## Repository root
@@ -12,8 +12,12 @@
 yalla5roga/
   AGENTS.md                 # AI entrypoint
   README.md
-  docs/                     # Canonical architecture + product docs
+  skills-lock.json          # Agent skills lockfile
+  docs/                     # Canonical architecture + product docs + audits
+  .agents/                  # Installed agent skills (Flutter + Impeccable)
+  .codex/                   # Codex MCP & hooks configuration
   .cursor/rules/            # Cursor modular rules
+  .vscode/                  # Workspace launch configurations
   scripts/                  # Dev helpers (e.g. physical Android)
   flutter/                  # Mobile app
   backend/                  # Express API + Prisma
@@ -30,6 +34,7 @@ yalla5roga/
 | Schema | DATABASE_ARCHITECTURE | `backend/prisma/schema.prisma` |
 | Auth | AUTHENTICATION_AND_AUTHORIZATION | `auth.middleware.ts`, Flutter `features/auth/` |
 | Notifications | NOTIFICATIONS | `jobs/notification-worker.job.ts`, `services/notifications/` |
+| Media storage | BACKEND_ARCHITECTURE §14, FLUTTER_ARCHITECTURE §14 | `backend/src/services/media/`, `flutter/lib/core/media/` |
 | Product behavior | PRODUCT_SCENARIOS | — |
 
 ---
@@ -52,7 +57,8 @@ yalla5roga/
 | `NOTIFICATIONS.md` | FCM/outbox |
 | `ARCHITECTURE_DECISIONS.md` | ADRs |
 | `PROJECT_STRUCTURE.md` | This map |
-| `audit/` | Compliance reports |
+| `audit/` | Compliance & verification reports (e.g. `SWAGGER_INTEGRATION_TEST_REPORT.md`, `PASSWORD_RECOVERY_REPORT.md`, `MEDIA_STORAGE_REPORT.md`) |
+| `audit/database/` | Database schema refactoring plans, migration reports, audit catalogs (`DATABASE_SCHEMA_AUDIT.md`, `DATABASE_SCHEMA_REFERENCE.md`, `DATABASE_MIGRATION_REPORT.md`, `DATABASE_REFACTORING_PLAN.md`) |
 | `system-design/` | Historical deep dives (prefer canonical docs above when conflict) |
 
 ---
@@ -69,6 +75,7 @@ flutter/lib/
     cache/cache_policy.dart, cached_remote.dart, ttl_cache.dart
       offline_snapshots.dart # bounded account/origin snapshots
     network/app_sync_provider.dart # foreground/realtime recovery
+    media/ # media:// refs, direct upload, signed-URL resolver, account-scoped cache
     constants/api_constants.dart
     theme/, localization/, widgets/, monitoring/, config/
   features/
@@ -111,8 +118,11 @@ flutter/lib/
 | Special-event invite copy | `backend/src/services/whatsapp/special-event-invitation.ts` |
 | Create outing (+ multi-place suggest) | `…/pages/create_outing_page.dart`, `…/providers/create_outing_provider.dart` |
 | Create group | `features/groups/presentation/pages/create_group_page.dart` |
+| Pending group invitations | `features/invitations/` (`presentation/pages/invitations_page.dart`, `presentation/providers/invitations_provider.dart`, repository/remote datasource). Opened from Settings, group-invite push and deep links. Accept/Decline via `/api/invitations/*` |
 | Device contacts picker | `features/groups/presentation/pages/pick_device_contacts_page.dart` |
-| Remote image_url helper | `lib/core/utils/remote_image_url.dart` |
+| Remote image_url helper | `lib/core/utils/remote_image_url.dart` (accepts http(s) + `media://`) |
+| Media references / upload / delivery | `flutter/lib/core/media/` (`media_reference.dart`, `media_upload_service.dart`, `media_url_resolver.dart`, `media_url_store.dart`) |
+| Media backend | `backend/src/config/media.ts`, `services/media/`, `routes/media/`, `jobs/media-cleanup.job.ts` |
 | Auth | `features/auth/presentation/providers/auth_provider.dart` |
 | Deep links | `features/invites/presentation/providers/invite_deep_link_provider.dart` |
 | Outing chat REST | `features/chat/data/datasources/outing_chat_remote_datasource.dart` |
@@ -148,13 +158,13 @@ backend/src/
   routes/           # HTTP mounts
   controllers/
   usecases/
-  services/         # vote-resolution, access, notifiers, channels
+  services/         # vote-resolution, access, notifiers, channels, media storage
   realtime/         # Socket.IO auth, chat gateway, emitters
   repositories/, datasources/
   middleware/       # auth, validate, error
   validators/       # Zod
-  jobs/             # deadline, completion, notification worker
-  config/           # prisma, firebase, swagger, notifications
+  jobs/             # deadline, completion, notification worker, media cleanup
+  config/           # prisma, firebase, swagger, notifications, media/R2
 backend/prisma/schema.prisma
 backend/tests/
 backend/scripts/    # probes and the real Firebase/Neon backend-full-integration suite
@@ -164,6 +174,7 @@ backend/scripts/    # probes and the real Firebase/Neon backend-full-integration
 
 | Concern | Path |
 |---------|------|
+| Media storage | `src/config/media.ts`; adapters + lifecycle in `src/services/media/`; routes in `src/routes/media/` |
 | Route index | `src/routes/index.ts` |
 | Optional geocoding | `backend/src/routes/places/place.geocoding.routes.ts` → `backend/src/services/places/geocoding.ts` |
 | Outing routes | `src/routes/outings/` (crud, drafts, saved, participants, voting, chat) |
@@ -218,3 +229,11 @@ Outing feature verification uses `backend/scripts/backend-full-integration.ts`. 
 - `backend/prisma/migrations/20261111180000_password_recovery/migration.sql`: additive security-state tables.
 - `backend/tests/password-recovery.api.test.ts`: real HTTP/OpenAPI checks with disposable PostgreSQL schema and controlled Firebase boundary.
 - `docs/audit/PASSWORD_RECOVERY_REPORT.md`: file list, verification and deployment/authentication limitations.
+
+## Confirmed integration additions — 2026-11-13
+
+- `backend/src/middleware/api-rate-limit.middleware.ts`: bounded global HTTP API limit.
+- `backend/scripts/confirmed-fixes-openapi-verification.ts`: generated-spec checks and OpenAPI-driven, non-mutating HTTP verification.
+- `flutter/lib/features/outings/presentation/pages/edit_outing_page.dart`, `widgets/edit_outing_form.dart`, `widgets/outing_management_actions.dart`: focused editing and existing endpoint actions.
+- Draft persistence extends existing saved-outings datasource/repository/provider files; no second draft service exists.
+- `docs/audit/CONFIRMED_FIXES_IMPLEMENTATION_REPORT.md` and `CONFIRMED_FIXES_OPENAPI_RESULTS.json`: scoped changes, runtime results and remaining verification limits.

@@ -6,7 +6,7 @@
 | Documentation version | 1.0.0 |
 | OpenAPI UI | `GET /api-docs` (generated from route JSDoc + `config/swagger.ts`) |
 | Flutter paths | `flutter/lib/core/constants/api_constants.dart` |
-| Verification | See the [Swagger integration report](../SWAGGER_INTEGRATION_TEST_REPORT.md) for current HTTP and Neon evidence, and the [previous integration audit](audit/BACKEND_FLUTTER_INTEGRATION_REPORT.md) for isolated fixture coverage. |
+| Verification | See the [Swagger integration report](audit/SWAGGER_INTEGRATION_TEST_REPORT.md) for current HTTP and Neon evidence, and the [previous integration audit](audit/BACKEND_FLUTTER_INTEGRATION_REPORT.md) for isolated fixture coverage. |
 
 Convention: JSON, snake_case bodies for most write APIs. Auth: `Authorization: Bearer <Firebase ID token>` unless noted. Success envelope typically `{ success, data }`.
 
@@ -26,13 +26,13 @@ Current login body: `{phone, password}`. Signup body: `{name, phone, password, p
 | Method | Path | Auth | Body | Purpose | Flutter |
 |--------|------|------|------|---------|---------|
 | POST | `/api/auth/login` | No | phone, password | Neon hash verify → Firebase session tokens | `ApiConstants.login` |
-| POST | `/api/auth/signup` | No | name, phone, password, phoneVerificationToken | Neon user keyed by verified OTP UID; claim pending group invitations | `ApiConstants.signup` |
+| POST | `/api/auth/signup` | No | name, phone, password, phoneVerificationToken | Neon user keyed by verified OTP UID; link pending invitation identity without acceptance | `ApiConstants.signup` |
 | POST | `/api/auth/change-password` | Yes | currentPassword, newPassword | Update Neon `password_hash` | `ApiConstants.changePassword` |
 | POST | `/api/auth/verify-password` | Yes | password | Confirm Neon password (no change) | `ApiConstants.verifyPassword` |
 
 Errors: 400 validation, 401 bad credentials, 409 conflict, 429 rate limit (when configured).
 
-Public user payloads include `has_password` (boolean) and a required unique E.164 phone. `password_hash` stays in Neon. The obsolete `suggested_by_user_id` outing field was removed. Creator attribution is `created_by`.
+Public user payloads for self/known-UID reads include `has_password` (boolean) and a required unique E.164 phone. `password_hash` stays in Neon. The obsolete `suggested_by_user_id` outing field was removed. Creator attribution is `created_by`. Directory results from `GET /api/users/` are phone-free; member phones remain available only through authorized group member endpoints.
 
 ## Users — `/api/users`
 
@@ -42,13 +42,15 @@ Public user payloads include `has_password` (boolean) and a required unique E.16
 | PATCH | `/api/users/cuser` | Yes | Update profile | settings |
 | DELETE | `/api/users/cuser` | Yes | Delete self | optional |
 | POST | `/api/users/sync` | Yes | Upsert Neon user from Firebase claims | `ApiConstants.syncUser` |
-| GET | `/api/users/` | Yes | List users | — |
+| GET | `/api/users/` | Yes | Find by `ids` (comma-separated Firebase UIDs, max 100) or exact `phone`; returns `id`, `name`, `image_url`, timestamps only. A bare request returns 400. | — |
 | GET | `/api/users/:id` | Yes | Get by id | — |
 | DELETE | `/api/users/:id` | Yes | Delete by id (self rules in use case) | — |
 
 Entities: `users`.
 
-`POST /api/users/sync` links pending group memberships when the verified token phone matches the current Firebase phone credential. It accepts optional `phoneVerificationToken` for an authenticated user repairing a legacy signup OTP identity. The backend verifies recent phone sign-in, checks phone uniqueness, refuses to merge another registered UID, and moves only the unused identity's Firebase phone credential onto the Bearer UID. PostgreSQL IDs and memberships remain unchanged. A profile phone alone is never proof. Signup and verified-phone password login also claim invitations before returning; the app defers one session-restore sync until cached shell hydration, before online group revalidation.
+`image_url` accepts an absolute http(s) URL or a stable `media://<uuid>` reference (see [Media](#media--apimedia)); local paths are rejected.
+
+`POST /api/users/sync` links pending invitation identities when the verified token phone matches the current Firebase phone credential. It accepts optional `phoneVerificationToken` for an authenticated user repairing a legacy signup OTP identity. The backend verifies recent phone sign-in, checks phone uniqueness, refuses to merge another registered UID, and moves only the unused identity's Firebase phone credential onto the Bearer UID. PostgreSQL IDs and memberships remain unchanged. A profile phone alone is never proof. Signup and verified-phone password login also link pending invitation identities before returning; the app defers one session-restore sync until cached shell hydration, before online group revalidation.
 
 ## FCM — `/api/users/cuser/fcm-token`
 
@@ -70,15 +72,28 @@ Entities: `user_fcm_tokens`.
 | GET | `/api/groups/:id` | Yes | Active member only. Includes `member_count` and `my_role`. |
 | PATCH | `/api/groups/:id` | Yes | Update as owner. Partial payload accepts `bio` up to 160 characters, including an empty value to clear it, and optional `name` and `image_url`. |
 | DELETE | `/api/groups/:id` | Yes | Delete (owner). Returns 409 while the group has outings. |
-| GET | `/api/groups/:id/members` | Yes | Active member only. `data` contains active profiles, including the creator. `pending_members` contains `{ invitation_id, phone, status: "pending" }` entries awaiting registration. |
+| GET | `/api/groups/:id/members` | Yes | Active member only. `data` contains active profiles, including the creator. `pending_members` contains `{ invitation_id, phone, status: "pending" }` pending invitations awaiting an explicit decision. |
 | POST | `/api/groups/:id/members` | Yes | Owner-only direct add for a verified, registered phone. A duplicate returns 409. |
 | DELETE | `/api/groups/:id/members/:userId` | Yes | Remove member |
 | POST | `/api/groups/:id/invitations` | Yes | Invite by phone. Optional `whatsappOptIn: true` attests recipient agreement. `notification_queued` is true after successful outbox persistence for a consented recipient with a configured provider. The compatibility field `whatsapp_url` is null. Pending membership persists independently. |
 | DELETE | `/api/groups/:id/pending-memberships/:invitationId` | Yes | Owner-only revocation of the pending association returned by the phone-add API. Returns 404 once revoked or linked. |
 
-Flutter: `ApiConstants.groups*`. Entities: `groups`, `group_members`, `group_invitations`. Create/details reload members so the owner card and count ≥ 1 appear immediately.
+Flutter: `ApiConstants.groups*`. Entities: `groups`, `group_members`, `group_invitations`. Create/details reload members so the owner card and count ≥ 1 appear immediately. `image_url` accepts http(s) or `media://<uuid>`; a cover may be uploaded before the group exists and is linked when the create/update succeeds.
 
-Phone adds return `member_added` for a Firebase-verified UID present in `users`. Otherwise `invited` returns the ID of a pending E.164 association with `user_id=null`. Verified signup, login or sync links every pending association in a transaction. The legacy stored status `accepted` represents an automatic link. Duplicate adds return 409. Group lists and `member_count` use active memberships. The members endpoint returns pending phone associations separately, with normalized E.164 phones for active group members to identify the entries. The group flow has no recipient accept or decline route.
+Invitation creation returns a pending invitation for registered and unregistered phones. Verified signup/login/sync may associate the pending row with the account but cannot accept it or create membership. Existing memberships remain unchanged. Duplicate pending invitations reuse the existing record internally and retain the API conflict response. The separate owner-only `POST /api/groups/:id/members` operation adds an existing verified user as `member`; it cannot assign `owner`.
+
+## Invitations — `/api/invitations`
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/api/invitations` | Yes | List invitation history matching the authenticated PostgreSQL user ID, plus pending unlinked rows matching the current Firebase-verified phone. Each entry includes `invitation_id`, `group_id`, `group_name`, `group_image`, `invited_phone`, `status`, `created_at`, and `inviter_name`. Listing never accepts an invitation. |
+| POST | `/api/invitations/:invitationId/accept` | Yes | Accept a pending invitation. Creates a `group_members` entry and updates the invitation status to `accepted`. Idempotent — a repeated or conflicting call returns the persisted `status` without rewriting the row. Emits `data:changed` for `membership` and invalidates the inbox. |
+| POST | `/api/invitations/:invitationId/decline` | Yes | Decline a pending invitation, including a phone-only row with `user_id=null`. Updates the invitation status to `declined` and links the caller for history. The record is preserved; no membership is created. Idempotent — a repeated or conflicting call returns the persisted `status`. Emits `data:changed` for `group` and invalidates the inbox. |
+
+Flutter: `ApiConstants.invitations`, `ApiConstants.invitationAccept`, `ApiConstants.invitationDecline`. Entities: `group_invitations`. Pending invitations appear in the Group Members screen as "Pending" status. Accepting transitions the user from Pending to Member and makes the group visible in the Groups Tab. Declining removes the user from visible group members.
+
+**Identity mapping**: `users.id` is the authenticated Firebase UID. The inbox and decision controller obtain the current verified phone from Firebase Admin, never request body/query/profile values. Account-linked rows remain visible for history. Only pending rows with `user_id IS NULL` may use phone matching. Signup/login/sync links identity without deciding invitations. Accept/decline decisions serialize on the invitation row; acceptance inserts membership with duplicate protection in the same transaction. Repeated or conflicting decisions return persisted status.
+
 
 ## Outings — `/api/outings`
 
@@ -86,7 +101,7 @@ Phone adds return `member_added` for a Firebase-verified UID present in `users`.
 |--------|------|------|---------|-------|
 | GET | `/api/outings/cuser` | Yes | My outings | created / invited / group |
 | GET | `/api/outings` | Yes | List caller outings | `groupId` requires active group membership. `userId` must match the caller if supplied. |
-| POST | `/api/outings` | Yes | Create | requires deadline; `image_url` optional http(s); owner Going |
+| POST | `/api/outings` | Yes | Create | requires deadline; `image_url` optional http(s) or `media://<uuid>`; owner Going |
 | GET | `/api/outings/:id` | Yes | Get | Creator, active group member, or pending or accepted outing guest. Same read scope applies to attendance, guests and voting data. |
 | PATCH | `/api/outings/:id` | Yes | Update | Creator only. Venue confirmation uses the dedicated voting endpoint. The confirmed location is locked. |
 | DELETE | `/api/outings/:id` | Yes | Permanently delete outing | Creator only. Flutter removes the outing and cached bookmark after success. |
@@ -138,22 +153,47 @@ Entities: `saved_outings`, `saved_places`.
 | GET | `/api/places` | No* | List / filter |
 | GET | `/api/places/nearby` | No* | Haversine nearby |
 | GET | `/api/places/:id` | No* | Detail |
-| POST/PATCH/DELETE | `/api/places`… | Yes | CRUD |
-| GET/PUT/DELETE | `/api/places/:id/hours`… | mix | Hours |
-| GET/POST/DELETE | `/api/places/:id/images`… | mix | Images |
-| GET/POST/DELETE | `/api/places/:id/prices`… | mix | Prices |
+| POST/PATCH/DELETE | `/api/places`… | Yes | CRUD (curator only) |
+| GET/PUT/DELETE | `/api/places/:id/hours`… | mix | Hours (writes curator only) |
+| GET/POST/DELETE | `/api/places/:id/images`… | mix | Images (writes curator only; url accepts http(s) or `media://<uuid>`) |
+| GET/POST/DELETE | `/api/places/:id/prices`… | mix | Prices (writes curator only) |
 
-\*List/get/nearby are public in route file (no `authMiddleware` on those GETs). Mutations require auth.
+\*List/get/nearby are public in route file (no `authMiddleware` on those GETs). Catalog writes require a Firebase bearer token **and** a curator UID listed in the server-only `PLACES_CURATOR_UIDS` environment variable (comma-separated). The allowlist fails closed when unset, so an ordinary authenticated user receives 403. This is configuration, not a product role: the authorization model still has no global admin role.
 
 Flutter Discover uses list/detail (+ saved places) and calls Nearby with `lat`, `lng`, `limit` and `offset` after obtaining foreground location. It reads all pages within the default 5 km radius and applies the vibe filter to the loaded pins and list. Latitude and longitude must be valid numeric coordinates. Results come from active geocoded rows in `places`, ordered by `distance_km` with a stable ID tie-break. The outing location picker uses a separate geocoding flow.
 
 An outing participant can request `GET /api/outings/:outingId/messages?messageId=<uuid>` for an exact notification target. It returns one message in the existing list envelope and a null cursor. Omit `before` and `limit`. A missing message or a message from another outing returns 404.
 
+## Media — `/api/media`
+
+All routes require `Authorization: Bearer <Firebase ID token>`. Binaries never pass through these endpoints; the API returns presigned object-storage URLs only.
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| POST | `/api/media/upload-url` | Yes | Create or re-issue an upload intent. Body: `purpose` (`profile`\|`group`\|`outing`\|`place`\|`chat`), `mime_type`, `file_size`, optional `entity_id`, optional `media_id` (pending retry). Returns `media_id`, `object_key`, `visibility`, `status`, `upload_url`, `upload_expires_at`. |
+| POST | `/api/media/:id/confirm` | Yes | Verify the object exists in storage (HEAD) and mark the asset `ready`. Missing object → `409`, asset marked `failed`. |
+| POST | `/api/media/signed-urls` | Yes | Batch resolve up to 50 ids. Body `{ media_ids: [...] }`. Returns `data: [{ media_id, url, visibility, expires_at }]` for assets the caller may view. |
+| GET | `/api/media/:id/url` | Yes | Resolve one asset to a delivery URL after the same access check. |
+| DELETE | `/api/media/:id` | Yes | Delete an owned asset (also used to clean up a failed upload). |
+
+Delivery policy:
+
+- `place` → `visibility=public`. When the `r2` provider is active **and** a real (non-placeholder) `R2_PUBLIC_BASE_URL` is configured, the response URL is the CDN `https://<domain>/<object_key>` with `expires_at: null`; in mock mode or before the CDN domain exists, a short-lived signed URL is returned so the app never receives the placeholder host.
+- `profile`, `group`, `outing`, `chat` → `visibility=private`. Delivery uses a short-lived signed GET URL (`expires_at` set); the client must never persist it as the entity value or as the image-cache identity.
+- View authorization: profile avatars are visible to any authenticated user; group/outing/chat media require membership/participant checks; public assets require authentication. Ownership mismatch returns `404` for confirm/delete to avoid leaking asset existence.
+- Upload authorization: `profile` = self; `group`/`outing` with `entity_id` = group owner/outing creator (entity-less covers are allowed before creation and authorized when attached); `chat` requires an outing id and participant eligibility; `place` mutations are gated by the catalog APIs.
+- Failed uploads, expired presigned URLs, and abandoned pending rows are handled by confirm failure + `media-cleanup.job.ts` (deletes storage object and row). The cleanup job also removes failed assets.
+- Entity integration: create/update payloads accept `image_url` as an absolute http(s) URL or `media://<uuid>`; local file paths are rejected. The Flutter client uploads first, then sends the reference. Response fields remain plain strings for backward compatibility.
+
+Flutter: `ApiConstants.mediaUploadUrl`, `mediaSignedUrls`, `mediaConfirm`, `mediaAssetUrl`, `mediaDelete`; `core/media/` owns reference parsing, upload, URL resolution/caching and account-scoped eviction.
+
+When `R2_*` credentials are absent the backend uses the in-memory mock adapter and registers `PUT /api/media/mock-upload/:key` + `GET /api/media/mock-download/:key` for local development only. Those routes disappear automatically once the provider resolves to `r2`.
+
 ## Notifications — `/api/notifications`
 
 | Method | Path | Auth | Purpose | Flutter |
 |--------|------|------|---------|---------|
-| GET | `/api/notifications` | Yes | Inbox includes `eventType` and optional `messageId` for navigation | `notifications` |
+| GET | `/api/notifications` | Yes | Inbox includes `eventType` and optional `messageId` for navigation. `limit` defaults to 20 (maximum 100); opaque `cursor` returns a stable newest-first page with `pagination.nextCursor` and compatibility alias `next_cursor`. | `notifications` |
 | PATCH | `/api/notifications/read` | Yes | Mark all read | `notificationsReadAll` |
 | PATCH | `/api/notifications/:id/read` | Yes | Mark one | `notificationRead` |
 
@@ -234,3 +274,18 @@ All three endpoints are public, use the standard `{success,data}` envelope, retu
 Secrets are 32 random bytes encoded as 43 base64url characters. Verification requires a fresh, current, non-revoked Firebase phone-provider ID token for the request's exact existing UID and phone; body phone/UID/verified flags are never accepted. Reset policy: 8+ characters with uppercase, lowercase, digit and symbol; maximum 72 UTF-8 bytes; exact confirmation. Existing login/signup/change-password contracts remain unchanged.
 
 Errors: 400 validation/unavailable account or changed binding/password; 401 invalid/old/wrong/replayed proof or expired/consumed authorization; 429 shared rate limit or cooldown; 500 infrastructure failure. The same unavailable message covers missing passwords, unregistered and unbound phones. Limits: 30 API attempts/IP/minute; five starts/phone/hour and 60-second cooldown; five verify attempts/request and reset attempts/secret per ten minutes. Swagger definitions live beside the auth routes. Test evidence is in [PASSWORD_RECOVERY_REPORT](audit/PASSWORD_RECOVERY_REPORT.md).
+
+## Confirmed API corrections — 2026-11-13
+
+- The existing `/api-docs/swagger-ui-init.js` serves the generated OpenAPI document used by `/api-docs/`. Existing operation IDs and endpoint paths are preserved.
+- Signup accepts either `phone` or `phoneNumber`, with at least one required, plus `name`, `password`, and `phoneVerificationToken`. After trimming, phone strings accept 8–20 characters matching `^\+?[0-9\s().-]+$`; verified identity checks remain unchanged.
+- All `/api` HTTP routes share a single-process limit of 300 requests/IP/minute. Existing login/signup limits remain 20 attempts/IP/minute, and recovery limits remain stricter. 429 uses `{success:false,message}` and `Retry-After`. Socket.IO and Swagger assets are outside this limiter. Proxy trust is not broadened.
+- `GET /api/notifications` always defaults to 20 rows; `limit` is 1–100. `cursor` is opaque. Order is `created_at DESC, id DESC`, with database-native keyset traversal and ownership-checked anchors. Response preserves `{success,data}` and `next_cursor`, and adds `pagination:{limit,nextCursor}`. Null cursors end pagination. Flutter follows pages to preserve the existing complete inbox/unread count behavior.
+- `POST /api/outings` ignores client initial status; server selects voting/options, confirmed/fixed venue, or draft/no venue. It never creates cancelled/past outings. Flutter no longer sends status or server-owned suggestion attribution.
+- Outing reads use a dedicated access check (creator, group member, pending/accepted outing invitee), independent of chat lifecycle. Chat operations retain their existing authorization.
+- Owner cancellation notifies eligible participants via `outing_cancelled`, including outing/group IDs, title and navigation fields. A stable owner-cancellation event key deduplicates inbox and outbox rows. The controller publishes the existing Socket.IO change event.
+- Draft operations remain GET/POST `/api/outings/drafts`, PATCH/DELETE `/api/outings/drafts/:id`. Optional POST `Idempotency-Key` is a stable UUID used as the existing draft ID; retry returns the owned existing row without replacing content. Optional PATCH/DELETE `If-Match` is the exact loaded `updated_at` timestamp; conflicts return 409. Updates/deletes lock the draft row and version checks use the API's millisecond precision. New Flutter writes always send the version when updating/deleting a loaded draft. Older callers omitting it retain compatibility. Responses retain their existing envelopes.
+- `GET /api/outings/:id/guests` includes a `users` projection containing only `name` and `image_url` for participant management. Guest deletion remains creator-only. Group deletion remains owner-only and returns 409 for a group containing outings; it does not cascade-delete those outings. Existing self-member deletion supports Leave Group with the last-owner restriction.
+- Arrival coordinates are client-reported evidence, not attested GPS. `is_mocked=true` is rejected; false/omitted grants no trust. Server checks identity, current participation, confirmed pinned venue, coordinate/accuracy bounds, sample age, server time window and distance before its existing upsert. Persisted arrival time is server-generated.
+
+Runtime evidence and unverified authenticated scenarios: `audit/CONFIRMED_FIXES_OPENAPI_RESULTS.json` and `audit/CONFIRMED_FIXES_IMPLEMENTATION_REPORT.md`.

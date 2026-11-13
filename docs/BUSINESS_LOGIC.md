@@ -114,12 +114,12 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 
 ## Invitations / membership
 
-**Approved (outing invitations):** Deep link → auth if needed → explicit accept → Member. Opening link alone must not auto-join. The separate group phone flow immediately adds verified registered users and claims pending invitations after verified-phone registration/login/sync.
+**Approved (outing invitations):** Deep link → auth if needed → explicit accept → Member. Opening link alone must not auto-join. Group invitations also require explicit acceptance. Verified-phone registration/login/sync only links identity and preserves pending status.
 
 | Flow | Status |
 |------|--------|
 | Create group → creator is first member | Implemented — the group and its first `group_members` owner commit atomically; `member_count` starts at 1; members list includes the creator card (`name`/`phone`/`image_url` from `users`) |
-| Group phone invite + deep link + claim | Implemented — Flutter device/manual phone → `POST …/invitations`; Firebase-verified registered UID → immediate membership; otherwise one pending invitation per group and normalized phone. Pending phone associations remain eligible until linked or revoked. Verified signup, password login and `users/sync` link all matching pending rows atomically into memberships. Group owners can revoke pending associations. Recipients take no action to activate membership. Active group members can see the pending phone entries in Group Info. Pending rows are excluded from active counts and outing eligibility. Signup retains the OTP UID; legacy split identities require fresh Settings OTP proof before repair. Profile phone alone never grants membership. Group/outing cover photos remain optional http(s) |
+| Group phone invite + deep link + claim | Invitation creation records pending for every invitee. Current Firebase-verified identity discovers/links pending rows; only explicit acceptance creates membership transactionally with duplicate protection. Decline preserves history without membership. Existing members remain active. Pending rows are excluded from counts and eligibility. |
 | Non-user → `outing_guests` by phone | Outing membership requires a registered `user_id`. Special-event phone messages carry event details and links without creating a member. |
 | Outing invite accept/decline APIs | Implemented (`…/invitations/accept|decline`) |
 | Outing deep-link accept UI restore | **Partial** |
@@ -129,6 +129,22 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 ## Chat
 
 Open in draft / voting / confirmed. Blocked for cancelled (unless product later adds read-only). REST persists; Socket.IO delivers to participants in `outing:{id}` after write (ADR-013).
+
+---
+
+## Media / images (2026-11-12)
+
+PostgreSQL stores media metadata only (`media_assets`); binaries live in Cloudflare R2 (or the local mock adapter). Entity image fields keep accepting absolute http(s) URLs, so existing rows and default covers are unchanged. New uploads persist the stable reference `media://<asset-uuid>`.
+
+Rules:
+
+1. The uploader owns the asset (`owner_id` = Bearer UID). Confirm/delete by another user returns `404`.
+2. An asset becomes usable only after `confirm` verifies the object in storage. The reference must match the entity purpose (`profile`/`group`/`outing`/`place`/`chat`) before it can be attached.
+3. Group/outing covers may be uploaded before the row exists; attachment authorization happens when the create/update persists the reference (group owner / outing creator).
+4. Visibility is fixed by purpose: `place` → public; all others → private. Private media is delivered only through short-lived signed GET URLs after participation/ownership checks. Profile avatars are viewable by authenticated users; group/outing/chat media requires membership/participant eligibility.
+5. Abandoned pending intents and failed uploads are cleaned up (storage object + row). Presigned URL expiry does not create a ready asset.
+6. Flutter uploads before create/update and never sends local paths. Image cache identity is the stable asset id (`media_private_<uid>_<id>` for private), not the rotating signed URL. Logout/account switch clears that account's private URL metadata and cached images.
+7. When storage/CDN is unavailable or the object is missing, the UI falls back to the existing default avatar/cover artwork. Offline devices render previously cached images.
 
 ---
 
@@ -146,7 +162,7 @@ Places from Neon via `/api/places`. Suggestions/vibe filters depend on query par
 
 ## Offline command policy (2026-11-11)
 
-PostgreSQL remains authoritative. Snapshots are historical views and do not confer current membership, voting eligibility or chat access. Only chat sends support offline replay: immutable UUIDs deduplicate retries; backend authorization/state rules decide acceptance. Permanent rejection remains failed locally. Votes, RSVP, arrivals, invitations, membership, account/security, deletion and lifecycle actions are never queued. Offline revocation cannot be learned until authenticated synchronization; access denials evict local resource snapshots. See ADR-014 and `USER_SCENARIOS` SYNC-01.
+PostgreSQL remains authoritative. Snapshots are historical views and do not confer current membership, voting eligibility or chat access. Chat sends and form-draft edits support separate bounded recovery paths. Chat sends use the existing outbox: immutable UUIDs deduplicate retries; backend authorization/state rules decide acceptance. Permanent rejection remains failed locally. Votes, RSVP, arrivals, invitations, membership, account/security, published-resource deletion and lifecycle actions are never queued. Form-draft deletion uses the versioned draft tombstone queue described below. Offline revocation cannot be learned until authenticated synchronization; access denials evict local resource snapshots. See ADR-014 and `USER_SCENARIOS` SYNC-01.
 
 ## Notifications
 
@@ -185,3 +201,9 @@ Realtime events mirror committed Neon state and never decide vote winners, closu
 ## Password recovery — 2026-11-11
 
 Forgot Password requires fresh Firebase OTP proof for the canonical UID and its current verified phone matching Neon. Unregistered, passwordless, disabled, or unbound/split identities cannot recover through a profile phone alone. No merge or provisioning occurs. A ten-minute request becomes a five-minute single-use reset authorization only after server verification. UID + phone + password version are rechecked; reset atomically consumes authorization and replaces the existing bcrypt hash. Replayed proofs/grants fail. Existing sessions/data remain intact. Password requirements match the established Flutter eight-character upper/lower/digit/symbol policy, with a 72-byte bcrypt limit. API limits and limitations are defined in [AUTHENTICATION_AND_AUTHORIZATION](AUTHENTICATION_AND_AUTHORIZATION.md); verification scope is in [PASSWORD_RECOVERY_REPORT](audit/PASSWORD_RECOVERY_REPORT.md).
+
+## Confirmed audit rules — 2026-11-13
+
+The server derives initial outing status from options/venue, never client status. The member-add use case refuses owner assignment even when called without HTTP validation. General outing reads are independent of chat-open state. Cancel notifications use the existing participant audience and stable dedupe keys. User directory access remains exact-ID/shared-group-phone lookup only, with phone-free summaries; authorized roster and identity matching retain phones. Notifications are bounded and database-filtered by authenticated user.
+
+Authenticated drafts use PostgreSQL as canonical storage. Local pending edits/deletes are persisted in the existing draft cache, scoped by origin/account, and synchronized once per recovery pass. Server versions are checked before writes and under a row lock. Conflicts retain the local copy and stop automatic retries; transient failures retain pending state. Form drafts do not change outing lifecycle. Arrival time is authoritative server time; a mock flag is only a rejection signal, and genuine GPS cannot be proven from this client payload.

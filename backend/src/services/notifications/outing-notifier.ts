@@ -55,6 +55,11 @@ export async function notifyOutingParticipants(
         payload: {
           body: input.body,
           outing_id: row.outing_id,
+          group_id: row.group_id,
+          groupId: row.group_id,
+          outingId: row.outing_id,
+          type: input.eventType,
+          title: input.outing.title,
           notification_type: row.type,
         },
       })),

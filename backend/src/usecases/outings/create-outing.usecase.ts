@@ -1,6 +1,7 @@
 import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
+import { MediaService } from "../../services/media/media.service.js";
 import { assertEndsAfterStart } from "../../services/outings/outing-time-window.js";
 import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import type {
@@ -12,6 +13,7 @@ import { ValidationError } from "../../utils/errors.js";
 export class CreateOutingUseCase {
   constructor(
     private readonly outings: IOutingRepository = new OutingRepository(),
+    private readonly media = new MediaService(),
   ) {}
 
   async execute(input: CreateOutingInput): Promise<Outing> {
@@ -41,8 +43,7 @@ export class CreateOutingUseCase {
     const hasLocation = Boolean(input.location_place_id || input.location_name);
     const options = input.initial_vote_options;
     if (options) {
-      if (!hasGroup || hasLocation ||
-          (input.status != null && input.status !== "voting")) {
+      if (!hasGroup || hasLocation) {
         throw new ValidationError("Initial options require a group outing in voting without a fixed venue");
       }
       if (options.length < 2 || options.length > 5) {
@@ -63,7 +64,7 @@ export class CreateOutingUseCase {
         ids.add(id);
       }
     }
-    const status = options ? "voting" : input.status ?? (hasLocation ? "confirmed" : "draft");
+    const status = options ? "voting" : (hasLocation ? "confirmed" : "draft");
 
     const phones = [...new Set((input.guest_phones ?? []).map(normalizePhoneNumber))];
     if (phones.length > 0) {
@@ -75,13 +76,24 @@ export class CreateOutingUseCase {
         throw new ValidationError("Phone invitations require a future event with a fixed named venue");
       }
     }
+    const imageUrl = await this.media.resolveEntityImage({
+      uid: input.created_by,
+      imageValue: input.image_url,
+      purpose: "outing",
+    });
+
     const outing = await this.outings.create({
       ...input,
       guest_phones: phones,
       occasion,
       type: hasGroup ? "group" : "special_event",
       status,
-      image_url: input.image_url ?? "",
+      image_url: imageUrl ?? "",
+    });
+    await this.media.linkReference({
+      uid: input.created_by,
+      imageValue: imageUrl,
+      link: { outing_id: outing.id },
     });
     if (options && outing.status === "voting" && outing.vote_closed_at == null) {
       try {

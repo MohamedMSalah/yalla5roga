@@ -5,6 +5,7 @@ import 'package:yalla_5roga/features/groups/domain/entities/group_invite_result.
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 
 abstract class GroupsRepository {
+  Future<Either<Failure, void>> deleteGroup(String id);
   Future<Either<Failure, List<Group>>> getGroups({bool forceRefresh = false});
 
   Future<Either<Failure, Group>> getGroup(

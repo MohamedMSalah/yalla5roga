@@ -1,4 +1,8 @@
-import type { INotificationRepository } from "../../repositories/notifications/i-notification.repository.js";
+import type {
+  INotificationRepository,
+  NotificationPage,
+  NotificationPageResult,
+} from "../../repositories/notifications/i-notification.repository.js";
 import { NotificationRepository } from "../../repositories/notifications/notification.repository.js";
 import type { Notification } from "../../types/notifications/notification.types.js";
 
@@ -9,5 +13,12 @@ export class ListNotificationsUseCase {
 
   execute(userId: string): Promise<Notification[]> {
     return this.notifications.findByUserId(userId);
+  }
+
+  executePage(
+    userId: string,
+    page: NotificationPage,
+  ): Promise<NotificationPageResult> {
+    return this.notifications.findPageByUserId(userId, page);
   }
 }

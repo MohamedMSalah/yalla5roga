@@ -36,11 +36,12 @@ export class UpdateDraftUseCase {
     id: string,
     userId: string,
     data: UpdateOutingDraftInput,
+    expected?: Date,
   ): Promise<OutingDraft> {
     const draft = await this.outings.findDraftById(id);
     if (!draft) throw new NotFoundError("Draft");
     if (draft.user_id !== userId) throw new ForbiddenError();
-    return this.outings.updateDraft(id, data);
+    return this.outings.updateDraft(id, data, expected);
   }
 }
 
@@ -49,10 +50,10 @@ export class DeleteDraftUseCase {
     private readonly outings: IOutingRepository = new OutingRepository(),
   ) {}
 
-  async execute(id: string, userId: string): Promise<OutingDraft> {
+  async execute(id: string, userId: string, expected?: Date): Promise<OutingDraft> {
     const draft = await this.outings.findDraftById(id);
     if (!draft) throw new NotFoundError("Draft");
     if (draft.user_id !== userId) throw new ForbiddenError();
-    return this.outings.deleteDraft(id);
+    return this.outings.deleteDraft(id, expected);
   }
 }

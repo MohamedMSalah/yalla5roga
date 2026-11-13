@@ -15,6 +15,7 @@ import 'package:yalla_5roga/features/chat/data/datasources/chat_send_queue.dart'
 import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_socket_client.dart';
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/invitations/presentation/providers/invitations_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
@@ -162,6 +163,13 @@ class _Inbox extends Fake implements NotificationsProvider {
   Future<void> refresh({bool forceRefresh = false}) async {}
 }
 
+class _Invitations extends Fake implements InvitationsProvider {
+  @override
+  void clear() {}
+  @override
+  void invalidate() {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   late _Auth auth;
@@ -192,6 +200,7 @@ void main() {
       groups: groups,
       outings: outings,
       notifications: _Inbox(),
+      invitations: _Invitations(),
     );
   }
 

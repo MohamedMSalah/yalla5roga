@@ -30,7 +30,7 @@ This file distinguishes:
 | Owner | Creator of that outing. Owns lifecycle and management for that outing only. |
 | Member | Registered user who joined (accepted invitation or equivalent membership). |
 
-Outing invitation statuses (`pending` / `accepted` / `declined`) track the outing guest workflow. An accepted outing guest becomes a member. Group phone membership follows the automatic linking flow in section 3.
+Outing invitation statuses (`pending` / `accepted` / `declined`) track the outing guest workflow. An accepted outing guest becomes a member. Group invitations follow the explicit decision flow in section 3.
 
 Owner auto **Going**. Owner cannot set attendance to Not Going / Maybe. Members cannot leave / remove themselves. Members cannot perform Owner-only ops.
 
@@ -58,9 +58,9 @@ flowchart LR
 
 Must support: cold/warm start, auth/unauth, expired/invalid links, duplicate accept, already joined, auth cancel, post-login restore.
 
-Adding a verified, registered phone number grants group membership immediately. For a phone number without a synchronized account, the group stores a pending E.164 association. The group roster shows the contact as awaiting registration. The association links to the verified Firebase UID automatically at signup or sync, even if the same number was added to several groups. The next roster refresh shows the registered member in the regular list. A group owner can revoke the pending association. Recipients have no acceptance, rejection or activation step. With recipient consent and a configured WhatsApp Business provider, the backend queues an approved template. Creating or adding a group member uses inline consent and the group remains available when delivery is unavailable.
+Group invitation creation always records `pending`, including invitations to registered accounts. A verified phone may link the invitation to its PostgreSQL account during signup/login/sync; linking does not accept it and creates no membership. The recipient explicitly accepts to create membership, or declines to preserve invitation history without membership. Pending unlinked invitations are discoverable only through the current Firebase-verified phone. No typed profile phone grants access. Existing active memberships are preserved. The owner-only direct member-add endpoint remains a distinct operation and cannot assign `owner`.
 
-Group share links (`yalla5roga://invite` or HTTPS) identify the group. Verified phone ownership and the persisted group association control access. The outing guest invitation workflow is separate.
+Group share links (`yalla5roga://invite` or HTTPS) restore the invitation destination after authentication. With recipient consent and a configured WhatsApp Business provider, the backend queues the existing invitation template. Delivery availability does not decide membership.
 
 ---
 
@@ -288,3 +288,7 @@ The owner requests silent background synchronization with no global loading or c
 Login offers Forgot Password → registered phone → Firebase SMS OTP → new password and confirmation → Login. The backend alone authorizes recovery from fresh verified phone proof, bound to the existing Firebase UID and matching Neon phone. A five-minute, single-use authorization is required to change the existing bcrypt credential. No new password store, Firebase UID, or Neon account is introduced by the backend. Existing sessions and account data retain their behavior.
 
 Recovery requires an existing Neon password and an enabled Firebase identity with the same verified phone. Legacy unbound/split identities and Firebase-only password accounts require support or the existing authenticated Settings repair path. Recovery must not silently merge them. Unregistered/unavailable numbers share a clear error. OTP requests have a 60-second UI/server preflight cooldown, with shared server attempt limits and Firebase SMS abuse controls. Actual SMS sending remains Firebase-owned.
+
+## Confirmed audit corrections — 2026-11-13
+
+The owner requested explicit group invitation acceptance in this implementation task; this supersedes the former automatic membership linking rule. Chat remains text-only. Initial outing status is derived by the server: `voting` with initial options, `confirmed` with a fixed venue, otherwise `draft`. Saving a form draft uses `outing_drafts` and does not publish an outing.

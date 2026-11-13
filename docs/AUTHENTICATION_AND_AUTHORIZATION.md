@@ -19,7 +19,7 @@ There is **no** global app role of Admin/Guest for outings. Outing Owner is `out
 
 Firebase provides the UID, phone OTP proof, ID tokens and refresh sessions. Neon stores application profiles and bcrypt hashes. The Firebase UID is the stable Neon primary key and the E.164 phone is the unique lookup address.
 
-Signup requires an ID token from a phone OTP sign-in within ten minutes. The backend verifies revocation, provider, the current Firebase phone record and normalized phone equality. It retains the verified UID and claims invitations before returning. Retrying with the same verified UID, phone and password preserves the original profile and hash. An already registered UID or phone cannot be claimed with OTP alone.
+Signup requires an ID token from a phone OTP sign-in within ten minutes. The backend verifies revocation, provider, the current Firebase phone record and normalized phone equality. It retains the verified UID and links pending invitation identities without membership before returning. Retrying with the same verified UID, phone and password preserves the original profile and hash. An already registered UID or phone cannot be claimed with OTP alone.
 
 ## Phone/password (backend-canonical)
 
@@ -73,6 +73,11 @@ For legacy signup identities, Settings OTP can return an optional `phoneVerifica
 | Remove member from outing | Owner; member self-remove forbidden | RemoveGuest |
 | Chat send/list | Participant + open status | `chat-access` |
 | Group mutate | Group owner/member rules | `group-access` |
+| Place catalog mutate (place, hours, images, prices) | Firebase UID listed in server-only `PLACES_CURATOR_UIDS`; fails closed when unset | `place-curator.middleware.ts` |
+| User directory lookup | Authenticated; requires explicit `ids` (max 100) or exact `phone`; response omits phone/credential fields | `listUsersQuerySchema`, `toUserSummary` |
+| Media upload intent | Authenticated; profile=self, group/outing with entity = owner/creator, chat = participant, place = catalog mutation APIs | `services/media/media-access.ts` |
+| Media confirm/delete | Asset `owner_id` = Bearer UID (other users get `404`) | `media.service.ts` |
+| Media view | Owner; profile = any authenticated; place/public = any authenticated; group/outing/chat = membership/participant eligibility | `canViewMedia` |
 
 ## Eligible voters
 
@@ -83,7 +88,8 @@ Owner ∪ accepted `outing_guests` ∪ `group_members` of `outing.group_id`. Pen
 - Flutter UI hiding buttons ≠ authorization.
 - Confirmed winning place cannot be patched to a different location (`UpdateOutingUseCase` lock).
 - Never trust client-sent `userId` for acting as another user when token UID is available.
-- Places list GET may be public; mutations require auth.
+- Places list GET may be public; catalog mutations require a bearer token whose UID is listed in `PLACES_CURATOR_UIDS`. This is server configuration, not a new product role; the allowlist fails closed when the variable is missing.
+- Media assets are keyed by object key and owned by the Bearer UID. Signed delivery URLs are short-lived and issued only after the same authorization checks as the entity read; clients must not persist them as entity data or share them across accounts.
 
 ## Deep links and auth
 
@@ -103,12 +109,12 @@ Logout replaces the route stack with the login form and clears account-scoped pr
 
 The verified chip reflects a Firebase phone matching the current Neon profile number. A credential conflict from an unused legacy OTP UID is repaired through the verified sync flow above; conflicts with another registered identity remain rejected. Successful verification refreshes groups once to show newly claimed memberships.
 
-RSVP reads and writes require current participation. GPS arrival requires current group membership on group outings, including for the creator. The backend derives the subject UID from the authenticated Firebase token and accepts only a bounded location sample for that user. Roster invalidations are routed to authenticated participant user rooms. Client coordinates remain client-reported evidence. Group pending associations continue to link only through verified phone ownership and transactionally upsert membership.
+RSVP reads and writes require current participation. GPS arrival requires current group membership on group outings, including for the creator. The backend derives the subject UID from the authenticated Firebase token and accepts only a bounded location sample for that user. Roster invalidations are routed to authenticated participant user rooms. Client coordinates remain client-reported evidence. Group pending associations continue to link only through verified phone ownership and transactionally link invitation identity without accepting.
 
 
 ## Account synchronization versus data reads — 2026-11-11
 
-Session restoration first exposes the matching cached account. After cached shell hydration, one deferred authenticated account sync claims pending invitations before online group-list revalidation. A successful sync is not repeated by general refresh/resume. Offline/failed synchronization remains pending for recovery. Profile refresh uses GET `/api/users/cuser`; it does not call users/sync or force ID-token refresh. Sync remains available for OTP provisioning and explicit verified-phone/account changes. Concurrent identical syncs and profile refreshes are coalesced. Firebase remains the identity provider; Neon owns profiles and membership.
+Session restoration first exposes the matching cached account. After cached shell hydration, one deferred authenticated account sync links pending invitation identities before online group-list revalidation. A successful sync is not repeated by general refresh/resume. Offline/failed synchronization remains pending for recovery. Profile refresh uses GET `/api/users/cuser`; it does not call users/sync or force ID-token refresh. Sync remains available for OTP provisioning and explicit verified-phone/account changes. Concurrent identical syncs and profile refreshes are coalesced. Firebase remains the identity provider; Neon owns profiles and membership.
 
 
 ### Authentication request reliability
@@ -134,3 +140,11 @@ Only SHA-256 digests of random request/reset secrets and phone sign-in replay ke
 Limits are shared in PostgreSQL: 30 recovery API attempts/IP/minute, five starts/phone/hour, one start/phone/minute, five verification attempts/request and five reset attempts/secret per ten minutes. SMS sending is direct to Firebase: these API limits cannot prevent a modified client from calling Firebase directly. Firebase quotas, app verification and SMS region policies must remain configured. Resend starts a new request; earlier valid requests expire normally or are invalidated by a successful reset. Old proof markers remain beyond accepted proof lifetime and are cleaned opportunistically after a day; expired rate-limit buckets are also removed.
 
 Unsupported legacy identities fail closed with recovery unavailable. No account transfer/merge or Firebase password-provider migration is attempted. Migration `20261111180000_password_recovery` was applied to the configured Neon schema on 2026-11-11. A real eligible-account start succeeded afterward; Firebase SMS delivery remains a device check. See [verification and limits](audit/PASSWORD_RECOVERY_REPORT.md).
+
+## Confirmed authorization corrections — 2026-11-13
+
+The invitation inbox uses the authenticated UID for account-linked history plus current Firebase Admin verified-phone ownership for pending unlinked rows. Typed body/query values and stored profile phones are not identity proof. Accept/decline use the same trusted source, serialize decisions and return persisted status. Signup/login/sync only link pending identity and never accept invitations. Direct member creation remains owner-authorized and refuses owner assignment in the use case.
+
+User directory reads require exact IDs (up to the existing limit) or exact phone within a shared group; unscoped requests return 400 and summaries exclude phones/auth state. Self-profile and authorized rosters keep legitimate fields. Catalog writes require the existing server PLACES_CURATOR_UIDS allowlist; missing configuration means authenticated ordinary users receive 403. No global role field was introduced.
+
+A dedicated outing-read check permits creator, current group member or pending/accepted outing invitee; chat operations retain chat-specific checks. Update/cancel/guest removal stay creator-only. Group deletion stays owner-only and preserves the existing 409 restriction for groups with outings. Arrival validation checks server-owned identity/access/venue/time/distance; is_mocked=false is not attestation. Global `/api` HTTP limiting returns 429 with Retry-After and does not replace stricter auth/recovery limits.

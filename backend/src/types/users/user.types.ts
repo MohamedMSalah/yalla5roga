@@ -3,6 +3,10 @@ import type { users } from "@prisma/client";
 export type User = users;
 type UserCredentials = Pick<User, "password_hash">;
 export type PublicUser = Omit<User, keyof UserCredentials> & { has_password: boolean };
+export type PublicUserSummary = Pick<
+  User,
+  "id" | "name" | "image_url" | "created_at" | "updated_at"
+>;
 export type CreateUserInput = { id: string; name: string; phone: string; image_url?: string | null } & Partial<UserCredentials>;
 export type UpdateUserInput = { name?: string; phone?: string; image_url?: string | null } & Partial<UserCredentials>;
 export type SyncUserInput = {

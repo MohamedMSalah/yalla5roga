@@ -317,6 +317,7 @@ export class GetVotingStateUseCase {
 export class CancelOutingUseCase {
   constructor(
     private readonly outings: IOutingRepository = new OutingRepository(),
+    private readonly notify: typeof notifyOutingParticipants = notifyOutingParticipants,
   ) {}
 
   async execute(outingId: string, callerUid: string): Promise<Outing> {
@@ -327,6 +328,21 @@ export class CancelOutingUseCase {
     if (outing.status === "past") {
       throw new ConflictError("Past outings cannot be cancelled");
     }
-    return this.outings.update(outingId, { status: "cancelled" });
+    const cancelled = await this.outings.update(outingId, { status: "cancelled" });
+
+    // Notify participants after the persisted transition. The event key is
+    // stable (`:owner`) and shared with the PATCH status=cancelled path, so a
+    // repeated cancel or a mixed PATCH/POST cancel cannot fan out twice:
+    // notifications.event_key is unique and inserts use skipDuplicates.
+    await this.notify({
+      outing: cancelled,
+      type: "outing",
+      eventType: "outing_cancelled",
+      body: `Outing "${cancelled.title}" was cancelled.`,
+      eventKey: `outing_cancelled:${cancelled.id}:owner`,
+      excludeUserId: callerUid,
+    });
+
+    return cancelled;
   }
 }

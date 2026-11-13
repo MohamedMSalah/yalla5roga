@@ -71,7 +71,7 @@ export class PushChannel implements NotificationChannelSender {
       pushId: input.eventId,
       recipientUserId: input.recipientUserId,
     };
-    for (const key of ["type", "groupId", "outingId", "messageId"] as const) {
+    for (const key of ["type", "groupId", "outingId", "messageId", "invitationId"] as const) {
       const value = payload[key];
       if (typeof value === "string" && value) data[key] = value;
     }

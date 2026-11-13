@@ -82,16 +82,39 @@ import {
  * /api/users:
  *   get:
  *     tags: [Users]
- *     summary: List users
- *     description: Returns all user profiles. Requires a valid Firebase ID token.
+ *     summary: Find users by id or phone
+ *     description: >
+ *       Directory lookup for authorized member discovery. Supply `ids`
+ *       (comma-separated Firebase UIDs, at most 100) or an exact `phone`.
+ *       A bare request returns 400. The response omits phone numbers and
+ *       credential state so the endpoint cannot enumerate profiles.
+ *       A `phone` lookup only matches a profile that shares an active group
+ *       with the caller; unrelated or unregistered numbers both return an
+ *       empty list, so the endpoint is not a registration oracle. Phone-based
+ *       invitations are resolved server-side by the group invitation endpoint.
  *     operationId: listUsers
+ *     parameters:
+ *       - in: query
+ *         name: ids
+ *         required: false
+ *         schema: { type: string }
+ *         description: Comma-separated Firebase UIDs. Maximum 100.
+ *       - in: query
+ *         name: phone
+ *         required: false
+ *         schema: { type: string, example: "+201001234567" }
+ *         description: >
+ *           Exact phone number, normalized to E.164. Matches only users who
+ *           share an active group with the caller.
  *     responses:
  *       "200":
- *         description: All user profiles
+ *         description: Matching directory-safe profiles
  *         content:
  *           application/json:
  *             schema:
- *               $ref: "#/components/schemas/UserListResponse"
+ *               $ref: "#/components/schemas/UserSummaryListResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  *       "500":
@@ -100,17 +123,26 @@ import {
  *   get:
  *     tags: [Users]
  *     summary: Get a user by id
- *     description: Returns the profile for the given Firebase UID.
+ *     description: >
+ *       When `{id}` is the authenticated Firebase UID, returns the same full
+ *       profile as `GET /api/users/cuser` (including the caller's own phone and
+ *       `has_password`). For any other user it returns the directory-safe
+ *       summary only: `id`, `name`, `image_url`, and timestamps. Phone numbers,
+ *       `has_password`, and other authentication fields are never exposed for
+ *       another account. Authorized member phones come from the group roster
+ *       endpoint, not this route.
  *     operationId: getUser
  *     parameters:
  *       - $ref: "#/components/parameters/UserId"
  *     responses:
  *       "200":
- *         description: Matching user profile
+ *         description: Self profile, or directory-safe summary for another user
  *         content:
  *           application/json:
  *             schema:
- *               $ref: "#/components/schemas/UserResponse"
+ *               oneOf:
+ *                 - $ref: "#/components/schemas/UserResponse"
+ *                 - $ref: "#/components/schemas/UserSummaryResponse"
  *       "400":
  *         $ref: "#/components/responses/BadRequest"
  *       "401":

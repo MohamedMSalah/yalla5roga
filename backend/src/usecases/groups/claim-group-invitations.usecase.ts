@@ -3,7 +3,7 @@ import { GroupInvitationRepository } from "../../repositories/groups/group-invit
 import { tryNormalizePhoneNumber } from "../../services/phone/normalize-phone.js";
 import type { GroupInvitation } from "../../types/groups/group-invitation.types.js";
 
-import { publishGroupChange } from "../../realtime/data-changes.js";
+import { emitDataChange, publishGroupChange } from "../../realtime/data-changes.js";
 
 export class ClaimGroupInvitationsUseCase {
   constructor(
@@ -24,8 +24,9 @@ export class ClaimGroupInvitationsUseCase {
     if (!phone) return [];
 
     const claimed = await this.invitations.claimForVerifiedPhone(input.userId, phone);
+    if (claimed.length) emitDataChange({ kind: "inbox" }, [input.userId]);
     await Promise.all(claimed.map(({ group_id }) =>
-      publishGroupChange(group_id, "membership", [input.userId]),
+      publishGroupChange(group_id, "group", [input.userId]),
     ));
     return claimed;
   }

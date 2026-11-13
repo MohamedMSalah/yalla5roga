@@ -96,11 +96,11 @@ class FakeGroups implements IGroupRepository {
     throw new Error("not used");
   }
   addInvitedMember(groupId: string, userId: string) {
-    this.added.push({ groupId, userId });
     const existing = this.members.find(
       (item) => item.group_id === groupId && item.user_id === userId,
     );
     if (existing) return Promise.resolve({ member: existing, created: false });
+    this.added.push({ groupId, userId });
     const created = member(groupId, userId, "member");
     this.members.push(created);
     return Promise.resolve({ member: created, created: true });

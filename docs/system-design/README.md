@@ -1,3 +1,5 @@
+> **Historical reference — corrected 2026-11-13:** Endpoint paths and PASS claims below describe an older implementation/run and are not current verification. Current registered routes use `/api/outings/:outingId/messages` and `/api/outings/:outingId/read`, `/api/invitations/:invitationId/decline`, and `/api/users/cuser/fcm-token`. There is no registered `POST /api/outings/hydrate`; Flutter hydrates via the existing current-user/detail/voting/attendance GET operations. Prefer `../API_CONTRACTS.md` and the current confirmed-fixes report.
+
 # Yalla 5roga — System Design & Architecture Audit
 
 **Audit date:** 2026-11-06  
@@ -98,3 +100,5 @@ Keep the **monolith API + Flutter Clean Architecture**. Align on one contract:
 6. **P3** real-time chat, caching, queues — only when metrics justify them.
 
 Details: [improvement-roadmap.md](./improvement-roadmap.md).
+
+Current route authority: registered `backend/src/routes/` modules and `docs/API_CONTRACTS.md`. `_phase_b_verify.mjs`, `_phase_b_results.json`, older contract matrices, smoke lists and integration results in this directory are historical evidence, not current executable verification or endpoint guidance.

@@ -14,6 +14,20 @@ class SavedOutingsProvider extends ChangeNotifier {
   var _drafts = <OutingDraft>[];
   int _tab = 0;
   var _hasLoaded = false;
+  int _epoch = 0;
+  Future<void>? _syncingDrafts;
+  bool get hasPendingDrafts => _drafts.any((d) => d.pending);
+  bool get hasDraftConflicts => _drafts.any((d) => d.conflict);
+  Future<void> syncDrafts() => _syncingDrafts ??= _loadDrafts().whenComplete(
+    () => _syncingDrafts = null,
+  );
+  Future<void> _loadDrafts() async {
+    final epoch = _epoch;
+    final result = await repository.getDrafts();
+    if (epoch != _epoch) return;
+    result.fold((_) {}, (items) => _drafts = List.of(items));
+    notifyListeners();
+  }
 
   List<SavedOuting> get saved => List.unmodifiable(_saved);
 
@@ -37,10 +51,12 @@ class SavedOutingsProvider extends ChangeNotifier {
   bool get hasLoaded => _hasLoaded;
 
   Future<void> load() async {
+    final epoch = _epoch;
     final savedFuture = repository.getSaved();
     final draftFuture = repository.getDrafts();
     final savedResult = await savedFuture;
     final draftResult = await draftFuture;
+    if (epoch != _epoch) return;
     savedResult.fold((_) {}, (items) => _saved = List.of(items));
     draftResult.fold((_) {}, (items) => _drafts = List.of(items));
     _hasLoaded = true;
@@ -54,6 +70,8 @@ class SavedOutingsProvider extends ChangeNotifier {
   }
 
   void clear() {
+    _epoch++;
+    _syncingDrafts = null;
     _saved = [];
     _drafts = [];
     _tab = 0;
@@ -97,13 +115,17 @@ class SavedOutingsProvider extends ChangeNotifier {
   }
 
   Future<void> saveDraft(OutingDraft draft) async {
+    final epoch = _epoch;
     final result = await repository.saveDraft(draft);
+    if (epoch != _epoch) return;
     result.fold((_) {}, (items) => _drafts = List.of(items));
     notifyListeners();
   }
 
   Future<void> removeDraft(String id) async {
+    final epoch = _epoch;
     final result = await repository.removeDraft(id);
+    if (epoch != _epoch) return;
     result.fold((_) {}, (items) => _drafts = List.of(items));
     notifyListeners();
   }

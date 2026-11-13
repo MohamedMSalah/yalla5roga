@@ -61,6 +61,17 @@ abstract class OutingsRepository {
   Future<Either<Failure, OutingSnapshot>> load({bool forceRefresh = false});
 
   Future<Either<Failure, void>> delete(String outingId);
+  Future<Either<Failure, OutingSnapshot>> update(
+    String id,
+    Map<String, dynamic> changes,
+  );
+  Future<Either<Failure, OutingSnapshot>> cancel(String id);
+  Future<Either<Failure, OutingSnapshot>> removeGuest(String id, String userId);
+  Future<Either<Failure, OutingSnapshot>> respondToInvitation(
+    String id, {
+    required bool accept,
+  });
+  Future<Either<Failure, List<GroupMember>>> guests(String id);
 
   Future<Either<Failure, OutingCreation>> add(
     Outing outing, {

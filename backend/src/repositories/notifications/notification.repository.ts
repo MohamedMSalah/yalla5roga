@@ -4,7 +4,11 @@ import type {
   Notification,
   UpdateNotificationInput,
 } from "../../types/notifications/notification.types.js";
-import type { INotificationRepository } from "./i-notification.repository.js";
+import type {
+  INotificationRepository,
+  NotificationPage,
+  NotificationPageResult,
+} from "./i-notification.repository.js";
 
 export class NotificationRepository implements INotificationRepository {
   constructor(private readonly datasource = new NotificationDatasource()) {}
@@ -15,6 +19,13 @@ export class NotificationRepository implements INotificationRepository {
 
   findByUserId(userId: string): Promise<Notification[]> {
     return this.datasource.findByUserId(userId);
+  }
+
+  findPageByUserId(
+    userId: string,
+    page: NotificationPage,
+  ): Promise<NotificationPageResult> {
+    return this.datasource.findPageByUserId(userId, page);
   }
 
   create(data: CreateNotificationInput): Promise<Notification> {

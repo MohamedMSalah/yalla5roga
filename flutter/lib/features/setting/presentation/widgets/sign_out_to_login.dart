@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/media/media_url_resolver.dart';
 import 'package:yalla_5roga/features/auth/presentation/pages/auth_page.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
@@ -20,7 +21,12 @@ Future<void> signOutToLogin(BuildContext context) async {
   final discover = context.read<DiscoverProvider>();
   final saved = context.read<SavedOutingsProvider>();
   final shell = context.read<ShellProvider>();
+  final mediaUrls = context.read<MediaUrlResolver>();
+  final previousUid = auth.user?.id;
   await auth.logout();
+  if (previousUid != null) {
+    await mediaUrls.clearForAccount(previousUid);
+  }
   notifications.clear();
   chat.clear();
   groups.clear();

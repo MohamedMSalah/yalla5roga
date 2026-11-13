@@ -70,7 +70,7 @@ export class PlaceController {
 
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const place = await this.createPlace.execute(req.body);
+      const place = await this.createPlace.execute(req.body, req.user?.uid);
       res.status(201).json({ success: true, data: place });
     } catch (error) {
       next(error);
@@ -82,6 +82,7 @@ export class PlaceController {
       const place = await this.updatePlace.execute(
         req.params.id as string,
         req.body,
+        req.user?.uid,
       );
       res.json({ success: true, data: place });
     } catch (error) {
@@ -145,6 +146,7 @@ export class PlaceController {
       const data = await this.createImage.execute(
         req.params.id as string,
         req.body,
+        req.user?.uid,
       );
       res.status(201).json({ success: true, data });
     } catch (error) {

@@ -14,11 +14,10 @@ import {
  *     tags: [Group Invitations]
  *     summary: Add a phone number to a group
  *     description: >
- *       The caller must already belong to the group. A verified Firebase account
- *       with this phone and a synced profile is added immediately. Otherwise a
- *       phone association is saved until verified signup or sync. A consented
- *       WhatsApp Business template is queued when the provider is configured.
- *       Registration links the group without an acceptance step.
+ *       The caller must already belong to the group. Registered and unregistered phones
+ *       are invited with pending status. Verified signup/login/sync links identity
+ *       only; explicit acceptance creates membership. Duplicate pending invites
+ *       and existing members retain the existing conflict response.
  *     operationId: inviteToGroup
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -26,7 +25,7 @@ import {
  *       $ref: "#/components/requestBodies/InviteToGroup"
  *     responses:
  *       "201":
- *         description: Member added, or a pending invitation was saved
+ *         description: A pending invitation was saved
  *         content:
  *           application/json:
  *             schema:
@@ -51,7 +50,7 @@ import {
  *   delete:
  *     tags: [Group Invitations]
  *     summary: Revoke a pending phone membership
- *     description: A group owner can revoke a pending phone association before it links to an account.
+ *     description: A group owner can revoke a pending phone association before acceptance, including identity-linked pending invitations.
  *     operationId: revokePendingGroupMembership
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"

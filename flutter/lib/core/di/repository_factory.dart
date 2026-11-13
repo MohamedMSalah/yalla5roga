@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/features/chat/data/datasources/chat_send_queue.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
@@ -17,6 +18,8 @@ import 'package:yalla_5roga/features/discover/domain/repositories/discover_repos
 import 'package:yalla_5roga/features/groups/data/datasources/groups_remote_datasource.dart';
 import 'package:yalla_5roga/features/groups/data/repositories/groups_repository_impl.dart';
 import 'package:yalla_5roga/features/groups/domain/repositories/groups_repository.dart';
+import 'package:yalla_5roga/features/invitations/data/datasources/invitations_remote_datasource.dart';
+import 'package:yalla_5roga/features/invitations/data/repositories/invitations_repository_impl.dart';
 import 'package:yalla_5roga/features/notifications/data/datasources/notifications_remote_datasource.dart';
 import 'package:yalla_5roga/features/notifications/data/repositories/notifications_repository_impl.dart';
 import 'package:yalla_5roga/features/notifications/domain/repositories/notifications_repository.dart';
@@ -97,15 +100,27 @@ class RepositoryFactory {
     );
   }
 
-  SavedOutingsRepository savedOutings() {
+  SavedOutingsRepository savedOutings({MediaUploadService? mediaUploads}) {
     return SavedOutingsRepositoryImpl(
       remote: SavedOutingsRemoteDataSource(apiClient),
-      local: SavedOutingsLocalDataSourceImpl(prefs),
+      local: SavedOutingsLocalDataSourceImpl(
+        prefs,
+        userId: () => firebaseAuth.currentUser?.uid,
+        origin: config.apiBaseUrl,
+      ),
+      currentUserId: () => firebaseAuth.currentUser?.uid,
       networkInfo: networkInfo,
     );
   }
 
   LocationRepository geocoding() {
     return GeocodingHttpRepository(apiClient);
+  }
+
+  InvitationsRepositoryImpl invitations() {
+    return InvitationsRepositoryImpl(
+      remote: InvitationsRemoteDataSourceImpl(apiClient),
+      networkInfo: networkInfo,
+    );
   }
 }

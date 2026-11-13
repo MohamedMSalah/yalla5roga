@@ -1,5 +1,6 @@
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
+import { MediaService } from "../../services/media/media.service.js";
 import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import { assertIsOutingCreator } from "../../services/outings/outing-access.js";
 import { assertEndsAfterStart } from "../../services/outings/outing-time-window.js";
@@ -13,6 +14,7 @@ import { ConflictError, NotFoundError, ValidationError } from "../../utils/error
 export class UpdateOutingUseCase {
   constructor(
     private readonly outings: IOutingRepository = new OutingRepository(),
+    private readonly media = new MediaService(),
   ) {}
 
   async execute(
@@ -82,8 +84,18 @@ export class UpdateOutingUseCase {
 
     const requestedCancel = data.status === "cancelled";
 
+    const patch = { ...data };
+    if (data.image_url !== undefined) {
+      patch.image_url = await this.media.resolveEntityImage({
+        uid: callerUid,
+        imageValue: data.image_url,
+        purpose: "outing",
+        link: { outing_id: id },
+      }) ?? undefined;
+    }
+
     const updated = await this.outings.update(id, {
-      ...data,
+      ...patch,
       type: hasGroup ? "group" : "special_event",
     });
 

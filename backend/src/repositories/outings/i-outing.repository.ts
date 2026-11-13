@@ -45,8 +45,8 @@ export interface IOutingRepository {
   findDraftById(id: string): Promise<OutingDraft | null>;
   listDraftsByUser(userId: string): Promise<OutingDraft[]>;
   createDraft(data: CreateOutingDraftInput): Promise<OutingDraft>;
-  updateDraft(id: string, data: UpdateOutingDraftInput): Promise<OutingDraft>;
-  deleteDraft(id: string): Promise<OutingDraft>;
+  updateDraft(id: string, data: UpdateOutingDraftInput, expected?: Date): Promise<OutingDraft>;
+  deleteDraft(id: string, expected?: Date): Promise<OutingDraft>;
 
   listSavedByUser(userId: string): Promise<SavedOuting[]>;
   saveOuting(userId: string, outingId: string): Promise<SavedOuting>;

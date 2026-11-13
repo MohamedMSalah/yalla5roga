@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { PlaceController } from "../../controllers/places/place.controller.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
+import { requirePlaceCurator } from "../../middleware/place-curator.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   createPlaceImageBodySchema,
@@ -23,12 +24,14 @@ router.get(
 router.put(
   "/:id/hours",
   authMiddleware,
+  requirePlaceCurator,
   validate({ params: placeIdParamsSchema, body: upsertPlaceHourBodySchema }),
   controller.setHour,
 );
 router.delete(
   "/:id/hours/:hourId",
   authMiddleware,
+  requirePlaceCurator,
   validate({ params: placeHourIdParamsSchema }),
   controller.removeHour,
 );
@@ -41,6 +44,7 @@ router.get(
 router.post(
   "/:id/images",
   authMiddleware,
+  requirePlaceCurator,
   validate({
     params: placeIdParamsSchema,
     body: createPlaceImageBodySchema,
@@ -50,6 +54,7 @@ router.post(
 router.delete(
   "/:id/images/:imageId",
   authMiddleware,
+  requirePlaceCurator,
   validate({ params: placeImageIdParamsSchema }),
   controller.removeImage,
 );
@@ -62,6 +67,7 @@ router.get(
 router.post(
   "/:id/prices",
   authMiddleware,
+  requirePlaceCurator,
   validate({
     params: placeIdParamsSchema,
     body: createPlacePriceBodySchema,
@@ -71,6 +77,7 @@ router.post(
 router.delete(
   "/:id/prices/:priceId",
   authMiddleware,
+  requirePlaceCurator,
   validate({ params: placePriceIdParamsSchema }),
   controller.removePrice,
 );

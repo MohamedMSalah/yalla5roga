@@ -28,10 +28,10 @@ backend/src/
   controllers/
   usecases/
   repositories/ + datasources/
-  services/              # auth, outings, notifications, chat, groups, whatsapp
+  services/              # auth, outings, notifications, chat, groups, whatsapp, media
   validators/            # Zod schemas
   middleware/            # auth, validate, error
-  jobs/                  # voting deadline, outing completion, notification worker
+  jobs/                  # voting deadline, outing completion, notification worker, media cleanup
   types/
   utils/                 # errors, helpers
 backend/prisma/schema.prisma
@@ -48,7 +48,7 @@ backend/tests/           # lifecycle, authz, concurrency, etc.
 4. `httpServer.listen(PORT, HOST)` (default `0.0.0.0:3000`)
 5. `startOutingCompletionJob()`, `startVotingDeadlineJob()`, `startNotificationWorker()`
 
-`app.ts` middleware stack: allowlisted CORS → `express.json()` → `/` + `/health` → `/api-docs` → mounted routes → `errorMiddleware`. Browser origins come from `CORS_ORIGINS`; native clients without an `Origin` header remain supported.
+`app.ts` middleware stack: allowlisted CORS → `/api` rate limiter → `express.json()` → `/` + `/health` → `/api-docs` → mounted routes → `errorMiddleware`. Browser origins come from `CORS_ORIGINS`; native clients without an `Origin` header remain supported.
 
 Realtime modules: `src/realtime/` (`socket-server`, `socket-auth`, `chat.gateway`, `chat-emitter`, `rooms`). In-memory Socket.IO adapter only (single Node process; no Redis).
 
@@ -91,6 +91,7 @@ Mounted from `routes/index.ts`. Feature folders compose responsibility routers; 
 | `/api/outings` | `outings/` — crud, drafts, saved, participants, voting, chat |
 | `/api/places` | `places/` — crud, meta (hours/images/prices), saved |
 | `/api/notifications` | `notifications/` — inbox |
+| `/api/media` | `media/` — presigned upload, confirm, signed delivery, delete |
 
 Chat lives under `/api/outings/:outingId/messages` and `/read` (not a separate `/api/chat` mount).
 
@@ -152,6 +153,7 @@ Custom errors in `utils/errors.ts` (`ValidationError`, `UnauthorizedError`, `For
 | Voting deadline | `close-voting-deadline.job.ts` | ~30s; closes `status=voting` with `vote_ends_at <= now` |
 | Outing completion | `complete-outings.job.ts` | Moves due confirmed outings to `past` |
 | Notification worker | `notification-worker.job.ts` | Claims `notification_events`, delivers via channels |
+| Media cleanup | `media-cleanup.job.ts` | Removes expired pending upload intents and failed assets (storage object + row) |
 
 These are in-process `setInterval` workers (not Redis/Bull unless added later).
 
@@ -164,12 +166,22 @@ These are in-process `setInterval` workers (not Redis/Bull unless added later).
 
 ## 14. File / image storage
 
-Places and outings store URL strings (`image_url`, `cover_image_url`). No in-repo object-storage upload API verified.
+Object storage is Cloudflare R2 behind the `MediaStorageAdapter` interface in `services/media/`:
+
+- `config/media.ts` resolves the provider from env: valid `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` → `r2`; otherwise `mock` for local development. Switching providers is env-only.
+- `r2-storage.adapter.ts` uses `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner` (R2 S3-compatible endpoint). `mock-storage.adapter.ts` keeps bytes in memory and backs the dev-only upload/download routes.
+- `media.service.ts` owns the lifecycle: `requestUpload` → presigned PUT (short TTL), `confirmUpload` (HEAD verification before `ready`), `deleteAsset`, `getDeliveryUrl(s)`, `resolveEntityImage`/`linkReference`, and `cleanupExpired`.
+- `media-access.ts` holds upload and view policy. Public `place` media may resolve through `R2_PUBLIC_BASE_URL`; private media always uses signed GET URLs.
+- Only object keys and metadata are persisted in `media_assets`. Binaries never pass through Express or Neon.
+- Entity use cases accept `media://<uuid>` alongside legacy http(s) URLs and link the asset after create/update. Existing default covers remain untouched.
+- `jobs/media-cleanup.job.ts` reaps abandoned pending intents and failed assets.
+
+Required production env: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_BASE_URL` (custom CDN domain). Optional limits/TTLs follow `config/media.ts`. Until credentials and the CDN domain are supplied, the mock provider is used and public place assets stay as `media://` references.
 
 ## 15. Logging / env
 
 - `console.log` / `console.error` with tagged prefixes (`[Firebase Auth]`, `[notifications]`, …).
-- Env via `dotenv` (`DATABASE_URL`, `FIREBASE_*`, `PORT`, notification config, `CORS_ORIGINS`). Production startup rejects an empty CORS allowlist and `WHATSAPP_PROVIDER=stub`.
+- Env via `dotenv` (`DATABASE_URL`, `FIREBASE_*`, `PORT`, notification config, `CORS_ORIGINS`, `R2_*`). Production startup rejects an empty CORS allowlist and `WHATSAPP_PROVIDER=stub`.
 - OpenAPI at `/api-docs` from `config/swagger.ts`.
 
 ## 16. Response conventions
@@ -217,3 +229,9 @@ Attendance uses a PostgreSQL conflict update on the existing outing/user key. A 
 The auth router exposes start/verify/reset and can be constructed with a controller for HTTP integration fixtures. `AuthController` delegates to `PasswordRecoveryUseCase`; `PasswordRecoveryRepository` persists opaque-secret digests and shared rate limits through Prisma. `FirebasePhoneIdentity.verifyRecoveryProof` extends the existing phone-proof validation with the sign-in time without changing `verifyProof`'s existing signup/sync return contract. Grant consumption plus compare-and-update of the existing password run in one transaction. No Firebase user creation, credential transfer, session issuance or Neon profile provisioning occurs in the recovery use case.
 
 Recovery limits are PostgreSQL upserts and apply across workers/restarts. Additive migration `20261111180000_password_recovery` must be deployed before these APIs. Only expired security state is opportunistically cleaned, with replay markers retained past proof acceptance. Verification uses the real router/use cases/repository/bcrypt and a disposable schema via HTTP/OpenAPI; the Firebase SDK boundary is controlled. See [report](audit/PASSWORD_RECOVERY_REPORT.md).
+
+## Confirmed API fixes — 2026-11-13
+
+The existing layered architecture and route mounts are preserved. Shared middleware applies a bounded 300 requests/IP/minute limit only to `/api`; stricter auth limits stay in their router. The existing Swagger UI initializer exposes the generated spec; no endpoint was added. Invocation headers Idempotency-Key and If-Match are allowed by CORS for existing draft endpoints. Malformed headers return the standard 400 error envelope.
+
+Invitation decisions lock the row and accept membership in the same transaction, while verified-phone claiming only links inbox identity. General outing reads use outing-access, with chat checks retained for chat. Draft create retries use the existing UUID and updates/deletes lock and compare the existing updated_at. Notifications use bounded, per-user cursor reads. Existing curator guards, safe user summaries and creator lifecycle rules are retained. No production schema migration, alternate database, new role system or chat-media endpoint was introduced. See the current implementation/OpenAPI report for runtime limits.

@@ -87,6 +87,44 @@ class OutingsRepositoryImpl implements OutingsRepository {
     return result;
   }
 
+  Future<Either<Failure, OutingSnapshot>> _mutate(
+    Future<OutingSnapshot> Function() action,
+  ) async {
+    final result = await guardRemote(
+      networkInfo,
+      action,
+      reason: 'manageOuting',
+    );
+    result.fold((_) {}, _storeSnapshot);
+    return result;
+  }
+
+  @override
+  Future<Either<Failure, OutingSnapshot>> update(
+    String id,
+    Map<String, dynamic> changes,
+  ) => _mutate(() => remote.update(id, changes));
+  @override
+  Future<Either<Failure, OutingSnapshot>> cancel(String id) =>
+      _mutate(() => remote.cancel(id));
+  @override
+  Future<Either<Failure, OutingSnapshot>> removeGuest(
+    String id,
+    String userId,
+  ) => _mutate(() => remote.removeGuest(id, userId));
+  @override
+  Future<Either<Failure, OutingSnapshot>> respondToInvitation(
+    String id, {
+    required bool accept,
+  }) => _mutate(() => remote.respondToInvitation(id, accept: accept));
+  @override
+  Future<Either<Failure, List<GroupMember>>> guests(String id) => guardRemote(
+    networkInfo,
+    () => remote.guests(id),
+    reason: 'outingGuests',
+    offlineRead: true,
+  );
+
   @override
   Future<Either<Failure, OutingCreation>> add(
     Outing outing, {

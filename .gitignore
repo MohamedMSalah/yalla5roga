@@ -37,3 +37,6 @@ flutter/coverage/
 Thumbs.db
 Desktop.ini
 *.log
+
+# Checkpoint backups
+/.cleanup-checkpoint/

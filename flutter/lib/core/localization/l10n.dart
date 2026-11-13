@@ -8,20 +8,70 @@ class L10n {
   const L10n(this.locale);
 
   final Locale locale;
+  String get outingSchedule => _t('Date and time', 'التاريخ والوقت');
+  String get editOuting => _t('Edit outing', 'تعديل الخروجة');
+  String get cancelOuting => _t('Cancel outing', 'إلغاء الخروجة');
+  String get cancelOutingPrompt => _t(
+    'Cancel this outing? Participants will be notified.',
+    'إلغاء الخروجة؟ سيتم إبلاغ المشاركين.',
+  );
+  String get deleteGroup => _t('Delete group', 'حذف المجموعة');
+  String get deleteGroupPrompt => _t(
+    'Permanently delete this group? Groups with outings cannot be deleted.',
+    'حذف المجموعة نهائيًا؟ لا يمكن حذف مجموعة تحتوي على خروجات.',
+  );
+  String get removeGuest => _t('Remove participant', 'إزالة المشارك');
+  String get removeGuestPrompt =>
+      _t('Remove this invited participant?', 'إزالة هذا المشارك المدعو؟');
+  String get manageParticipants => _t('Manage participants', 'إدارة المشاركين');
+  String get outingInvitation => _t('Outing invitation', 'دعوة للخروجة');
+  String get draftSyncConflict => _t(
+    'Draft changed on another device. Your pending copy is kept.',
+    'تم تعديل المسودة على جهاز آخر. تم الاحتفاظ بنسختك المعلقة.',
+  );
+  String get draftPending => _t(
+    'Saved on this device; waiting to sync.',
+    'تم الحفظ على هذا الجهاز؛ في انتظار المزامنة.',
+  );
 
   String get recoverPassword => _t('Recover password', 'استعادة كلمة المرور');
-  String get recoveryPhoneHelp => _t('Enter your registered phone number to receive a verification code.', 'أدخل رقم هاتفك المسجل لاستلام رمز التحقق.');
-  String get recoveryCodeHelp => _t('Enter the SMS code sent to your phone. Codes can expire; request a new one if needed.', 'أدخل رمز التحقق المرسل إلى هاتفك. إذا انتهت صلاحية الرمز، اطلب رمزًا جديدًا.');
-  String get recoveryPasswordHelp => _t('Choose a new password, then sign in again. If a request times out, try signing in before restarting recovery.', 'اختر كلمة مرور جديدة ثم سجّل الدخول. إذا انتهت مهلة الطلب، جرّب تسجيل الدخول قبل إعادة الاستعادة.');
+  String get recoveryPhoneHelp => _t(
+    'Enter your registered phone number to receive a verification code.',
+    'أدخل رقم هاتفك المسجل لاستلام رمز التحقق.',
+  );
+  String get recoveryCodeHelp => _t(
+    'Enter the SMS code sent to your phone. Codes can expire; request a new one if needed.',
+    'أدخل رمز التحقق المرسل إلى هاتفك. إذا انتهت صلاحية الرمز، اطلب رمزًا جديدًا.',
+  );
+  String get recoveryPasswordHelp => _t(
+    'Choose a new password, then sign in again. If a request times out, try signing in before restarting recovery.',
+    'اختر كلمة مرور جديدة ثم سجّل الدخول. إذا انتهت مهلة الطلب، جرّب تسجيل الدخول قبل إعادة الاستعادة.',
+  );
   String get resetPassword => _t('Reset password', 'إعادة تعيين كلمة المرور');
-  String get recoveryUnavailable => _t('Cannot recover this number. Check it or contact support.', 'تعذّرت استعادة هذا الرقم. راجعه أو تواصل مع الدعم.');
-  String get recoveryExpired => _t('Recovery expired. Request a new code.', 'انتهت صلاحية الاستعادة. اطلب رمزًا جديدًا.');
-  String get recoveryRateLimited => _t('Too many attempts. Try again later.', 'محاولات كثيرة. حاول لاحقًا.');
-  String get recoveryPasswordLimit => _t('Password must be at most 72 UTF-8 bytes. Try a shorter password.', 'كلمة المرور يجب ألا تتجاوز ٧٢ بايت. جرّب كلمة مرور أقصر.');
-  String get recoverySuccess => _t('Password reset. Sign in with your new password.', 'تم تعيين كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.');
-  String get recoveryStartAgain => _t('Use another number / start again', 'استخدام رقم آخر / البدء من جديد');
-  String recoveryResendIn(int seconds) => _t('Resend in ${digits(seconds.toString())} seconds', 'إعادة الإرسال خلال ${digits(seconds.toString())} ثانية');
-
+  String get recoveryUnavailable => _t(
+    'Cannot recover this number. Check it or contact support.',
+    'تعذّرت استعادة هذا الرقم. راجعه أو تواصل مع الدعم.',
+  );
+  String get recoveryExpired => _t(
+    'Recovery expired. Request a new code.',
+    'انتهت صلاحية الاستعادة. اطلب رمزًا جديدًا.',
+  );
+  String get recoveryRateLimited =>
+      _t('Too many attempts. Try again later.', 'محاولات كثيرة. حاول لاحقًا.');
+  String get recoveryPasswordLimit => _t(
+    'Password must be at most 72 UTF-8 bytes. Try a shorter password.',
+    'كلمة المرور يجب ألا تتجاوز ٧٢ بايت. جرّب كلمة مرور أقصر.',
+  );
+  String get recoverySuccess => _t(
+    'Password reset. Sign in with your new password.',
+    'تم تعيين كلمة المرور. سجّل الدخول بكلمة المرور الجديدة.',
+  );
+  String get recoveryStartAgain =>
+      _t('Use another number / start again', 'استخدام رقم آخر / البدء من جديد');
+  String recoveryResendIn(int seconds) => _t(
+    'Resend in ${digits(seconds.toString())} seconds',
+    'إعادة الإرسال خلال ${digits(seconds.toString())} ثانية',
+  );
 
   bool get _ar => locale.languageCode == 'ar';
 
@@ -370,8 +420,7 @@ class L10n {
       'أدخل الرمز المكوّن من 6 أرقام المرسل إلى هاتفك',
     ),
   );
-  String otpSent(String phone) =>
-      _t('Code sent.', 'تم إرسال الرمز.');
+  String otpSent(String phone) => _t('Code sent.', 'تم إرسال الرمز.');
   String get resendOtp => _t('Resend code', 'إعادة إرسال الرمز');
   String get sendOtp => _t('Send OTP', 'إرسال رمز التحقق');
   String get requiredField => _t('This field is required', 'هذا الحقل مطلوب');
@@ -407,8 +456,10 @@ class L10n {
   String get unexpectedError =>
       _t('Something went wrong. Please try again.', 'حدث خطأ. حاول مرة أخرى.');
   String get errorNoInternet => noInternet;
-  String get errorTimeout =>
-      _t('Connection timed out. Please try again.', 'انتهت مهلة الاتصال. حاول مرة أخرى.');
+  String get errorTimeout => _t(
+    'Connection timed out. Please try again.',
+    'انتهت مهلة الاتصال. حاول مرة أخرى.',
+  );
   String get errorSessionExpired => _t(
     'Your session has expired. Please log in again.',
     'انتهت جلستك. سجّل الدخول مرة أخرى.',
@@ -585,10 +636,8 @@ class L10n {
   String get planOutingHere => _t('Plan an outing here', 'خطط خروجة هنا');
   String get otpSendFailed =>
       _t('Could not send verification code', 'تعذّر إرسال رمز التحقق');
-  String get otpIncorrect => _t(
-    'Incorrect code. Try again.',
-    'الرمز غير صحيح. حاول مجددًا.',
-  );
+  String get otpIncorrect =>
+      _t('Incorrect code. Try again.', 'الرمز غير صحيح. حاول مجددًا.');
   String get otpExpired => _t(
     'Code expired. Request a new one.',
     'انتهت صلاحية الرمز. اطلب رمزًا جديدًا.',
@@ -626,13 +675,17 @@ class L10n {
   /// names, status codes, or stack-like text).
   String authError(String? code, {String? fallback}) {
     return switch (code) {
-      'invalid-phone-number' => _t('Invalid phone number.', 'رقم الهاتف غير صالح.'),
+      'invalid-phone-number' => _t(
+        'Invalid phone number.',
+        'رقم الهاتف غير صالح.',
+      ),
       'invalid-verification-code' => otpIncorrect,
       'session-expired' || 'invalid-verification-id' => otpExpired,
       'unauthorized' => errorSessionExpired,
       'too-many-requests' => otpTooManyRequests,
       'quota-exceeded' => otpQuotaExceeded,
-      'network-request-failed' || 'network' => _t('No internet connection.', 'لا يوجد اتصال بالإنترنت.'),
+      'network-request-failed' ||
+      'network' => _t('No internet connection.', 'لا يوجد اتصال بالإنترنت.'),
       'timeout' => errorTimeout,
       'verification-timeout' => errorTimeout,
       'missing-verification' => otpMissingSession,
@@ -652,7 +705,10 @@ class L10n {
       'weak-password' => passwordTooShort,
       'user-not-found' => _t('Account not found.', 'الحساب غير موجود.'),
       'wrong-password' => _t('Incorrect password.', 'كلمة المرور غير صحيحة.'),
-      'invalid-credential' => _t('Incorrect phone number or password.', 'رقم الهاتف أو كلمة المرور غير صحيحة.'),
+      'invalid-credential' => _t(
+        'Incorrect phone number or password.',
+        'رقم الهاتف أو كلمة المرور غير صحيحة.',
+      ),
       'server' || 'unexpected' => unexpectedError,
       'cancelled' => socialSignInCancelled,
       'google-sign-in-failed' || 'sign_in_failed' => googleSignInFailed,
@@ -852,7 +908,7 @@ class L10n {
     'لما تبدأ مجموعة تصويت، هيظهر هنا.',
   );
   String get pendingGroupRegistration =>
-      _t('Pending registration', 'بانتظار التسجيل');
+      _t('Pending invitation', 'دعوة معلّقة');
   String get removeMember => _t('Remove', 'إزالة');
   String get removeMemberTitle => _t('Remove Member?', 'إزالة العضو؟');
   String removeMemberMessage(String name) => _t(
@@ -866,6 +922,27 @@ class L10n {
     'هل أنت متأكد أنك تريد مغادرة هذه المجموعة؟',
   );
   String get leftGroup => _t('You left the group', 'غادرت المجموعة');
+
+  // --- Invitations ---
+  String get invitations => _t('Invitations', 'الدعوات');
+  String invitedBy(String name) => _t('Invited by $name', 'دعا $name');
+
+  /// Invitation card message: `"<name> invited you to join"` + group name.
+  String invitedYouToJoin(String name) =>
+      _t('$name invited you to join', 'دعاك $name للانضمام');
+  String invitationAccepted(String groupName) =>
+      _t('You joined $groupName', 'انضممت إلى $groupName');
+  String invitationDeclined(String groupName) =>
+      _t('Declined invitation to $groupName', 'رفضت الدعوة إلى $groupName');
+  String get declineInvitationTitle => _t('Decline Invitation?', 'رفض الدعوة؟');
+  String get declineInvitationMessage => _t(
+    'Are you sure you want to decline this invitation? You can always rejoin later if invited again.',
+    'هل أنت متأكد أنك تريد رفض هذه الدعوة؟ يمكنك دائمًا إعادة الانضمام لاحقًا إذا دُعيت مرة أخرى.',
+  );
+  String get noInvitations => _t('No invitations', 'لا توجد دعوات');
+  String get accept => _t('Accept', 'قبول');
+  String get decline => _t('Decline', 'رفض');
+  String get retry => _t('Retry', 'إعادة المحاولة');
 
   // --- Outings ---
   String get makeAMemory => _t('Make a memory', 'اصنع ذكرى');
@@ -1486,6 +1563,10 @@ class L10n {
       _t('Upload photo from device', 'رفع صورة من الجهاز');
   String get chooseFromGallery => _t('Choose from gallery', 'اختيار من المعرض');
   String get takePhoto => _t('Take a photo', 'التقاط صورة');
+  String get imageUploadFailed => _t(
+    'Could not upload the image. Check your connection and try again.',
+    'تعذّر رفع الصورة. تحقّق من اتصالك وحاول مرة أخرى.',
+  );
 }
 
 class _L10nDelegate extends LocalizationsDelegate<L10n> {

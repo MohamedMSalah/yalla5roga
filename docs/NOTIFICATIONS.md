@@ -147,3 +147,11 @@ No verified per-event user preference matrix in Neon as of last verification. Do
 ## Mention notification handling — 2026-11-11
 
 Stable-ID mentions reuse `chat_message`, type `chat`, and the regular outing-chat destination. The mentioned recipient sees a “mentioned you” body using the canonical sender name; other chat recipients retain the ordinary new-message body. Repeated tokens and concurrent REST retries share the existing durable message/recipient event key and unique outbox key. The sender is excluded from both recipient sets. A retry after chat closure can acknowledge an already committed message and repair notification enqueue without creating another row. Delivery workers and real device push were not exercised in this task. Inbox producers and mark-read endpoints publish targeted Socket.IO invalidations after persistence.
+
+## Cancellation and inbox corrections — 2026-11-13
+
+Creator cancellation uses `notifyOutingParticipants` with the supported `outing_cancelled` event. Inbox rows include outing/group IDs and the body identifies the outing title; the outbox payload contains title, type and both navigation identifiers. The stable `outing_cancelled:<outingId>:owner:<recipientUid>` key (and corresponding outbox key) deduplicates repeated/mixed cancellation paths. The existing controller publishes the scoped outing invalidation; inbox invalidations refresh affected recipients. Physical FCM/Socket.IO delivery was not exercised in this task.
+
+The inbox always pages newest-first by created_at and unique ID, default 20/max 100. Opaque cursors are ownership checked and database-native cursor traversal preserves database timestamp precision. The data array stays compatible, next_cursor remains an alias, and pagination.nextCursor is canonical metadata. Flutter follows pages for its existing complete feed and unread count. eventType documentation uses supported Prisma notification events plus existing inbox routing aliases; no new event enum or chat media endpoint was added.
+
+Outing invitations and group invitations are routed separately, including legacy generic invitation payloads carrying an outing ID. Explicit notification actions use the appropriate existing endpoints and check the returned persisted decision before reporting success; opening a notification never accepts it.

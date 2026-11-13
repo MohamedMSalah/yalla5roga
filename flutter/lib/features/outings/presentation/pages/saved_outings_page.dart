@@ -29,6 +29,16 @@ class SavedOutingsPage extends StatelessWidget {
         top: false,
         child: Column(
           children: [
+            if (store.hasDraftConflicts)
+              Padding(
+                padding: Responsive.pagePadding(),
+                child: Text(l10n.draftSyncConflict),
+              ),
+            if (store.hasPendingDrafts && !store.hasDraftConflicts)
+              Padding(
+                padding: Responsive.pagePadding(),
+                child: Text(l10n.draftPending),
+              ),
             Padding(
               padding: Responsive.padding(horizontal: 20, top: 8),
               child: SegmentedTabs(

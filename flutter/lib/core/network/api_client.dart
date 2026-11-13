@@ -30,8 +30,9 @@ class ApiClient {
     final uid = store?.userId();
     final request = RequestOptions(path: path);
     Response<T>? cached() {
-      if (store?.userId() != uid || store?.generation != generation)
+      if (store?.userId() != uid || store?.generation != generation) {
         return null;
+      }
       final data = store?.read<T>(key);
       return data == null
           ? null
@@ -111,6 +112,15 @@ class ApiClient {
     }
   }
 
+  Options? _writeOptions(Options? options) {
+    final uid = snapshots?.userId();
+    return uid == null
+        ? options
+        : (options ?? Options()).copyWith(
+            extra: {...?options?.extra, expectedUserIdKey: uid},
+          );
+  }
+
   Future<Response<T>> post<T>(
     String path, {
     Object? data,
@@ -120,20 +130,20 @@ class ApiClient {
     return dio.post<T>(
       path,
       data: data,
-      options: options,
+      options: _writeOptions(options),
       cancelToken: cancelToken,
     );
   }
 
   Future<Response<T>> put<T>(String path, {Object? data, Options? options}) {
-    return dio.put<T>(path, data: data, options: options);
+    return dio.put<T>(path, data: data, options: _writeOptions(options));
   }
 
   Future<Response<T>> patch<T>(String path, {Object? data, Options? options}) {
-    return dio.patch<T>(path, data: data, options: options);
+    return dio.patch<T>(path, data: data, options: _writeOptions(options));
   }
 
   Future<Response<T>> delete<T>(String path, {Options? options}) {
-    return dio.delete<T>(path, options: options);
+    return dio.delete<T>(path, options: _writeOptions(options));
   }
 }

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  mediaImageUrlSchema,
+  optionalMediaImageUrlSchema,
+} from "../media/image-url.validator.js";
 
 const outingStatusSchema = z.enum([
   "draft",
@@ -41,15 +45,13 @@ function assertOutingGroupOccasion(
   }
 }
 
-const optionalOutingImageUrl = z
-  .union([z.literal(""), z.url().max(2048)])
-  .optional();
+const optionalOutingImageUrl = optionalMediaImageUrlSchema;
 
 export const createVoteOptionBodySchema = z.object({
   place_id: z.uuid().optional().nullable(),
   label: z.string().trim().min(1).max(100),
   area: z.string().trim().max(100).optional(),
-  image_url: z.url().max(2048).optional(),
+  image_url: mediaImageUrlSchema.optional(),
   vibe: outingVibeSchema.optional(),
   latitude: z.number().min(-90).max(90).optional().nullable(),
   longitude: z.number().min(-180).max(180).optional().nullable(),
@@ -61,7 +63,7 @@ export const createOutingBodySchema = z
     title: z.string().trim().min(3).max(20),
     image_url: optionalOutingImageUrl,
     group_id: z.uuid().optional().nullable(),
-    status: outingStatusSchema.optional(),
+
     occasion: outingOccasionSchema.optional(),
     create_request_key: z.string().trim().min(1).max(80).optional(),
     initial_vote_options: z.array(createVoteOptionBodySchema.extend({
@@ -166,7 +168,7 @@ export const voteParamsSchema = z.object({
 
 export const createDraftBodySchema = z.object({
   title: z.string().trim().max(20).optional(),
-  image_url: z.url().max(2048).optional(),
+  image_url: optionalMediaImageUrlSchema,
   group_id: z.uuid().optional().nullable(),
   occasion: outingOccasionSchema.optional(),
   special_event: z.boolean().optional(),

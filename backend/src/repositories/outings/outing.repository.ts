@@ -87,11 +87,11 @@ export class OutingRepository implements IOutingRepository {
   createDraft(data: CreateOutingDraftInput) {
     return this.datasource.createDraft(data);
   }
-  updateDraft(id: string, data: UpdateOutingDraftInput) {
-    return this.datasource.updateDraft(id, data);
+  updateDraft(id: string, data: UpdateOutingDraftInput, expected?: Date) {
+    return this.datasource.updateDraft(id, data, expected);
   }
-  deleteDraft(id: string) {
-    return this.datasource.deleteDraft(id);
+  deleteDraft(id: string, expected?: Date) {
+    return this.datasource.deleteDraft(id, expected);
   }
 
   listSavedByUser(userId: string) {

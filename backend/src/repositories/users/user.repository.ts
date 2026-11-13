@@ -17,8 +17,16 @@ export class UserRepository implements IUserRepository {
     return this.datasource.findByPhone(phone);
   }
 
+  findByPhoneInSharedGroup(phone: string, callerUid: string): Promise<User | null> {
+    return this.datasource.findByPhoneInSharedGroup(phone, callerUid);
+  }
+
   findMany(): Promise<User[]> {
     return this.datasource.findMany();
+  }
+
+  findManyByIds(ids: string[]): Promise<User[]> {
+    return this.datasource.findManyByIds(ids);
   }
 
   create(data: CreateUserInput): Promise<User> {

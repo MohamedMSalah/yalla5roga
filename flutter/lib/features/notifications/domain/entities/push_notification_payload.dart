@@ -8,7 +8,10 @@ enum NotificationDestination {
   attendance,
   chat,
   inbox,
+  invitation,
 }
+
+enum NotificationActionType { accept, decline, reply, markRead }
 
 class PushNotificationPayload {
   PushNotificationPayload.fromData(Map<String, dynamic> data)
@@ -20,11 +23,14 @@ class PushNotificationPayload {
           _pick(data, 'eventId'),
       groupId = _pick(data, 'groupId') ?? _pick(data, 'group_id'),
       messageId = _pick(data, 'messageId'),
+      invitationId = _pick(data, 'invitationId'),
       pushId = _pick(data, 'pushId'),
       notificationId = _pick(data, 'notificationId'),
       recipientUserId = _pick(data, 'recipientUserId'),
       title = _pick(data, 'title'),
-      body = _pick(data, 'body');
+      body = _pick(data, 'body'),
+      actionType = _parseActionType(_pick(data, 'actionType')),
+      replyText = _pick(data, 'replyText');
 
   factory PushNotificationPayload.fromRemoteMessage(RemoteMessage message) =>
       PushNotificationPayload.fromData({
@@ -53,13 +59,18 @@ class PushNotificationPayload {
   final String? outingId;
   final String? groupId;
   final String? messageId;
+  final String? invitationId;
   final String? pushId;
   final String? notificationId;
   final String? recipientUserId;
   final String? title;
   final String? body;
+  final NotificationActionType? actionType;
+  final String? replyText;
 
   String? get deduplicationId => notificationId ?? pushId;
+
+  bool get isInteractiveAction => actionType != null;
 
   NotificationDestination get destination => switch (type) {
     'chat' || 'chat_message' => NotificationDestination.chat,
@@ -74,8 +85,9 @@ class PushNotificationPayload {
     'member_joined' || 'member_left' => NotificationDestination.groupMembers,
     'group' ||
     'group_created' ||
-    'group_updated' ||
-    'group_invite' => NotificationDestination.group,
+    'group_updated' => NotificationDestination.group,
+    'invitation' when outingId != null => NotificationDestination.outing,
+    'group_invite' || 'invitation' => NotificationDestination.group,
     'outing' ||
     'outing_created' ||
     'outing_updated' ||
@@ -90,17 +102,19 @@ class PushNotificationPayload {
 
   bool get hasDisplayContent => title != null || body != null;
 
-  Map<String, String> toLocalPayloadMap() => {
-    'type': type,
-    'outingId': ?outingId,
-    'groupId': ?groupId,
-    'messageId': ?messageId,
-    'pushId': ?pushId,
-    'notificationId': ?notificationId,
-    'recipientUserId': ?recipientUserId,
-    'title': ?title,
-    'body': ?body,
-  };
+  Map<String, String> toLocalPayloadMap() {
+    final map = <String, String>{'type': type};
+    if (outingId != null) map['outingId'] = outingId!;
+    if (groupId != null) map['groupId'] = groupId!;
+    if (messageId != null) map['messageId'] = messageId!;
+    if (invitationId != null) map['invitationId'] = invitationId!;
+    if (pushId != null) map['pushId'] = pushId!;
+    if (notificationId != null) map['notificationId'] = notificationId!;
+    if (recipientUserId != null) map['recipientUserId'] = recipientUserId!;
+    if (title != null) map['title'] = title!;
+    if (body != null) map['body'] = body!;
+    return map;
+  }
 
   static String _type(Map<String, dynamic> data) {
     final type = _pick(data, 'type')?.toLowerCase();
@@ -112,5 +126,16 @@ class PushNotificationPayload {
     final value = data[key];
     if (value is! String || value.trim().isEmpty) return null;
     return value.trim();
+  }
+
+  static NotificationActionType? _parseActionType(String? value) {
+    if (value == null) return null;
+    return switch (value.toLowerCase()) {
+      'accept' => NotificationActionType.accept,
+      'decline' => NotificationActionType.decline,
+      'reply' => NotificationActionType.reply,
+      'mark_read' || 'markread' => NotificationActionType.markRead,
+      _ => null,
+    };
   }
 }
