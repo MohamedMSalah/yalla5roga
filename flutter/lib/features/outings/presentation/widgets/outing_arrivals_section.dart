@@ -173,7 +173,7 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
         _active && generation == _generation && DateTime.now().isBefore(end);
     if (!isActive()) return;
     _lastAttempt = DateTime.now();
-    _checking = true;
+    setState(() => _checking = true);
     try {
       final result = await _service.verify(
         widget.outing.id,
@@ -186,12 +186,15 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
         },
       );
       if (!isActive()) return;
-      setState(() => _verification = result);
+      setState(() {
+        _verification = result;
+        _failed = false;
+      });
       if (result == ArrivalVerification.arrived) _queueRefresh();
     } catch (_) {
       if (isActive()) setState(() => _failed = true);
     } finally {
-      _checking = false;
+      if (mounted) setState(() => _checking = false);
       final latest = _roster;
       if (_active && latest != null) {
         _scheduleVerification(latest, immediate: generation != _generation);
@@ -229,6 +232,34 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
               )
             else if (roster == null)
               const LinearProgressIndicator(),
+            if (_checking) ...[
+              const LinearProgressIndicator(),
+              Text(l10n.checkingArrival),
+            ],
+            if (!_checking && roster != null) ...[
+              Text(switch (_verification) {
+                ArrivalVerification.arrived => l10n.arrivalVerified,
+                ArrivalVerification.permissionDenied =>
+                  l10n.arrivalPermissionDenied,
+                ArrivalVerification.outsideRadius => l10n.arrivalOutsideRadius,
+                ArrivalVerification.unavailable =>
+                  l10n.arrivalLocationUnavailable,
+                ArrivalVerification.unverified =>
+                  roster.open
+                      ? l10n.automaticArrivalHint
+                      : l10n.arrivalWindowClosed,
+              }, style: context.texts.bodySmall),
+              if (roster.open && _verification != ArrivalVerification.arrived)
+                TextButton.icon(
+                  onPressed: () {
+                    _lastAttempt = null;
+                    _permissionRequested = false;
+                    _verify(roster);
+                  },
+                  icon: const Icon(Icons.my_location),
+                  label: Text(l10n.tryAgain),
+                ),
+            ],
             if (roster != null) ...[
               if (roster.venue != null &&
                   widget.outing.status == OutingStatus.confirmed)

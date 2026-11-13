@@ -257,3 +257,15 @@ Outing feature verification uses `backend/scripts/backend-full-integration.ts`. 
 - `flutter/lib/features/invitations/presentation/widgets/invitations_list.dart` and `presentation/invitation_l10n.dart`: status filtering and localized history labels.
 - `backend/scripts/phase2-openapi-verification.ts`: read-only Swagger/OpenAPI contract checks; results in `docs/audit/PHASE_2_OPENAPI_RESULTS.json`.
 - `docs/audit/PHASE_2_UI_UX.md`: task inventory, component reuse, checks and runtime limits.
+
+
+## Phase 3 outing presentation and ballots — 2026-11-14
+
+- `flutter/lib/core/widgets/app_step_progress.dart`: localized reusable wizard progress.
+- `flutter/lib/core/widgets/place_card.dart`: existing image card plus inline selectable/progress variant.
+- `flutter/lib/features/outings/presentation/widgets/{outing_overview,outing_location_section}.dart`: extracted detail sections; existing RSVP, GPS, voting and management widgets retain feature responsibilities.
+- Existing create step/provider files now place deadlines in Information and expose review edit links/removable selections.
+- `backend/prisma/migrations/20261113180000_multi_location_ballots/migration.sql`: row-preserving vote PK expansion.
+- `backend/scripts/phase3-openapi-{contracts,verification}.ts`: Swagger/HTTP checks; verification uses disposable schemas only.
+- `backend/scripts/phase3-database-{backup,readback}.ts`: private logical backup, rollback-only restore/migration rehearsal and read-only postdeployment checks.
+- `docs/audit/PHASE_3_*.{md,json}`: implementation, API, backup and deployment evidence. Private backup rows remain ignored under `backend/.database-backups/`.

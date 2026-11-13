@@ -56,6 +56,7 @@ class PlaceVote {
     this.cuserOptionIds = const [],
     this.suggestedById,
     this.eligibleVoterCount = 0,
+    this.votedCount = 0,
     this.finalized = false,
   });
 
@@ -66,6 +67,7 @@ class PlaceVote {
   final String? suggestedById;
   final bool finalized;
   final int eligibleVoterCount;
+  final int votedCount;
 
   /// First selected option (legacy single-select helpers).
   String? get cuserOptionId =>
@@ -107,6 +109,7 @@ class PlaceVote {
           : (cuserOptionIds ?? this.cuserOptionIds),
       suggestedById: suggestedById,
       eligibleVoterCount: eligibleVoterCount,
+      votedCount: votedCount,
       finalized: finalized ?? this.finalized,
     );
   }

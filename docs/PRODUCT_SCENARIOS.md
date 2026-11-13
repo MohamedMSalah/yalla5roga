@@ -135,8 +135,8 @@ Same definition for vote APIs, early close, deadline resolution, Flutter UI, and
 
 **Approved:**
 
-- One active vote per user per outing — DB uniqueness `(outing_id, user_id)`.
-- Before close: change vote via upsert (no duplicate actives).
+- **Phase 3 owner-approved change (2026-11-14):** A voter may select multiple proposed locations in one ballot. Each selected option is unique for `(outing_id, user_id, option_id)`; duplicate selections cannot multiply votes.
+- Before close: submit the full selection atomically; allow removing selections. Participation and early closure count distinct eligible voters with a nonempty ballot, not the number of selected options. Evaluate the existing winner/tie/zero-vote rules only after the full ballot is stored.
 - After close / confirmed: reject votes and changes.
 - The creator can confirm a proposed option while the outing is still awaiting a venue. The backend closes voting and locks the chosen place. When the vote resolves first, the approved unique-winner, tie-break and zero-vote rules apply.
 - Tie → Owner triggers backend crypto RNG among tied leaders only; idempotent; Flutter animates only.
@@ -168,7 +168,7 @@ Owner auto Going; Owner cannot change away. Members update own status. Independe
 
 ## 12. Chat
 
-**Approved:** Available in draft, voting, confirmed. Not available for cancelled (unless product later adds read-only history). Owner and Members may send when open. Membership + authZ on backend.
+**Approved:** Available in draft, voting, confirmed. Completed outings retain readable chat history and must reject new sends. Cancelled sending remains blocked. Owner and Members may send when open. Membership + authZ on backend.
 
 ---
 
@@ -219,7 +219,7 @@ Backend enforces all rows; Flutter visibility is not authorization.
 
 ## 17. Database expectations
 
-Critical constraints: one vote / membership / saved outing / saved place per user-resource; winner belongs to same outing; valid lifecycle / attendance / invitation enums; notification event idempotency (`event_key`).
+Critical constraints: one selection per user/outing/option, one membership / saved outing / saved place per user-resource; winner belongs to same outing; valid lifecycle / attendance / invitation enums; notification event idempotency (`event_key`).
 
 ---
 
@@ -297,3 +297,8 @@ The owner requested explicit group invitation acceptance in this implementation 
 ## Presentation foundation — owner-approved Phase 1 (2026-11-13)
 
 The Flutter foundation uses a Modern Social violet design with complete light/dark themes, Cairo for Arabic and Inter for English. Arabic RTL is the first-install default; saved English LTR preferences are retained. The existing Home, Groups, Outings, Discover and Settings destinations use a floating pill navigation bar with persistent visited-tab state. Existing functionality, business rules, routes and deep links retain their contracts. Feature screens are not redesigned in this phase beyond shared foundation composition. Verification is static; visual/device coverage is not asserted.
+
+
+## Phase 3 outing presentation — 2026-11-14
+
+The Outings tab shows active location ballots and upcoming plans with status, countdowns, New Outing and History actions. History classification still uses scheduled start or terminal status; it does not imply RSVP or arrival eligibility. Creation uses Information (cover/title/category/group/schedule/deadline), Locations (existing map picker and removable selections), and Review (summary and edit links). Group Details preselects its group. A single venue is displayed without a competition; multiple candidates support a submitted multi-selection ballot. Actual GPS arrival stays separate from Going/Maybe/Not Going. No winner or tie-break decision moves to Flutter.

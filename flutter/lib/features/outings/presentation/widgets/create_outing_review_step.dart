@@ -54,35 +54,27 @@ class CreateOutingReviewStep extends StatelessWidget {
                 form.locationLabel,
                 style: TextStyle(color: context.palette.textMuted),
               ),
-              if (form.multiPlaceMode) ...[
-                Responsive.spaceXs.gapH,
-                Text(l10n.voteDeadlineHours, style: context.texts.titleSmall),
-                Text(l10n.voteDeadlineHint, style: context.texts.bodySmall),
-                Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    IconButton(
-                      tooltip: l10n.decreaseVoteHours,
-                      onPressed: form.voteDeadlineHours <= 1
-                          ? null
-                          : () => form.setVoteDeadlineHours(
-                              form.voteDeadlineHours - 1,
-                            ),
-                      icon: const Icon(Icons.remove_circle_outline),
-                    ),
-                    Text(l10n.hoursCount(form.voteDeadlineHours)),
-                    IconButton(
-                      tooltip: l10n.increaseVoteHours,
-                      onPressed: form.voteDeadlineHours >= 72
-                          ? null
-                          : () => form.setVoteDeadlineHours(
-                              form.voteDeadlineHours + 1,
-                            ),
-                      icon: const Icon(Icons.add_circle_outline),
-                    ),
-                  ],
-                ),
-              ],
+              Text(
+                '${l10n.voteDeadlineHours}: ${l10n.hoursCount(form.voteDeadlineHours)}',
+              ),
+              Responsive.spaceSm.gapH,
+              if (!form.specialEvent)
+                Text(l10n.vibeLabel(OutingVibe.values[form.vibe].name)),
+              Wrap(
+                spacing: Responsive.spaceSm,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => form.editStep(0),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: Text(l10n.whatAreWeDoing),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => form.editStep(1),
+                    icon: const Icon(Icons.edit_location_alt_outlined),
+                    label: Text(l10n.pickAPlace),
+                  ),
+                ],
+              ),
               if (form.selectedLocation?.hasCoordinates ?? false) ...[
                 Responsive.spaceXs.gapH,
                 Text(

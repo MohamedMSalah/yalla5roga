@@ -106,6 +106,20 @@ class CreateOutingLocationStep extends StatelessWidget {
               ],
             ),
           ),
+        if (multi && form.selectedPlaces.isNotEmpty) ...[
+          Responsive.spaceSm.gapH,
+          for (final place in form.selectedPlaces)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(place.name),
+              subtitle: Text(place.area),
+              trailing: IconButton(
+                tooltip: l10n.removePlace,
+                icon: const Icon(Icons.close),
+                onPressed: () => form.removeSelectedPlace(place),
+              ),
+            ),
+        ],
         Responsive.spaceMd.gapH,
         if (!form.specialEvent && !multi) ...[
           Align(

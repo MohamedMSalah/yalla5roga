@@ -190,3 +190,5 @@ export const updateDraftBodySchema = createDraftBodySchema;
 export const draftIdParamsSchema = z.object({ id: z.uuid() });
 export const savedOutingParamsSchema = z.object({ id: z.uuid() });
 export const savedPlaceParamsSchema = z.object({ id: z.uuid() });
+
+export const replaceBallotBodySchema = z.object({ option_ids: z.array(z.uuid()).max(5).refine(ids => new Set(ids).size === ids.length, "Duplicate options") });

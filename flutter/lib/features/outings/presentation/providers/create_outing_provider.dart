@@ -77,6 +77,7 @@ class CreateOutingProvider extends ChangeNotifier {
         );
       }
       _applyLocation(draft!.location);
+      _voteDeadlineHours = draft!.voteDeadlineHours ?? 3;
       if (draft!.letVote) {
         _letVote = true;
         _selectedPlaces
@@ -311,6 +312,12 @@ class CreateOutingProvider extends ChangeNotifier {
     }
   }
 
+  void editStep(int step) {
+    if (step < 0 || step > _step) return;
+    _step = step;
+    notifyListeners();
+  }
+
   void back() {
     if (_step == 0) return;
     _step -= 1;
@@ -349,6 +356,7 @@ class CreateOutingProvider extends ChangeNotifier {
   String? next(L10n l10n) {
     final error = validateStep(l10n);
     if (error != null) return error;
+    if (_step >= 2) return null;
     _step += 1;
     notifyListeners();
     return null;
@@ -569,7 +577,7 @@ class CreateOutingProvider extends ChangeNotifier {
       guestIds: _guestIds.toList(),
       guestPhones: _guestPhones.toList(),
       letVote: _letVote,
-      voteDeadlineHours: _letVote ? _voteDeadlineHours : null,
+      voteDeadlineHours: _voteDeadlineHours,
       selectedPlaces: multiPlaceMode ? List.of(_selectedPlaces) : const [],
     );
   }

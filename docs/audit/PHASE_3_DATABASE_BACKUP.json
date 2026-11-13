@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-11-13T23:18:14.741Z",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "privateBackup": ".database-backups/phase3-2026-11-13T23-17-29.707Z/snapshot.json",
+  "backupSha256": "30dac292f2bdb81a51839240f104247f5547ac36f22a378ab5295b6f86820d6d",
+  "tableCount": 27,
+  "rowCount": 659,
+  "voteCount": 0,
+  "recovery": "Restored all tables, keys and foreign keys; all row checksums matched; exact migration rehearsed without vote loss; transaction rolled back"
+}

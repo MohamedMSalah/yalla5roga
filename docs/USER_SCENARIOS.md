@@ -73,7 +73,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### OUT-01 Create Group Outing
 
 - **Preconditions:** Authenticated; group exists; user allowed.  
-- **Actions:** Enter title, schedule and an optional cover photo. In step 2, pick a single location or tap **Add places for voting** to select 2–5 places from the list, the map, or both. Set the deadline on Review, then submit.
+- **Actions:** Enter title, schedule and an optional cover photo. In step 2, pick a single location or tap **Add places for voting** to select 2–5 places from the list, the map, or both. Set the deadline in Information, check it on Review, then submit.
 - **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going; `image_url` optional http(s) or `media://<uuid>`; vote options posted when multi-place.
 - **DB:** `outings`, `outing_attendance`, optional `outing_vote_options`.  
 - **Flutter:** Shared `CreateOutingPage` for create + suggest; always sends `vote_deadline_hours`; uploads a picked local cover first and sends the stable `media://` reference.
@@ -156,8 +156,8 @@ Inviting a registered or unregistered phone creates a pending invitation. Verifi
 | VOT-03 | Accepted members eligible | assertEligibleVoter | Implemented |
 | VOT-04 | Owner can vote | eligible includes created_by | Implemented |
 | VOT-05 | Member votes | upsert `outing_votes` | Implemented |
-| VOT-06 | Change vote before close | update same PK row | Implemented |
-| VOT-07 | Multi vote attempt | still one row | Implemented |
+| VOT-06 | Change selection before close | atomically replace caller ballot | Implemented |
+| VOT-07 | Select several locations | one row per distinct caller/outing/option; count distinct voters for closure | Implemented |
 | VOT-08 | Pending invitee votes | 403 | Implemented |
 | VOT-09 | Owner changes candidates | reset votes; keep deadline; notify | Implemented |
 | VOT-10 | Vote after close | 409 Conflict | Implemented |
@@ -406,3 +406,15 @@ The existing five destinations remain Home, Groups, Outings, Discover and Settin
 - Invitations remains accessible from Settings, group-invitation notifications and invite deep links. It displays All/Pending/Accepted/Declined filters, group artwork/name, inviter and localized invitation date. Only pending records have Accept/Decline actions. Successful decisions remain in history; decline stays on the page, and accept opens Group Details using the existing concrete page route. Loading/error/empty states use shared widgets. Account/load generations prevent realtime reads from cancelling decisions or leaving mutation loading stuck.
 
 Static verification and runtime limits are recorded in [the Phase 2 report](audit/PHASE_2_UI_UX.md). No Flutter/device/emulator/UI tests or app launch were performed. The reported grey-screen symptom has not been reproduced or visually signed off.
+
+
+## Phase 3 outing journeys — 2026-11-14
+
+- **Outings:** New Outing, Active Votes, Upcoming and History reuse shared cards and existing lifecycle classification. Countdown labels reflect the server deadline; loading skeletons, empty states, retryable error feedback and an opt-in offline indicator preserve readable snapshots. Existing Socket.IO invalidations rehydrate the provider; no new socket client is created.
+- **Create:** Information owns optional cover, title, category, group, date/time and voting deadline. Group Details supplies a locked, preselected group. Locations reuses the full-screen searchable map and its current catalog/nearby pins, single/multiple selection and removable selected list. Review shows the full summary and explicit links to Information/Locations. System Back moves to the preceding step. Provider-held values persist, and successful create opens the canonical outing.
+- **Details:** Separate overview, RSVP, voting, location, GPS arrival and management widgets. Overview shows group/date/time/status. A fixed or server-confirmed venue uses a single place card; multi-location ballots display selected checkboxes, vote tallies/progress/deadline and an explicit submit action. Unsaved ballot edits do not send partial selections. Candidate-set changes discard stale checkbox indexes. Creator Edit/Cancel and Save/Unsave keep their existing providers and API authorization.
+- **RSVP:** Going/Maybe/Not Going are available after creation once attendance hydrates, independent of voting; selected chips, counts, avatars and participant roster are visible. The creator stays Going. No offline write queue is added.
+- **GPS:** The existing foreground verification/window/roster service now exposes checking, verified, outside-radius, denied permission, unavailable/error and closed-window states. Retry obtains a fresh fix; backend proof checks and participant authorization remain authoritative.
+- **History:** Existing scheduled-start/terminal classification is retained. Details remain readable. Completed chat displays history and the server rejects new sends; a confirmed outing that has merely started retains its existing chat and check-in windows.
+
+Validation is through Dart formatting/static analysis and backend HTTP selected by Swagger/OpenAPI operation IDs. No app, emulator, device, widget/integration tests or UI automation is launched in this task.

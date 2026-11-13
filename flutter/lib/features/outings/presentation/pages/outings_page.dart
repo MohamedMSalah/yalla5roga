@@ -1,3 +1,9 @@
+import 'package:yalla_5roga/core/network/app_sync_provider.dart';
+import 'package:yalla_5roga/core/widgets/app_offline_indicator.dart';
+import 'package:yalla_5roga/core/widgets/app_error_state.dart';
+import 'package:yalla_5roga/core/widgets/app_page_header.dart';
+import 'package:yalla_5roga/core/widgets/custom_button.dart';
+import 'package:yalla_5roga/features/outings/presentation/pages/outing_history_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -34,43 +40,58 @@ class _OutingsPageState extends State<OutingsPage> {
 
     return SafeArea(
       bottom: false,
-      child: ListView(
-        padding: Responsive.pagePadding().add(
-          EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
-        ),
-        children: [
-          Row(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+          child: ListView(
+            padding: Responsive.pagePadding().add(
+              EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+            ),
             children: [
-              Expanded(
-                child: Text(
-                  l10n.outingsTitle,
-                  style: context.texts.headlineSmall,
+              AppPageHeader(
+                title: l10n.outingsTitle,
+                trailing: const NotificationButton(),
+              ),
+              AppOfflineIndicator(
+                isOffline: context.select<AppSyncProvider, bool>(
+                  (sync) => sync.status == SyncStatus.offline,
                 ),
               ),
-              const NotificationButton(),
+              Responsive.spaceMd.gapH,
+              CustomButton(
+                label: l10n.createOuting,
+                icon: Icons.add,
+                onPressed: () => Get.to(() => const CreateOutingPage()),
+              ),
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton.icon(
+                  onPressed: () => Get.to(() => const OutingHistoryPage()),
+                  icon: const Icon(Icons.history),
+                  label: Text(l10n.outingHistory),
+                ),
+              ),
+              Responsive.spaceXl.gapH,
+              if (!outings.hasLoaded && outings.errorMessage == null)
+                const AppShimmer(child: ShimmerOutingList(count: 3))
+              else if (outings.errorMessage != null && outings.outings.isEmpty)
+                AppErrorState(
+                  message: outings.errorMessage!,
+                  onRetry: () => outings.load(forceRefresh: true),
+                )
+              else ...[
+                if (outings.errorMessage != null)
+                  AppErrorState(
+                    message: outings.errorMessage!,
+                    onRetry: () => outings.load(forceRefresh: true),
+                  ),
+                const ActiveVotesList(),
+                Responsive.spaceXl.gapH,
+                OutingsList(title: l10n.upcoming, items: outings.upcoming),
+              ],
             ],
           ),
-          Responsive.spaceMd.gapH,
-          FilledButton.icon(
-            label: Text(l10n.createOuting),
-            icon: const Icon(Icons.add),
-            style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
-            onPressed: () => Get.to(() => const CreateOutingPage()),
-          ),
-          Responsive.spaceXl.gapH,
-          if (!outings.hasLoaded)
-            const AppShimmer(child: ShimmerOutingList(count: 3))
-          else if (outings.errorMessage != null && outings.outings.isEmpty)
-            TextButton(
-              onPressed: () => outings.load(forceRefresh: true),
-              child: Text(l10n.tryAgain),
-            )
-          else ...[
-            const ActiveVotesList(),
-            Responsive.spaceXl.gapH,
-            OutingsList(title: l10n.upcoming, items: outings.upcoming),
-          ],
-        ],
+        ),
       ),
     );
   }

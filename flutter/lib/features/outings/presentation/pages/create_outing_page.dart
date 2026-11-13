@@ -374,88 +374,97 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
       l10n.createAndGo,
     ];
 
-    return Scaffold(
-      // AppPageBar — create outing / special event
-      appBar: AppPageBar(
-        title: form.specialEvent ? l10n.createSpecialEvent : l10n.createOuting,
-        backIcon: form.step == 0 ? Icons.close : context.chevronBack,
-        onBack: creating ? () {} : () => _goBack(form),
-      ),
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    controller: _scroll,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: Responsive.pagePadding(),
-                    children: [
-                      CreateOutingStepHeader(form: form),
-                      _StepSwitcher(
-                        step: form.step,
-                        child: switch (form.step) {
-                          0 => CreateOutingBasicsStep(
-                            key: const ValueKey(0),
-                            form: form,
-                            onUploadPhoto: () => _uploadPhoto(context, form),
-                            onInviteGuests: () => _inviteGuests(context, form),
-                            onPickGroup: () => _pickGroup(context, form),
-                            onPickDate: () => _pickDate(context, form),
-                            onPickTime: () => _pickTime(context, form),
-                          ),
-                          1 => CreateOutingLocationStep(
-                            key: const ValueKey(1),
-                            form: form,
-                            onPickCustomLocation: () =>
-                                _pickCustomLocation(context, form),
-                          ),
-                          _ => CreateOutingReviewStep(
-                            key: const ValueKey(2),
-                            form: form,
-                          ),
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                Material(
-                  color: context.palette.background,
-                  child: Padding(
-                    padding: Responsive.pagePadding(top: 8, bottom: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return PopScope(
+      canPop: !creating && form.step == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && !creating && form.step > 0) _goBack(form);
+      },
+      child: Scaffold(
+        // AppPageBar — create outing / special event
+        appBar: AppPageBar(
+          title: form.specialEvent
+              ? l10n.createSpecialEvent
+              : l10n.createOuting,
+          backIcon: form.step == 0 ? Icons.close : context.chevronBack,
+          onBack: creating ? () {} : () => _goBack(form),
+        ),
+        body: SafeArea(
+          top: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      controller: _scroll,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: Responsive.pagePadding(),
                       children: [
-                        CustomButton(
-                          label: form.step == 2 && form.specialEvent
-                              ? l10n.createSpecialEvent
-                              : actions[form.step],
-                          icon: form.step == 2
-                              ? Icons.check
-                              : context.chevronForward,
-                          isLoading: form.step == 2 && creating,
-                          onPressed: creating
-                              ? null
-                              : form.step == 2
-                              ? () => _create(context, form)
-                              : () => _next(context, form),
+                        CreateOutingStepHeader(form: form),
+                        _StepSwitcher(
+                          step: form.step,
+                          child: switch (form.step) {
+                            0 => CreateOutingBasicsStep(
+                              key: const ValueKey(0),
+                              form: form,
+                              onUploadPhoto: () => _uploadPhoto(context, form),
+                              onInviteGuests: () =>
+                                  _inviteGuests(context, form),
+                              onPickGroup: () => _pickGroup(context, form),
+                              onPickDate: () => _pickDate(context, form),
+                              onPickTime: () => _pickTime(context, form),
+                            ),
+                            1 => CreateOutingLocationStep(
+                              key: const ValueKey(1),
+                              form: form,
+                              onPickCustomLocation: () =>
+                                  _pickCustomLocation(context, form),
+                            ),
+                            _ => CreateOutingReviewStep(
+                              key: const ValueKey(2),
+                              form: form,
+                            ),
+                          },
                         ),
-                        if (form.step == 2)
-                          TextButton(
-                            onPressed: creating
-                                ? null
-                                : () => _saveDraft(context, form),
-                            child: Text(l10n.saveDraft),
-                          ),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  Material(
+                    color: context.palette.background,
+                    child: Padding(
+                      padding: Responsive.pagePadding(top: 8, bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          CustomButton(
+                            label: form.step == 2 && form.specialEvent
+                                ? l10n.createSpecialEvent
+                                : actions[form.step],
+                            icon: form.step == 2
+                                ? Icons.check
+                                : context.chevronForward,
+                            isLoading: form.step == 2 && creating,
+                            onPressed: creating
+                                ? null
+                                : form.step == 2
+                                ? () => _create(context, form)
+                                : () => _next(context, form),
+                          ),
+                          if (form.step == 2)
+                            TextButton(
+                              onPressed: creating
+                                  ? null
+                                  : () => _saveDraft(context, form),
+                              child: Text(l10n.saveDraft),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

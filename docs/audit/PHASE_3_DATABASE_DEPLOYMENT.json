@@ -1,0 +1,59 @@
+{
+  "checkedAt": "2026-11-13T23:28:46.904Z",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "migration": {
+    "migration_name": "20261113180000_multi_location_ballots",
+    "checksum": "da93ca2f1fe862de9c946758b935cce82375acbcf1d987c4c1cc550c7da5ec4b",
+    "finished_at": "2026-11-13T23:27:37.375Z",
+    "rolled_back_at": null,
+    "applied_steps_count": 1
+  },
+  "primaryKey": "PRIMARY KEY (outing_id, user_id, option_id)",
+  "voteCount": 0,
+  "existingVotesPreserved": true,
+  "constraints": [
+    {
+      "conname": "outing_votes_created_at_not_null",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_option_id_not_null",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_option_id_outing_id_fkey",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_outing_id_fkey",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_outing_id_not_null",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_pkey",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_updated_at_not_null",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_user_id_fkey",
+      "convalidated": true
+    },
+    {
+      "conname": "outing_votes_user_id_not_null",
+      "convalidated": true
+    }
+  ],
+  "temporarySchemasRemaining": 0,
+  "transport": "Prisma/pg through loopback to encrypted Neon WebSocket"
+}

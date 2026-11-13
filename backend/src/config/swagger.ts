@@ -1228,6 +1228,12 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           },
         },
         VoteResolutionResponse: itemResponse("VoteResolution"),
+        BallotResponse: envelope({
+          type: "object", required: ["votes", "resolution"], properties: {
+            votes: { type: "array", items: ref("Vote") },
+            resolution: { oneOf: [ref("VoteResolution"), { type: "object", nullable: true, enum: [null] }] },
+          },
+        }),
         CastVoteResponse: envelope({
           type: "object",
           required: ["vote", "resolution"],
@@ -1238,13 +1244,15 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         }),
         VotingStateResponse: envelope({
           type: "object",
-          required: ["outing", "options", "votes", "tiedOptionIds", "isTied", "isClosed"],
+          required: ["outing", "options", "votes", "tiedOptionIds", "isTied", "isClosed", "my_option_ids", "voted_count"],
           properties: {
             outing: ref("Outing"),
             options: { type: "array", items: { allOf: [ref("VoteOption"), {
               type: "object", properties: { vote_count: { type: "integer" } },
             }] } },
             my_option_id: { ...uuid, nullable: true },
+            my_option_ids: { type: "array", uniqueItems: true, items: uuid },
+            voted_count: { type: "integer" },
             eligible_voter_count: { type: "integer" },
             votes: { type: "array", items: ref("Vote") },
             tiedOptionIds: { type: "array", items: uuid },

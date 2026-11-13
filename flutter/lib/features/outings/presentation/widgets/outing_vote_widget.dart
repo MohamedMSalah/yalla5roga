@@ -1,9 +1,10 @@
+import 'package:yalla_5roga/core/widgets/place_card.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
-import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
@@ -16,7 +17,7 @@ import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
-/// Attendance + place voting for an outing (independent domains).
+/// Place voting only. RSVP and GPS arrival have separate widgets.
 class OutingVoteWidget extends StatefulWidget {
   const OutingVoteWidget({
     super.key,
@@ -38,49 +39,28 @@ class OutingVoteWidget extends StatefulWidget {
 }
 
 class _OutingVoteWidgetState extends State<OutingVoteWidget> {
-  var _saving = false;
+  Set<int>? _draftIndexes;
+  String? _optionSet;
   var _breakingTie = false;
   var _voting = false;
 
-  Future<void> _selectAttendance(AttendanceStatus status) async {
-    if (_saving || status == AttendanceStatus.unset) return;
-    final outings = context.read<OutingsProvider>();
-    final userId = context.read<AuthProvider>().user?.id;
-    if (userId == null || userId.isEmpty) return;
-    if (widget.outing.createdById == userId) return;
-    if (!outings.canChangeAttendance(widget.outing.id, userId: userId)) {
-      AppSnackBar.show(context.l10n.attendanceClosed);
-      return;
-    }
-
-    setState(() => _saving = true);
-    final ok = await outings.setAttendance(widget.outing.id, userId, status);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (!ok) {
-      // AppErrorFeedback already showed the localized failure.
-      return;
-    }
-    AppSnackBar.show(context.l10n.attendanceUpdated);
-  }
-
-  Future<void> _togglePlace(int index) async {
-    final outings = context.read<OutingsProvider>();
-    final l10n = context.l10n;
-
-    if (outings.isVoteFinalized(widget.outing.id)) {
-      AppSnackBar.show(l10n.voteLocked);
-      return;
-    }
-
-    if (_voting || outings.voteIndexesFor(widget.outing.id).contains(index)) {
+  Future<void> _submitBallot() async {
+    if (_voting || _draftIndexes == null) return;
+    if (context.read<OutingsProvider>().isVoteExpired(widget.outing.id)) {
+      AppSnackBar.show(context.l10n.voteEnded);
       return;
     }
     setState(() => _voting = true);
-    final ok = await outings.selectVoteFor(widget.outing.id, index);
+    final ok = await context.read<OutingsProvider>().setBallotFor(
+      widget.outing.id,
+      _draftIndexes!,
+    );
     if (!mounted) return;
-    setState(() => _voting = false);
-    if (ok) AppSnackBar.show(l10n.voteUpdated);
+    setState(() {
+      _voting = false;
+      if (ok) _draftIndexes = null;
+    });
+    if (ok) AppSnackBar.show(context.l10n.voteUpdated);
   }
 
   Future<void> _chooseVenue(List<VoteOption> options) async {
@@ -166,24 +146,22 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final userId = context.watch<AuthProvider>().user?.id;
     final outing = outings.findById(widget.outing.id) ?? widget.outing;
     final options = outings.optionsFor(outing.id);
+    final optionSet = options.map((option) => option.placeId).join(',');
+    if (_optionSet != optionSet) {
+      _draftIndexes = null;
+      _optionSet = optionSet;
+    }
     final showPlaces = options.isNotEmpty;
     final canConfirm =
         (userId != null && outing.createdById == userId) &&
         outing.status == OutingStatus.voting &&
         showPlaces;
     final selectedIndexes = outings.voteIndexesFor(outing.id);
-    final mine = outings.cuserAttendance(outing.id, userId);
     final isCreator =
         outing.createdById != null && outing.createdById == userId;
     final locked = outings.isVoteFinalized(outing.id);
-    final attendanceLoaded = outings.hasAttendanceFor(outing.id);
-    final attendanceOpen =
-        userId != null &&
-        attendanceLoaded &&
-        outings.canChangeAttendance(outing.id, userId: userId) &&
-        !outings.isSavingAttendance(outing.id);
     final placesEnabled =
-        !locked && !_voting && outing.status == OutingStatus.voting;
+        !locked && !_voting && outings.canSelectPlaces(outing.id, userId);
     final totalMembers = math.max(
       outings.eligibleVoterCountFor(outing.id),
       outings.votedCountFor(outing.id),
@@ -191,6 +169,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final voted = outings.votedCountFor(outing.id).clamp(0, totalMembers);
     final showTieBreak = isCreator && outings.isTied(outing.id);
 
+    if (options.length < 2) return const SizedBox.shrink();
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -209,7 +188,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        outing.title,
+                        l10n.suggestPlaces,
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 13.sp,
@@ -217,7 +196,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                       ),
                       Text(
                         showPlaces
-                            ? l10n.pickFavoritePlace
+                            ? l10n.selectPreferredPlaces
                             : l10n.attendanceTitle,
                         style: TextStyle(
                           color: palette.textMuted,
@@ -237,109 +216,6 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
             ),
             12.gapH,
           ],
-          Text(
-            l10n.attendanceTitle,
-            key: widget.attendanceKey,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: Responsive.fontSm,
-            ),
-          ),
-          8.gapH,
-          if (isCreator) ...[
-            Row(
-              children: [
-                Icon(
-                  Icons.check_circle,
-                  color: const Color(0xFF059669),
-                  size: 20.w,
-                ),
-                8.gapW,
-                Text(
-                  l10n.imIn,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF059669),
-                    fontSize: 13.sp,
-                  ),
-                ),
-              ],
-            ),
-            4.gapH,
-            Text(
-              l10n.youreIn,
-              style: TextStyle(color: palette.textMuted, fontSize: 11.sp),
-            ),
-          ] else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: _AttendanceButton(
-                    label: l10n.imIn,
-                    icon: Icons.check,
-                    selected: mine == AttendanceStatus.going,
-                    loading: _saving && mine == AttendanceStatus.going,
-                    enabled: attendanceOpen && mine != AttendanceStatus.going,
-                    color: const Color(0xFF059669),
-                    onTap: () => _selectAttendance(AttendanceStatus.going),
-                  ),
-                ),
-                8.gapW,
-                Expanded(
-                  child: _AttendanceButton(
-                    label: l10n.maybe,
-                    icon: Icons.help_outline,
-                    selected: mine == AttendanceStatus.maybe,
-                    loading: _saving && mine == AttendanceStatus.maybe,
-                    enabled: attendanceOpen && mine != AttendanceStatus.maybe,
-                    color: AppColors.amber700,
-                    onTap: () => _selectAttendance(AttendanceStatus.maybe),
-                  ),
-                ),
-                8.gapW,
-                Expanded(
-                  child: _AttendanceButton(
-                    label: l10n.notIn,
-                    icon: Icons.close,
-                    selected: mine == AttendanceStatus.notGoing,
-                    loading: _saving && mine == AttendanceStatus.notGoing,
-                    enabled:
-                        attendanceOpen && mine != AttendanceStatus.notGoing,
-                    color: AppColors.rose600,
-                    onTap: () => _selectAttendance(AttendanceStatus.notGoing),
-                  ),
-                ),
-              ],
-            ),
-          ],
-          8.gapH,
-          if (attendanceLoaded)
-            Wrap(
-              spacing: Responsive.spaceSm,
-              runSpacing: Responsive.spaceXs,
-              children: [
-                for (final status in [
-                  AttendanceStatus.going,
-                  AttendanceStatus.maybe,
-                  AttendanceStatus.notGoing,
-                ])
-                  Text(
-                    l10n.attendanceTally(
-                      switch (status) {
-                        AttendanceStatus.going => l10n.imIn,
-                        AttendanceStatus.maybe => l10n.maybe,
-                        _ => l10n.notIn,
-                      },
-                      outings
-                          .attendanceMapFor(outing.id)
-                          .values
-                          .where((value) => value == status)
-                          .length,
-                    ),
-                    style: context.texts.bodySmall,
-                  ),
-              ],
-            ),
           if (locked && showPlaces) ...[
             8.gapH,
             Text(
@@ -358,7 +234,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
           if (showPlaces) ...[
             14.gapH,
             Text(
-              l10n.pickFavoritePlace,
+              l10n.selectPreferredPlaces,
               key: widget.placeVotingKey,
               style: TextStyle(
                 fontWeight: FontWeight.w800,
@@ -366,13 +242,34 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
               ),
             ),
             8.gapH,
+            LinearProgressIndicator(
+              value: totalMembers == 0 ? 0 : voted / totalMembers,
+            ),
+            Responsive.spaceSm.gapH,
             OutingVoteOptions(
               options: options,
-              selectedIndexes: selectedIndexes,
+              selectedIndexes: locked
+                  ? selectedIndexes
+                  : (_draftIndexes ?? selectedIndexes),
               compact: widget.compact,
               enabled: placesEnabled,
-              onSelected: _togglePlace,
+              onSelected: (index) => setState(() {
+                final next = Set<int>.of(_draftIndexes ?? selectedIndexes);
+                if (!next.add(index)) next.remove(index);
+                _draftIndexes = next;
+              }),
             ),
+            if (!locked) ...[
+              Responsive.spaceSm.gapH,
+              CustomButton(
+                label: l10n.confirmVote,
+                icon: Icons.how_to_vote_outlined,
+                isLoading: _voting,
+                onPressed: _draftIndexes == null || _voting
+                    ? null
+                    : _submitBallot,
+              ),
+            ],
             if (canConfirm) ...[
               12.gapH,
               CustomButton(
@@ -384,7 +281,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                     : () => _chooseVenue(options),
               ),
             ],
-            if (!locked && outings.voteEndsAt(outing.id) != null) ...[
+            if (outings.voteEndsAt(outing.id) != null) ...[
               12.gapH,
               VoteCountdownText(endsAt: outings.voteEndsAt(outing.id)!),
             ],
@@ -399,83 +296,6 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _AttendanceButton extends StatelessWidget {
-  const _AttendanceButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.loading,
-    required this.enabled,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final bool loading;
-  final bool enabled;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final duration = AppMotion.of(context, AppMotion.standard);
-    return AnimatedContainer(
-      duration: duration,
-      curve: AppMotion.settle,
-      decoration: BoxDecoration(
-        color: selected ? color.withValues(alpha: 0.12) : palette.surfaceMuted,
-        borderRadius: BorderRadius.circular(14.r),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14.r),
-        child: InkWell(
-          onTap: enabled ? onTap : null,
-          borderRadius: BorderRadius.circular(14.r),
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 6.w),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (loading)
-                  SizedBox(
-                    width: 14.w,
-                    height: 14.w,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: color,
-                    ),
-                  )
-                else
-                  Icon(
-                    icon,
-                    size: 16.w,
-                    color: selected ? color : palette.textMuted,
-                  ),
-                4.gapW,
-                Flexible(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11.sp,
-                      color: selected ? color : palette.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -501,61 +321,19 @@ class OutingVoteOptions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final palette = context.palette;
-
     return Column(
       children: [
         for (var i = 0; i < options.length; i++) ...[
           if (i > 0) Responsive.spaceSm.gapH,
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: enabled ? () => onSelected(i) : null,
-              borderRadius: BorderRadius.circular(12.r),
-              child: AnimatedContainer(
-                duration: AppMotion.of(context, AppMotion.standard),
-                padding: EdgeInsets.all(compact ? 10.w : 12.w),
-                decoration: BoxDecoration(
-                  color: selectedIndexes.contains(i)
-                      ? palette.brandSoft
-                      : palette.surface,
-                  borderRadius: BorderRadius.circular(12.r),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      selectedIndexes.contains(i)
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                      color: selectedIndexes.contains(i)
-                          ? AppColors.brand600
-                          : palette.border,
-                    ),
-                    Responsive.spaceSm.gapW,
-                    Expanded(
-                      child: Text(
-                        [
-                          options[i].label,
-                          options[i].area,
-                        ].where((part) => part.isNotEmpty).join(' Ãƒâ€šÃ‚Â· '),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: Responsive.fontSm,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      l10n.votesPercent(options[i].votes, options[i].percent),
-                      style: TextStyle(
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.brand600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+          PlaceCard.option(
+            title: options[i].label,
+            subtitle: options[i].area,
+            selected: selectedIndexes.contains(i),
+            progress: options[i].percent / 100,
+            trailing: Text(
+              l10n.votesPercent(options[i].votes, options[i].percent),
             ),
+            onTap: enabled ? () => onSelected(i) : null,
           ),
         ],
       ],
@@ -575,10 +353,11 @@ class VoteCountdownText extends StatefulWidget {
 }
 
 class _VoteCountdownTextState extends State<VoteCountdownText> {
+  final _ticks = Stream<int>.periodic(const Duration(seconds: 30), (i) => i);
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-      stream: Stream.periodic(const Duration(seconds: 30)),
+      stream: _ticks,
       builder: (context, _) {
         final remaining = widget.endsAt.difference(DateTime.now());
         final l10n = context.l10n;
@@ -593,15 +372,17 @@ class _VoteCountdownTextState extends State<VoteCountdownText> {
           children: [
             Icon(Icons.timer_outlined, size: 14.w, color: AppColors.amber700),
             6.gapW,
-            Text(
-              label,
-              style:
-                  widget.style ??
-                  TextStyle(
-                    color: AppColors.amber700,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.w800,
-                  ),
+            Flexible(
+              child: Text(
+                label,
+                style:
+                    widget.style ??
+                    TextStyle(
+                      color: AppColors.amber700,
+                      fontSize: 10.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
             ),
           ],
         );

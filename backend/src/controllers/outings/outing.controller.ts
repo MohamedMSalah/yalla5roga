@@ -40,6 +40,7 @@ import { UpdateOutingUseCase } from "../../usecases/outings/update-outing.usecas
 import {
   CancelOutingUseCase,
   CastVoteUseCase,
+  ReplaceBallotUseCase,
   CreateVoteOptionUseCase,
   DeleteVoteOptionUseCase,
   GetVotingStateUseCase,
@@ -405,6 +406,16 @@ export class OutingController {
     }
   };
 
+  replaceBallot = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const id = req.params.id as string;
+      const data = await new ReplaceBallotUseCase().execute(id, req.user.uid, req.body.option_ids);
+      await publishOutingChange(id);
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
+
   unvote = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
@@ -454,6 +465,8 @@ export class OutingController {
       res.json({ success: true, data: {
         ...state,
         options: state.options.map((option) => ({ ...option, vote_count: counts.get(option.id) ?? 0 })),
+        my_option_ids: state.votes.filter(vote => vote.user_id === req.user?.uid).map(vote => vote.option_id),
+        voted_count: new Set(state.votes.map(vote => vote.user_id)).size,
         my_option_id: state.votes.find((vote) => vote.user_id === req.user?.uid)?.option_id ?? null,
       } });
     } catch (error) {

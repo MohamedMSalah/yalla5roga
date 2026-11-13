@@ -206,32 +206,27 @@ export class OutingDatasource {
     return prisma.outing_votes.findMany({ where: { outing_id: outingId } });
   }
 
-  /** Upsert so changing a vote updates the single active row. */
+  /** Idempotently add one selection without removing the rest of the ballot. */
   castVote(data: CastVoteInput): Promise<OutingVote> {
-    return prisma.outing_votes.upsert({
-      where: {
-        outing_id_user_id: {
-          outing_id: data.outing_id,
-          user_id: data.user_id,
-        },
-      },
-      create: data,
-      update: {
-        option_id: data.option_id,
-        updated_at: new Date(),
-      },
+    return prisma.$transaction(async tx => {
+      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null}>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${data.outing_id}::uuid FOR UPDATE`;
+      if (!outing || outing.status !== "voting" || outing.vote_closed_at || !outing.vote_ends_at || outing.vote_ends_at <= new Date()) throw new ConflictError("Voting is closed");
+      return tx.outing_votes.upsert({
+      where: { outing_id_user_id_option_id: {
+        outing_id: data.outing_id, user_id: data.user_id, option_id: data.option_id,
+      } }, create: data, update: {},
+      });
     });
   }
 
-  removeVote(outingId: string, userId: string, optionId?: string): Promise<OutingVote> {
-    return prisma.outing_votes.delete({
-      where: {
-        option_id: optionId,
-        outing_id_user_id: {
-          outing_id: outingId,
-          user_id: userId,
-        },
-      },
+  async removeVote(outingId: string, userId: string, optionId?: string): Promise<OutingVote> {
+    return prisma.$transaction(async tx => {
+      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null}>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
+      if (!outing || outing.status !== "voting" || outing.vote_closed_at || !outing.vote_ends_at || outing.vote_ends_at <= new Date()) throw new ConflictError("Voting is closed");
+      const where = { outing_id: outingId, user_id: userId, ...(optionId ? { option_id: optionId } : {}) };
+      const vote = await tx.outing_votes.findFirstOrThrow({ where });
+      await tx.outing_votes.deleteMany({ where });
+      return vote;
     });
   }
 

@@ -12,16 +12,82 @@ class PlaceCard extends StatelessWidget {
     required this.cover,
     required this.onTap,
     this.compact = false,
-  });
+  }) : inline = false,
+       selected = false,
+       progress = null,
+       trailing = null;
+
+  const PlaceCard.option({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    this.selected = false,
+    this.progress,
+    this.trailing,
+  }) : inline = true,
+       compact = true,
+       cover = const Icon(Icons.place_outlined);
 
   final String title;
   final String subtitle;
   final Widget cover;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool inline;
+  final bool selected;
+  final double? progress;
+  final Widget? trailing;
   final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    if (inline) {
+      return Semantics(
+        selected: selected,
+        child: Material(
+          color: selected
+              ? context.palette.brandSoft
+              : context.palette.surfaceMuted,
+          borderRadius: BorderRadius.circular(AppRadii.control.r),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadii.control.r),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Padding(
+                padding: Responsive.padding(all: AppSpacing.compact),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Wrap(
+                      spacing: Responsive.spaceSm,
+                      runSpacing: Responsive.spaceSm,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (onTap != null)
+                          Icon(
+                            selected
+                                ? Icons.check_box
+                                : Icons.check_box_outline_blank,
+                          ),
+                        Text(title, style: context.texts.titleSmall),
+                        if (subtitle.isNotEmpty)
+                          Text(subtitle, style: context.texts.bodySmall),
+                        ?trailing,
+                      ],
+                    ),
+                    if (progress != null) ...[
+                      Responsive.spaceSm.gapH,
+                      LinearProgressIndicator(value: progress!.clamp(0, 1)),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final width = compact ? 200.w : 220.w;
     final height =
         168.h +

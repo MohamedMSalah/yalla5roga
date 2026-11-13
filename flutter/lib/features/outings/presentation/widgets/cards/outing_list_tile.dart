@@ -15,6 +15,7 @@ class OutingListTile extends StatelessWidget {
     this.occasion = OutingOccasion.none,
     this.onTap,
     this.trailing,
+    this.statusLabel,
     this.heroTag,
   });
 
@@ -24,6 +25,7 @@ class OutingListTile extends StatelessWidget {
   final OutingOccasion occasion;
   final VoidCallback? onTap;
   final Widget? trailing;
+  final String? statusLabel;
 
   /// Shared-element tag for the thumbnail; pass the same tag to the details
   /// page. Null when the tile does not open outing details.
@@ -33,6 +35,7 @@ class OutingListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return OutingCard(
       title: title,
+      statusLabel: statusLabel,
       subtitle: subtitle,
       onTap: onTap,
       trailing: trailing,

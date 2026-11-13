@@ -5,7 +5,7 @@
 | Last verified | 2026-11-13 |
 | Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | Twelve migrations applied through `20261112120000_media_assets` on 2026-11-12. Recovery and media migration deployments are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md) and [media report](audit/MEDIA_STORAGE_REPORT.md). |
+| Configured Neon schema | Thirteen migrations applied through `20261113180000_multi_location_ballots` on 2026-11-14 (Cairo). Recovery and media migration deployments are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md) and [media report](audit/MEDIA_STORAGE_REPORT.md). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -124,7 +124,7 @@ UUID PK. FK outing (cascade). Optional `place_id`. Unique `(outing_id, place_id)
 
 ### `outing_votes`
 
-**One active vote per user per outing.** PK `(outing_id, user_id)`. FK option via composite `(option_id, outing_id)`. Change vote = update row.
+**Multiple location selections per ballot.** PK `(outing_id, user_id, option_id)`. The option FK still uses `(option_id, outing_id)`, preventing cross-outing selections. `20261113180000_multi_location_ballots` expands the primary key without deleting rows, changing IDs or replacing foreign keys. Existing single selections remain valid. Distinct user IDs determine participation; option rows determine each candidate tally.
 
 ### `outing_drafts`
 
@@ -166,7 +166,7 @@ Indexes: owner, cleanup `(status, upload_expires_at)`, and each optional entity 
 
 1. Firebase UID = `users.id`.
 2. Outing Owner = `outings.created_by` (not a global role).
-3. One vote per `(outing_id, user_id)`.
+3. One selection per `(outing_id, user_id, option_id)`; multiple selections form one caller ballot.
 4. Winner option must belong to same outing (composite FK).
 5. Attendance changes must never mutate `outing_votes`.
 6. Confirmed winning location must stay consistent with `winning_option_id`.
@@ -242,3 +242,8 @@ No schema or migration changed. Retry-safe draft creation reuses the existing UU
 ## Neon migration synchronization check — 2026-11-13
 
 The owner requested deployment of any pending database changes before committing and pushing the local working tree. Live Prisma Migrate status on the configured Neon direct endpoint reported all 12 local migrations applied, through `20261112120000_media_assets`. A separate read of `_prisma_migrations` confirmed 12 completed/non-rolled-back migrations and matching SHA-256 checksums for every local migration.sql. There were no pending or mismatched migrations, so no migration deployment or application-data change was needed. The initial pooled connection failed; retry used the same direct-host/channel-binding normalization already present in backend database configuration. No schema diagram change was required.
+
+
+## Phase 3 migration verification — 2026-11-14
+
+A private logical snapshot and rollback-only recovery rehearsal are recorded in `audit/PHASE_3_DATABASE_BACKUP.json`. Every application table plus Prisma history was restored with matching row checksums and foreign keys before applying the exact vote-key migration to the restored schema. The migration was deployed with Prisma Migrate. `audit/PHASE_3_DATABASE_DEPLOYMENT.json` confirms the applied file checksum, primary key, valid constraints, preserved source vote checksum and absence of disposable schemas. No `db push`, reset or data deletion is used.

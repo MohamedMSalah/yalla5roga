@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/widgets/app_step_progress.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/create_outing_provider.dart';
 
@@ -27,36 +27,7 @@ class CreateOutingStepHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            for (var i = 0; i < 3; i++) ...[
-              if (i > 0) 6.gapW,
-              Expanded(
-                child: AnimatedContainer(
-                  duration: AppMotion.of(context, AppMotion.standard),
-                  height: 6.h,
-                  decoration: BoxDecoration(
-                    color: i <= step
-                        ? (i == step
-                              ? context.colors.primary
-                              : context.palette.brandSoftBorder)
-                        : context.palette.border,
-                    borderRadius: BorderRadius.circular(999.r),
-                  ),
-                ),
-              ),
-            ],
-            Responsive.spaceSm.gapW,
-            Text(
-              l10n.stepOf(step + 1, 3),
-              style: TextStyle(
-                color: context.palette.brandStrong,
-                fontWeight: FontWeight.w800,
-                fontSize: 10.sp,
-              ),
-            ),
-          ],
-        ),
+        AppStepProgress(step: step, total: 3, label: l10n.stepOf(step + 1, 3)),
         Responsive.spaceLg.gapH,
         Semantics(
           header: true,

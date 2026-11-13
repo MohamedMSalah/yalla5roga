@@ -1,0 +1,384 @@
+{
+  "checkedAt": "2026-11-13T23:25:38.329Z",
+  "mode": "HTTP/OpenAPI only; disposable schema; controlled Firebase verifier; no workers or live migration",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "Served Swagger matches generated OpenAPI",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "cancelOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "cancelOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "saveOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "saveOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "unsaveOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "unsaveOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Migration preserves existing ballot",
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "cancelOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "breakTie",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "breakTie",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "saveOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "unsaveOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "cancelOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Multi-ballot distinct voters, existing unique-winner/tie resolution, RSVP independence, completed chat and GPS",
+      "result": "PASS"
+    }
+  ]
+}

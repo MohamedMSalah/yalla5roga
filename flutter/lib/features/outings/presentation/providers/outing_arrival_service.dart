@@ -3,7 +3,13 @@ import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_socket_cl
 import 'package:yalla_5roga/features/outings/data/datasources/outing_arrivals_remote_datasource.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_arrival.dart';
 
-enum ArrivalVerification { unverified, unavailable, arrived }
+enum ArrivalVerification {
+  unverified,
+  unavailable,
+  permissionDenied,
+  outsideRadius,
+  arrived,
+}
 
 class OutingArrivalService {
   OutingArrivalService(
@@ -55,7 +61,7 @@ class OutingArrivalService {
       }
       if (permission != LocationPermission.always &&
           permission != LocationPermission.whileInUse) {
-        return ArrivalVerification.unavailable;
+        return ArrivalVerification.permissionDenied;
       }
       if (!isActive()) return ArrivalVerification.unverified;
       position = await _getPosition();
@@ -79,7 +85,7 @@ class OutingArrivalService {
       venue.longitude,
     );
     if (!distance.isFinite || distance > roster.radiusMeters) {
-      return ArrivalVerification.unverified;
+      return ArrivalVerification.outsideRadius;
     }
     final arrived = await _remote.record(
       outingId,

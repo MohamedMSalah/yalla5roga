@@ -89,6 +89,11 @@ abstract class OutingsRepository {
     DateTime? scheduledAt,
   });
 
+  Future<Either<Failure, OutingSnapshot>> setBallot(
+    String outingId,
+    Set<int> indexes,
+  );
+
   Future<Either<Failure, OutingSnapshot>> selectVote(
     String outingId,
     int optionIndex,

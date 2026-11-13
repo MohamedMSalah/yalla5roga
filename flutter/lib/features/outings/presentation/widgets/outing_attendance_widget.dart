@@ -1,233 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
-import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
+import 'package:yalla_5roga/core/widgets/avatar_stack.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/outing_going_sheet.dart';
 
-/// Attendance RSVP (I'm In / Not In) — separate from place voting.
-class OutingAttendanceWidget extends StatefulWidget {
+class OutingAttendanceWidget extends StatelessWidget {
   const OutingAttendanceWidget({super.key, required this.outing});
-
   final Outing outing;
 
   @override
-  State<OutingAttendanceWidget> createState() => _OutingAttendanceWidgetState();
-}
-
-class _OutingAttendanceWidgetState extends State<OutingAttendanceWidget> {
-  var _saving = false;
-
-  Future<void> _select(AttendanceStatus status) async {
-    if (_saving) return;
-    final outings = context.read<OutingsProvider>();
-    final userId = context.read<AuthProvider>().user?.id;
-    if (userId == null || userId.isEmpty) return;
-
-    if (widget.outing.createdById == userId) {
-      // Creator is always I'm In — already persisted.
-      return;
-    }
-    if (!outings.canChangeAttendance(widget.outing.id)) {
-      AppSnackBar.show(context.l10n.attendanceClosed);
-      return;
-    }
-
-    setState(() => _saving = true);
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-    if (!mounted) return;
-
-    final ok = await outings.setAttendance(widget.outing.id, userId, status);
-    if (!mounted) return;
-    setState(() => _saving = false);
-    if (!ok) {
-      // AppErrorFeedback already showed the localized failure.
-      return;
-    }
-    AppSnackBar.show(context.l10n.attendanceUpdated);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final palette = context.palette;
-    final outings = context.watch<OutingsProvider>();
-    final userId = context.watch<AuthProvider>().user?.id;
-    final outing = outings.findById(widget.outing.id) ?? widget.outing;
-    final mine = outings.cuserAttendance(outing.id, userId);
-    final isCreator =
-        outing.createdById != null && outing.createdById == userId;
-    final open = outings.canChangeAttendance(outing.id);
-
+    final store = context.watch<OutingsProvider>();
+    final uid = context.watch<AuthProvider>().user?.id;
+    final mine = store.cuserAttendance(outing.id, uid);
+    final creator = uid != null && outing.createdById == uid;
+    final loaded = store.hasAttendanceFor(outing.id);
+    final busy = store.isSavingAttendance(outing.id);
+    final enabled =
+        uid != null &&
+        loaded &&
+        !creator &&
+        !busy &&
+        store.canChangeAttendance(outing.id, userId: uid);
+    final members = store.membersForOuting(outing);
+    final going = store.goingCountFor(outing.id);
+    final avatars = [
+      for (final member in members)
+        if (store.attendanceFor(outing.id, member.id) == AttendanceStatus.going)
+          member.avatar,
+    ].take(3).toList();
     return AppCard(
-      radius: 18,
-      padding: EdgeInsets.all(14.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.attendanceTitle,
-            style: TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: Responsive.fontSm,
-            ),
-          ),
-          8.gapH,
-          if (isCreator) ...[
-            _StatusChip(
-              icon: Icons.check_circle,
-              label: l10n.imIn,
-              selected: true,
-              color: const Color(0xFF059669),
-            ),
-            4.gapH,
-            Text(
-              l10n.youreIn,
-              style: TextStyle(color: palette.textMuted, fontSize: 11.sp),
-            ),
-          ] else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: _AttendanceButton(
-                    label: l10n.imIn,
-                    icon: Icons.check,
-                    selected: mine == AttendanceStatus.going,
-                    loading: _saving && mine != AttendanceStatus.going,
-                    enabled: open && !_saving,
-                    color: const Color(0xFF059669),
-                    onTap: () => _select(AttendanceStatus.going),
+          Text(context.l10n.attendanceTitle, style: context.texts.titleMedium),
+          if (busy) const LinearProgressIndicator(),
+          Responsive.spaceSm.gapH,
+          Wrap(
+            spacing: Responsive.spaceSm,
+            runSpacing: Responsive.spaceSm,
+            children: [
+              for (final status in [
+                AttendanceStatus.going,
+                AttendanceStatus.maybe,
+                AttendanceStatus.notGoing,
+              ])
+                ChoiceChip(
+                  materialTapTargetSize: MaterialTapTargetSize.padded,
+                  avatar: Icon(AttendanceDisplay.icon(status), size: 18),
+                  label: Text(
+                    '${switch (status) {
+                      AttendanceStatus.going => context.l10n.imIn,
+                      AttendanceStatus.maybe => context.l10n.maybe,
+                      _ => context.l10n.notIn,
+                    }}${loaded ? ' · ${context.l10n.digits(store.attendanceMapFor(outing.id).values.where((v) => v == status).length.toString())}' : ''}',
                   ),
+                  selected:
+                      mine == status ||
+                      (creator && status == AttendanceStatus.going),
+                  onSelected: enabled
+                      ? (_) => store.setAttendance(outing.id, uid, status)
+                      : null,
                 ),
-                8.gapW,
-                Expanded(
-                  child: _AttendanceButton(
-                    label: l10n.notIn,
-                    icon: Icons.close,
-                    selected: mine == AttendanceStatus.notGoing,
-                    loading: _saving && mine != AttendanceStatus.notGoing,
-                    enabled: open && !_saving,
-                    color: AppColors.rose600,
-                    onTap: () => _select(AttendanceStatus.notGoing),
-                  ),
-                ),
-              ],
-            ),
-            if (mine == AttendanceStatus.unset) ...[
-              8.gapH,
-              Text(
-                '؟ ${l10n.stillNotVoted}',
-                style: TextStyle(color: palette.textMuted, fontSize: 11.sp),
-              ),
             ],
+          ),
+          if (creator)
+            Text(context.l10n.youreIn, style: context.texts.bodySmall),
+          if (loaded) ...[
+            Responsive.spaceSm.gapH,
+            TextButton(
+              onPressed: () => OutingGoingSheet.show(outing),
+              child: Wrap(
+                spacing: Responsive.spaceSm,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (going > 0)
+                    AvatarStack(
+                      urls: avatars,
+                      extra: (going - avatars.length).clamp(0, 99),
+                    ),
+                  Text(context.l10n.goingCount(going)),
+                ],
+              ),
+            ),
           ],
         ],
       ),
-    );
-  }
-}
-
-class _AttendanceButton extends StatelessWidget {
-  const _AttendanceButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.loading,
-    required this.enabled,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final bool loading;
-  final bool enabled;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? color.withValues(alpha: 0.12)
-          : context.palette.surfaceMuted,
-      borderRadius: BorderRadius.circular(14.r),
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(14.r),
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 10.w),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (loading)
-                SizedBox(
-                  width: 16.w,
-                  height: 16.w,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: color,
-                  ),
-                )
-              else
-                Icon(
-                  icon,
-                  size: 18.w,
-                  color: selected ? color : context.palette.textMuted,
-                ),
-              6.gapW,
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12.sp,
-                    color: selected ? color : context.palette.textPrimary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 20.w),
-        8.gapW,
-        Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            color: color,
-            fontSize: 13.sp,
-          ),
-        ),
-      ],
     );
   }
 }

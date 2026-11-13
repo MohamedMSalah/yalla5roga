@@ -3,6 +3,7 @@ import { OutingController } from "../../controllers/outings/outing.controller.js
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   castVoteBodySchema,
+  replaceBallotBodySchema,
   createVoteOptionBodySchema,
   outingIdParamsSchema,
   replaceVoteOptionsBodySchema,
@@ -107,6 +108,44 @@ import {
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
  * /api/outings/{id}/votes:
+ *   put:
+ *     tags: [Outing Voting]
+ *     summary: Replace my complete multi-location ballot atomically
+ *     operationId: replaceOutingBallot
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [option_ids]
+ *             properties:
+ *               option_ids:
+ *                 type: array
+ *                 maxItems: 5
+ *                 uniqueItems: true
+ *                 items:
+ *                   type: string
+ *                   format: uuid
+ *     responses:
+ *       "200":
+ *         description: Complete ballot persisted before existing closure rules run
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/BallotResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: Voting closed or deadline passed
  *   get:
  *     tags: [Outing Voting]
  *     summary: List votes
@@ -133,7 +172,7 @@ import {
  *   post:
  *     tags: [Outing Voting]
  *     summary: Cast a vote
- *     description: The voter is the authenticated Firebase UID.
+ *     description: Idempotently add one selection for the authenticated Firebase UID. Use PUT for a complete ballot before early closure evaluation.
  *     operationId: castVote
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -256,6 +295,12 @@ import {
  *               $ref: "#/components/schemas/VoteResolutionResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: Voting is not awaiting a tie-break
  */
 const router = Router();
 const controller = new OutingController();
@@ -291,6 +336,11 @@ router.get(
   "/:id/votes",
   validate({ params: outingIdParamsSchema }),
   controller.getVotes,
+);
+router.put(
+  "/:id/votes",
+  validate({ params: outingIdParamsSchema, body: replaceBallotBodySchema }),
+  controller.replaceBallot,
 );
 router.post(
   "/:id/votes",

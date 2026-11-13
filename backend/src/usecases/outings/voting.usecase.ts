@@ -10,6 +10,7 @@ import {
   breakTieRandomly,
   emitResolutionNotifications,
   tryCloseIfAllVoted,
+  resolveClosedVoting,
   type VoteResolutionResult,
 } from "../../services/outings/vote-resolution.js";
 import type {
@@ -18,7 +19,7 @@ import type {
   OutingVote,
   OutingVoteOption,
 } from "../../types/outings/outing.types.js";
-import { ConflictError, NotFoundError, ValidationError } from "../../utils/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../utils/errors.js";
 
 async function assertDeadlineOpen(outing: Outing): Promise<void> {
   if (!outing.vote_ends_at) {
@@ -229,6 +230,34 @@ export class CastVoteUseCase {
     }
 
     return { vote, resolution };
+  }
+}
+
+/** Replace a complete ballot before evaluating early closure. */
+export class ReplaceBallotUseCase {
+  async execute(outingId: string, userId: string, optionIds: string[]) {
+    if (!Array.isArray(optionIds) || optionIds.length > 5 || new Set(optionIds).size !== optionIds.length) {
+      throw new ValidationError("Select up to five distinct options");
+    }
+    const result = await prisma.$transaction(async tx => {
+      const [outing] = await tx.$queryRaw<Outing[]>`SELECT * FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
+      if (!outing) throw new NotFoundError("Outing");
+      assertVotingOpen(outing);
+      await assertDeadlineOpen(outing);
+      const eligible = await listEligibleVoterIds(outing, tx);
+      if (!eligible.includes(userId)) throw new ForbiddenError("Only outing members can vote");
+      const options = await tx.outing_vote_options.findMany({ where: { outing_id: outingId, id: { in: optionIds } } });
+      if (options.length !== optionIds.length) throw new ValidationError("Every option must belong to this outing");
+      await tx.outing_votes.deleteMany({ where: { outing_id: outingId, user_id: userId } });
+      if (optionIds.length) await tx.outing_votes.createMany({ data: optionIds.map(option_id => ({ outing_id: outingId, user_id: userId, option_id })) });
+      const votes = await tx.outing_votes.findMany({ where: { outing_id: outingId } });
+      const voters = new Set(votes.map(vote => vote.user_id));
+      const resolution = eligible.length && eligible.every(id => voters.has(id))
+        ? await resolveClosedVoting(tx, outing, "all_voted") : null;
+      return { votes: votes.filter(vote => vote.user_id === userId), resolution };
+    });
+    if (result.resolution) await emitResolutionNotifications(result.resolution);
+    return result;
   }
 }
 

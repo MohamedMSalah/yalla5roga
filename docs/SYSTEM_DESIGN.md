@@ -157,22 +157,22 @@ Display: `AppNetworkImage` resolves `media://` in batches through `/api/media/si
 sequenceDiagram
   participant UI as OutingVoteWidget
   participant P as OutingsProvider
-  participant API as POST /votes
-  participant UC as CastVote use case
+  participant API as PUT /votes
+  participant UC as ReplaceBallot use case
   participant VR as tryCloseIfAllVoted
   participant DB as Neon
 
-  UI->>P: select option
-  P->>API: { option_id }
-  API->>UC: assert eligible + open
-  UC->>DB: upsert outing_votes
-  UC->>VR: if all voted resolve
+  UI->>P: submit complete selection
+  P->>API: { option_ids }
+  API->>UC: lock outing; assert eligible + open
+  UC->>DB: replace caller selections atomically
+  UC->>VR: if all distinct eligible voters submitted, resolve
   VR-->>API: outing maybe confirmed
   API-->>P: vote + state
   P-->>UI: refresh tallies / winner UI
 ```
 
-Transaction: vote upsert; early close resolves inside locked transaction when applicable. Notifications on closure outcomes.
+Transaction: full ballot replacement and existing early-close resolution share the outing row lock and transaction. Option tallies count selected rows; participation counts distinct eligible users. Notifications and realtime publication follow commit. Legacy single-selection POST remains additive and idempotent.
 
 ### Tie-break
 
@@ -275,7 +275,7 @@ stateDiagram-v2
 - Owner-only candidates before deadline; both outing types.  
 - Eligible: Owner + accepted Members (+ group members of `group_id`).  
 - Mandatory Owner-defined deadline.  
-- One active vote; upsert on change; lock after close.  
+- Multiple unique selections per caller ballot; atomically replace the full selection; lock after close.
 - All voted → immediate close; deadline → close.  
 - Unique max → confirm; tie → Owner RNG among tied only.  
 - Zero at close → cancel; zero while open → stay open.  
@@ -284,7 +284,7 @@ stateDiagram-v2
 
 ### Persistence / concurrency
 
-- PK `(outing_id, user_id)` prevents double active votes.  
+- PK `(outing_id, user_id, option_id)` prevents duplicate selections; count distinct users for participation.
 - Replace options deletes votes+options in transaction.  
 - Resolution uses transactional updates; concurrency tests exist (`voting-concurrency.test.ts`).  
 - Deadline job idempotent via status/`vote_closed_at` checks.
@@ -446,3 +446,8 @@ flowchart LR
 ## Phase 2 group and invitation read flow — 2026-11-13
 
 Group Info/history → existing GroupsProvider/repository → GET group + members → active profiles, pending invitations and group invitation history → existing Group snapshot. Active group membership gates the read. Pending identity linking remains visible until a decision; it creates no membership. Existing group/membership Socket.IO invalidations revalidate open group routes. Inbox → existing InvitationsProvider/repository → GET invitations preserves all statuses; explicit POST accept/decline updates the local history record after backend success. UI load generations are independent of the account epoch so concurrent realtime reads cannot strand decision loading. There are no lifecycle, voting, attendance or messaging protocol changes.
+
+
+## Phase 3 Flutter composition — 2026-11-14
+
+CreateOutingPage retains its route-local ChangeNotifier across Information → Locations → Review and back/edit navigation. Shared AppStepProgress renders localized progress; the existing map picker returns ordered Place values without replacing the form provider. Details composes OutingOverview, OutingAttendanceWidget (RSVP), OutingVoteWidget, OutingArrivalsSection, OutingLocationSection and OutingManagementActions. Widgets call existing providers/services; repositories and Dio remain the only HTTP path. Shared OutingCard and PlaceCard render presentation values. Single venue rendering omits ballot competition controls. AppSyncProvider remains the single Socket.IO/recovery coordinator; terminal history/chat policy and backend arrival authorization do not change.

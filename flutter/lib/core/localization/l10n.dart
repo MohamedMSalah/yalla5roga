@@ -20,6 +20,26 @@ class L10n {
     'Permanently delete this group? Groups with outings cannot be deleted.',
     'حذف المجموعة نهائيًا؟ لا يمكن حذف مجموعة تحتوي على خروجات.',
   );
+  String get selectPreferredPlaces => _t(
+    'Choose all the places you would go to, then confirm your vote.',
+    'اختار كل الأماكن اللي تحب تروحها، وبعدين أكّد تصويتك.',
+  );
+  String get saveOutingAction => _t('Save outing', 'حفظ الخرجة');
+  String get unsaveOutingAction => _t('Unsave outing', 'إلغاء حفظ الخرجة');
+  String get checkingArrival =>
+      _t('Verifying your location…', 'جارٍ التحقق من موقعك…');
+  String get arrivalPermissionDenied => _t(
+    'Allow location access to check in.',
+    'اسمح بالوصول إلى الموقع لتسجيل الحضور.',
+  );
+  String get arrivalOutsideRadius => _t(
+    'You are outside the venue radius. Move closer and try again.',
+    'أنت خارج نطاق المكان. اقترب وحاول مجددًا.',
+  );
+  String get arrivalWindowClosed => _t(
+    'Check-in is available only during the outing window.',
+    'تسجيل الحضور متاح فقط خلال موعد الخرجة.',
+  );
   String get removeGuest => _t('Remove participant', 'إزالة المشارك');
   String get removeGuestPrompt =>
       _t('Remove this invited participant?', 'إزالة هذا المشارك المدعو؟');

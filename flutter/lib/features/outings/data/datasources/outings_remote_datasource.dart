@@ -44,6 +44,7 @@ abstract class OutingsDataSource {
     String? image,
     DateTime? scheduledAt,
   });
+  Future<OutingSnapshot> setBallot(String outingId, Set<int> indexes);
   Future<OutingSnapshot> selectVote(String outingId, int optionIndex);
   Future<OutingSnapshot> confirmVenue(String outingId, String optionId);
   Future<OutingSnapshot> finalizeVote(String outingId);
@@ -536,6 +537,25 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   }
 
   @override
+  Future<OutingSnapshot> setBallot(String outingId, Set<int> indexes) async {
+    try {
+      final options = await _ensureOptions(outingId);
+      if (indexes.any((i) => i < 0 || i >= options.length)) {
+        throw const ServerException('Invalid vote option');
+      }
+      await _client.put<Map<String, dynamic>>(
+        ApiConstants.outingVotes(outingId),
+        data: {
+          'option_ids': [for (final i in indexes) options[i]['id']],
+        },
+      );
+      return await _refreshVote(outingId);
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
+  }
+
+  @override
   Future<OutingSnapshot> selectVote(String outingId, int optionIndex) async {
     try {
       final options = await _ensureOptions(outingId);
@@ -771,7 +791,10 @@ class OutingsRemoteDataSource implements OutingsDataSource {
             area: apiString(option['area']) ?? '',
           ),
       ],
-      cuserOptionIds: [?selectedId],
+      cuserOptionIds: state['my_option_ids'] is List
+          ? (state['my_option_ids'] as List).whereType<String>().toList()
+          : [?selectedId],
+      votedCount: apiInt(state['voted_count']),
       finalized: hint?.isClosed ?? apiBool(state['isClosed']),
       endsAt: hint?.voteEndsAt,
     );

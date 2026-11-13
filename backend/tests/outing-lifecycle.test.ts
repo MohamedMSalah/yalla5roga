@@ -7,6 +7,7 @@ import { UpsertAttendanceUseCase } from "../src/usecases/outings/attendance.usec
 import { UpdateOutingUseCase } from "../src/usecases/outings/update-outing.usecase.js";
 import {
   CastVoteUseCase,
+  ReplaceBallotUseCase,
   CreateVoteOptionUseCase,
   TieBreakUseCase,
 } from "../src/usecases/outings/voting.usecase.js";
@@ -110,10 +111,10 @@ test("outing lifecycle: create, vote upsert, unique winner, attendance independe
     );
 
     // Change vote before every eligible voter has participated (keeps poll open).
-    await cast.execute(outing.id, owner, b.id);
+    await new ReplaceBallotUseCase().execute(outing.id, owner, [b.id]);
     const ownerVote = await prisma.outing_votes.findUnique({
       where: {
-        outing_id_user_id: { outing_id: outing.id, user_id: owner },
+        outing_id_user_id_option_id: { outing_id: outing.id, user_id: owner, option_id: b.id },
       },
     });
     assert.equal(ownerVote?.option_id, b.id);

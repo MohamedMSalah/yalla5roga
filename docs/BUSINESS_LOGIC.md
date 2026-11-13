@@ -82,11 +82,11 @@ Backend is source of truth. Flutter must not finalize winners.
 1. The voting endpoints serve the shared outing lifecycle. Create Outing exposes place voting for group outings and a fixed venue for special events. The atomic initial-options create payload follows the group flow.
 2. Only Owner adds/modifies candidates before deadline.
 3. Eligible: Owner + accepted Members (+ documented group members).
-4. One active vote per user; change = upsert.
+4. One active selection per user/outing/option. The owner-approved Phase 3 ballot may contain multiple distinct options; PUT replaces the complete selection atomically. Empty selection removes the caller’s ballot.
 5. Locked after closure (`vote_closed_at` / confirmed / cancelled).
 6. Unique highest wins automatically.
 7. Tie → Owner-triggered backend RNG among **tied leaders only**; Flutter animates server result.
-8. All eligible voted → close immediately.
+8. All distinct eligible voters have a nonempty ballot → close immediately after the entire submitted selection is persisted.
 9. Deadline → close; zero votes → cancel; open with zero votes → **do not** cancel.
 10. Candidate set change → reset all votes, keep deadline, notify.
 
@@ -128,7 +128,7 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 
 ## Chat
 
-Open in draft / voting / confirmed. Blocked for cancelled (unless product later adds read-only). REST persists; Socket.IO delivers to participants in `outing:{id}` after write (ADR-013).
+Sending is open in draft / voting / confirmed. Past and cancelled outings retain participant-authorized, read-only chat history. REST persists; Socket.IO delivers to participants in `outing:{id}` after write (ADR-013).
 
 ---
 
@@ -178,7 +178,7 @@ See PRODUCT_SCENARIOS §13. Backend enforces; Flutter visibility is not authZ.
 
 ## Conflicts tracker
 
-Use [`docs/audit/FINAL_COMPLIANCE_REPORT.md`](audit/FINAL_COMPLIANCE_REPORT.md) for live compliance. Historical pre-fix conflicts (multi-vote PK, client finalize, etc.) were resolved in schema rebuild — do not reintroduce.
+Use [`docs/audit/FINAL_COMPLIANCE_REPORT.md`](audit/FINAL_COMPLIANCE_REPORT.md) for live compliance. Historical client-finalization and eligibility issues were resolved in the schema rebuild. Phase 3 deliberately supersedes the earlier single-vote PK with the owner-approved multi-location ballot; other server-authority safeguards remain.
 
 ### Creator deletes an outing
 
@@ -211,3 +211,8 @@ Authenticated drafts use PostgreSQL as canonical storage. Local pending edits/de
 ## Phase 2 membership display consistency — 2026-11-13
 
 Verified identity linking is not acceptance. Group roster pending display now includes identity-linked pending invitations as well as phone-only pending rows; neither contributes to active member count. Group creation no longer constructs temporary member objects for invitees. All invitations still use the pending invitation API; only explicit acceptance creates membership. Group-scoped invitation history displays persisted decisions without changing them. Dashboard vote/upcoming/history sections reuse existing OutingsProvider classification and never infer attendance or vote eligibility from presentation state.
+
+
+## Phase 3 ballots and presentation — 2026-11-14
+
+The complete ballot uses the existing authenticated participant definition and an outing-row lock. It validates every option against the outing, replaces only the caller’s selections, and invokes existing resolution inside the same transaction if all distinct voters have participated. Duplicate options are rejected. POST idempotently adds one selection; DELETE can remove one or all caller selections. These writers also serialize on the outing and reject expired/closed voting. Existing unique-winner, owner RNG among tied leaders, zero-vote cancellation and creator venue-confirmation policies are unchanged. RSVP and GPS arrival never add/remove votes. UI category, schedule and deadline values remain in the existing route-local create provider between wizard steps; draft deadlines also survive saving without multi-place mode.

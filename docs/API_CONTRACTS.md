@@ -118,10 +118,11 @@ Flutter: `ApiConstants.invitations`, `ApiConstants.invitationAccept`, `ApiConsta
 | GET/POST | `/api/outings/:id/vote-options` | Yes | List / add option | Owner add; resets votes |
 | PUT | `/api/outings/:id/vote-options` | Yes | Replace options | resets votes; keeps deadline |
 | DELETE | `/api/outings/:id/vote-options/:optionId` | Yes | Delete option | resets votes |
-| GET/POST | `/api/outings/:id/votes` | Yes | List / cast | upsert; early close |
+| GET/POST | `/api/outings/:id/votes` | Yes | List / add one selection | Idempotent selection; existing early close |
+| PUT | `/api/outings/:id/votes` | Yes | Replace complete ballot | `{ option_ids: UUID[] }`, 0–5 distinct options; atomic replacement then closure evaluation |
 | DELETE | `/api/outings/:id/votes` | Yes | Remove my vote | if open |
 | DELETE | `/api/outings/:id/votes/:optionId` | Yes | Remove my vote for option | |
-| GET | `/api/outings/:id/voting-state` | Yes | Tallies / closure state | Ordered `options` with `vote_count`, `my_option_id`, and `eligible_voter_count`. |
+| GET | `/api/outings/:id/voting-state` | Yes | Tallies / closure state | Ordered `options` with `vote_count`, `my_option_ids`, distinct `voted_count`, legacy first `my_option_id`, and `eligible_voter_count`. |
 | PUT | `/api/outings/:id/confirmed-venue` | Yes | Creator confirms a proposed option | Body `{ option_id }`. Atomically closes voting. Repeating the confirmed choice is idempotent. |
 | POST | `/api/outings/:id/tie-break` | Yes | Owner RNG among tied leaders | |
 
@@ -295,3 +296,8 @@ Runtime evidence and unverified authenticated scenarios: `audit/CONFIRMED_FIXES_
 `GET /api/groups/:id/members` retains `success`, active profiles in `data`, and `pending_members`. It adds `invitation_history`, newest first, containing `{ invitation_id, invited_phone, invitee_name: string|null, inviter_name, status, created_at }`; status is `pending|accepted|declined|expired|revoked`. It is scoped to the requested group and protected by the existing active group-member authorization. Pending rows include verified identity-linked invitations (`user_id` may be non-null); linking never makes a member or removes the Pending display. The active membership list and member count are unchanged.
 
 No route, request body, invitation decision behavior or Socket.IO event changed. Flutter's owner name editor forwards the already-supported optional `name` field on the existing group PATCH. Old roster payloads without history decode as an empty history list. Deploy the backend response extension with the client to populate group invitation history. Verification: [OpenAPI results](audit/PHASE_2_OPENAPI_RESULTS.json), [scope and limits](audit/PHASE_2_UI_UX.md).
+
+
+## Phase 3 multi-location ballot contract — 2026-11-14
+
+`replaceOutingBallot` accepts a full `option_ids` array. Empty array clears the caller’s selections; duplicate, invalid or foreign options fail with 400, nonparticipants with 403, missing outing with 404, and closed/expired voting with 409. Success is `{ success: true, data: { votes: Vote[], resolution: VoteResolution | null } }`. State reads return all caller selections and a distinct voter count, separate from the sum of per-option tallies. Existing POST/DELETE routes remain, and all vote writers reject deadline expiry. Existing realtime outing invalidation is emitted after commit; no Socket.IO wire event changes. `breakTie` now explicitly documents its existing 403/404/409 paths.

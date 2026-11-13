@@ -239,3 +239,8 @@ Invitation decisions lock the row and accept membership in the same transaction,
 ## Phase 2 group roster projection — 2026-11-13
 
 The existing members route/controller/use case/repository/datasource chain also returns group-scoped invitation history. ListGroupMembersUseCase still requires active group membership; GroupDatasource reads active members and persisted invitation rows in its existing repeatable-read snapshot. It projects linked and unlinked pending invitations separately from active membership and includes inviter/invitee display names for history. The additive response is documented in Swagger; no schema migration, new endpoint, worker, notification or realtime protocol was introduced.
+
+
+## Phase 3 atomic ballots — 2026-11-14
+
+The existing outing voting router/controller now exposes PUT /api/outings/:id/votes through ReplaceBallotUseCase. An outing-row lock serializes full selection replacement with resolution; eligible members, candidate ownership and deadline are checked before writes. Existing datasource POST/DELETE vote writers share the same lock and closure guard. Resolution/tie RNG stays in the existing service; notification/invalidation publication is post-commit. No new transport or database abstraction is introduced. Prisma expands outing_votes uniqueness to include option_id. HTTP-only OpenAPI verification uses disposable schemas and a controlled Firebase verifier; deployment uses the normal Prisma migration history.

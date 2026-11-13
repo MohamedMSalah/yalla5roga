@@ -53,7 +53,7 @@
 
 ## ADR-007: One active vote per user (DB enforced)
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-021 (owner-approved multi-location ballots, 2026-11-14)
 - **Context:** Prevent duplicate ballots.
 - **Decision:** `outing_votes` PK `(outing_id, user_id)`; changes upsert.
 - **Consequences:** Candidate changes clear votes in transactions.
@@ -174,3 +174,11 @@ The existing application password authority is Neon bcrypt, as verified in phone
 - **Composition:** Reusable cards accept presentation values, cover widgets and callbacks in core/widgets; feature widgets adapt entities, Provider selections and localized values. Keep existing card constructor contracts, tab indexes and imperative GetX navigation/deep-link handlers. No dependency or state-management pattern is added.
 - **Navigation:** Retain the existing lazy mounted tabs and floating pill shell. Use a filled active pill, directional short reveal, reduced-motion handling and exclusion of inactive content from input/focus/semantics/tickers.
 - **Scope:** The shared foundation and small adapters only. Feature-screen redesign and broad legacy page decomposition belong to later phases. No runtime/visual approval is inferred from static analysis.
+
+
+## ADR-021: Atomic multi-location ballots (2026-11-14)
+
+- **Status:** Accepted; owner explicitly approved backend/schema work for multiple votes during Phase 3.
+- **Decision:** Expand outing_votes PK to (outing_id, user_id, option_id), preserving rows and existing FKs. PUT /votes replaces a caller’s complete selection under the same outing lock used for lifecycle resolution. Count distinct voters for participation. Keep existing highest-count winner, owner RNG tie-break, zero-vote cancellation and creator-confirmed venue rules.
+- **Compatibility:** Existing POST adds a single idempotent selection; DELETE removes one/all. GET voting-state keeps legacy my_option_id and adds my_option_ids/voted_count. Flutter submits all checkbox edits together, avoiding premature early closure after the first selected option.
+- **Consequences:** Requires a Prisma migration and coordinated API/client release. No dependency, Clean Architecture layer, Provider or realtime protocol is replaced. Unsent local checkbox edits reset if the candidate identity/order changes.

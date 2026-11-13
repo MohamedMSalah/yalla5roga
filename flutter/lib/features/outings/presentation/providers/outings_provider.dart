@@ -382,9 +382,7 @@ class OutingsProvider extends ChangeNotifier {
       _votesByOuting[outingId]?.eligibleVoterCount ?? 0;
 
   int votedCountFor(String outingId) {
-    final options = optionsFor(outingId);
-    if (options.isEmpty) return 0;
-    return options.fold<int>(0, (sum, option) => sum + option.votes);
+    return _votesByOuting[outingId]?.votedCount ?? 0;
   }
 
   bool canVote(String outingId) {
@@ -543,6 +541,26 @@ class OutingsProvider extends ChangeNotifier {
     if (_featuredIndex == value) return;
     _featuredIndex = value;
     notifyListeners();
+  }
+
+  Future<bool> setBallotFor(String outingId, Set<int> indexes) async {
+    if (isVoteFinalized(outingId) || isVoteExpired(outingId)) return false;
+    final result = await repository.setBallot(outingId, indexes);
+    return result.fold(
+      (failure) {
+        AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.send,
+          context: 'submitBallot',
+        );
+        return false;
+      },
+      (snapshot) {
+        _applySnapshot(snapshot);
+        notifyListeners();
+        return true;
+      },
+    );
   }
 
   Future<bool> selectVoteFor(String outingId, int value) async {
@@ -824,6 +842,7 @@ class OutingsProvider extends ChangeNotifier {
           previous.finalized != next.finalized ||
           previous.endsAt != next.endsAt ||
           previous.eligibleVoterCount != next.eligibleVoterCount ||
+          previous.votedCount != next.votedCount ||
           !listEquals(previous.cuserOptionIds, next.cuserOptionIds) ||
           previous.options.length != next.options.length) {
         return true;

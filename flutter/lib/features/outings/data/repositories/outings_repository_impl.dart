@@ -169,6 +169,12 @@ class OutingsRepositoryImpl implements OutingsRepository {
   }
 
   @override
+  Future<Either<Failure, OutingSnapshot>> setBallot(
+    String outingId,
+    Set<int> indexes,
+  ) => _mutate(() => remote.setBallot(outingId, indexes));
+
+  @override
   Future<Either<Failure, OutingSnapshot>> selectVote(
     String outingId,
     int optionIndex,

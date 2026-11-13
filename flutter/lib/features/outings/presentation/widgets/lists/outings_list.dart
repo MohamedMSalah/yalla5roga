@@ -65,6 +65,7 @@ class OutingsList extends StatelessWidget {
                 ),
                 child: OutingListTile(
                   title: outing.title,
+                  statusLabel: outing.statusLabel(l10n),
                   subtitle: [
                     outing.localizedWhen(l10n),
                     if (outing.status == OutingStatus.past)

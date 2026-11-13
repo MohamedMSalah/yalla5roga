@@ -4,6 +4,14 @@ import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 
 extension OutingL10n on Outing {
+  String statusLabel(L10n l10n) => switch (status) {
+    OutingStatus.voting => l10n.voting,
+    OutingStatus.past => l10n.completedOuting,
+    OutingStatus.cancelled => l10n.cancelledOuting,
+    OutingStatus.draft => l10n.draftOuting,
+    OutingStatus.confirmed => l10n.confirmed,
+  };
+
   String localizedDate(L10n l10n) => l10n.formatStoredDate(scheduledAt, date);
 
   String localizedTime(L10n l10n) => l10n.formatStoredTime(scheduledAt, time);

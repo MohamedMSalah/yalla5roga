@@ -1,0 +1,159 @@
+{
+  "checkedAt": "2026-11-13T23:29:11.633Z",
+  "mode": "OpenAPI / Swagger HTTP only; no data writes",
+  "rows": [
+    {
+      "scenario": "OpenAPI documents atomic multi-location ballots and distinct voter counts",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Served Swagger UI exposes the updated OpenAPI contract",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "replaceOutingBallot: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "replaceOutingBallot: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getVotingState: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getVotingState: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "saveOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "saveOuting: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "unsaveOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "unsaveOuting: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "setOutingAttendance: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "setOutingAttendance: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingArrivals: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingArrivals: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "recordOutingArrival: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "recordOutingArrival: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listCurrentUserOutings: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listCurrentUserOutings: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "createOuting: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "cancelOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "cancelOuting: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getOuting: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "updateOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "updateOuting: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingMessages: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listOutingMessages: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "sendOutingMessage: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "sendOutingMessage: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "Authenticated outing mutations and migration rehearsal",
+      "result": "PASS: separate disposable-schema HTTP suite; see PHASE_3_OPENAPI_RESULTS.json"
+    }
+  ]
+}

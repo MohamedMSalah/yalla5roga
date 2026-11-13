@@ -251,6 +251,29 @@ class CreateOutingBasicsStep extends StatelessWidget {
             ),
           ],
         ),
+        Responsive.spaceMd.gapH,
+        Text(l10n.voteDeadlineHours, style: context.texts.titleSmall),
+        Text(l10n.voteDeadlineHint, style: context.texts.bodySmall),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            IconButton(
+              tooltip: l10n.decreaseVoteHours,
+              onPressed: form.voteDeadlineHours <= 1
+                  ? null
+                  : () => form.setVoteDeadlineHours(form.voteDeadlineHours - 1),
+              icon: const Icon(Icons.remove_circle_outline),
+            ),
+            Text(l10n.hoursCount(form.voteDeadlineHours)),
+            IconButton(
+              tooltip: l10n.increaseVoteHours,
+              onPressed: form.voteDeadlineHours >= 72
+                  ? null
+                  : () => form.setVoteDeadlineHours(form.voteDeadlineHours + 1),
+              icon: const Icon(Icons.add_circle_outline),
+            ),
+          ],
+        ),
       ],
     );
   }
