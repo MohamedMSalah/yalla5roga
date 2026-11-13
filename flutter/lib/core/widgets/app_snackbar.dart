@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:yalla_5roga/core/constants/asset_constants.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class AppSnackBar {
@@ -49,7 +50,9 @@ class AppSnackBar {
         padding: EdgeInsets.zero,
         duration: duration,
         snackPosition: SnackPosition.BOTTOM,
-        animationDuration: const Duration(milliseconds: 250),
+        animationDuration: Get.context == null
+            ? AppMotion.standard
+            : AppMotion.of(Get.context!, AppMotion.standard),
       ),
     );
   }

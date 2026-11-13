@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_card.dart';
+import 'package:yalla_5roga/core/widgets/group_card.dart' as shared;
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
@@ -22,52 +22,21 @@ class GroupCard extends StatelessWidget {
         .forGroup(group.id)
         .length;
 
-    return AppCard(
+    return shared.GroupCard(
+      title: group.name,
+      description: group.bio,
+      subtitle: l10n.membersOutings(group.memberCount, outingCount),
       onTap: onTap,
-      child: Row(
-        children: [
-          AppHero(
-            tag: HeroTags.groupCover(group.id),
-            url: group.image,
-            radius: 16.r,
-            child: PlanningCover(
-              url: group.image,
-              art: PlanningCoverArt.group,
-              width: 56.w,
-              height: 56.w,
-            ),
-          ),
-          12.gapW,
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        group.name,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                    Icon(
-                      context.chevronForward,
-                      color: context.palette.border,
-                      size: 20.w,
-                    ),
-                  ],
-                ),
-                Text(
-                  l10n.membersOutings(group.memberCount, outingCount),
-                  style: TextStyle(
-                    color: context.palette.textMuted,
-                    fontSize: 10.sp,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+      cover: AppHero(
+        tag: HeroTags.groupCover(group.id),
+        url: group.image,
+        radius: 16.r,
+        child: PlanningCover(
+          url: group.image,
+          art: PlanningCoverArt.group,
+          width: 56.w,
+          height: 56.w,
+        ),
       ),
     );
   }

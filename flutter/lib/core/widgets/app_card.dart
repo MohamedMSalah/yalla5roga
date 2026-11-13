@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_pressable.dart';
@@ -30,24 +31,17 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final card = AnimatedContainer(
-      duration: AppMotion.standard,
+      duration: AppMotion.of(context, AppMotion.standard),
       curve: AppMotion.settle,
       margin: margin,
       padding: padding ?? EdgeInsets.all(14.w),
       decoration: BoxDecoration(
         color: color ?? context.palette.surface,
-        borderRadius: BorderRadius.circular((radius ?? 22).r),
+        borderRadius: BorderRadius.circular((radius ?? AppRadii.card).r),
         border: showBorder
             ? Border.all(color: borderColor ?? context.palette.border)
             : null,
-        boxShadow: [
-          BoxShadow(
-            color: context.palette.shadow,
-            blurRadius: 18.w,
-            spreadRadius: 0,
-            offset: Offset(0, 8.h),
-          ),
-        ],
+        boxShadow: showBorder ? null : AppShadows.card(context.palette.shadow),
       ),
       child: child,
     );

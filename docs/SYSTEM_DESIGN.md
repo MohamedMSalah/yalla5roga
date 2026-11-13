@@ -442,3 +442,7 @@ flowchart LR
   Version -->|unchanged| Server[Persist draft and refresh cache]
   Version -->|changed| Conflict[Keep local copy and stop automatic retry]
 ```
+
+## Phase 2 group and invitation read flow — 2026-11-13
+
+Group Info/history → existing GroupsProvider/repository → GET group + members → active profiles, pending invitations and group invitation history → existing Group snapshot. Active group membership gates the read. Pending identity linking remains visible until a decision; it creates no membership. Existing group/membership Socket.IO invalidations revalidate open group routes. Inbox → existing InvitationsProvider/repository → GET invitations preserves all statuses; explicit POST accept/decline updates the local history record after backend success. UI load generations are independent of the account epoch so concurrent realtime reads cannot strand decision loading. There are no lifecycle, voting, attendance or messaging protocol changes.

@@ -1,0 +1,59 @@
+{
+  "checkedAt": "2026-11-13T19:44:05.934Z",
+  "mode": "OpenAPI / Swagger HTTP only; no data writes",
+  "rows": [
+    {
+      "scenario": "Generated roster OpenAPI documents group invitation history and every persisted status",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Served Swagger UI exposes the updated OpenAPI contract",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "listUserInvitations: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listUserInvitations: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "acceptGroupInvitation: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "acceptGroupInvitation: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "declineGroupInvitation: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "declineGroupInvitation: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listGroupMembers: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listGroupMembers: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "Authenticated roster/history, decision mutations, phone matching and WhatsApp delivery",
+      "result": "NOT RUN: no task-supplied authenticated fixtures; existing identity and delivery paths unchanged"
+    }
+  ]
+}

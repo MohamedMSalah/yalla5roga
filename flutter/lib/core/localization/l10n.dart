@@ -220,6 +220,12 @@ class L10n {
   String get confirm => _t('Confirm', 'تأكيد');
   String get ok => _t('OK', 'حسناً');
   String get share => _t('Share', 'مشاركة');
+  String get offlineStatus => _t(
+    'You are offline. Showing saved content.',
+    'أنت غير متصل. يتم عرض المحتوى المحفوظ.',
+  );
+  String get showPassword => _t('Show password', 'إظهار كلمة المرور');
+  String get hidePassword => _t('Hide password', 'إخفاء كلمة المرور');
   String get search => _t('Search', 'بحث');
   String get searchGroups => _t('Search groups', 'ابحث عن مجموعة');
   String get back => _t('Back', 'رجوع');
@@ -924,6 +930,14 @@ class L10n {
   String get leftGroup => _t('You left the group', 'غادرت المجموعة');
 
   // --- Invitations ---
+  String get ownedGroups => _t('Created by me', 'أنشأتها');
+  String get draftOuting => _t('Draft', 'مسودة');
+  String get invitationHistory => _t('Invitation history', 'سجل الدعوات');
+  String get pendingInvitationStatus => _t('Pending', 'قيد الانتظار');
+  String get acceptedInvitationStatus => _t('Accepted', 'مقبولة');
+  String get declinedInvitationStatus => _t('Declined', 'مرفوضة');
+  String get expiredInvitationStatus => _t('Expired', 'منتهية');
+  String get revokedInvitationStatus => _t('Revoked', 'ملغاة');
   String get invitations => _t('Invitations', 'الدعوات');
   String invitedBy(String name) => _t('Invited by $name', 'دعا $name');
 

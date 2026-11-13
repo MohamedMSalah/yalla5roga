@@ -743,8 +743,24 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             listResponse("GroupMember"),
             {
               type: "object",
-              required: ["pending_members"],
+              required: ["pending_members", "invitation_history"],
               properties: {
+                invitation_history: {
+                  type: "array",
+                  description: "Group-scoped invitation history, newest first. Only active group members can read it.",
+                  items: {
+                    type: "object",
+                    required: ["invitation_id", "invited_phone", "invitee_name", "inviter_name", "status", "created_at"],
+                    properties: {
+                      invitation_id: uuid,
+                      invited_phone: { type: "string" },
+                      invitee_name: { type: "string", nullable: true },
+                      inviter_name: { type: "string" },
+                      status: { type: "string", enum: ["pending", "accepted", "declined", "expired", "revoked"] },
+                      created_at: dateTime,
+                    },
+                  },
+                },
                 pending_members: {
                   type: "array",
                   items: {

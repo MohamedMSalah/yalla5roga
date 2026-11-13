@@ -14,6 +14,7 @@ class AppIconButton extends StatelessWidget {
     this.badge,
     this.size = 40,
     this.isLoading = false,
+    this.tooltip,
   });
 
   final IconData icon;
@@ -23,11 +24,12 @@ class AppIconButton extends StatelessWidget {
   final String? badge;
   final double size;
   final bool isLoading;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final side = size.w;
+    final side = size.w.clamp(48.0, double.infinity);
     final iconColor = foreground ?? palette.textSecondary;
     final reduce = AppMotion.reduce(context);
 
@@ -40,14 +42,11 @@ class AppIconButton extends StatelessWidget {
       transitionBuilder: (child, animation) {
         if (reduce) return child;
         // Overshoot lives on the scale only; opacity stays within 0..1.
-        final pop = CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeOutBack,
-        );
+        final pop = CurvedAnimation(parent: animation, curve: AppMotion.enter);
         return FadeTransition(
           opacity: animation,
           child: ScaleTransition(
-            scale: Tween<double>(begin: 0.6, end: 1).animate(pop),
+            scale: Tween<double>(begin: 0.96, end: 1).animate(pop),
             child: child,
           ),
         );
@@ -67,7 +66,7 @@ class AppIconButton extends StatelessWidget {
             ),
     );
 
-    return Stack(
+    final button = Stack(
       clipBehavior: Clip.none,
       children: [
         InkWell(
@@ -88,8 +87,8 @@ class AppIconButton extends StatelessWidget {
           ),
         ),
         if (badge != null)
-          Positioned(
-            right: -4.w,
+          PositionedDirectional(
+            end: -4.w,
             top: -4.h,
             child: Container(
               padding: Responsive.padding(horizontal: 5, vertical: 2),
@@ -110,5 +109,11 @@ class AppIconButton extends StatelessWidget {
           ),
       ],
     );
+    return tooltip == null
+        ? button
+        : Tooltip(
+            message: tooltip!,
+            child: Semantics(label: tooltip, button: true, child: button),
+          );
   }
 }

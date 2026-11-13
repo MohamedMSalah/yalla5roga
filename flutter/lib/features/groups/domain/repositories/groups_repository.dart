@@ -18,14 +18,14 @@ abstract class GroupsRepository {
 
   Future<Either<Failure, Group>> updateGroup(
     String groupId, {
+    String? name,
     String? bio,
     String? image,
   });
 
   Future<Either<Failure, Group>> addMember(String groupId, GroupMember member);
 
-  /// Invite by phone: adds existing verified users, or creates a pending
-  /// `group_invitations` row + WhatsApp payload for non-users.
+  /// Invite by phone; membership requires explicit acceptance of the pending invitation.
   Future<Either<Failure, GroupInviteResult>> inviteByPhone({
     required String groupId,
     required String phoneNumber,

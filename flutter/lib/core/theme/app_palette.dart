@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 
-/// Semantic colors for light (exact HTML design) and dark (HTML preview-dark).
+/// Semantic surface and content colors for the Modern Social foundation.
 @immutable
 class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
@@ -44,49 +44,65 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color shadow;
   final Color inputFill;
 
-  /// Light palette copied from `index.html` Tailwind tokens.
+  /// Light palette: violet accents on warm, quiet surfaces.
   static const light = AppPalette(
-    background: AppColors.slate50,
+    background: Color(0xFFF8F7FC),
     surface: Colors.white,
     surfaceMuted: AppColors.slate100,
     surfaceSoft: Color(0xB3E2E8F0),
     border: AppColors.slate200,
     textPrimary: AppColors.slate950,
     textSecondary: AppColors.slate600,
-    textMuted: AppColors.slate400,
-    hint: Color(0xFFCBD5E1),
+    textMuted: Color(0xFF70677F),
+    hint: Color(0xFF70677F),
     brand: AppColors.brand600,
     brandStrong: AppColors.brand700,
     brandSoft: AppColors.brand50,
     brandSoftBorder: AppColors.brand100,
     navBackground: Color(0xF5FFFFFF),
-    chipActive: AppColors.slate900,
+    chipActive: AppColors.brand600,
     chipActiveText: Colors.white,
     shadow: Color(0x0F0F172A),
     inputFill: Colors.white,
   );
 
-  /// Dark palette copied from the HTML `preview-dark` rules.
+  /// Dark palette: violet accents on deep, low-glare surfaces.
   static const dark = AppPalette(
-    background: AppColors.slate950,
-    surface: AppColors.slate900,
-    surfaceMuted: Color(0xFF111827),
-    surfaceSoft: AppColors.slate800,
-    border: Color(0xFF334155),
+    background: Color(0xFF121016),
+    surface: Color(0xFF1D1925),
+    surfaceMuted: Color(0xFF25202F),
+    surfaceSoft: Color(0xFF2D2638),
+    border: Color(0xFF463D54),
     textPrimary: Color(0xFFF1F5F9),
-    textSecondary: Color(0xFFF1F5F9),
+    textSecondary: Color(0xFFCEC5DA),
     textMuted: AppColors.slate400,
     hint: AppColors.slate400,
-    brand: AppColors.brand500,
+    brand: AppColors.brand200,
     brandStrong: AppColors.brand200,
-    brandSoft: Color(0xFF1E1B4B),
-    brandSoftBorder: Color(0xFF312E81),
-    navBackground: AppColors.slate900,
-    chipActive: Color(0xFFF8FAFC),
+    brandSoft: Color(0xFF33204E),
+    brandSoftBorder: Color(0xFF513474),
+    navBackground: Color(0xFF1D1925),
+    chipActive: AppColors.brand200,
     chipActiveText: AppColors.slate950,
     shadow: Color(0x33000000),
-    inputFill: AppColors.slate900,
+    inputFill: Color(0xFF1D1925),
   );
+
+  bool get isDark => background.computeLuminance() < 0.1;
+  Color get success =>
+      isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857);
+  Color get successSoft =>
+      isDark ? const Color(0xFF123B30) : const Color(0xFFECFDF5);
+  Color get warning =>
+      isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E);
+  Color get warningSoft =>
+      isDark ? const Color(0xFF3C2D16) : const Color(0xFFFFFBEB);
+  Color get danger =>
+      isDark ? const Color(0xFFFDA4AF) : const Color(0xFFBE123C);
+  Color get dangerSoft =>
+      isDark ? const Color(0xFF451D2C) : const Color(0xFFFFF1F2);
+  Color get info => brandStrong;
+  Color get infoSoft => brandSoft;
 
   @override
   AppPalette copyWith({

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/widgets/app_bottom_sheet.dart';
+import 'package:yalla_5roga/features/groups/presentation/widgets/group_name_editor.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
@@ -15,13 +16,14 @@ class GroupInfoHeader extends StatelessWidget {
     required this.canManage,
     required this.onChangeImage,
     this.onSaveBio,
+    this.onSaveName,
   });
 
   final Group group;
   final int outingCount;
   final bool canManage;
   final VoidCallback? onChangeImage;
-  final Future<bool> Function(String)? onSaveBio;
+  final Future<bool> Function(String)? onSaveBio, onSaveName;
 
   @override
   Widget build(BuildContext context) {
@@ -35,8 +37,8 @@ class GroupInfoHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        GestureDetector(
-          onTap: canManage ? onChangeImage : null,
+        Semantics(
+          label: l10n.changeGroupImage,
           child: Stack(
             alignment: Alignment.bottomCenter,
             children: [
@@ -52,29 +54,35 @@ class GroupInfoHeader extends StatelessWidget {
                 ),
               ),
               if (canManage)
-                Positioned(
-                  right: 12.w,
+                PositionedDirectional(
+                  end: 12.w,
                   bottom: 12.h,
-                  child: CircleAvatar(
-                    backgroundColor: AppColors.brand600,
-                    child: Icon(
-                      Icons.camera_alt_outlined,
-                      color: Colors.white,
-                      size: 18.w,
-                    ),
+                  child: IconButton.filled(
+                    tooltip: l10n.changeGroupImage,
+                    onPressed: onChangeImage,
+                    icon: const Icon(Icons.camera_alt_outlined),
                   ),
                 ),
             ],
           ),
         ),
         Responsive.spaceMd.gapH,
-        Text(
-          group.name,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Responsive.fontLg,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(group.name, style: context.texts.headlineSmall),
+            ),
+            if (canManage && onSaveName != null)
+              IconButton(
+                tooltip: l10n.groupName,
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () => AppBottomSheet.show<void>(
+                  context: context,
+                  builder: (_) =>
+                      GroupNameEditor(name: group.name, onSave: onSaveName!),
+                ),
+              ),
+          ],
         ),
         6.gapH,
         Text(

@@ -165,3 +165,12 @@ The existing application password authority is Neon bcrypt, as verified in phone
 - **Realtime:** Retain the existing **512-entry**, **10-minute** in-memory invalidation journal and authenticated epoch/sequence `data:reconcile`. Invalid/expired/restarted cursors reset provider snapshots through REST. This remains **single-process**, with **no Redis adapter** or durable shared journal. No Redis is added.
 - **HTTP:** Reuse Express middleware for a bounded single-process 300 requests/IP/minute API limiter; preserve stricter auth/recovery limits and the consistent error envelope. Do not trust arbitrary proxy headers. Notification reads default to 20 with a maximum of 100 and ownership-filtered opaque cursors.
 - **Consequences:** No route or operation-ID rename and no database migration. Live authenticated business acceptance, multi-device draft conflict UI, mobile theme/RTL/responsive checks, and distributed deployment remain unverified. Source/static validation is not runtime proof.
+
+
+## ADR-020: Modern Social presentation foundation (2026-11-13)
+
+- **Status:** Accepted (owner-approved Phase 1 request).
+- **Decision:** Extend the existing Material 3/AppTheme/AppPalette/Responsive foundation with a violet light/dark semantic palette, centralized geometry/type/shadow tokens and existing AppMotion helpers. Keep Cairo/Inter and manual L10n. Arabic is the new-install default; persisted English remains supported.
+- **Composition:** Reusable cards accept presentation values, cover widgets and callbacks in core/widgets; feature widgets adapt entities, Provider selections and localized values. Keep existing card constructor contracts, tab indexes and imperative GetX navigation/deep-link handlers. No dependency or state-management pattern is added.
+- **Navigation:** Retain the existing lazy mounted tabs and floating pill shell. Use a filled active pill, directional short reveal, reduced-motion handling and exclusion of inactive content from input/focus/semantics/tickers.
+- **Scope:** The shared foundation and small adapters only. Feature-screen redesign and broad legacy page decomposition belong to later phases. No runtime/visual approval is inferred from static analysis.

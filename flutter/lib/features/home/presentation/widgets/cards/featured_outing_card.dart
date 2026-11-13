@@ -3,6 +3,9 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
+import 'package:yalla_5roga/core/widgets/app_error_state.dart';
+import 'package:yalla_5roga/core/widgets/outing_card.dart';
+import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
@@ -38,14 +41,9 @@ class FeaturedOutingCard extends StatelessWidget {
     final outing = nextHomeOuting(provider.outings, DateTime.now());
     if (outing == null) {
       if (provider.errorMessage != null && provider.outings.isEmpty) {
-        return Column(
-          children: [
-            Text(l10n.errorUnexpected, textAlign: TextAlign.center),
-            TextButton(
-              onPressed: () => provider.load(forceRefresh: true),
-              child: Text(l10n.tryAgain),
-            ),
-          ],
+        return AppErrorState(
+          message: provider.errorMessage!,
+          onRetry: () => provider.load(forceRefresh: true),
         );
       }
       return AppEmptyState(
@@ -56,67 +54,32 @@ class FeaturedOutingCard extends StatelessWidget {
       );
     }
     final heroTag = HeroTags.outingCover('home-next', outing.id);
-    final when = outing.localizedWhen(l10n);
-    final place = outing.isLocationHidden ? '' : outing.localizedPlace;
-    return Material(
-      color: context.palette.surface,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () =>
-            Get.to(() => EventPage(event: outing, coverHeroTag: heroTag)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppHero(
-                tag: heroTag,
-                url: outing.image,
-                radius: 12,
-                child: PlanningCover(
-                  url: outing.image,
-                  art: outing.occasion.coverArt,
-                  width: 72,
-                  height: 72,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      outing.title,
-                      style: Theme.of(context).textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    if (when.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(when, style: Theme.of(context).textTheme.bodyMedium),
-                    ],
-                    if (place.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        place,
-                        style: Theme.of(context).textTheme.bodyMedium
-                            ?.copyWith(color: context.palette.textSecondary),
-                      ),
-                    ],
-                    if (outing.status == OutingStatus.voting) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        l10n.voting,
-                        style: Theme.of(context).textTheme.labelLarge
-                            ?.copyWith(color: context.palette.brandStrong),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Icon(context.chevronForward),
-            ],
-          ),
+    final groupName = context
+        .watch<GroupsProvider>()
+        .findById(outing.groupId ?? '')
+        ?.name;
+    final status = switch (outing.status) {
+      OutingStatus.voting => l10n.voting,
+      OutingStatus.confirmed => l10n.confirmed,
+      OutingStatus.draft => l10n.draftOuting,
+      OutingStatus.cancelled => l10n.cancelledOuting,
+      OutingStatus.past => l10n.outingHistory,
+    };
+    return OutingCard(
+      title: outing.title,
+      subtitle: [?groupName, outing.localizedWhen(l10n)].join(' · '),
+      statusLabel: status,
+      onTap: () =>
+          Get.to(() => EventPage(event: outing, coverHeroTag: heroTag)),
+      cover: AppHero(
+        tag: heroTag,
+        url: outing.image,
+        radius: 16,
+        child: PlanningCover(
+          url: outing.image,
+          art: outing.occasion.coverArt,
+          width: 72,
+          height: 88,
         ),
       ),
     );

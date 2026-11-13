@@ -1,10 +1,11 @@
 import 'package:get/get.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/widgets/app_error_state.dart';
+import 'package:yalla_5roga/features/groups/presentation/widgets/group_history_links.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
-import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
@@ -30,6 +31,7 @@ class GroupInfoPage extends StatefulWidget {
 
 class _GroupInfoPageState extends State<GroupInfoPage> {
   final _membersKey = GlobalKey();
+  bool _loading = true;
   GroupsProvider? _openGroupProvider;
 
   @override
@@ -43,19 +45,28 @@ class _GroupInfoPageState extends State<GroupInfoPage> {
     super.initState();
     _openGroupProvider = context.read<GroupsProvider>()
       ..openGroup(widget.groupId);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    await context.read<GroupsProvider>().ensureGroupLoaded(
+      widget.groupId,
+      forceRefresh: true,
+    );
+    if (!mounted) return;
+    setState(() => _loading = false);
+    await MemberDisplayName.ensureLoaded();
+    if (!mounted) return;
+    setState(() {});
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final target = _membersKey.currentContext;
       if (widget.focusMembers && target != null) {
         Scrollable.ensureVisible(target);
       }
-      await context.read<GroupsProvider>().ensureGroupLoaded(
-        widget.groupId,
-        forceRefresh: true,
-      );
-      if (!mounted) return;
-      await MemberDisplayName.ensureLoaded();
-      if (mounted) setState(() {});
     });
   }
 
@@ -64,7 +75,7 @@ class _GroupInfoPageState extends State<GroupInfoPage> {
     final l10n = context.l10n;
     final groups = context.watch<GroupsProvider>();
     final group = groups.findById(widget.groupId);
-    if (groups.isInitialLoading && group == null) {
+    if (_loading && group == null) {
       return Scaffold(
         appBar: AppPageBar(title: l10n.groupInfo),
         body: const GroupDetailsSkeleton(),
@@ -74,11 +85,7 @@ class _GroupInfoPageState extends State<GroupInfoPage> {
     if (group == null) {
       return Scaffold(
         appBar: AppPageBar(title: l10n.groupInfo),
-        body: AppEmptyState(
-          icon: Icons.groups_outlined,
-          message: l10n.noGroups,
-          compact: true,
-        ),
+        body: AppErrorState(message: l10n.dataLoadFailed, onRetry: _load),
       );
     }
 
@@ -92,68 +99,91 @@ class _GroupInfoPageState extends State<GroupInfoPage> {
 
     return Scaffold(
       appBar: AppPageBar(title: l10n.groupInfo),
-      body: SingleChildScrollView(
-        padding: Responsive.pagePadding(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            GroupInfoHeader(
-              group: group,
-              outingCount: outingCount,
-              canManage: canManage,
-              onChangeImage: () => groups.changeImage(widget.groupId),
-              onSaveBio: (bio) async {
-                final saved = await groups.updateBio(widget.groupId, bio);
-                if (saved && context.mounted) {
-                  AppSnackBar.show(l10n.changesSaved);
-                }
-                return saved;
-              },
-            ),
-            Responsive.spaceLg.gapH,
-            GroupMembersSection(
-              key: _membersKey,
-              members: [...group.members, ...group.pendingMembers],
-              canManage: canManage,
-              onAddMember: () => groups.promptAddMember(widget.groupId),
-              onRemoveMember: (person) =>
-                  groups.confirmRemoveMember(widget.groupId, person),
-            ),
-            Responsive.spaceLg.gapH,
-            GroupInfoActionsSection(
-              leaving: leaving,
-              deleting: deleting,
-              onDeleteGroup: canManage
-                  ? () async {
-                      if (leaving ||
-                          deleting ||
-                          !await AppAlert.confirm(
-                            title: l10n.deleteGroup,
-                            message: l10n.deleteGroupPrompt,
-                            confirmText: l10n.deleteGroup,
-                            cancelText: l10n.cancel,
-                            destructive: true,
-                          )) {
-                        return;
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+            child: SingleChildScrollView(
+              padding: Responsive.pagePadding(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GroupInfoHeader(
+                    group: group,
+                    outingCount: outingCount,
+                    canManage: canManage,
+                    onSaveName: (name) async {
+                      final saved = await groups.updateName(
+                        widget.groupId,
+                        name,
+                      );
+                      if (saved && context.mounted) {
+                        AppSnackBar.show(l10n.changesSaved);
                       }
-                      if (!context.mounted) return;
-                      final outings = context.read<OutingsProvider>();
-                      final ok = await groups.deleteGroup(group.id);
-                      if (!context.mounted) return;
-                      if (!ok) {
-                        AppSnackBar.show(groups.errorMessage ?? l10n.tryAgain);
-                        return;
+                      return saved;
+                    },
+                    onChangeImage: () => groups.changeImage(widget.groupId),
+                    onSaveBio: (bio) async {
+                      final saved = await groups.updateBio(widget.groupId, bio);
+                      if (saved && context.mounted) {
+                        AppSnackBar.show(l10n.changesSaved);
                       }
-                      await outings.load(forceRefresh: true);
-                      Get.until((route) => route.isFirst);
-                    }
-                  : null,
-              onLeaveGroup: leaving || deleting
-                  ? null
-                  : () => groups.confirmLeaveGroup(widget.groupId),
+                      return saved;
+                    },
+                  ),
+                  Responsive.spaceLg.gapH,
+                  GroupMembersSection(
+                    key: _membersKey,
+                    members: [...group.members, ...group.pendingMembers],
+                    canManage: canManage,
+                    canInvite: true,
+                    onAddMember: () => groups.promptAddMember(widget.groupId),
+                    onRemoveMember: (person) =>
+                        groups.confirmRemoveMember(widget.groupId, person),
+                  ),
+                  Responsive.spaceLg.gapH,
+                  GroupHistoryLinks(groupId: group.id),
+                  Responsive.spaceLg.gapH,
+                  GroupInfoActionsSection(
+                    leaving: leaving,
+                    deleting: deleting,
+                    onDeleteGroup: canManage
+                        ? () async {
+                            if (leaving ||
+                                deleting ||
+                                !await AppAlert.confirm(
+                                  title: l10n.deleteGroup,
+                                  message: l10n.deleteGroupPrompt,
+                                  confirmText: l10n.deleteGroup,
+                                  cancelText: l10n.cancel,
+                                  destructive: true,
+                                )) {
+                              return;
+                            }
+                            if (!context.mounted) return;
+                            final outings = context.read<OutingsProvider>();
+                            final ok = await groups.deleteGroup(group.id);
+                            if (!context.mounted) return;
+                            if (!ok) {
+                              AppSnackBar.show(
+                                groups.errorMessage ?? l10n.tryAgain,
+                              );
+                              return;
+                            }
+                            await outings.load(forceRefresh: true);
+                            Get.until((route) => route.isFirst);
+                          }
+                        : null,
+                    onLeaveGroup: leaving || deleting
+                        ? null
+                        : () => groups.confirmLeaveGroup(widget.groupId),
+                  ),
+                  Responsive.spaceLg.gapH,
+                ],
+              ),
             ),
-            Responsive.spaceLg.gapH,
-          ],
+          ),
         ),
       ),
     );

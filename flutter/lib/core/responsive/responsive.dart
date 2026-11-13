@@ -1,6 +1,7 @@
 import 'dart:ui' show DisplayFeatureType;
 
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_tokens.dart';
 
 /// Scales fonts, paddings, and widget sizes from a 375×812 phone design.
 ///
@@ -204,12 +205,12 @@ class Responsive {
   }
 
   // Spacing tokens
-  static double get spaceXs => w(4);
-  static double get spaceSm => w(8);
-  static double get spaceMd => w(16);
-  static double get spaceLg => w(20);
-  static double get spaceXl => w(24);
-  static double get spaceXxl => w(32);
+  static double get spaceXs => w(AppSpacing.xs);
+  static double get spaceSm => w(AppSpacing.sm);
+  static double get spaceMd => w(AppSpacing.md);
+  static double get spaceLg => w(AppSpacing.lg);
+  static double get spaceXl => w(AppSpacing.xl);
+  static double get spaceXxl => w(AppSpacing.xxl);
 
   // Font tokens
   static double get fontXs => sp(8);
@@ -222,12 +223,13 @@ class Responsive {
 
   // Widget tokens
   static double get iconSm => w(14);
-  static double get iconMd => w(20);
+  static double get iconMd => w(AppSizes.icon);
   static double get iconLg => w(28);
-  static double get radiusSm => r(10);
-  static double get radiusMd => r(14);
-  static double get radiusLg => r(22);
-  static double get buttonHeight => h(52);
+  static double get radiusSm => r(AppRadii.small);
+  static double get radiusMd => r(AppRadii.control);
+  static double get radiusLg => r(AppRadii.card);
+  static double get buttonHeight =>
+      h(AppSizes.button).clamp(AppSizes.touchTarget, double.infinity);
   static double get navHeight => h(76);
   static double get avatarSm => w(28);
   static double get avatarMd => w(40);

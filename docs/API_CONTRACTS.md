@@ -289,3 +289,9 @@ Errors: 400 validation/unavailable account or changed binding/password; 401 inva
 - Arrival coordinates are client-reported evidence, not attested GPS. `is_mocked=true` is rejected; false/omitted grants no trust. Server checks identity, current participation, confirmed pinned venue, coordinate/accuracy bounds, sample age, server time window and distance before its existing upsert. Persisted arrival time is server-generated.
 
 Runtime evidence and unverified authenticated scenarios: `audit/CONFIRMED_FIXES_OPENAPI_RESULTS.json` and `audit/CONFIRMED_FIXES_IMPLEMENTATION_REPORT.md`.
+
+## Phase 2 roster response extension — 2026-11-13
+
+`GET /api/groups/:id/members` retains `success`, active profiles in `data`, and `pending_members`. It adds `invitation_history`, newest first, containing `{ invitation_id, invited_phone, invitee_name: string|null, inviter_name, status, created_at }`; status is `pending|accepted|declined|expired|revoked`. It is scoped to the requested group and protected by the existing active group-member authorization. Pending rows include verified identity-linked invitations (`user_id` may be non-null); linking never makes a member or removes the Pending display. The active membership list and member count are unchanged.
+
+No route, request body, invitation decision behavior or Socket.IO event changed. Flutter's owner name editor forwards the already-supported optional `name` field on the existing group PATCH. Old roster payloads without history decode as an empty history list. Deploy the backend response extension with the client to populate group invitation history. Verification: [OpenAPI results](audit/PHASE_2_OPENAPI_RESULTS.json), [scope and limits](audit/PHASE_2_UI_UX.md).

@@ -6,7 +6,7 @@ import 'package:yalla_5roga/core/constants/app_constants.dart';
 class LocaleProvider extends ChangeNotifier {
   LocaleProvider(this._prefs) {
     final stored = _prefs.getString(AppConstants.localeKey);
-    _locale = stored == null ? const Locale('en') : Locale(stored);
+    _locale = stored == 'en' ? const Locale('en') : const Locale('ar');
   }
 
   final SharedPreferences _prefs;

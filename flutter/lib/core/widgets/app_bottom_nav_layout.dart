@@ -49,8 +49,7 @@ class AppBottomNavLayout extends StatelessWidget {
   }
 }
 
-/// Horizontal swap between shell tabs. Translation only — no [Opacity]
-/// saveLayer — so image-heavy feeds stay at 60fps.
+/// A short directional nudge on the incoming tab; inactive tabs stay mounted.
 class _TabSwap extends StatefulWidget {
   const _TabSwap({required this.index, required this.pages});
 
@@ -103,11 +102,11 @@ class _TabSwapState extends State<_TabSwap>
 
   @override
   Widget build(BuildContext context) {
-    final swapping = _from != null && _controller.value < 1;
     return ClipRect(
       child: AnimatedBuilder(
         animation: _curve,
         builder: (context, _) {
+          final swapping = _from != null && _controller.value < 1;
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -122,16 +121,18 @@ class _TabSwapState extends State<_TabSwap>
 
   Widget _slot(int i, {required bool swapping}) {
     final incoming = i == widget.index;
-    final outgoing = swapping && i == _from;
-    final show = incoming || outgoing;
+    final show = incoming;
 
     Widget child = RepaintBoundary(child: widget.pages[i]);
     child = TickerMode(enabled: show, child: child);
+    child = ExcludeFocus(excluding: !incoming, child: child);
+    child = ExcludeSemantics(excluding: !incoming, child: child);
+    child = IgnorePointer(ignoring: !incoming, child: child);
 
     if (swapping && show) {
       final t = _curve.value;
-      final dx = incoming ? _dir * (1 - t) : -_dir * t;
-      child = FractionalTranslation(translation: Offset(dx, 0), child: child);
+      final dx = incoming ? _dir * (1 - t) * AppMotion.revealOffset : 0.0;
+      child = Transform.translate(offset: Offset(dx, 0), child: child);
     }
 
     return Offstage(offstage: !show, child: child);

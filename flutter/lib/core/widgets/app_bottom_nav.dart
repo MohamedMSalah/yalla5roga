@@ -2,6 +2,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class AppBottomNavItem {
@@ -77,13 +78,14 @@ class _PillBar extends StatelessWidget {
     final palette = context.palette;
     final shape = StadiumBorder(
       side: BorderSide(
-        color: palette.border.withValues(alpha: highContrast ? 1.0 : 0.6),
+        color: highContrast ? palette.textSecondary : Colors.transparent,
         width: 1.0,
       ),
     );
 
-    final barColor =
-        palette.navBackground.withValues(alpha: highContrast ? 1.0 : 0.88);
+    final barColor = palette.navBackground.withValues(
+      alpha: highContrast ? 1.0 : 0.88,
+    );
 
     Widget barContent = Material(
       color: barColor,
@@ -112,16 +114,7 @@ class _PillBar extends StatelessWidget {
     return DecoratedBox(
       decoration: ShapeDecoration(
         shape: shape,
-        shadows: highContrast
-            ? const []
-            : [
-                BoxShadow(
-                  color: palette.shadow.withValues(alpha: 0.12),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                  spreadRadius: 1,
-                ),
-              ],
+        shadows: highContrast ? const [] : AppShadows.floating(palette.shadow),
       ),
       child: barContent,
     );
@@ -134,16 +127,15 @@ class StadiumBorderClipper extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    return Path()
-      ..addRRect(
-        RRect.fromLTRBR(
-          0,
-          0,
-          size.width,
-          size.height,
-          Radius.circular(size.height / 2),
-        ),
-      );
+    return Path()..addRRect(
+      RRect.fromLTRBR(
+        0,
+        0,
+        size.width,
+        size.height,
+        Radius.circular(size.height / 2),
+      ),
+    );
   }
 
   @override
@@ -185,7 +177,7 @@ class _NavRow extends StatelessWidget {
                 padding: Responsive.padding(horizontal: 4, vertical: 3),
                 child: DecoratedBox(
                   decoration: ShapeDecoration(
-                    color: palette.brandSoft,
+                    color: palette.brand,
                     shape: const StadiumBorder(),
                   ),
                 ),
@@ -228,17 +220,23 @@ class _NavItem extends StatelessWidget {
     final palette = context.palette;
     final reduceMotion = AppMotion.reduce(context);
     final duration = reduceMotion ? Duration.zero : AppMotion.standard;
-    final iconColor = selected ? palette.brandStrong : palette.textSecondary;
-    final labelColor = selected ? palette.brandStrong : palette.textSecondary;
+    final iconColor = selected
+        ? Theme.of(context).colorScheme.onPrimary
+        : palette.textSecondary;
+    final labelColor = selected
+        ? Theme.of(context).colorScheme.onPrimary
+        : palette.textSecondary;
 
     return Semantics(
       selected: selected,
       button: true,
+      label: item.label,
+      excludeSemantics: true,
       child: InkWell(
         onTap: onTap,
         customBorder: const StadiumBorder(),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 56),
+          constraints: const BoxConstraints(minHeight: AppSizes.navItem),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Column(
@@ -257,9 +255,8 @@ class _NavItem extends StatelessWidget {
                 Responsive.spaceXs.gapH,
                 AnimatedDefaultTextStyle(
                   duration: duration,
-                  style: context.texts.labelSmall?.copyWith(
-                        color: labelColor,
-                      ) ??
+                  style:
+                      context.texts.labelSmall?.copyWith(color: labelColor) ??
                       TextStyle(color: labelColor),
                   child: Text(
                     item.label,

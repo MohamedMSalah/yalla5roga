@@ -20,10 +20,7 @@ class _AppShimmerState extends State<AppShimmer>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
+    _controller = AnimationController(vsync: this, duration: AppMotion.shimmer);
   }
 
   @override

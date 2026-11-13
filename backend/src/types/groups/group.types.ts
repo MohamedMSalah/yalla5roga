@@ -1,4 +1,4 @@
-import type { group_members, group_role, groups } from "@prisma/client";
+import type { group_members, group_role, groups, invitation_status } from "@prisma/client";
 
 /** Persisted group row plus list/detail stats for API responses. */
 export type Group = groups & {
@@ -27,6 +27,14 @@ export type PendingGroupMemberView = {
 export type GroupRoster = {
   members: GroupMemberView[];
   pendingMembers: PendingGroupMemberView[];
+  invitationHistory?: Array<{
+    invitation_id: string;
+    invited_phone: string;
+    invitee_name: string | null;
+    inviter_name: string;
+    status: invitation_status;
+    created_at: Date;
+  }>;
 };
 
 export type CreateGroupInput = {

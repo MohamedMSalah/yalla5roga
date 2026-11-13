@@ -237,3 +237,23 @@ Outing feature verification uses `backend/scripts/backend-full-integration.ts`. 
 - `flutter/lib/features/outings/presentation/pages/edit_outing_page.dart`, `widgets/edit_outing_form.dart`, `widgets/outing_management_actions.dart`: focused editing and existing endpoint actions.
 - Draft persistence extends existing saved-outings datasource/repository/provider files; no second draft service exists.
 - `docs/audit/CONFIRMED_FIXES_IMPLEMENTATION_REPORT.md` and `CONFIRMED_FIXES_OPENAPI_RESULTS.json`: scoped changes, runtime results and remaining verification limits.
+
+
+## Phase 1 design foundation — 2026-11-13
+
+- `flutter/lib/core/theme/app_tokens.dart`: shared spacing, radii, geometry, typography and shadow tokens; existing `app_colors.dart`, `app_palette.dart`, `app_theme.dart` and `app_motion.dart` remain the theme entry points.
+- `flutter/lib/core/widgets/{group_card,outing_card,place_card,invitation_card}.dart`: feature-independent cards; existing feature card widgets remain domain adapters.
+- `flutter/lib/core/widgets/app_{text_field,search_field,page_header,section_header,error_state,offline_indicator,bottom_sheet}.dart`: foundation controls and presentation helpers; field/section aliases reuse existing implementations.
+- `flutter/lib/features/invitations/presentation/widgets/{group_invitation_card,invitations_states}.dart`: extracted invitation presentation pieces.
+- `DESIGN.md`: Phase 1 visual contract and reusable component map.
+- `docs/audit/PHASE_1_FOUNDATION.md`: scope, changed-file inventory, static validation and runtime limits.
+
+## Phase 2 dashboard/group presentation — 2026-11-13
+
+- `flutter/lib/features/home/presentation/widgets/home_nearby_section.dart`: real nearby preview, permission guidance and catalog fallback using existing services.
+- `flutter/lib/features/groups/presentation/widgets/{create_group_fields,group_invitee_picker,group_details_header,group_name_editor,group_history_links,group_invitation_history}.dart`: focused group presentation.
+- `flutter/lib/features/groups/presentation/pages/group_history_page.dart`: group-scoped invitation and outing history.
+- `flutter/lib/features/groups/domain/entities/group_invitation_record.dart`: additive group roster history projection.
+- `flutter/lib/features/invitations/presentation/widgets/invitations_list.dart` and `presentation/invitation_l10n.dart`: status filtering and localized history labels.
+- `backend/scripts/phase2-openapi-verification.ts`: read-only Swagger/OpenAPI contract checks; results in `docs/audit/PHASE_2_OPENAPI_RESULTS.json`.
+- `docs/audit/PHASE_2_UI_UX.md`: task inventory, component reuse, checks and runtime limits.

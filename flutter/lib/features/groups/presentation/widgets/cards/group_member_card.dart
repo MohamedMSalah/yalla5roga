@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
+import 'package:yalla_5roga/core/widgets/user_avatar.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_role.dart';
 
@@ -30,12 +29,7 @@ class GroupMemberCard extends StatelessWidget {
       radius: 16,
       child: Row(
         children: [
-          AppNetworkImage.avatar(
-            url: member.avatar,
-            width: 44.w,
-            height: 44.w,
-            radius: 12.r,
-          ),
+          UserAvatar(url: member.avatar, size: Responsive.avatarMd),
           12.gapW,
           Expanded(
             child: Column(
@@ -55,32 +49,42 @@ class GroupMemberCard extends StatelessWidget {
                     l10n.digits(member.phone!),
                     style: TextStyle(color: palette.textMuted, fontSize: 10.sp),
                   ),
-                if (member.isPending)
-                  Text(
-                    l10n.pendingGroupRegistration,
-                    style: TextStyle(
-                      color: palette.textMuted,
-                      fontSize: Responsive.fontCaption,
-                      fontWeight: FontWeight.w600,
+                Responsive.spaceXs.gapH,
+                Wrap(
+                  spacing: Responsive.spaceXs,
+                  runSpacing: Responsive.spaceXs,
+                  children: [
+                    if (!member.isPending)
+                      AppBadge(
+                        label: member.role == GroupRole.owner
+                            ? l10n.owner
+                            : l10n.member,
+                        color: palette.brandSoft,
+                        textColor: palette.brandStrong,
+                      ),
+                    AppBadge(
+                      label: member.isPending
+                          ? l10n.pendingInvitationStatus
+                          : l10n.acceptedInvitationStatus,
+                      color: member.isPending
+                          ? palette.warningSoft
+                          : palette.brandSoft,
+                      textColor: member.isPending
+                          ? palette.warning
+                          : palette.brandStrong,
                     ),
-                  ),
+                  ],
+                ),
               ],
             ),
           ),
-          if (member.role == GroupRole.owner)
-            AppBadge(
-              label: l10n.owner.toUpperCase(),
-              color: AppColors.brand50,
-              textColor: AppColors.brand700,
-            )
-          else if (canManage)
+          if (canManage && member.role != GroupRole.owner)
             IconButton(
               tooltip: l10n.removeMember,
               onPressed: onRemove,
               icon: Icon(
                 Icons.remove_circle_outline,
-                color: AppColors.rose500,
-                size: 20.w,
+                color: context.colors.error,
               ),
             ),
         ],

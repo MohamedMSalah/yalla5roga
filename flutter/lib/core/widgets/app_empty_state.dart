@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
 
@@ -34,7 +33,7 @@ class AppEmptyState extends StatelessWidget {
           iconSize: compact ? 26 : 32,
           radius: compact ? 18 : 22,
           background: palette.brandSoft,
-          foreground: AppColors.brand600,
+          foreground: context.palette.brandStrong,
         ),
         (compact ? 12 : 16).gapH,
         Text(
@@ -62,7 +61,8 @@ class AppEmptyState extends StatelessWidget {
     );
 
     final padded = Padding(
-      padding: padding ??
+      padding:
+          padding ??
           EdgeInsets.symmetric(
             horizontal: 24.w,
             vertical: compact ? 20.h : 40.h,

@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/widgets/app_error_state.dart';
+import 'package:yalla_5roga/core/widgets/app_offline_indicator.dart';
+import 'package:yalla_5roga/core/network/app_sync_provider.dart';
+import 'package:yalla_5roga/core/widgets/app_page_header.dart';
+import 'package:yalla_5roga/core/widgets/app_search_field.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -60,132 +65,105 @@ class _GroupsPageState extends State<GroupsPage> {
     }
 
     final l10n = context.l10n;
-    final palette = context.palette;
 
     return SafeArea(
       bottom: false,
-      child: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: Responsive.pagePadding().add(
-              EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
-            ),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            l10n.groupsTitle,
-                            style: context.texts.headlineSmall,
-                          ),
-                          Text(
-                            l10n.activeGroupsFriends(
-                              groups.groups.length,
-                              groups.groups.fold<int>(
-                                0,
-                                (sum, group) => sum + group.memberCount,
-                              ),
-                            ),
-                            style: context.texts.bodyMedium?.copyWith(
-                              color: palette.textSecondary,
-                            ),
-                          ),
-                        ],
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: Responsive.pagePadding().add(
+                  EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    AppPageHeader(
+                      title: l10n.groupsTitle,
+                      subtitle: l10n.activeGroupsFriends(
+                        groups.groups.length,
+                        groups.groups.fold<int>(
+                          0,
+                          (sum, group) => sum + group.memberCount,
+                        ),
+                      ),
+                      trailing: const NotificationButton(),
+                    ),
+                    Responsive.spaceSm.gapH,
+                    AppOfflineIndicator(
+                      isOffline: context.select<AppSyncProvider, bool>(
+                        (p) => p.status == SyncStatus.offline,
                       ),
                     ),
-                    const NotificationButton(),
-                  ],
-                ),
-                Responsive.spaceSm.gapH,
-                Row(
-                  children: [
-                    if (groups.searching)
-                      Expanded(
-                        child: AnimatedSize(
-                          duration: const Duration(milliseconds: 200),
-                          child: TextField(
-                            controller: _searchController,
-                            focusNode: _searchFocus,
-                            onChanged: groups.setQuery,
-                            textInputAction: TextInputAction.search,
-                            decoration: InputDecoration(
-                              hintText: l10n.searchGroups,
-                              filled: true,
-                              fillColor: palette.inputFill,
-                              prefixIcon: Icon(
-                                Icons.search,
-                                color: palette.textMuted,
-                                size: 20.w,
-                              ),
-                              suffixIcon: IconButton(
-                                tooltip: MaterialLocalizations.of(context)
-                                    .closeButtonTooltip,
-                                icon: Icon(
-                                  Icons.close,
-                                  size: 18.w,
-                                  color: palette.textMuted,
-                                ),
-                                onPressed: () => _closeSearch(groups),
-                              ),
-                              contentPadding: Responsive.padding(
-                                horizontal: 12,
-                                vertical: 10,
+                    Row(
+                      children: [
+                        if (groups.searching)
+                          Expanded(
+                            child: AnimatedSize(
+                              duration: const Duration(milliseconds: 200),
+                              child: AppSearchField(
+                                controller: _searchController,
+                                focusNode: _searchFocus,
+                                hint: l10n.searchGroups,
+                                onChanged: groups.setQuery,
+                                onClear: () => _closeSearch(groups),
                               ),
                             ),
+                          )
+                        else
+                          IconButton.outlined(
+                            tooltip: l10n.searchGroups,
+                            icon: const Icon(Icons.search),
+                            onPressed: () => _openSearch(groups),
                           ),
-                        ),
+                        Responsive.spaceSm.gapW,
+                        if (groups.searching)
+                          IconButton.filled(
+                            tooltip: l10n.newGroup,
+                            icon: const Icon(Icons.add),
+                            onPressed: () =>
+                                Get.to(() => const CreateGroupPage()),
+                          )
+                        else
+                          Expanded(
+                            child: FilledButton.icon(
+                              icon: const Icon(Icons.add),
+                              label: Text(l10n.newGroup),
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(0, 48),
+                              ),
+                              onPressed: () =>
+                                  Get.to(() => const CreateGroupPage()),
+                            ),
+                          ),
+                      ],
+                    ),
+                    Responsive.spaceMd.gapH,
+                    FilterChipRow(
+                      labels: [
+                        l10n.allGroups,
+                        l10n.mostActive,
+                        l10n.ownedGroups,
+                      ],
+                      index: groups.filter,
+                      onChanged: groups.setFilter,
+                    ),
+                    Responsive.spaceMd.gapH,
+                    if (groups.errorMessage != null && groups.groups.isEmpty)
+                      AppErrorState(
+                        message: groups.errorMessage!,
+                        onRetry: () => groups.refresh(forceRefresh: true),
                       )
                     else
-                      IconButton.outlined(
-                        tooltip: l10n.searchGroups,
-                        icon: const Icon(Icons.search),
-                        onPressed: () => _openSearch(groups),
-                      ),
-                    Responsive.spaceSm.gapW,
-                    if (groups.searching)
-                      IconButton.filled(
-                        tooltip: l10n.newGroup,
-                        icon: const Icon(Icons.add),
-                        onPressed: () => Get.to(() => const CreateGroupPage()),
-                      )
-                    else
-                      Expanded(
-                        child: FilledButton.icon(
-                          icon: const Icon(Icons.add),
-                          label: Text(l10n.newGroup),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size(0, 48),
-                          ),
-                          onPressed: () =>
-                              Get.to(() => const CreateGroupPage()),
-                        ),
-                      ),
-                  ],
+                      const GroupsList(),
+                    Responsive.spaceLg.gapH,
+                  ]),
                 ),
-                Responsive.spaceMd.gapH,
-                FilterChipRow(
-                  labels: [l10n.allGroups, l10n.mostActive, l10n.recentlyAdded],
-                  index: groups.filter,
-                  onChanged: groups.setFilter,
-                ),
-                Responsive.spaceMd.gapH,
-                if (groups.errorMessage != null && groups.groups.isEmpty)
-                  TextButton(
-                    onPressed: () => groups.refresh(forceRefresh: true),
-                    child: Text(l10n.tryAgain),
-                  )
-                else
-                  const GroupsList(),
-                Responsive.spaceLg.gapH,
-              ]),
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 
 /// Tap target with a subtle scale-down while pressed.
@@ -28,6 +30,7 @@ class AppPressable extends StatefulWidget {
 
 class _AppPressableState extends State<AppPressable> {
   var _pressed = false;
+  var _focused = false;
 
   bool get _interactive =>
       widget.enabled && (widget.onTap != null || widget.onLongPress != null);
@@ -42,20 +45,51 @@ class _AppPressableState extends State<AppPressable> {
     if (!_interactive) return widget.child;
 
     final reduce = AppMotion.reduce(context);
-    return GestureDetector(
-      behavior: widget.behavior,
-      onTap: widget.onTap,
-      onLongPress: widget.onLongPress,
-      onTapDown: (_) => _setPressed(true),
-      onTapUp: (_) => _setPressed(false),
-      onTapCancel: () => _setPressed(false),
-      child: AnimatedScale(
-        scale: _pressed && !reduce ? AppMotion.pressScale : 1,
-        // Instant restore so a Hero flight does not measure a 0.98
-        // transform from the still-running press tween.
-        duration: _pressed && !reduce ? AppMotion.press : Duration.zero,
-        curve: AppMotion.settle,
-        child: widget.child,
+    return FocusableActionDetector(
+      mouseCursor: SystemMouseCursors.click,
+      onShowFocusHighlight: (value) => setState(() => _focused = value),
+      shortcuts: const {
+        SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+        SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+      },
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onTap?.call();
+            return null;
+          },
+        ),
+      },
+      child: Semantics(
+        button: true,
+        child: DecoratedBox(
+          position: DecorationPosition.foreground,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            border: _focused
+                ? Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
+                  )
+                : null,
+          ),
+          child: GestureDetector(
+            behavior: widget.behavior,
+            onTap: widget.onTap,
+            onLongPress: widget.onLongPress,
+            onTapDown: (_) => _setPressed(true),
+            onTapUp: (_) => _setPressed(false),
+            onTapCancel: () => _setPressed(false),
+            child: AnimatedScale(
+              scale: _pressed && !reduce ? AppMotion.pressScale : 1,
+              // Instant restore so a Hero flight does not measure a 0.98
+              // transform from the still-running press tween.
+              duration: _pressed && !reduce ? AppMotion.press : Duration.zero,
+              curve: AppMotion.settle,
+              child: widget.child,
+            ),
+          ),
+        ),
       ),
     );
   }

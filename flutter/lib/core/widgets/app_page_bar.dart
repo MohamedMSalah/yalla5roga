@@ -28,13 +28,15 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
   static const _barHeight = 64.0;
 
   @override
-  Size get preferredSize => Size.fromHeight(subtitle == null ? _barHeight : _barHeight + 12);
+  Size get preferredSize =>
+      Size.fromHeight(subtitle == null ? _barHeight : _barHeight + 12);
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final slot = SizedBox(width: 40.w);
-    final trailingWidget = trailing ??
+    final slot = SizedBox(width: 48.w.clamp(48.0, double.infinity));
+    final trailingWidget =
+        trailing ??
         (trailingIcon == null || onTrailingTap == null
             ? null
             : AppIconButton(icon: trailingIcon!, onTap: onTrailingTap!));
@@ -48,6 +50,7 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
             if (showBack)
               AppIconButton(
                 icon: backIcon,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 onTap: onBack ?? Get.back,
               )
             else
@@ -62,7 +65,10 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: Responsive.fontMd),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: Responsive.fontMd,
+                      ),
                     ),
                   if (subtitle != null)
                     Text(
@@ -70,7 +76,10 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: palette.textMuted, fontSize: 10.sp),
+                      style: TextStyle(
+                        color: palette.textMuted,
+                        fontSize: 10.sp,
+                      ),
                     ),
                 ],
               ),

@@ -135,12 +135,13 @@ class GroupsRepositoryImpl implements GroupsRepository {
   @override
   Future<Either<Failure, Group>> updateGroup(
     String groupId, {
+    String? name,
     String? bio,
     String? image,
   }) async {
     final result = await guardRemote(
       networkInfo,
-      () => remote.updateGroup(groupId, bio: bio, image: image),
+      () => remote.updateGroup(groupId, name: name, bio: bio, image: image),
       reason: 'updateGroup',
     );
     if (result.isRight()) {

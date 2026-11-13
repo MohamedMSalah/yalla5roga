@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class SectionHeader extends StatelessWidget {
@@ -30,7 +29,7 @@ class SectionHeader extends StatelessWidget {
                 Text(
                   eyebrow!,
                   style: TextStyle(
-                    color: AppColors.brand600,
+                    color: context.palette.brandStrong,
                     fontSize: 10.sp,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.6,
@@ -48,7 +47,10 @@ class SectionHeader extends StatelessWidget {
                 Responsive.spaceXs.gapH,
                 Text(
                   subtitle!,
-                  style: TextStyle(color: context.palette.textMuted, fontSize: 12.sp),
+                  style: TextStyle(
+                    color: context.palette.textMuted,
+                    fontSize: 12.sp,
+                  ),
                 ),
               ],
             ],
@@ -60,7 +62,7 @@ class SectionHeader extends StatelessWidget {
             child: Text(
               actionLabel!,
               style: TextStyle(
-                color: AppColors.brand600,
+                color: context.palette.brandStrong,
                 fontWeight: FontWeight.w800,
                 fontSize: Responsive.fontSm,
               ),

@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:yalla_5roga/features/groups/domain/entities/group_invitation_record.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
@@ -14,7 +15,12 @@ abstract class GroupsDataSource {
   Future<List<Group>> getGroups();
   Future<Group> getGroup(String groupId);
   Future<Group> createGroup(Group group);
-  Future<Group> updateGroup(String groupId, {String? bio, String? image});
+  Future<Group> updateGroup(
+    String groupId, {
+    String? name,
+    String? bio,
+    String? image,
+  });
   Future<Group> addMember(String groupId, GroupMember member);
   Future<Group> removeMember(
     String groupId,
@@ -81,6 +87,7 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       final group = _groupFromJson(apiPayload(response.data));
       final roster = await _fetchMembers(groupId);
       return group.copyWith(
+        invitationHistory: roster.invitationHistory,
         members: roster.members,
         pendingMembers: roster.pendingMembers,
       );
@@ -118,6 +125,7 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   Future<Group> updateGroup(
     String groupId, {
+    String? name,
     String? bio,
     String? image,
   }) async {
@@ -126,6 +134,7 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       final response = await _client.patch<Map<String, dynamic>>(
         ApiConstants.group(groupId),
         data: {
+          'name': ?name,
           'bio': ?bio,
           // Local paths are preview-only until an upload pipeline exists.
           'image_url': ?imageUrl,
@@ -230,7 +239,13 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   @override
   String groupsForMember(String id) => '';
 
-  Future<({List<GroupMember> members, List<GroupMember> pendingMembers})>
+  Future<
+    ({
+      List<GroupMember> members,
+      List<GroupMember> pendingMembers,
+      List<GroupInvitationRecord> invitationHistory,
+    })
+  >
   _fetchMembers(String groupId) async {
     final response = await _client.get<Map<String, dynamic>>(
       ApiConstants.groupMembers(groupId),
@@ -241,6 +256,10 @@ class GroupsRemoteDataSource implements GroupsDataSource {
     );
     return (
       members: [for (final item in items) _memberFromJson(item)],
+      invitationHistory: [
+        for (final item in apiObjectList(response.data?['invitation_history']))
+          GroupInvitationRecord.fromJson(item),
+      ],
       pendingMembers: [
         for (final item in apiObjectList(response.data?['pending_members']))
           if (item['invitation_id'] case final String id)

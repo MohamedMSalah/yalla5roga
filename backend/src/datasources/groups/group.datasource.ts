@@ -159,16 +159,25 @@ export class GroupDatasource {
     const read = async (tx: Prisma.TransactionClient): Promise<GroupRoster> => {
       const members = await new GroupDatasource(tx).listMembers(groupId);
       const activePhones = new Set(members.map(member => member.phone));
-      const pending = await tx.group_invitations.findMany({
-        where: { group_id: groupId, status: "pending", user_id: null },
-        select: { id: true, invited_phone: true },
-        orderBy: [{ created_at: "asc" }, { id: "asc" }],
+      const invitations = await tx.group_invitations.findMany({
+        where: { group_id: groupId },
+        select: {
+          id: true, invited_phone: true, status: true, created_at: true,
+          inviter: { select: { name: true } },
+          invitee: { select: { name: true } },
+        },
+        orderBy: [{ created_at: "desc" }, { id: "asc" }],
       });
       return {
         members,
-        pendingMembers: pending
-          .filter(row => !activePhones.has(row.invited_phone))
+        pendingMembers: invitations
+          .filter(row => row.status === "pending" && !activePhones.has(row.invited_phone))
           .map(row => ({ invitation_id: row.id, phone: row.invited_phone, status: "pending" })),
+        invitationHistory: invitations.map(row => ({
+          invitation_id: row.id, invited_phone: row.invited_phone,
+          invitee_name: row.invitee?.name ?? null, inviter_name: row.inviter.name,
+          status: row.status, created_at: row.created_at,
+        })),
       };
     };
     // A claim updates both relations atomically. Read both from one snapshot.

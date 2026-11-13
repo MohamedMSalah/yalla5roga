@@ -11,10 +11,12 @@ class GroupMembersSection extends StatelessWidget {
     required this.canManage,
     required this.onAddMember,
     required this.onRemoveMember,
+    this.canInvite = false,
   });
 
   final List<GroupMember> members;
   final bool canManage;
+  final bool canInvite;
   final VoidCallback onAddMember;
   final void Function(GroupMember member) onRemoveMember;
 
@@ -36,7 +38,7 @@ class GroupMembersSection extends StatelessWidget {
                 ),
               ),
             ),
-            if (canManage)
+            if (canInvite)
               TextButton.icon(
                 onPressed: onAddMember,
                 icon: Icon(Icons.person_add_alt_1_outlined, size: 18.w),

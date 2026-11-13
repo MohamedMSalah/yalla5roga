@@ -292,3 +292,8 @@ Recovery requires an existing Neon password and an enabled Firebase identity wit
 ## Confirmed audit corrections — 2026-11-13
 
 The owner requested explicit group invitation acceptance in this implementation task; this supersedes the former automatic membership linking rule. Chat remains text-only. Initial outing status is derived by the server: `voting` with initial options, `confirmed` with a fixed venue, otherwise `draft`. Saving a form draft uses `outing_drafts` and does not publish an outing.
+
+
+## Presentation foundation — owner-approved Phase 1 (2026-11-13)
+
+The Flutter foundation uses a Modern Social violet design with complete light/dark themes, Cairo for Arabic and Inter for English. Arabic RTL is the first-install default; saved English LTR preferences are retained. The existing Home, Groups, Outings, Discover and Settings destinations use a floating pill navigation bar with persistent visited-tab state. Existing functionality, business rules, routes and deep links retain their contracts. Feature screens are not redesigned in this phase beyond shared foundation composition. Verification is static; visual/device coverage is not asserted.

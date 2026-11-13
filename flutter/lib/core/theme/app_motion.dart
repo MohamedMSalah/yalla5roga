@@ -17,6 +17,8 @@ class AppMotion {
   /// Expressive transitions: page pushes and shared-element flights.
   static const Duration emphasis = Duration(milliseconds: 320);
 
+  static const Duration shimmer = Duration(milliseconds: 1400);
+
   /// Bottom sheets rise a touch slower than they dismiss.
   static const Duration sheetEnter = Duration(milliseconds: 280);
   static const Duration sheetExit = Duration(milliseconds: 200);

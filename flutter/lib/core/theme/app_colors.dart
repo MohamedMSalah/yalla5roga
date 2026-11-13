@@ -4,15 +4,15 @@ import 'package:yalla_5roga/core/theme/app_palette.dart';
 class AppColors {
   const AppColors._();
 
-  // Brand tokens from index.html
-  static const brand50 = Color(0xFFEEF2FF);
-  static const brand100 = Color(0xFFE0E7FF);
-  static const brand200 = Color(0xFFC7D2FE);
-  static const brand500 = Color(0xFF6366F1);
-  static const brand600 = Color(0xFF4F46E5);
-  static const brand700 = Color(0xFF4338CA);
+  // Violet brand scale shared by both themes.
+  static const brand50 = Color(0xFFF5F3FF);
+  static const brand100 = Color(0xFFEDE9FE);
+  static const brand200 = Color(0xFFDDD6FE);
+  static const brand500 = Color(0xFF8B5CF6);
+  static const brand600 = Color(0xFF7C3AED);
+  static const brand700 = Color(0xFF6D28D9);
 
-  // Slate tokens from index.html
+  // Neutral scale for legacy explicit color consumers.
   static const slate50 = Color(0xFFF8FAFC);
   static const slate100 = Color(0xFFF1F5F9);
   static const slate200 = Color(0xFFE2E8F0);

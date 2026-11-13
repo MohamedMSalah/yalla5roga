@@ -111,7 +111,8 @@ export class GroupController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const roster = await this.listMembers.execute(req.params.id as string, req.user.uid);
-      res.json({ success: true, data: roster.members, pending_members: roster.pendingMembers });
+      res.json({ success: true, data: roster.members, pending_members: roster.pendingMembers,
+        invitation_history: roster.invitationHistory ?? [] });
     } catch (error) {
       next(error);
     }

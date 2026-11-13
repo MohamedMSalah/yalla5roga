@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -17,7 +18,16 @@ class GroupsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final groups = context.watch<GroupsProvider>();
+    final activity = context.watch<OutingsProvider>();
     final items = groups.visible;
+    if (groups.filter == 1) {
+      items.sort(
+        (a, b) => activity
+            .forGroup(b.id)
+            .length
+            .compareTo(activity.forGroup(a.id).length),
+      );
+    }
     final showCreate = groups.query.trim().isEmpty;
 
     return Column(

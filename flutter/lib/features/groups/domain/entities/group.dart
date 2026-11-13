@@ -1,4 +1,5 @@
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
+import 'package:yalla_5roga/features/groups/domain/entities/group_invitation_record.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_role.dart';
 
 class Group {
@@ -11,6 +12,7 @@ class Group {
     required this.image,
     required this.members,
     this.pendingMembers = const [],
+    this.invitationHistory = const [],
     this.bio = '',
     this.listedMemberCount,
     this.cuserRole = GroupRole.member,
@@ -24,6 +26,7 @@ class Group {
   /// Canonical membership list. Count and avatars are derived from this when loaded.
   final List<GroupMember> members;
   final List<GroupMember> pendingMembers;
+  final List<GroupInvitationRecord> invitationHistory;
 
   /// Optional group description / bio from the API.
   final String bio;
@@ -84,6 +87,7 @@ class Group {
     String? image,
     List<GroupMember>? members,
     List<GroupMember>? pendingMembers,
+    List<GroupInvitationRecord>? invitationHistory,
     String? bio,
     int? listedMemberCount,
     String? lastMessage,
@@ -99,6 +103,7 @@ class Group {
       image: image ?? this.image,
       members: members ?? this.members,
       pendingMembers: pendingMembers ?? this.pendingMembers,
+      invitationHistory: invitationHistory ?? this.invitationHistory,
       bio: bio ?? this.bio,
       listedMemberCount: listedMemberCount ?? this.listedMemberCount,
       cuserRole: cuserRole ?? this.cuserRole,
@@ -116,6 +121,7 @@ class Group {
     'members': memberCount,
     'people': [for (final member in members) member.toJson()],
     'pendingMembers': [for (final member in pendingMembers) member.toJson()],
+    'invitation_history': [for (final item in invitationHistory) item.toJson()],
     'avatars': avatars,
   };
 
@@ -164,6 +170,11 @@ class Group {
             GroupMember.fromJson(Map<String, dynamic>.from(item)),
       ],
       listedMemberCount: listedMemberCount,
+      invitationHistory: [
+        for (final item in json['invitation_history'] as List? ?? const [])
+          if (item is Map)
+            GroupInvitationRecord.fromJson(Map<String, dynamic>.from(item)),
+      ],
       cuserRole: GroupRole.fromApi(
         json['cuserRole'] as String? ??
             json['myRole'] as String? ??

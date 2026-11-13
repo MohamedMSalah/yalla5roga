@@ -10,18 +10,13 @@ import 'package:yalla_5roga/features/invitations/domain/entities/group_invitatio
 import 'package:yalla_5roga/features/invitations/domain/repositories/invitations_repository.dart';
 
 class InvitationsRepositoryImpl implements InvitationsRepository {
-  InvitationsRepositoryImpl({
-    required this.remote,
-    required this.networkInfo,
-  });
+  InvitationsRepositoryImpl({required this.remote, required this.networkInfo});
 
   final InvitationsRemoteDataSource remote;
   final NetworkInfo networkInfo;
 
   static const _listKey = 'invitations';
-  final _cache = TtlCache<List<GroupInvitation>>(
-    ttl: CachePolicy.invitations,
-  );
+  final _cache = TtlCache<List<GroupInvitation>>(ttl: CachePolicy.invitations);
 
   @override
   Future<Either<Failure, List<GroupInvitation>>> getInvitations({
@@ -46,13 +41,10 @@ class InvitationsRepositoryImpl implements InvitationsRepository {
       () => remote.acceptInvitation(invitationId),
       reason: 'acceptInvitation',
     );
-    return result.fold(
-      (failure) => Left(failure),
-      (_) {
-        _cache.invalidate(_listKey);
-        return const Right(null);
-      },
-    );
+    return result.fold((failure) => Left(failure), (_) {
+      _cache.invalidate(_listKey);
+      return const Right(null);
+    });
   }
 
   @override
@@ -62,13 +54,10 @@ class InvitationsRepositoryImpl implements InvitationsRepository {
       () => remote.declineInvitation(invitationId),
       reason: 'declineInvitation',
     );
-    return result.fold(
-      (failure) => Left(failure),
-      (_) {
-        _cache.invalidate(_listKey);
-        return const Right(null);
-      },
-    );
+    return result.fold((failure) => Left(failure), (_) {
+      _cache.invalidate(_listKey);
+      return const Right(null);
+    });
   }
 
   @override

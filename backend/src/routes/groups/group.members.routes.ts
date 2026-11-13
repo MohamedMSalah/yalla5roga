@@ -13,7 +13,7 @@ import {
  *   get:
  *     tags: [Group Members]
  *     summary: List group members
- *     description: Returns active member profiles in data and phone associations awaiting registration in pending_members. Only active members can read the roster.
+ *     description: Returns active member profiles in data, invitations awaiting explicit acceptance in pending_members (including verified identity-linked invites), and group-scoped invitation_history with persisted decision states. Only active members can read the roster or history.
  *     operationId: listGroupMembers
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"

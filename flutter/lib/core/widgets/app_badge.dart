@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/responsive/responsive.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class AppBadge extends StatelessWidget {
   const AppBadge({
     super.key,
     required this.label,
-    this.color = AppColors.amber100,
-    this.textColor = AppColors.amber700,
+    this.color,
+    this.textColor,
     this.icon,
   });
 
   final String label;
-  final Color color;
-  final Color textColor;
+  final Color? color;
+  final Color? textColor;
   final IconData? icon;
 
   @override
@@ -21,22 +20,24 @@ class AppBadge extends StatelessWidget {
     return Container(
       padding: Responsive.padding(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
-        color: color,
+        color: color ?? context.palette.warningSoft,
         borderRadius: BorderRadius.circular(999.r),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12.w, color: textColor),
+            Icon(icon, size: 12.w, color: textColor ?? context.palette.warning),
             Responsive.spaceXs.gapW,
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: textColor,
-              fontSize: Responsive.fontCaption,
-              fontWeight: FontWeight.w800,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: textColor ?? context.palette.warning,
+                fontSize: Responsive.fontCaption,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],

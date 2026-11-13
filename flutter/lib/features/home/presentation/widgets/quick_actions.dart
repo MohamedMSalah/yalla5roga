@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/create_group_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
@@ -13,11 +14,10 @@ class QuickActions extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        FilledButton.icon(
+        CustomButton(
           onPressed: () => Get.to(() => const CreateOutingPage()),
-          icon: const Icon(Icons.add),
-          label: Text(l10n.newOuting),
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 48)),
+          icon: Icons.add,
+          label: l10n.newOuting,
         ),
         Responsive.spaceSm.gapH,
         LayoutBuilder(
@@ -71,22 +71,11 @@ class _SecondaryAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.tonal(
+    return CustomButton(
+      label: label,
+      icon: icon,
+      variant: AppButtonVariant.light,
       onPressed: onPressed,
-      style: FilledButton.styleFrom(
-        minimumSize: const Size(0, 52),
-        padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 8),
-        backgroundColor: context.palette.brandSoft,
-        foregroundColor: context.palette.brandStrong,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20),
-          Responsive.spaceSm.gapW,
-          Expanded(child: Text(label)),
-        ],
-      ),
     );
   }
 }

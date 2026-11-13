@@ -69,12 +69,12 @@ Each full-stack feature typically has `data/`, `domain/`, `presentation/`.
 |---------|-----------|-------|
 | `auth` | `AuthProvider`, `AuthRepositoryImpl`, `FirebaseAuthService`, `AuthRemoteDataSource` | Phone/password via `/api/auth/*`; Firebase OTP proof at signup and verified phone updates |
 | `shell` | `MainShell`, `ShellProvider` | Home, Groups, Outings, Discover, Settings. Outing Details owns the foreground GPS verification lifecycle. |
-| `groups` | `GroupsProvider`, `GroupsRemoteDataSource`, `GroupInviteResult`, `PickDeviceContactsPage` | Create-group: optional cover photo; members from device contacts (or manual phone); invites via `POST …/invitations` (WhatsApp for non-users); `…/members` is existing-user only. After create / on details+info, members reload so creator count starts at 1 and owner card shows. Group Info gives owners an inline bio editor. The provider sends only the bio in the PATCH and merges the returned bio into the current group. Uses API `member_count` / `my_role` on list payloads. Group Info keeps `pending_members` separate from the active list in the entity, renders the localized status alongside active profiles, and refreshes after an invite or on opening. Pending removal uses the owner revocation endpoint. Local gallery paths are never sent as `image_url` |
+| `groups` | `GroupsProvider`, `GroupsRemoteDataSource`, `GroupInviteResult`, `PickDeviceContactsPage` | Create-group: optional cover photo; members from device contacts (or manual phone); invites via `POST …/invitations` (WhatsApp for non-users); `…/members` is existing-user only. After create / on details+info, members reload so creator count starts at 1 and owner card shows. Group Info gives owners a name editor sheet, cover picker and inline bio editor. The provider sends only edited profile fields in PATCH and merges them into the current group. Uses API `member_count` / `my_role` on list payloads. Group Info keeps `pending_members` separate from the active list in the entity, renders the localized status alongside active profiles, and refreshes after an invite or on opening. Pending removal uses the owner revocation endpoint. Local gallery paths are never sent as `image_url` |
 | `outings` | `OutingsProvider`, `CreateOutingProvider`, vote/attendance widgets | Core product; create + multi-place suggest share `CreateOutingPage` (`letVote` / Add place) |
 | `chat` | `OutingChatProvider`, `OutingChatRemoteDataSource`, `OutingChatSocketClient` | REST list/send/read + Socket.IO; page resume recovery; id/`local_*` upsert dedupe |
 | `discover` | `DiscoverProvider`, places remote + saved places DS | Neon places |
 | `notifications` | `NotificationsProvider`, `FcmProvider`, `PushMessagingRepositoryImpl` | Feed + FCM |
-| `invitations` | `InvitationsProvider`, `InvitationsPage`, `GroupInvitation` | Pending group invitations list opened from Settings / group-invite push / deep links. Card shows invitation, group name, invitee message; Accept/Decline buttons. Uses `GET /api/invitations`, `POST …/accept|decline`. Provider is app-wide registered in `app.dart` |
+| `invitations` | `InvitationsProvider`, `InvitationsPage`, `GroupInvitation` | Invitation inbox and history opened from Settings / group-invite push / deep links. Card shows invitation, group name, invitee message; Accept/Decline buttons. Uses `GET /api/invitations`, `POST …/accept|decline`. Provider is app-wide registered in `app.dart` |
 | `invites` | `InviteDeepLinkProvider`, `InviteLinkParser` | Group deep links primarily |
 | `setting` | `SettingsProvider`, profile pages | Account tiles: member-since from Neon `created_at`; unverified phone status opens a Firebase OTP sheet. The profile avatar opens Edit Profile, which uses field sheets, a separate password route, and reduced-motion-aware save confirmation. Outing history opens a route backed by the current-user outings snapshot. Logout resets the shell index and replaces the full route stack with login. Theme/locale via core providers |
 
@@ -88,7 +88,7 @@ App-wide providers registered in `AppDependencies` / `app.dart`:
 - `DiscoverProvider`, `OutingChatProvider`
 - `NotificationsProvider`, `FcmProvider`
 - `InviteDeepLinkProvider`, `SettingsProvider`
-- `InvitationsProvider` (pending group invitations list)
+- `InvitationsProvider` (pending invitations and decided history)
 
 Page-scoped: `CreateOutingProvider` (and similar) constructed with repos from `context.read`.
 
@@ -128,7 +128,7 @@ The socket client keeps an in-memory invalidation cursor and reconciles missed r
 
 ## 9. Navigation
 
-Imperative GetX — no named route table. The shell extends tab content beneath a floating capsule-shaped pill navigation bar with a StadiumBorder, theme-tinted backdrop blur, and animated pill selection indicator. Scroll padding reserves the bar height at the end of each tab, and high contrast uses an opaque bar with high-contrast outlines. Deep links handled by `InviteDeepLinkProvider` + navigator helpers. Outing deep-link accept UX is **partial** (group invites more complete).
+Imperative GetX — no named route table. The five-tab shell (Home, Groups, Outings, Discover, Settings) uses the existing lazy page cache and mounted tab slots to retain state. Its floating StadiumBorder navigation has a filled violet active pill, directional positioning, safe-area padding and an opaque outlined high-contrast variant. Incoming tabs move by the shared reveal offset; reduced motion disables the transition. Inactive tabs are excluded from pointer input, semantics, focus and tickers. Existing scroll padding reserves the bar height at the end of each tab. Deep links handled by `InviteDeepLinkProvider` + navigator helpers. Outing deep-link accept UX is **partial** (group invites more complete).
 
 ## 10. Error handling
 
@@ -294,3 +294,24 @@ The existing notification feed follows bounded cursor pages without changing the
 Write requests bind the existing expected-user option at invocation so a token refresh/account switch cannot silently replay a mutation as another signed-in account.
 
 Committed outing updates/cancellations merge the returned row into the existing provider and persisted current-user collection without an extra GET. Group deletion also removes the group resource snapshot and collection entry; outing decline removes its inaccessible cached resource.
+
+
+## Phase 1 Modern Social foundation — 2026-11-13
+
+`core/theme/app_tokens.dart` owns logical spacing, radii, touch sizes, typography sizes and shadow recipes. Existing `Responsive` getters consume the geometry tokens, preserving the phone/wide/foldable content limits. `AppMotion` remains the only motion scale. `AppColors` owns the violet primitive scale; `AppPalette` owns light/dark surfaces and semantic success/warning/danger/info pairs. `AppTheme` maps these into Material 3 color, type, field, button, chip, sheet, dialog, selection and progress themes. Cairo and Inter remain the Arabic and English fonts. LocaleProvider defaults new installs to Arabic; persisted English remains supported.
+
+Shared presentation components live under `core/widgets/` and take text, widgets and callbacks, never feature Providers or entities. `GroupCard`, `OutingCard`, `PlaceCard` and `InvitationCard` are the reusable rendering layer. Existing feature card classes keep their public constructors, map domain/localized data, retain Hero tags and cover selection, and delegate to core. Invitation page card/states were extracted into its `presentation/widgets/` directory. Groups uses shared page header/search without changing query state or navigation.
+
+Reuse `CustomButton` variants, `AppIconButton`, `CustomTextField` (also exposed as `AppTextField`), `AppSearchField`, `FilterChipRow`, `AppBadge`, `UserAvatar`, `AppPageHeader`, `SectionHeader` (also `AppSectionHeader`), `AppShimmer`, `AppEmptyState`, `AppErrorState`, `AppSnackBar`, `AppAlert`, `AppBottomSheet`, and `AppNetworkImage`. Buttons retain loading semantics and disabled styling; button/icon targets are at least 48 logical pixels. AppPressable supports Enter/Space and a visible focus outline. New shared components inherit locale direction, color theme and text scaling.
+
+`AppOfflineIndicator` is an opt-in local status widget; it does not add a global sync banner, connectivity subscription or new network state. `AppBottomSheet` is a keyboard-aware scrollable sheet helper on the existing Navigator. Existing specialized sheets retain their contracts. `AppNetworkImage` retains account-scoped caching and media-reference resolution, with theme-aware placeholders.
+
+This phase changes the foundation and adapters, not feature workflows or the existing Provider/repository/data-source split. No feature-screen-wide redesign or broad migration of legacy page styles is claimed. Runtime, visual, device and UI verification were prohibited for this phase; see `audit/PHASE_1_FOUNDATION.md` for static results and scope.
+
+## Phase 2 feature composition — 2026-11-13
+
+Home composes HomeHeader, FeaturedOutingCard (core OutingCard adapter), QuickActions and HomeNearbySection. Nearby uses MapLocation plus DiscoverProvider/repository, not a second location/network/cache service. Groups composes core header/search/filter/state components and domain GroupCard adapters. CreateGroupFields and GroupInviteePicker render the existing GroupsProvider form state; GroupNameEditor is route-local form state for the existing PATCH API.
+
+GroupDetailsHeader and GroupOutingsList compose the group dashboard from existing provider snapshots. GroupHistoryLinks opens GroupHistoryPage for invitation or outing history. GroupInvitationRecord maps the additive roster `invitation_history` field and travels with Group through existing roster caching/snapshots. Group Info and both history routes register/unregister openGroup references for existing realtime invalidations. No alternate transport, polling or refresh gesture is introduced.
+
+InvitationsList owns only its selected status filter. InvitationsProvider keeps all API records, exposes pendingCount independently, and records successful decisions without removing rows. A separate load generation prevents a Socket.IO-triggered read from changing the account epoch and stranding accept/decline loading. Shared InvitationCard hides decision controls for historical records. Settings, push and deep-link entry points remain unchanged. All Phase 1 design/theme, locale, media, DI and authentication conventions remain in force.

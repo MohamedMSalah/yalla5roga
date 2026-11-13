@@ -17,6 +17,8 @@ class InvitationsProvider extends ChangeNotifier {
   bool _isDeclining = false;
   String? _errorMessage;
   int _epoch = 0;
+  int _loadGeneration = 0;
+  String? processingId;
 
   List<GroupInvitation> get items => List.unmodifiable(_items);
 
@@ -36,13 +38,14 @@ class InvitationsProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   Future<void> loadInvitations({bool forceRefresh = false}) async {
-    final token = ++_epoch;
+    final account = _epoch;
+    final token = ++_loadGeneration;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     final result = await repository.getInvitations(forceRefresh: forceRefresh);
-    if (token != _epoch) return;
+    if (account != _epoch || token != _loadGeneration) return;
 
     result.fold(
       (failure) {
@@ -54,9 +57,8 @@ class InvitationsProvider extends ChangeNotifier {
         );
       },
       (items) {
-        _items = items
-            .where((i) => i.status == InvitationStatus.pending)
-            .toList();
+        _items = List.of(items)
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         _errorMessage = null;
       },
     );
@@ -67,8 +69,9 @@ class InvitationsProvider extends ChangeNotifier {
   }
 
   Future<bool> acceptInvitation(String invitationId) async {
-    if (_isAccepting) return false;
+    if (_isAccepting || _isDeclining) return false;
     final account = _epoch;
+    processingId = invitationId;
     _isAccepting = true;
     _errorMessage = null;
     notifyListeners();
@@ -93,13 +96,16 @@ class InvitationsProvider extends ChangeNotifier {
     );
 
     _isAccepting = false;
+    processingId = null;
+    if (ok) onInvitationAccepted(invitationId);
     notifyListeners();
     return ok;
   }
 
   Future<bool> declineInvitation(String invitationId) async {
-    if (_isDeclining) return false;
+    if (_isAccepting || _isDeclining) return false;
     final account = _epoch;
+    processingId = invitationId;
     _isDeclining = true;
     _errorMessage = null;
     notifyListeners();
@@ -124,25 +130,27 @@ class InvitationsProvider extends ChangeNotifier {
     );
 
     _isDeclining = false;
+    processingId = null;
+    if (ok) onInvitationDeclined(invitationId);
     notifyListeners();
     return ok;
   }
 
-  /// Remove a processed invitation from the local list after accept/decline.
-  void _removeInvitation(String invitationId) {
-    _items = _items.where((i) => i.invitationId != invitationId).toList();
+  void _recordDecision(String id, InvitationStatus status) {
+    // Discard reads started before the decision and preserve the history row.
+    _loadGeneration++;
+    _isLoading = false;
+    _items = [
+      for (final item in _items)
+        if (item.invitationId == id) item.copyWithStatus(status) else item,
+    ];
     notifyListeners();
   }
 
-  /// Called by parent (AppSyncProvider) after successful accept/decline
-  /// to refresh the local list.
-  void onInvitationAccepted(String invitationId) {
-    _removeInvitation(invitationId);
-  }
-
-  void onInvitationDeclined(String invitationId) {
-    _removeInvitation(invitationId);
-  }
+  void onInvitationAccepted(String id) =>
+      _recordDecision(id, InvitationStatus.accepted);
+  void onInvitationDeclined(String id) =>
+      _recordDecision(id, InvitationStatus.declined);
 
   /// Called when a real-time invalidation arrives — refresh if stale.
   void invalidate() {
@@ -153,6 +161,8 @@ class InvitationsProvider extends ChangeNotifier {
 
   void clear() {
     _epoch++;
+    _loadGeneration++;
+    processingId = null;
     repository.clearCache();
     _items = [];
     _isLoading = false;

@@ -54,7 +54,13 @@ class FeaturedPlacesList extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 168.h,
+            height:
+                168.h +
+                (MediaQuery.textScalerOf(context).scale(1) - 1).clamp(
+                      0.0,
+                      2.0,
+                    ) *
+                    40,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               addAutomaticKeepAlives: false,
@@ -63,8 +69,8 @@ class FeaturedPlacesList extends StatelessWidget {
                 final place = places[index];
                 final heroTag = HeroTags.placeCover(heroSurface, place.id);
                 return Padding(
-                  padding: EdgeInsets.only(
-                    right: index == places.length - 1 ? 0 : Responsive.spaceSm,
+                  padding: EdgeInsetsDirectional.only(
+                    end: index == places.length - 1 ? 0 : Responsive.spaceSm,
                   ),
                   child: DiscoverPlaceCard(
                     place: place,

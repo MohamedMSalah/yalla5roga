@@ -99,12 +99,16 @@ class GroupsProvider extends ChangeNotifier {
 
   List<Group> get visible {
     final needle = _query.trim().toLowerCase();
-    return [
+    final items = [
       for (final group in _groups)
-        if ((_filter != 1) &&
+        if ((_filter != 2 || group.isOwner) &&
             (needle.isEmpty || group.name.toLowerCase().contains(needle)))
           group,
     ];
+    if (_filter == 1) {
+      items.sort((a, b) => b.outingCount.compareTo(a.outingCount));
+    }
+    return items;
   }
 
   Group? findById(String id) {
@@ -207,6 +211,7 @@ class GroupsProvider extends ChangeNotifier {
                     ? previous.members
                     : const [],
                 pendingMembers: previous.pendingMembers,
+                invitationHistory: previous.invitationHistory,
               )
             else
               group,
@@ -349,7 +354,6 @@ class GroupsProvider extends ChangeNotifier {
         avatar: ownerAvatar ?? '',
         role: GroupRole.owner,
       ),
-      for (final phone in phonesToInvite) _memberFromPhone(phone),
     ];
     final group = Group(
       id: 'new-${DateTime.now().millisecondsSinceEpoch}',
@@ -419,7 +423,7 @@ class GroupsProvider extends ChangeNotifier {
       });
     }
 
-    resetCreate(notify: false);
+    if (created != null) resetCreate(notify: false);
     _isCreating = false;
     notifyListeners();
 
@@ -562,11 +566,15 @@ class GroupsProvider extends ChangeNotifier {
   Future<bool> updateImage(String groupId, String url) =>
       _updateGroup(groupId, image: url);
 
+  Future<bool> updateName(String groupId, String name) =>
+      _updateGroup(groupId, name: name.trim());
+
   Future<bool> updateBio(String groupId, String bio) =>
       _updateGroup(groupId, bio: bio.trim());
 
   Future<bool> _updateGroup(
     String groupId, {
+    String? name,
     String? bio,
     String? image,
   }) async {
@@ -574,6 +582,7 @@ class GroupsProvider extends ChangeNotifier {
     if (current == null || !canManage(current)) return false;
     final result = await repository.updateGroup(
       groupId,
+      name: name,
       bio: bio,
       image: image,
     );
@@ -594,6 +603,7 @@ class GroupsProvider extends ChangeNotifier {
           for (final item in _groups)
             if (item.id == group.id)
               item.copyWith(
+                name: name == null ? null : group.name,
                 bio: bio == null ? null : group.bio,
                 image: image == null ? null : group.image,
               )
@@ -607,8 +617,7 @@ class GroupsProvider extends ChangeNotifier {
     return ok;
   }
 
-  /// Invite by phone. Existing verified users join immediately; others get a
-  /// pending `group_invitations` row and a WhatsApp download/invite message.
+  /// Invite by phone. Every invite remains pending until explicit acceptance.
   /// Returns a localized validation/API error, or `null` on success.
   Future<String?> inviteMember(
     String groupId,
@@ -762,19 +771,5 @@ class GroupsProvider extends ChangeNotifier {
     _hasLoaded = false;
     _errorMessage = null;
     notifyListeners();
-  }
-
-  GroupMember _memberFromPhone(String phone) {
-    final known = repository.memberByPhone(phone);
-    if (known != null) {
-      return GroupMember(
-        id: known.id,
-        name: known.name,
-        avatar: known.avatar,
-        phone: known.phone ?? phone,
-        role: known.role,
-      );
-    }
-    return GroupMember(id: phone, name: phone, phone: phone, avatar: '');
   }
 }

@@ -19,8 +19,8 @@ class AppNetworkImage extends StatelessWidget {
     this.radius,
     this.placeholder,
     this.placeholderIcon = Icons.image_outlined,
-    this.placeholderColor = AppColors.brand100,
-    this.placeholderIconColor = AppColors.brand600,
+    this.placeholderColor,
+    this.placeholderIconColor,
     this.fade = true,
   });
 
@@ -35,8 +35,8 @@ class AppNetworkImage extends StatelessWidget {
     this.fade = true,
   }) : placeholder = null,
        placeholderIcon = Icons.person_rounded,
-       placeholderColor = AppColors.brand100,
-       placeholderIconColor = AppColors.brand600;
+       placeholderColor = null,
+       placeholderIconColor = null;
 
   final String url;
   final double? width;
@@ -45,8 +45,8 @@ class AppNetworkImage extends StatelessWidget {
   final double? radius;
   final Widget? placeholder;
   final IconData placeholderIcon;
-  final Color placeholderColor;
-  final Color placeholderIconColor;
+  final Color? placeholderColor;
+  final Color? placeholderIconColor;
 
   /// Fade-in after decode. Off for Hero children so a live-API cache miss
   /// does not pop the photo in after the shared-element flight lands.
@@ -103,11 +103,11 @@ class AppNetworkImage extends StatelessWidget {
         Container(
           width: width,
           height: height,
-          color: placeholderColor,
+          color: placeholderColor ?? AppColors.of(context).brandSoft,
           alignment: Alignment.center,
           child: Icon(
             placeholderIcon,
-            color: placeholderIconColor,
+            color: placeholderIconColor ?? AppColors.of(context).brandStrong,
             size: iconSize,
           ),
         );

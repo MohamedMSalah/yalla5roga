@@ -14,6 +14,7 @@ class NotificationButton extends StatelessWidget {
     final unread = context.watch<NotificationsProvider>().unreadCount;
     return AppIconButton(
       icon: Icons.notifications_none_rounded,
+      tooltip: context.l10n.notifications,
       badge: unread == 0 ? null : context.l10n.n(unread),
       onTap: () => Get.to(() => const NotificationsPage()),
     );

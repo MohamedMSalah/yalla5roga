@@ -39,7 +39,7 @@ Reduce the friction of “where should we go?” by giving a group:
 
 ## Target experience
 
-A user opens the app, lands on a tabbed shell (home / groups / discover / settings), creates or joins an outing, votes before the deadline, updates attendance, and chats. Backend decisions (winner, cancel, authorization) always win over UI animation or optimistic state.
+A user opens the app, lands on a tabbed shell (home / groups / outings / discover / settings), creates or joins an outing, votes before the deadline, updates attendance, and chats. Backend decisions (winner, cancel, authorization) always win over UI animation or optimistic state.
 
 ## Technologies
 

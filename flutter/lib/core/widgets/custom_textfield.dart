@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class CustomTextField extends StatelessWidget {
@@ -96,6 +95,9 @@ class CustomTextField extends StatelessWidget {
                   ? suffix
                   : IconButton(
                       onPressed: onToggleObscure,
+                      tooltip: obscureText
+                          ? context.l10n.showPassword
+                          : context.l10n.hidePassword,
                       icon: Icon(
                         obscureText
                             ? Icons.visibility_outlined
@@ -111,15 +113,15 @@ class CustomTextField extends StatelessWidget {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Responsive.radiusMd),
-                borderSide: BorderSide(color: AppColors.brand500, width: 1.4.w),
+                borderSide: BorderSide(color: palette.brand, width: 1.4.w),
               ),
               errorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Responsive.radiusMd),
-                borderSide: const BorderSide(color: AppColors.rose500),
+                borderSide: BorderSide(color: palette.danger),
               ),
               focusedErrorBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Responsive.radiusMd),
-                borderSide: const BorderSide(color: AppColors.rose500),
+                borderSide: BorderSide(color: palette.danger),
               ),
             ),
           ),

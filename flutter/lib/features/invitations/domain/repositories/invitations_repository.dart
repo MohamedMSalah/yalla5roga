@@ -3,7 +3,7 @@ import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/features/invitations/domain/entities/group_invitation.dart';
 
 abstract class InvitationsRepository {
-  /// Fetch all pending invitations for the current user.
+  /// Fetch invitations including decided history for the current user.
   Future<Either<Failure, List<GroupInvitation>>> getInvitations({
     bool forceRefresh = false,
   });
