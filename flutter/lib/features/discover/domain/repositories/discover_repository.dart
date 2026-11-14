@@ -1,9 +1,28 @@
 import 'package:dartz/dartz.dart';
+
+import 'dart:async';
+
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
+import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 
 abstract class DiscoverRepository {
+  Future<Either<Failure, List<SuggestedPlace>>> getSavedPlaces({
+    bool forceRefresh = false,
+  });
+  Future<Either<Failure, void>> setPlaceSaved(String id, bool saved);
+  Stream<void> get catalogChanges;
+  Future<void> checkCatalogVersion();
+  Future<Either<Failure, List<CatalogDefinition>>> getDefinitions(
+    String kind, {
+    bool forceRefresh = false,
+  });
+  Future<Either<Failure, List<SuggestedPlace>>> queryPlaces(
+    PlaceFilters filters, {
+    int offset = 0,
+    bool forceRefresh = false,
+  });
   Future<Either<Failure, List<SuggestedPlace>>> getNearbyPlaces({
     required double latitude,
     required double longitude,

@@ -1,0 +1,686 @@
+{
+  "checkedAt": "2026-11-14T10:35:14.679Z",
+  "mode": "Served Swagger/OpenAPI HTTP; real PostgreSQL disposable schema; controlled Firebase identity and FCM boundary; no app/device/UI tests; no application-schema deployment",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "Served Swagger matches generated OpenAPI",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptGroupInvitation",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptGroupInvitation",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "declineGroupInvitation",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "declineGroupInvitation",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "inviteToGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listUserInvitations",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getGroup",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptGroupInvitation",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "declineGroupInvitation",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptGroupInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptGroupInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "declineGroupInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getGroup",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "inviteToGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "declineGroupInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "declineGroupInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptGroupInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getGroup",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listGroupMembers",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listUserInvitations",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "syncUser",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getGroup",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listUserInvitations",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markNotificationRead",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listVoteOptions",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "confirmOutingVenue",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Voting deadline reminder via OpenAPI inbox",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Confirmed venue and outing reminder via OpenAPI inbox",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Controlled FCM adapter received durable events",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Worker retries partially failed multicast after backoff",
+      "result": "PASS"
+    },
+    {
+      "scenario": "unregisterFcmToken",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Legacy Android tokens retain redacted OS-visible delivery; v2 tokens use native action data delivery",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Partial multicast retry excludes successful devices; invalid token cleanup; Android data-only structured envelope",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Arrival reminder inside confirmed attendance window",
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "cancelOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "cancelOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "removeGroupMember",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationSystemPayload",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "registerFcmToken",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "unregisterFcmToken",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "unregisterFcmToken",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Scheduled deadline closes voting and cancels zero-vote outing",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "48-hour deadline metadata, server-time closure, no reminder after deadline, idempotent closed/cancelled events",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Android RemoteInput, permissions, channels, badge, lock screen, cold start, OEM process handling",
+      "result": "MANUAL_DEVICE_REQUIRED"
+    }
+  ]
+}

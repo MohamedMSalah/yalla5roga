@@ -91,3 +91,8 @@ flowchart LR
 ## Phase 4 scope — 2026-11-14
 
 Discover now shares map controls with outing location selection: searchable OSM map, location action, horizontal categories, image previews and card exploration. Special Events support Birthday, Wedding, Celebration and Other through the established wizard, with optional accepted-member group association or the independent guest flow. The backend/Prisma contract extension and migration are included; application-schema deployment is separate. Provider, Dio, existing caching, flutter_map and the design system are retained.
+
+
+## OSM catalog management — 2026-11-14
+
+Places discovery now uses an extensible bilingual taxonomy (36 categories, 15 place vibes) on the existing Neon catalog, with administrative-boundary OSM imports for Cairo/Giza, source-evidenced lifecycle history and persistent weekly/catch-up synchronization. Discover and Create Outing share server filters/pagination, map results and offline snapshots; the existing outing/voting/authentication architecture is retained. See [Places Management](audit/PLACES_MANAGEMENT.md) for verified data counts, operating commands and remaining deployment activation.

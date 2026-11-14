@@ -6,6 +6,7 @@ import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
 import 'package:yalla_5roga/core/widgets/section_header.dart';
+import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_cover_image.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
@@ -38,6 +39,21 @@ class CreateOutingLocationStep extends StatelessWidget {
     ];
     return Column(
       children: [
+        if (form.placeCatalog case final catalog?) ...[
+          TextFormField(
+            controller: catalog.searchController,
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
+              hintText: l10n.catalogSearch,
+            ),
+            onChanged: (value) => catalog.update(
+              catalog.filters.copyWith(search: value),
+              debounce: true,
+            ),
+          ),
+          PlaceCatalogFilters(catalog: catalog),
+          CatalogLoadMore(catalog: catalog),
+        ],
         if (!form.specialEvent) ...[
           CustomButton(
             label: multi ? l10n.useSingleLocation : l10n.addPlacesForVoting,
@@ -111,7 +127,7 @@ class CreateOutingLocationStep extends StatelessWidget {
           for (final place in form.selectedPlaces)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(place.name),
+              title: Text(place.displayName(l10n.locale.languageCode)),
               subtitle: Text(place.area),
               trailing: IconButton(
                 tooltip: l10n.removePlace,
@@ -125,13 +141,18 @@ class CreateOutingLocationStep extends StatelessWidget {
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: Text(
-              l10n.suggestedForVibe(
-                l10n.vibeLabel(
-                  OutingVibe
-                      .values[form.vibe.clamp(0, OutingVibe.values.length - 1)]
-                      .name,
-                ),
-              ),
+              form.placeCatalog != null
+                  ? l10n.allPlaces
+                  : l10n.suggestedForVibe(
+                      l10n.vibeLabel(
+                        OutingVibe
+                            .values[form.vibe.clamp(
+                              0,
+                              OutingVibe.values.length - 1,
+                            )]
+                            .name,
+                      ),
+                    ),
               style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: Responsive.fontSm,
@@ -179,7 +200,7 @@ class CreateOutingLocationStep extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              place.name,
+                              place.displayName(l10n.locale.languageCode),
                               style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                               ),
@@ -197,7 +218,9 @@ class CreateOutingLocationStep extends StatelessWidget {
                       if (multi)
                         Checkbox(
                           value: selected,
-                          semanticLabel: place.name,
+                          semanticLabel: place.displayName(
+                            l10n.locale.languageCode,
+                          ),
                           onChanged: canSelect
                               ? (_) => form.togglePlace(place)
                               : null,

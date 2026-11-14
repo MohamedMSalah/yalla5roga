@@ -1,9 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
-import { arrivalMaxAccuracyMeters, arrivalRadiusMeters, arrivalWindowEnd, arrivalWindowOpen, verifiedDistance, type ArrivalProof } from "../../services/outings/arrival-policy.js";
+import { arrivalMaxAccuracyMeters, arrivalRadiusMeters, arrivalWindowEnd, arrivalWindowOpen, verifiedDistance, type ArrivalProof,
+} from "../../services/outings/arrival-policy.js";
 import { listEligibleVoterIds } from "../../services/outings/outing-participants.js";
 import { emitOutingArrivalChanged } from "../../realtime/chat-emitter.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
+import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
+import { emitDataChange } from "../../realtime/data-changes.js";
 
 function venueCoordinates(outing: {
   location_latitude: number | null;
@@ -25,7 +28,8 @@ function venueCoordinates(outing: {
 }
 
 export class OutingArrivalsUseCase {
-  private async getForParticipant(db: Prisma.TransactionClient, id: string, userId: string) {
+  private async getForParticipant(db: Prisma.TransactionClient, id: string, userId: string,
+  ) {
     const outing = await db.outings.findUnique({
       where: { id },
       include: { places: { select: { latitude: true, longitude: true } } },
@@ -38,18 +42,22 @@ export class OutingArrivalsUseCase {
         })).map(({ user_id }) => user_id)
       : await listEligibleVoterIds(outing, db);
     if (!participantIds.includes(userId)) {
-      throw new ForbiddenError("Only outing participants can view or record arrivals");
+      throw new ForbiddenError("Only outing participants can view or record arrivals",
+      );
     }
     return { outing, participantIds };
   }
 
   async list(id: string, userId: string) {
-    const { outing, participantIds } = await this.getForParticipant(prisma, id, userId);
+    const { outing, participantIds } = await this.getForParticipant(prisma, id, userId,
+    );
     const [arrivals, participants] = await Promise.all([
       prisma.outing_arrivals.findMany({
-        where: { outing_id: id, user_id: { in: participantIds }, verification_method: { not: "organizer" } },
+        where: { outing_id: id, user_id: { in: participantIds }, verification_method: { not: "organizer" },
+        },
         orderBy: [{ arrived_at: "asc" }, { user_id: "asc" }],
-        select: { user_id: true, arrived_at: true, verification_method: true, users: { select: { name: true } } },
+        select: { user_id: true, arrived_at: true, verification_method: true, users: { select: { name: true } },
+        },
       }),
       prisma.users.findMany({
         where: { id: { in: participantIds } },
@@ -61,7 +69,8 @@ export class OutingArrivalsUseCase {
     const venue = venueCoordinates(outing);
     const open = venue != null && arrivalWindowOpen(outing, new Date());
     return {
-      arrivals: arrivals.map(({ users, ...arrival }) => ({ ...arrival, name: users.name })),
+      arrivals: arrivals.map(({ users, ...arrival }) => ({ ...arrival, name: users.name,
+      })),
       unconfirmed: participants.filter((person) => !confirmed.has(person.id)),
       total_confirmed: arrivals.length,
       open,
@@ -78,14 +87,16 @@ export class OutingArrivalsUseCase {
   async record(id: string, userId: string, proof: ArrivalProof) {
     const result = await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM outings WHERE id = ${id}::uuid FOR UPDATE`;
-      const { outing, participantIds } = await this.getForParticipant(tx, id, userId);
+      const { outing, participantIds } = await this.getForParticipant(tx, id, userId,
+      );
       if (outing.group_id) {
         const membership = await tx.$queryRaw<{ user_id: string }[]>`
           SELECT user_id FROM group_members
           WHERE group_id = ${outing.group_id}::uuid AND user_id = ${userId}
           FOR KEY SHARE
         `;
-        if (!membership.length) throw new ForbiddenError("Only current group members can verify arrival");
+        if (!membership.length) throw new ForbiddenError("Only current group members can verify arrival",
+          );
       }
       const key = { outing_id: id, user_id: userId };
       const where = { outing_id_user_id: key };
@@ -115,10 +126,26 @@ export class OutingArrivalsUseCase {
         verification_distance: distance,
         location_accuracy: proof.accuracy,
       };
-      await tx.outing_arrivals.upsert({ where, create: { ...key, ...data }, update: data });
+      await tx.outing_arrivals.upsert({ where, create: { ...key, ...data }, update: data,
+      });
+      await notifyOutingParticipants(
+        {
+          outing,
+          type: "outing",
+          eventType: "arrival_changed",
+          body: "A participant arrived at the confirmed venue.",
+          userIds: [outing.created_by],
+          excludeUserId: userId,
+          eventKey: `arrival_changed:${id}:${userId}`,
+        },
+        tx,
+      );
       return { arrived: true, recipients: participantIds };
     });
-    if (result.arrived) emitOutingArrivalChanged(id, result.recipients);
+    if (result.arrived) {
+      emitOutingArrivalChanged(id, result.recipients);
+      emitDataChange({ kind: "inbox" }, result.recipients);
+    }
     return { arrived: result.arrived };
   }
 }

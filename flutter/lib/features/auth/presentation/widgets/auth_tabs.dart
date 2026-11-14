@@ -11,10 +11,13 @@ class AuthTabs extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final auth = context.watch<AuthProvider>();
-    return SegmentedTabs(
-      labels: [l10n.login, l10n.register],
-      index: auth.isLogin ? 0 : 1,
-      onChanged: (index) => context.read<AuthProvider>().setLogin(index == 0),
+    return AbsorbPointer(
+      absorbing: auth.isLoading || auth.isAuthenticated,
+      child: SegmentedTabs(
+        labels: [l10n.login, l10n.register],
+        index: auth.isLogin ? 0 : 1,
+        onChanged: (index) => context.read<AuthProvider>().setLogin(index == 0),
+      ),
     );
   }
 }

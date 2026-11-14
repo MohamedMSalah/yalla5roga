@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database.js";
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
+import { persistNotificationControl } from "../../services/notifications/persist-notification.js";
 import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import { assertIsOutingCreator } from "../../services/outings/outing-access.js";
 import type { OutingGuest } from "../../types/outings/outing.types.js";
@@ -49,22 +50,6 @@ export class AddGuestUseCase {
       status: "pending",
     });
 
-    if (guest.status !== "pending") return guest;
-
-    try {
-      await notifyOutingParticipants({
-        outing,
-        type: "invitation",
-        eventType: "outing_invite",
-        body: `You were invited to "${outing.title}".`,
-        eventKey: `outing_invite:${outingId}:${userId}:${guest.invited_at.toISOString()}`,
-        userIds: [userId],
-        actionRequired: true,
-      });
-    } catch (error) {
-      console.error("[outings] invite notification failed", error);
-    }
-
     return guest;
   }
 }
@@ -78,20 +63,8 @@ export class AcceptOutingInvitationUseCase {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
 
-    const accepted = await resolveOutingInvitation(outingId, userId, "accepted");
-
-    try {
-      await notifyOutingParticipants({
-        outing,
-        type: "invitation",
-        eventType: "outing_invite",
-        body: `A member accepted the invitation to "${outing.title}".`,
-        eventKey: `outing_invite_accepted:${outingId}:${userId}`,
-        userIds: [outing.created_by],
-      });
-    } catch (error) {
-      console.error("[outings] accept notification failed", error);
-    }
+    const accepted = await resolveOutingInvitation(outingId, userId, "accepted",
+    );
 
     return accepted;
   }
@@ -116,17 +89,51 @@ async function resolveOutingInvitation(
   status: "accepted" | "declined",
 ): Promise<OutingGuest> {
   const key = { outing_id: outingId, user_id: userId };
-  const [updated] = await prisma.outing_guests.updateManyAndReturn({
+  return prisma.$transaction(async (tx) => {
+    const [updated] = await tx.outing_guests.updateManyAndReturn({
     where: { ...key, status: "pending" },
     data: { status },
   });
-  if (updated) return updated;
-  const existing = await prisma.outing_guests.findUnique({
+  if (updated) {
+      const outing = await tx.outings.findUniqueOrThrow({
+        where: { id: outingId },
+      });
+      if (status === "accepted")
+        await notifyOutingParticipants(
+          {
+            outing,
+            type: "invitation",
+            eventType: "outing_invite",
+            body: `A member accepted the invitation to "${outing.title}".`,
+            eventKey: `outing_invite_accepted:${outingId}:${userId}`,
+            userIds: [outing.created_by],
+          },
+          tx,
+        );
+      await tx.notifications.updateMany({
+        where: {
+          user_id: userId,
+          outing_id: outingId,
+          type: "invitation",
+          action_required: true,
+        },
+        data: { is_read: true, action_required: false },
+      });
+      await persistNotificationControl(tx, {
+        recipients: [userId],
+        outingId,
+        type: "invitation_resolved",
+        eventKey: `outing_invitation_resolved:${outingId}:${userId}:${updated.invited_at.toISOString()}`,
+      });
+      return updated;
+    }
+    const existing = await tx.outing_guests.findUnique({
     where: { outing_id_user_id: key },
   });
   if (!existing) throw new NotFoundError("Invitation");
   if (existing.status === status) return existing;
   throw new ConflictError("Invitation is no longer available");
+  });
 }
 
 export class RemoveGuestUseCase {

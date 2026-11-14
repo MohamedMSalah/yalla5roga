@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
+
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
@@ -80,6 +82,36 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> saveSignupPhoto(MediaUploadService uploads, String path) async {
+    try {
+      final image = await uploads.uploadLocalImage(
+        path: path,
+        purpose: MediaPurpose.profile,
+      );
+      final ok = await syncProfileToBackend(imageUrl: image.reference);
+      if (!ok) unawaited(uploads.deleteMediaReference(image.reference));
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteAccount() async {
+    if (_isLoading || _user == null) return false;
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final result = await repository.deleteAccount();
+      return result.fold<bool>((failure) {
+        _reportFailure(failure, context: 'deleteAccount');
+        return false;
+      }, (_) => true);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> restoreSession() async {
     final hasFirebase = repository.hasFirebaseSession;
     final result = await repository.getCachedUser();
@@ -129,58 +161,62 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-    final samePhone = _pendingPhone == e164;
-    final result = await repository.sendOtp(
-      phone: e164,
-      forceResendingToken: samePhone ? _resendToken : null,
-      updateCurrentUser: updateCurrentUser,
-    );
+      final samePhone = _pendingPhone == e164;
+      final result = await repository.sendOtp(
+        phone: e164,
+        forceResendingToken: samePhone ? _resendToken : null,
+        updateCurrentUser: updateCurrentUser,
+      );
 
-    final sent = result.fold(
-      (failure) {
-        _errorCode = failure.code ?? (failure is AuthFailure ? AuthErrorCodes.verificationFailed : 'unexpected');
-        _errorMessage = failure.message;
-        _reportFailure(failure, context: 'sendOtp');
-        notifyListeners();
-        return false;
-      },
-      (verification) {
-        if (verification.autoVerified) {
-          _phoneAutoVerified = true;
-          _otpSent = true;
-          _verificationId = null;
-          _pendingPhone = e164;
-            notifyListeners();
-          return true;
-        }
-        if (verification.verificationId.isEmpty) {
-            _errorCode = AuthErrorCodes.verificationFailed;
-          _errorMessage = 'Phone verification failed';
-          _reportFailure(
-            const AuthFailure('Phone verification failed'),
-            context: 'sendOtp',
-          );
+      final sent = result.fold(
+        (failure) {
+          _errorCode =
+              failure.code ??
+              (failure is AuthFailure
+                  ? AuthErrorCodes.verificationFailed
+                  : 'unexpected');
+          _errorMessage = failure.message;
+          _reportFailure(failure, context: 'sendOtp');
           notifyListeners();
           return false;
-        }
-        _verificationId = verification.verificationId;
-        _resendToken =
-            verification.resendToken ?? (samePhone ? _resendToken : null);
-        _pendingPhone = e164;
-        _otpSent = true;
-        _phoneAutoVerified = false;
-        notifyListeners();
-        return true;
-      },
-    );
-    if (sent && _phoneAutoVerified) {
-      final cached = await repository.getCachedUser();
-      cached.fold((_) {}, (user) {
-        _user = user;
-        notifyListeners();
-      });
-    }
-    return sent;
+        },
+        (verification) {
+          if (verification.autoVerified) {
+            _phoneAutoVerified = true;
+            _otpSent = true;
+            _verificationId = null;
+            _pendingPhone = e164;
+            notifyListeners();
+            return true;
+          }
+          if (verification.verificationId.isEmpty) {
+            _errorCode = AuthErrorCodes.verificationFailed;
+            _errorMessage = 'Phone verification failed';
+            _reportFailure(
+              const AuthFailure('Phone verification failed'),
+              context: 'sendOtp',
+            );
+            notifyListeners();
+            return false;
+          }
+          _verificationId = verification.verificationId;
+          _resendToken =
+              verification.resendToken ?? (samePhone ? _resendToken : null);
+          _pendingPhone = e164;
+          _otpSent = true;
+          _phoneAutoVerified = false;
+          notifyListeners();
+          return true;
+        },
+      );
+      if (sent && _phoneAutoVerified) {
+        final cached = await repository.getCachedUser();
+        cached.fold((_) {}, (user) {
+          _user = user;
+          notifyListeners();
+        });
+      }
+      return sent;
     } catch (_) {
       _errorCode = 'unexpected';
       _errorMessage = 'Something went wrong. Please try again.';
@@ -519,7 +555,11 @@ class AuthProvider extends ChangeNotifier {
       final success = result.fold(
         (failure) {
           _errorMessage = failure.message;
-          _errorCode = failure.code ?? (failure is AuthFailure ? AuthErrorCodes.verificationFailed : 'unexpected');
+          _errorCode =
+              failure.code ??
+              (failure is AuthFailure
+                  ? AuthErrorCodes.verificationFailed
+                  : 'unexpected');
           // Cancelled social sign-in is not an error worth reporting.
           if (_errorCode != AuthErrorCodes.cancelled) {
             _reportFailure(failure, context: context);
@@ -542,7 +582,6 @@ class AuthProvider extends ChangeNotifier {
         await CrashlyticsService.instance.setUserId(_user!.id);
         await AnalyticsService.instance.setUserId(_user!.id);
         unawaited(AnalyticsService.instance.loginSuccess());
-  
       }
       return success;
     } catch (error, stack) {

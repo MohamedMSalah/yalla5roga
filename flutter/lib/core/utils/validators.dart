@@ -76,7 +76,7 @@ class Validators {
   /// Always returns E.164 with Western digits for Firebase / REST.
   static String normalizePhone(String value) => '+20${localPhoneDigits(value)}';
 
-  static String? normalizeGroupPhone(String value) {
+  static String? normalizeGroupPhone(String value, {String? callingCode}) {
     final raw = value.trim();
     if (raw.isEmpty || RegExp(r'[a-zA-Z]').hasMatch(raw)) return null;
     final digits = DigitUtils.westernDigitsOnly(raw);
@@ -86,6 +86,14 @@ class Validators {
         return '+$international';
       }
       return null;
+    }
+    if (callingCode != null && callingCode != '+20') {
+      if (!RegExp(r'^\+[1-9]\d{0,2}$').hasMatch(callingCode)) return null;
+      // National trunk prefixes are omitted from international numbers.
+      final national = callingCode == '+39'
+          ? digits
+          : digits.replaceFirst(RegExp(r'^0+'), '');
+      return normalizeGroupPhone('$callingCode$national');
     }
     return isValidEgyptianPhone(raw) ? normalizePhone(raw) : null;
   }

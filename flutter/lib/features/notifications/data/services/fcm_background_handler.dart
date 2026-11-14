@@ -2,6 +2,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/firebase_options.dart';
+import 'package:yalla_5roga/features/notifications/data/services/notification_background_runtime.dart';
+import 'package:yalla_5roga/features/notifications/domain/entities/push_notification_payload.dart';
 
 /// Top-level background handler required by [FirebaseMessaging.onBackgroundMessage].
 ///
@@ -13,6 +15,17 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+    }
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        message.notification == null) {
+      final runtime = await NotificationBackgroundRuntime.create();
+      try {
+        await runtime.local.showFromPayload(
+          PushNotificationPayload.fromRemoteMessage(message),
+        );
+      } finally {
+        runtime.client.dio.close();
+      }
     }
     if (kDebugMode) {
       debugPrint(

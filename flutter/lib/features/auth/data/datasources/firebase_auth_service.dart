@@ -432,9 +432,16 @@ class FirebaseAuthService {
   }
 
   Future<void> signOut() async {
+    try {
+      await beforeSignOut?.call();
+    } catch (error) {
+      debugPrint('[Notifications] Logout cleanup deferred: $error');
+    }
     clearPhoneVerificationToken();
     await _auth.signOut().timeout(_timeout);
   }
+
+  Future<void> Function()? beforeSignOut;
 
   Future<void> _updatePhoneCredential(
     fb.User user,

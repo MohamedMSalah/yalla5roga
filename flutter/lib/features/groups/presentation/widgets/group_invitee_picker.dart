@@ -13,12 +13,22 @@ class GroupInviteePicker extends StatelessWidget {
     required this.onPickContacts,
     required this.onAddPhone,
     required this.onRemovePhone,
+    required this.callingCode,
+    required this.onCallingCodeChanged,
+    required this.whatsappOptIn,
+    required this.onWhatsAppOptInChanged,
+    this.onPhoneChanged,
   });
   final TextEditingController phoneController;
   final List<String> phones;
   final bool isCreating;
   final VoidCallback onPickContacts, onAddPhone;
   final ValueChanged<String> onRemovePhone;
+  final String callingCode;
+  final ValueChanged<String> onCallingCodeChanged;
+  final bool whatsappOptIn;
+  final ValueChanged<bool> onWhatsAppOptInChanged;
+  final ValueChanged<String>? onPhoneChanged;
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -56,6 +66,9 @@ class GroupInviteePicker extends StatelessWidget {
           controller: phoneController,
           validate: false,
           allowInternational: true,
+          callingCode: callingCode,
+          onCallingCodeChanged: onCallingCodeChanged,
+          onChanged: onPhoneChanged,
         ),
         Responsive.spaceSm.gapH,
         CustomButton(
@@ -86,6 +99,14 @@ class GroupInviteePicker extends StatelessWidget {
             ],
           ),
         ],
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: whatsappOptIn,
+          title: Text(l10n.groupWhatsAppConsent),
+          onChanged: isCreating
+              ? null
+              : (value) => onWhatsAppOptInChanged(value ?? false),
+        ),
       ],
     );
   }

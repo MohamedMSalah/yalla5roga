@@ -9,7 +9,8 @@ import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/map_location.dart';
 import 'package:yalla_5roga/core/widgets/app_map.dart';
 import 'package:yalla_5roga/core/widgets/map_controls.dart';
-import 'package:yalla_5roga/core/widgets/vibe_picker.dart';
+import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
+import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
@@ -20,6 +21,7 @@ class PickLocationPage extends StatelessWidget {
     super.key,
     required this.catalog,
     this.initial,
+    this.placeCatalog,
     this.selected = const [],
     this.maxSelections = 1,
     this.tileProvider,
@@ -27,6 +29,7 @@ class PickLocationPage extends StatelessWidget {
   });
 
   final List<Place> catalog;
+  final PlaceCatalogProvider? placeCatalog;
   final Place? initial;
   final List<Place> selected;
   final int maxSelections;
@@ -44,12 +47,13 @@ class PickLocationPage extends StatelessWidget {
       selected: selected,
       maxSelections: maxSelections,
     ),
-    child: _Picker(tileProvider: tileProvider),
+    child: _Picker(tileProvider: tileProvider, placeCatalog: placeCatalog),
   );
 }
 
 class _Picker extends StatefulWidget {
-  const _Picker({this.tileProvider});
+  const _Picker({this.tileProvider, this.placeCatalog});
+  final PlaceCatalogProvider? placeCatalog;
 
   final TileProvider? tileProvider;
 
@@ -63,7 +67,20 @@ class _PickerState extends State<_Picker> {
   final _sheetInset = ValueNotifier<double>(0);
   final _searchFocus = FocusNode();
   final _query = TextEditingController();
-  int _filter = -1;
+  void _catalogChanged() {
+    if (mounted) {
+      setState(() {
+        final search = widget.placeCatalog?.filters.search ?? '';
+        if (_query.text != search) {
+          _query.value = TextEditingValue(
+            text: search,
+            selection: TextSelection.collapsed(offset: search.length),
+          );
+        }
+      });
+    }
+  }
+
   var _collapsed = .4;
   var _height = 0.0;
 
@@ -72,6 +89,8 @@ class _PickerState extends State<_Picker> {
   @override
   void initState() {
     super.initState();
+    _query.text = widget.placeCatalog?.filters.search ?? '';
+    widget.placeCatalog?.addListener(_catalogChanged);
     _searchFocus.addListener(_onSearchFocus);
     _sheet.addListener(_updateInset);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,7 +113,7 @@ class _PickerState extends State<_Picker> {
   }
 
   void _onSearchFocus() {
-    if (!_searchFocus.hasFocus) {
+    if (!_searchFocus.hasFocus && widget.placeCatalog == null) {
       _query.clear();
       _picker.search('');
     }
@@ -142,7 +161,7 @@ class _PickerState extends State<_Picker> {
   }
 
   void _choose(Place place) {
-    _query.clear();
+    if (widget.placeCatalog == null) _query.clear();
     _collapse();
     _picker.choose(place);
     if (place.hasCoordinates) {
@@ -156,6 +175,12 @@ class _PickerState extends State<_Picker> {
     final result = await _picker.locate();
     if (!mounted) return;
     if (result.point case final point?) {
+      widget.placeCatalog?.update(
+        widget.placeCatalog!.filters.copyWith(
+          latitude: point.latitude,
+          longitude: point.longitude,
+        ),
+      );
       _pin(point, focus: true);
       return;
     }
@@ -193,6 +218,7 @@ class _PickerState extends State<_Picker> {
   void dispose() {
     _searchFocus.removeListener(_onSearchFocus);
     _searchFocus.dispose();
+    widget.placeCatalog?.removeListener(_catalogChanged);
     _query.dispose();
     _sheet.dispose();
     _sheetInset.dispose();
@@ -239,6 +265,23 @@ class _PickerState extends State<_Picker> {
                   onUserMove: picker.startMoving,
                   onUserIdle: _pin,
                   markers: [
+                    for (final place
+                        in widget.placeCatalog?.places.map(
+                              (p) => p.toOutingPlace(),
+                            ) ??
+                            picker.catalog)
+                      if (place.hasCoordinates &&
+                          !places.any(place.matchesSelection))
+                        Marker(
+                          point: LatLng(place.latitude!, place.longitude!),
+                          width: 48,
+                          height: 48,
+                          child: MapPlaceMarker(
+                            label: place.displayName(l10n.locale.languageCode),
+                            selected: false,
+                            onPressed: () => _choose(place),
+                          ),
+                        ),
                     for (final (index, place) in places.indexed)
                       if (place.hasCoordinates)
                         Marker(
@@ -339,7 +382,15 @@ class _PickerState extends State<_Picker> {
                           MapSearchBar(
                             controller: _query,
                             focusNode: _searchFocus,
-                            onChanged: picker.search,
+                            onChanged: (value) {
+                              picker.search(value);
+                              widget.placeCatalog?.update(
+                                widget.placeCatalog!.filters.copyWith(
+                                  search: value,
+                                ),
+                                debounce: true,
+                              );
+                            },
                             leading: const BackButton(),
                             trailing: Selector<PickLocationProvider, bool>(
                               selector: (_, picker) => picker.locating,
@@ -355,9 +406,7 @@ class _PickerState extends State<_Picker> {
                               child: _SearchResults(
                                 onChoose: _choose,
                                 query: _query,
-                                filter: _filter,
-                                onFilter: (value) =>
-                                    setState(() => _filter = value),
+                                catalog: widget.placeCatalog,
                               ),
                             ),
                         ],
@@ -380,11 +429,9 @@ class _SearchResults extends StatelessWidget {
   const _SearchResults({
     required this.onChoose,
     required this.query,
-    required this.filter,
-    required this.onFilter,
+    this.catalog,
   });
-  final int filter;
-  final ValueChanged<int> onFilter;
+  final PlaceCatalogProvider? catalog;
 
   final ValueChanged<Place> onChoose;
   final TextEditingController query;
@@ -394,9 +441,11 @@ class _SearchResults extends StatelessWidget {
     final picker = context.watch<PickLocationProvider>();
     final l10n = context.l10n;
 
-    final places = (query.text.trim().isEmpty ? picker.catalog : picker.results)
-        .where((p) => filter < 0 || p.id.isEmpty || p.vibe.index == filter)
-        .toList();
+    final places = catalog != null
+        ? catalog!.places.map((p) => p.toOutingPlace()).toList()
+        : (query.text.trim().isEmpty ? picker.catalog : picker.results)
+              .where((p) => p.status == 'active')
+              .toList();
     return Card(
       margin: const EdgeInsets.only(top: 8),
       child: ListView(
@@ -404,18 +453,27 @@ class _SearchResults extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         children: [
           if (picker.searching) const LinearProgressIndicator(),
-          MapVibeFilters(
-            labels: VibeOption.outingVibes(l10n).map((v) => v.label).toList(),
-            index: filter,
-            onChanged: onFilter,
-          ),
+          if (catalog case final catalog?) ...[
+            PlaceCatalogFilters(catalog: catalog),
+            CatalogLoadMore(catalog: catalog),
+          ],
           for (final place in places)
             ListTile(
               leading: const Icon(Icons.place_outlined),
-              title: Text(place.name),
+              title: Text(place.displayName(l10n.locale.languageCode)),
               subtitle: place.area.isEmpty ? null : Text(place.area),
               onTap: () => onChoose(place),
             ),
+          if (catalog != null && picker.results.any((p) => p.id.isEmpty)) ...[
+            ListTile(title: Text(l10n.catalogSearchLocations)),
+            for (final hit in picker.results.where((p) => p.id.isEmpty))
+              ListTile(
+                leading: const Icon(Icons.travel_explore),
+                title: Text(hit.name),
+                subtitle: Text(hit.area),
+                onTap: () => onChoose(hit),
+              ),
+          ],
           if (!picker.searching && places.isEmpty && !picker.searchFailed)
             ListTile(title: Text(l10n.mapNoResults)),
           if (picker.searchFailed)

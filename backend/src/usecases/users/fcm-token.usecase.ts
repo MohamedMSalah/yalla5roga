@@ -6,6 +6,7 @@ export class RegisterFcmTokenUseCase {
     userId: string,
     token: string,
     platform?: string | null,
+    notificationVersion = 1,
   ): Promise<{ user_id: string; token: string; platform: string | null }> {
     const cleaned = token.trim();
     if (cleaned.length < 10 || cleaned.length > 512) {
@@ -19,10 +20,12 @@ export class RegisterFcmTokenUseCase {
         user_id: userId,
         token: cleaned,
         platform: platform?.slice(0, 20) ?? null,
+        notification_version: notificationVersion,
       },
       update: {
         user_id: userId,
         platform: platform?.slice(0, 20) ?? null,
+        notification_version: notificationVersion,
         updated_at: new Date(),
       },
     });

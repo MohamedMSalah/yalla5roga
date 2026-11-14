@@ -1,7 +1,8 @@
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
-import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
-import { assertOutingParticipant, listOutingParticipantProfiles } from "../../services/outings/outing-participants.js";
+import {
+  assertOutingParticipant, listOutingParticipantProfiles,
+} from "../../services/outings/outing-participants.js";
 import type {
   AttendanceStatus,
   OutingAttendance,
@@ -14,15 +15,16 @@ export class ListAttendanceUseCase {
     private readonly outings: IOutingRepository = new OutingRepository(),
   ) {}
 
-  async execute(outingId: string, userId: string): Promise<OutingAttendanceRosterEntry[]> {
+  async execute(outingId: string, userId: string,
+  ): Promise<OutingAttendanceRosterEntry[]> {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
     await assertOutingParticipant(outing, userId);
     const [responses, participants] = await Promise.all([
       this.outings.listAttendance(outingId), listOutingParticipantProfiles(outing),
     ]);
-    const byUser = new Map(responses.map(row => [row.user_id, row]));
-    return participants.map<OutingAttendanceRosterEntry>(person => {
+    const byUser = new Map(responses.map((row) => [row.user_id, row]));
+    return participants.map<OutingAttendanceRosterEntry>((person) => {
       const response = byUser.get(person.id);
       return {
         outing_id: outingId, user_id: person.id,
@@ -60,19 +62,6 @@ export class UpsertAttendanceUseCase {
       user_id: userId,
       status: nextStatus,
     });
-
-    if (outing.created_by !== userId) {
-      await notifyOutingParticipants({
-        outing,
-        type: "outing",
-        eventType: "attendance_changed",
-        body: "A participant updated their attendance.",
-        eventKey: `attendance:${outingId}:${userId}:${nextStatus}:${row.updated_at.toISOString()}`,
-        userIds: [outing.created_by],
-      }).catch((error: unknown) => {
-        console.error("[attendance] notification enqueue failed", error);
-      });
-    }
 
     return row;
   }

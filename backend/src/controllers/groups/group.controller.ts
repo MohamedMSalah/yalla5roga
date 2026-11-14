@@ -1,4 +1,5 @@
-import { emitDataChange, groupRealtimeUsers, publishGroupChange } from "../../realtime/data-changes.js";
+import { emitDataChange, groupRealtimeUsers, publishGroupChange,
+} from "../../realtime/data-changes.js";
 import type { NextFunction, Request, Response } from "express";
 import { AddGroupMemberUseCase } from "../../usecases/groups/add-group-member.usecase.js";
 import { InviteToGroupUseCase } from "../../usecases/groups/invite-to-group.usecase.js";
@@ -55,7 +56,8 @@ export class GroupController {
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
-      const group = await this.getGroup.execute(req.params.id as string, req.user.uid);
+      const group = await this.getGroup.execute(req.params.id as string, req.user.uid,
+      );
       res.json({ success: true, data: group });
     } catch (error) {
       next(error);
@@ -70,6 +72,7 @@ export class GroupController {
         created_by: req.user.uid,
       });
       emitDataChange({ kind: "group", id: group.id }, [req.user.uid]);
+      emitDataChange({ kind: "inbox" }, [req.user.uid]);
       res.status(201).json({ success: true, data: group });
     } catch (error) {
       next(error);
@@ -110,9 +113,11 @@ export class GroupController {
   members = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
-      const roster = await this.listMembers.execute(req.params.id as string, req.user.uid);
+      const roster = await this.listMembers.execute(req.params.id as string, req.user.uid,
+      );
       res.json({ success: true, data: roster.members, pending_members: roster.pendingMembers,
-        invitation_history: roster.invitationHistory ?? [] });
+        invitation_history: roster.invitationHistory ?? [],
+      });
     } catch (error) {
       next(error);
     }
@@ -208,7 +213,8 @@ export class GroupController {
     }
   };
 
-  revokePendingMembership = async (req: Request, res: Response, next: NextFunction) => {
+  revokePendingMembership = async (req: Request, res: Response, next: NextFunction,
+  ) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
 
@@ -237,7 +243,8 @@ export class GroupController {
         req.user.uid,
         req.params.userId as string,
       );
-      await publishGroupChange(req.params.id as string, "membership", [req.params.userId as string]);
+      await publishGroupChange(req.params.id as string, "membership", [req.params.userId as string,
+      ]);
       res.json({ success: true, data: member });
     } catch (error) {
       next(error);

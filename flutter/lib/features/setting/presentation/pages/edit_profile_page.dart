@@ -17,16 +17,27 @@ import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_a
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_edit_sheet.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_phone_sheet.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_text_sheet.dart';
-import 'package:yalla_5roga/features/setting/presentation/widgets/sign_out_to_login.dart';
+import 'package:yalla_5roga/features/setting/presentation/widgets/delete_account_action.dart';
 
 class EditProfilePage extends StatefulWidget {
-  const EditProfilePage({super.key});
+  const EditProfilePage({super.key, this.pickPhotoOnOpen = false});
+  final bool pickPhotoOnOpen;
 
   @override
   State<EditProfilePage> createState() => _EditProfilePageState();
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.pickPhotoOnOpen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pickImage();
+      });
+    }
+  }
+
   String? _name;
   String? _imagePath;
   bool _saving = false;
@@ -72,10 +83,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     if (wantsNewImage) {
       try {
         if (isLocalFilePath(_imagePath)) {
-          final uploaded = await context.read<MediaUploadService>().uploadLocalImage(
-            path: _imagePath!,
-            purpose: MediaPurpose.profile,
-          );
+          final uploaded = await context
+              .read<MediaUploadService>()
+              .uploadLocalImage(
+                path: _imagePath!,
+                purpose: MediaPurpose.profile,
+              );
           imageRef = uploaded.reference;
         } else {
           imageRef = _imagePath;
@@ -109,20 +122,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       await AppAlert.success(context, message: l10n.profileUpdated);
     }
     if (mounted) setState(() => _saving = false);
-  }
-
-  Future<void> _deleteAccount() async {
-    final l10n = context.l10n;
-    final confirmed = await AppAlert.confirm(
-      title: l10n.deleteAccountTitle,
-      message: l10n.deleteAccountBody,
-      confirmText: l10n.deleteAccount,
-      cancelText: l10n.cancel,
-      destructive: true,
-    );
-    if (!confirmed || !mounted) return;
-    // Account deletion still requires a backend endpoint.
-    await signOutToLogin(context);
   }
 
   @override
@@ -191,7 +190,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 label: l10n.deleteAccount,
                 icon: Icons.delete_outline,
                 variant: AppButtonVariant.danger,
-                onPressed: busy ? null : _deleteAccount,
+                onPressed: busy ? null : () => confirmDeleteAccount(context),
               ),
             ],
           ),

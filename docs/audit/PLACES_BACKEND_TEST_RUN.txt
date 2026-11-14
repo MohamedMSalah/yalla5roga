@@ -1,0 +1,663 @@
+✔ arrivals open at the scheduled instant and close at the event end (1.8501ms)
+✔ arrival requires a nearby fix with acceptable GPS accuracy (1.3076ms)
+◇ injected env (20) from .env
+[Firebase Auth] Inbound request {
+  authorizationHeaderPresent: false,
+  scheme: null,
+  tokenPresent: false,
+  tokenLength: 0,
+  segmentCount: 0,
+  tokenKindHint: 'missing',
+  aud: null,
+  iss: null,
+  iat: null,
+  exp: null,
+  expired: null,
+  configuredProjectId: 'yalla-5roga',
+  audienceMatchesProject: false,
+  issuerMatchesProject: false,
+  hasSurroundingQuotes: false,
+  hasDuplicatedBearerPrefix: false
+}
+[Firebase Auth] Rejected {
+  reason: 'missing_authorization_header',
+  configuredProjectId: 'yalla-5roga'
+}
+[Firebase Auth] Inbound request {
+  authorizationHeaderPresent: true,
+  scheme: 'Token',
+  tokenPresent: false,
+  tokenLength: 0,
+  segmentCount: 0,
+  tokenKindHint: 'missing',
+  aud: null,
+  iss: null,
+  iat: null,
+  exp: null,
+  expired: null,
+  configuredProjectId: 'yalla-5roga',
+  audienceMatchesProject: false,
+  issuerMatchesProject: false,
+  hasSurroundingQuotes: false,
+  hasDuplicatedBearerPrefix: false
+}
+[Firebase Auth] Rejected {
+  reason: 'malformed_bearer_header',
+  configuredProjectId: 'yalla-5roga'
+}
+[Firebase Auth] Inbound request {
+  authorizationHeaderPresent: true,
+  scheme: 'Bearer',
+  tokenPresent: true,
+  tokenLength: 107,
+  segmentCount: 3,
+  tokenKindHint: 'firebase_id_token',
+  aud: 'yalla-5roga',
+  iss: 'https://securetoken.google.com/yalla-5roga',
+  iat: null,
+  exp: null,
+  expired: null,
+  configuredProjectId: 'yalla-5roga',
+  audienceMatchesProject: true,
+  issuerMatchesProject: true,
+  hasSurroundingQuotes: false,
+  hasDuplicatedBearerPrefix: false
+}
+[Firebase Auth] Token verification failed {
+  code: 'auth/id-token-expired',
+  message: 'Firebase ID token has expired',
+  configuredProjectId: 'yalla-5roga'
+}
+[Firebase Auth] Inbound request {
+  authorizationHeaderPresent: true,
+  scheme: 'Bearer',
+  tokenPresent: true,
+  tokenLength: 107,
+  segmentCount: 3,
+  tokenKindHint: 'firebase_id_token',
+  aud: 'yalla-5roga',
+  iss: 'https://securetoken.google.com/yalla-5roga',
+  iat: null,
+  exp: null,
+  expired: null,
+  configuredProjectId: 'yalla-5roga',
+  audienceMatchesProject: true,
+  issuerMatchesProject: true,
+  hasSurroundingQuotes: false,
+  hasDuplicatedBearerPrefix: true
+}
+[Firebase Auth] Verified {
+  uid: 'firebase-uid',
+  signInProvider: 'phone',
+  hasEmail: true,
+  hasVerifiedPhone: true,
+  configuredProjectId: 'yalla-5roga',
+  databaseUserLookup: 'skipped in auth middleware; identity is the Firebase UID; upsert via POST /api/users/sync'
+}
+[Firebase Auth] Inbound request {
+  authorizationHeaderPresent: true,
+  scheme: 'Bearer',
+  tokenPresent: true,
+  tokenLength: 107,
+  segmentCount: 3,
+  tokenKindHint: 'firebase_id_token',
+  aud: 'yalla-5roga',
+  iss: 'https://securetoken.google.com/yalla-5roga',
+  iat: null,
+  exp: null,
+  expired: null,
+  configuredProjectId: 'yalla-5roga',
+  audienceMatchesProject: true,
+  issuerMatchesProject: true,
+  hasSurroundingQuotes: false,
+  hasDuplicatedBearerPrefix: false
+}
+[Firebase Auth] Verified {
+  uid: 'new-firebase-uid',
+  signInProvider: 'google.com',
+  hasEmail: false,
+  hasVerifiedPhone: false,
+  configuredProjectId: 'yalla-5roga',
+  databaseUserLookup: 'skipped in auth middleware; identity is the Firebase UID; upsert via POST /api/users/sync'
+}
+▶ extractBearerToken
+  ✔ returns null when the header is missing (2.1579ms)
+  ✔ returns null for a non-Bearer scheme (1.2703ms)
+  ✔ returns null for Bearer with no token (0.6139ms)
+  ✔ reads a normal Bearer token (0.2907ms)
+  ✔ is case-insensitive on the scheme (0.3012ms)
+  ✔ strips a duplicated Bearer prefix from Swagger paste (0.2468ms)
+  ✔ strips quotes and whitespace inserted by copy-paste (0.6186ms)
+  ✔ strips newlines wrapped into a JWT (0.307ms)
+✔ extractBearerToken (9.1963ms)
+▶ authMiddleware
+  ✔ rejects a missing Authorization header with 401 (2.6305ms)
+  ✔ rejects a malformed Bearer header with 401 (1.2471ms)
+  ✔ rejects an invalid Firebase token with 401 without leaking internals (2.8639ms)
+  ✔ attaches the decoded Firebase user on success (2.3388ms)
+  ✔ does not treat a missing database user as an auth failure (7.4357ms)
+✔ authMiddleware (17.2897ms)
+▶ optionalAuthMiddleware
+  ✔ continues without a user when the token is missing or invalid (1.3458ms)
+✔ optionalAuthMiddleware (8.6133ms)
+▶ errorMiddleware auth responses
+  ✔ returns { success: false, message } for 401 (0.7675ms)
+✔ errorMiddleware auth responses (0.9709ms)
+▶ protected vs public HTTP routes
+  ✖ keeps public routes open and rejects unauthenticated protected routes (140.1767ms)
+  ✖ rejects an invalid Firebase token with 401 (19.067ms)
+  ✖ allows Authorization on CORS preflight (26.3327ms)
+✖ protected vs public HTTP routes (187.4797ms)
+✔ lost acknowledgment after closure returns the committed message without a new write (27.6648ms)
+✔ an uncommitted closed-chat send remains a permanent conflict (1.8776ms)
+✔ revoked membership cannot use deduplication to bypass authorization (0.4279ms)
+▶ CreateGroupUseCase
+  ✔ adds the creator as owner and returns member_count 1 (64.866ms)
+  ✔ requires name and created_by (1.2307ms)
+✔ CreateGroupUseCase (67.8074ms)
+▶ ListGroupMembersUseCase
+  ✔ returns the creator profile card after create (0.9213ms)
+✔ ListGroupMembersUseCase (1.1473ms)
+▶ group membership identity across registration and login
+  ✔ requires server-verifiable OTP proof in the signup contract (35.737ms)
+  ✔ retains the verified Firebase UID and claims pre-registration invitations before returning (678.0091ms)
+  ✔ rejects proof for a different phone without creating a user (3.2766ms)
+  ✔ never overwrites an existing profile or password through OTP signup (0.8589ms)
+  ✔ claims invitations on password login for the same verified identity (655.4216ms)
+  ✔ does not claim from an unverified profile phone on password login (665.6407ms)
+  ✔ does not look up a phone or claim memberships for an incorrect password (629.2975ms)
+  ✔ repairs an orphan OTP identity after fresh proof while preserving the account ID (1.6079ms)
+  ✔ refuses to transfer a phone from another registered account (1.2293ms)
+✔ group membership identity across registration and login (2676.5308ms)
+▶ Firebase phone ownership proof
+  ✔ checks a recent phone sign-in and the current Firebase phone record (1.5561ms)
+  ✔ rejects stale phone proof (10.9775ms)
+  ✔ rejects a custom-token session presented as fresh OTP proof (0.964ms)
+  ✔ rejects a token whose phone credential has since moved (3.1433ms)
+  ✔ moves only the phone credential and never deletes an identity (0.6582ms)
+  ✔ restores the source phone if binding the canonical identity fails (9.0502ms)
+✔ Firebase phone ownership proof (26.9955ms)
+▶ phone normalization
+  ✔ normalizes an Egyptian mobile number to E.164 (32.3966ms)
+  ✔ rejects an invalid phone number (1.123ms)
+✔ phone normalization (35.5673ms)
+▶ WhatsApp click-to-chat
+  ✔ encodes the message and omits the leading plus (0.9456ms)
+  ✔ keeps store links out of the default invitation message (0.683ms)
+  ✔ embeds the Flutter group deep link in the invitation message (0.3043ms)
+✔ WhatsApp click-to-chat (2.3424ms)
+▶ group invite deep links
+  ✔ builds web and app scheme links for Flutter (1.0237ms)
+✔ group invite deep links (1.3474ms)
+▶ invite to group
+  ✔ saves a pending invitation when no account has that verified phone (2.8049ms)
+  ✔ queues an automatic WhatsApp message for an opted-in non-user (1.1956ms)
+  ✔ does not queue WhatsApp for an opted-in existing app user (1.6497ms)
+  ✔ links an existing user whose Firebase phone is verified (2.2165ms)
+  ✔ does not grant membership from a profile phone Firebase has not verified (0.9119ms)
+  ✔ keeps the invitation pending when Firebase knows the phone but the profile is not synced (0.9193ms)
+  ✔ rejects an invalid phone number (0.9509ms)
+  ✔ rejects an invitation from someone who is not in the group (1.5655ms)
+  ✔ rejects an invitation for a missing group (0.7397ms)
+  ✔ returns the existing pending invitation instead of creating another (1.2047ms)
+  ✔ does not add a duplicate membership (0.6285ms)
+  ✔ propagates a database failure (0.6833ms)
+✔ invite to group (16.4275ms)
+▶ claim pending invitations
+  ✔ creates memberships for every pending invitation and marks them accepted (2.4462ms)
+  ✔ is idempotent when synchronization runs again (0.5942ms)
+  ✔ links a pending membership after the legacy expiry timestamp (0.3812ms)
+  ✔ leaves revoked invitations untouched (0.5932ms)
+  ✔ does not join a deleted group (1.4679ms)
+  ✔ rolls back membership and acceptance when a later write fails (1.3112ms)
+  ✔ does not claim when the token has no verified phone (0.937ms)
+✔ claim pending invitations (8.3861ms)
+▶ account sync
+  ✔ claims invitations for a verified phone and keeps that phone on later syncs (1.4027ms)
+  ✔ rejects an unverified new profile and does not claim group invitations (0.3467ms)
+  ✔ links a verified phone to an existing UID before claiming invitations (0.74ms)
+  ✔ refuses to attach a phone that already belongs to another account (6.934ms)
+  ✔ repeated sync creates one membership per invited group (1.568ms)
+✔ account sync (11.3761ms)
+▶ invitation feature boundaries
+  ✔ does not add an email field or email delivery for invitations (6.6986ms)
+  ✔ places invitation and account sync routes behind Firebase authentication (72.6944ms)
+✔ invitation feature boundaries (79.6154ms)
+◇ injected env (20) from .env
+﹣ HTTP invite -> signup/login -> PostgreSQL membership -> current-user groups (2.9866ms) # SKIP
+✔ geocoding is opt-in and never uses public Nominatim (6.8673ms)
+✔ Pelias autocomplete sends Arabic language and maps GeoJSON coordinates (54.0176ms)
+✖ initial candidates publish atomically and a concurrent replay returns the same outing (389.0745ms)
+✔ media references use the stable media:// scheme (6.5321ms)
+✔ image validators accept http(s) URLs and media references only (33.9074ms)
+✔ direct upload: request → store object → confirm marks ready (4.5698ms)
+✔ confirm without an uploaded object marks the asset failed (2.1749ms)
+✔ upload policy rejects unsupported types and oversized files (0.9373ms)
+✔ only the owner can confirm or delete an asset (0.8791ms)
+✔ place uploads require a curator allowlist entry (0.8773ms)
+✔ refreshing an upload keeps the stored purpose (0.7134ms)
+✔ place assets cannot be confirmed or deleted by a non-curator owner (0.8064ms)
+✔ profile delivery URL is signed/short-lived, place media is public (1.2445ms)
+✔ public place delivery uses the CDN only when R2 and the CDN domain are configured (1.8164ms)
+✔ resolveEntityImage links owned ready assets and rejects mismatched purposes (1.4951ms)
+✔ existing http(s) image URLs pass through unchanged (0.2434ms)
+✔ cleanup removes expired pending and failed rows plus objects (0.7677ms)
+✔ nearby bounds include places near the radius edge (2.1403ms)
+✔ nearby bounds span both sides of the date line (0.4207ms)
+✔ a radius that reaches a pole does not restrict longitude (1.4144ms)
+✔ nearby search rejects blank and out-of-range coordinates but accepts zero (4.9334ms)
+▶ notification dispatcher
+  ✔ marks WhatsApp deliveries as sent and writes a delivery log (44.8991ms)
+  ✔ normalizes queued chat events and keeps their inbox identity (3.1774ms)
+  ✔ retries failed WhatsApp sends without killing the event on first failure (0.7165ms)
+✔ notification dispatcher (52.4676ms)
+✖ outing lifecycle: create, vote upsert, unique winner, attendance independent (157.6047ms)
+✖ unique winner confirms; tie-break selects server winner; member rejected (14.6188ms)
+✖ special event create and chat statuses remain open in draft (27.3065ms)
+◇ injected env (20) from .env
+﹣ password recovery HTTP/OpenAPI integration (1.7635ms) # SKIP
+▶ invitation decisions return the persisted status
+  ✔ accept returns accepted for a pending phone invitation (30.957ms)
+  ✔ accept replays the stored status without rewriting a declined row (0.4907ms)
+  ✔ decline returns declined for a pending phone invitation (0.7001ms)
+  ✔ decline replays the stored status without rewriting an accepted row (0.5097ms)
+  ✔ rejects a caller who is not the invitee (1.2634ms)
+✔ invitation decisions return the persisted status (36.1395ms)
+▶ place catalog curator allowlist
+  ✔ fails closed when the allowlist is unset or empty (1.5786ms)
+  ✔ matches only listed Firebase UIDs (0.5401ms)
+✔ place catalog curator allowlist (2.4767ms)
+▶ user directory query
+  ✔ requires an explicit filter (4.2303ms)
+  ✔ accepts a bounded id list and deduplicates it (0.762ms)
+  ✔ normalizes an exact phone lookup (8.7981ms)
+  ✔ rejects invalid phones and oversized id lists (2.1912ms)
+✔ user directory query (16.5147ms)
+▶ notification pagination query
+  ✖ keeps the legacy request valid (9.5955ms)
+  ✔ coerces limit and accepts a uuid cursor (1.9948ms)
+  ✖ rejects out-of-range limits and non-uuid cursors (1.325ms)
+✖ notification pagination query (13.3877ms)
+✔ taxonomy has stable unique IDs, distinct cafes/retail coffee and complete bilingual labels (2.2641ms)
+✔ vibes require evidence; no inferred romance, work or affordability (1.8619ms)
+✔ normalization validates names/coordinates and never fabricates source data (2.6788ms)
+✔ lifecycle evidence is conservative and reopening requires current supported tags (0.5701ms)
+✔ complete response requires boundary evidence, count and fresh OSM timestamp (9.7725ms)
+✔ catalog query supports combined filtering and rejects malformed spatial requests (15.9108ms)
+✖ group creation broadcasts only after successful persistence (37.0033ms)
+✖ two signed-in users receive scoped changes; removed users lose chat delivery (5003.5775ms)
+✖ group rooms validate IDs and current membership on every join (5018.9723ms)
+✔ reconciliation replays only missed changes authorized for this user (6.7097ms)
+✔ attendance replay carries only an authorized resource identifier, never historical roster data (43.9712ms)
+✔ restart, malformed, future and expired cursors require REST reset (2.97ms)
+▶ Outing creator authorization
+  ✔ allows the creator to update an outing (24.383ms)
+  ✔ forbids a non-creator from updating an outing (1.7517ms)
+  ✔ forbids a non-creator from deleting an outing (0.6256ms)
+  ✔ allows the creator to delete an outing (0.5107ms)
+  ✔ returns 404 when the outing is missing (0.6042ms)
+  ✔ forbids a non-creator from adding a guest (0.8451ms)
+  ✔ allows the creator to add and remove a guest (2.1426ms)
+  ✔ forbids a non-creator from creating a vote option (1.5823ms)
+  ✖ allows the creator to create and delete a vote option (18.8513ms)
+✖ Outing creator authorization (99.3015ms)
+▶ Notification ownership authorization
+  ✔ allows the recipient to mark a notification as read (0.5306ms)
+  ✔ forbids another user from marking a notification as read (0.9244ms)
+  ✔ returns 404 for an unknown notification (0.3324ms)
+  ✔ marks all of the caller's unread notifications in one update (0.3368ms)
+✔ Notification ownership authorization (2.5578ms)
+▶ Group owner authorization
+  ✔ allows the owner to update the group (0.6489ms)
+  ✔ forbids a non-owner member from updating the group (0.386ms)
+  ✔ forbids a non-owner from deleting the group (0.4478ms)
+  ✔ allows the owner to add a member by phone (7.2144ms)
+  ✔ forbids a non-owner from adding a member by phone (0.5195ms)
+  ✔ forbids removing the last owner (0.6136ms)
+  ✔ allows the owner to remove a regular member (0.2758ms)
+✔ Group owner authorization (10.5406ms)
+✔ special-event invite contains calendar dates, venue and optional app link (157.6243ms)
+✔ WhatsApp uses the special-event template only after recipient opt-in (57.8181ms)
+▶ POST /api/users/sync identity vs profile
+  ✔ requires a verified phone to create a profile (31.9438ms)
+  ✔ returns an existing Google profile without overwriting profile fields (0.4764ms)
+  ✔ is idempotent and does not create duplicates on repeated sync (5.5336ms)
+  ✔ keeps a valid name and image when sync body is empty or incorrect (0.3272ms)
+  ✔ does not treat an unverified body phone as verified or claim invitations (1.2871ms)
+  ✔ applies a verified Firebase phone and claims invitations (3.6328ms)
+  ✔ returns 409 when a verified phone belongs to another account (1.227ms)
+  ✔ does not replace an existing phone with an unverified body phone (0.5093ms)
+  ✔ ignores legacy email values in sync (2.9549ms)
+  ✔ does not overwrite the profile created by phone/password signup (0.8348ms)
+  ✔ updates a verified phone on an existing account and claims invitations (1.6975ms)
+✔ POST /api/users/sync identity vs profile (53.2601ms)
+▶ sync request body validation
+  ✔ accepts an empty body for sync (4.6739ms)
+  ✔ rejects conflicting phone and phoneNumber aliases (2.9257ms)
+  ✔ accepts matching phone aliases (0.7681ms)
+✔ sync request body validation (9.7497ms)
+▶ PATCH /api/users/cuser profile updates
+  ✔ updates profile fields independently of sync (1.6045ms)
+  ✔ rejects conflicting phone aliases on update (1.8585ms)
+  ✔ requires Firebase proof for profile phone changes (0.6064ms)
+✔ PATCH /api/users/cuser profile updates (4.3761ms)
+▶ sync controller identity binding
+  ✔ uses req.user.uid and ignores body id/role (1.5864ms)
+  ✔ returns 401 when the Firebase user is missing (0.5175ms)
+✔ sync controller identity binding (2.3358ms)
+✖ concurrent votes upsert to one row per user (108.8141ms)
+✖ parallel deadline close and dual tie-break are idempotent (9.9391ms)
+✖ replace vote options clears prior votes atomically (9.0991ms)
+✔ Meta provider records acceptance only when an approved template response has a message ID (71.2716ms)
+✔ WhatsApp never claims delivery without consent or a configured provider (9.3334ms)
+✔ WhatsApp distinguishes provider throttling from a permanently rejected template (8.3553ms)
+ℹ tests 175
+ℹ suites 28
+ℹ pass 157
+ℹ fail 14
+ℹ cancelled 2
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 21174.781
+
+✖ failing tests:
+
+test at tests\auth.middleware.test.ts:2:3941
+✖ keeps public routes open and rejects unauthenticated protected routes (140.1767ms)
+  TypeError: fetch failed
+      at node:internal/deps/undici/undici:15845:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async httpJson (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:232:20)
+      at async <anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:255:30)
+      at async withServer (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:220:5)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:245:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1516:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    [cause]: Error: connect EACCES 127.0.0.1:62214
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 62214
+    }
+  }
+
+test at tests\auth.middleware.test.ts:2:4603
+✖ rejects an invalid Firebase token with 401 (19.067ms)
+  TypeError: fetch failed
+      at node:internal/deps/undici/undici:15845:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async httpJson (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:232:20)
+      at async <anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:281:24)
+      at async withServer (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:220:5)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:274:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    [cause]: Error: connect EACCES 127.0.0.1:62216
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 62216
+    }
+  }
+
+test at tests\auth.middleware.test.ts:2:5001
+✖ allows Authorization on CORS preflight (26.3327ms)
+  TypeError: fetch failed
+      at node:internal/deps/undici/undici:15845:13
+      at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+      at async <anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:309:26)
+      at async withServer (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:220:5)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\auth.middleware.test.ts:294:5)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    [cause]: Error: connect EACCES 127.0.0.1:62218
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1637:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 62218
+    }
+  }
+
+test at tests\map-outing-create.test.ts:1:319
+✖ initial candidates publish atomically and a concurrent replay returns the same outing (389.0745ms)
+  PrismaClientInitializationError:
+  Invalid `prisma.users.create()` invocation in
+  D:\Work space\My projects\yalla5roga\backend\tests\map-outing-create.test.ts:12:22
+
+     9 const prisma = new PrismaClient();
+    10 const owner = `map-${randomUUID()}`;
+    11 const useCase = new CreateOutingUseCase();
+  → 12 await prisma.users.create(
+  Can't reach database server at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`.
+      at ei.handleRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:242:13)
+      at ei.handleAndLogRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+      at ei.request (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+      at async a (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\map-outing-create.test.ts:12:3)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at tests\outing-lifecycle.test.ts:1:1363
+✖ outing lifecycle: create, vote upsert, unique winner, attendance independent (157.6047ms)
+  PrismaClientInitializationError:
+  Invalid `prisma.users.create()` invocation in
+  D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:21:22
+
+    18
+    19 async function seedUser(suffix: string) {
+    20   const id = `test_${suffix}_${randomUUID().slice(0, 8)}`;
+  → 21   await prisma.users.create(
+  Can't reach database server at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`.
+      at ei.handleRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:242:13)
+      at ei.handleAndLogRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+      at ei.request (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+      at async a (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+      at async seedUser (D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:21:3)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:44:17)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at tests\outing-lifecycle.test.ts:1:3471
+✖ unique winner confirms; tie-break selects server winner; member rejected (14.6188ms)
+  PrismaClientInitializationError:
+  Invalid `prisma.users.create()` invocation in
+  D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:21:22
+
+    18
+    19 async function seedUser(suffix: string) {
+    20   const id = `test_${suffix}_${randomUUID().slice(0, 8)}`;
+  → 21   await prisma.users.create(
+  Can't reach database server at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`.
+      at ei.handleRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:242:13)
+      at ei.handleAndLogRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+      at ei.request (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+      at async a (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+      at async seedUser (D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:21:3)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:148:17)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at tests\outing-lifecycle.test.ts:1:6177
+✖ special event create and chat statuses remain open in draft (27.3065ms)
+  PrismaClientInitializationError:
+  Invalid `prisma.users.create()` invocation in
+  D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:21:22
+
+    18
+    19 async function seedUser(suffix: string) {
+    20   const id = `test_${suffix}_${randomUUID().slice(0, 8)}`;
+  → 21   await prisma.users.create(
+  Can't reach database server at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`.
+      at ei.handleRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:242:13)
+      at ei.handleAndLogRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+      at ei.request (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+      at async a (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+      at async seedUser (D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:21:3)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\outing-lifecycle.test.ts:261:17)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at tests\phase1-contract.test.ts:1:5270
+✖ keeps the legacy request valid (9.5955ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + {
+  +   limit: 20
+  + }
+  - {}
+
+      at TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\phase1-contract.test.ts:193:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Test.start (node:internal/test_runner/test:1003:17)
+      at node:internal/test_runner/test:1514:71
+      at node:internal/per_context/primordials:464:82
+      at new Promise (<anonymous>)
+      at new SafePromise (node:internal/per_context/primordials:433:3)
+      at node:internal/per_context/primordials:464:9
+      at Array.map (<anonymous>) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { limit: 20 },
+    expected: {},
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\phase1-contract.test.ts:1:5569
+✖ rejects out-of-range limits and non-uuid cursors (1.325ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\phase1-contract.test.ts:207:12)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1106:25)
+      at Suite.processPendingSubtests (node:internal/test_runner/test:788:18)
+      at Test.postRun (node:internal/test_runner/test:1235:19)
+      at Test.run (node:internal/test_runner/test:1163:12)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests\realtime-commit.test.ts:1:318
+✖ group creation broadcasts only after successful persistence (37.0033ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  2 !== 1
+
+      at TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\realtime-commit.test.ts:24:10)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\realtime-data-changes.test.ts:1:531
+✖ two signed-in users receive scoped changes; removed users lose chat delivery (5003.5775ms)
+  'test timed out after 5000ms'
+
+test at tests\realtime-group-gateway.test.ts:1:331
+✖ group rooms validate IDs and current membership on every join (5018.9723ms)
+  'test timed out after 5000ms'
+
+test at tests\resource-authz.test.ts:1:8233
+✖ allows the creator to create and delete a vote option (18.8513ms)
+  PrismaClientInitializationError: Can't reach database server at `ep-misty-glitter-av3zwlzf.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf.c-11.us-east-1.aws.neon.tech:5432`.
+      at r (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\core\engines\library\LibraryEngine.ts:440:17)
+      at async Qr.transaction (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\core\engines\library\LibraryEngine.ts:190:5)
+      at async Proxy._transactionWithCallback (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:715:20)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\resource-authz.test.ts:429:20)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at tests\voting-concurrency.test.ts:1:822
+✖ concurrent votes upsert to one row per user (108.8141ms)
+  PrismaClientInitializationError:
+  Invalid `prisma.users.create()` invocation in
+  D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:18:22
+
+    15
+    16 async function seedUser(suffix: string) {
+    17   const id = `conc_${suffix}_${randomUUID().slice(0, 8)}`;
+  → 18   await prisma.users.create(
+  Can't reach database server at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`.
+      at ei.handleRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:242:13)
+      at ei.handleAndLogRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+      at ei.request (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+      at async a (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+      at async seedUser (D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:18:3)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:25:17)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+
+test at tests\voting-concurrency.test.ts:1:1988
+✖ parallel deadline close and dual tie-break are idempotent (9.9391ms)
+  PrismaClientInitializationError:
+  Invalid `prisma.users.create()` invocation in
+  D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:18:22
+
+    15
+    16 async function seedUser(suffix: string) {
+    17   const id = `conc_${suffix}_${randomUUID().slice(0, 8)}`;
+  → 18   await prisma.users.create(
+  Can't reach database server at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`.
+      at ei.handleRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:242:13)
+      at ei.handleAndLogRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+      at ei.request (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+      at async a (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+      at async seedUser (D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:18:3)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:82:17)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)
+
+test at tests\voting-concurrency.test.ts:1:3573
+✖ replace vote options clears prior votes atomically (9.0991ms)
+  PrismaClientInitializationError:
+  Invalid `prisma.users.create()` invocation in
+  D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:18:22
+
+    15
+    16 async function seedUser(suffix: string) {
+    17   const id = `conc_${suffix}_${randomUUID().slice(0, 8)}`;
+  → 18   await prisma.users.create(
+  Can't reach database server at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`
+
+  Please make sure your database server is running at `ep-misty-glitter-av3zwlzf-pooler.c-11.us-east-1.aws.neon.tech:5432`.
+      at ei.handleRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:242:13)
+      at ei.handleAndLogRequestError (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:174:12)
+      at ei.request (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\RequestHandler.ts:143:12)
+      at async a (D:\Work space\My projects\yalla5roga\backend\node_modules\.pnpm\@prisma+client@6.19.3_prism_a764fcab39cdac0a4ab4b169ecd46d86\node_modules\@prisma\client\src\runtime\getPrismaClient.ts:833:24)
+      at async seedUser (D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:18:3)
+      at async TestContext.<anonymous> (D:\Work space\My projects\yalla5roga\backend\tests\voting-concurrency.test.ts:156:17)
+      at async Test.run (node:internal/test_runner/test:1113:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:788:7)

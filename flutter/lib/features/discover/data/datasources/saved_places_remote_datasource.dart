@@ -7,6 +7,16 @@ class SavedPlacesRemoteDataSource {
   final ApiClient _api;
 
   Future<List<String>> listSavedPlaceIds() async {
+    final list = await listSavedPlaces();
+    return list
+        .map(
+          (item) => item['place_id'] as String? ?? item['id'] as String? ?? '',
+        )
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> listSavedPlaces() async {
     final response = await _api.get(ApiConstants.savedPlaces);
     final raw = response.data;
     final list = raw is Map && raw['data'] is List
@@ -16,11 +26,7 @@ class SavedPlacesRemoteDataSource {
         : const [];
     return list
         .whereType<Map>()
-        .map(
-          (item) =>
-              item['place_id'] as String? ?? item['id'] as String? ?? '',
-        )
-        .where((id) => id.isNotEmpty)
+        .map((row) => Map<String, dynamic>.from(row))
         .toList();
   }
 

@@ -20,6 +20,31 @@ const weekdaySchema = z.enum([
 ]);
 
 export const createPlaceBodySchema = z.object({
+  category_id: z
+    .string()
+    .regex(/^[a-z0-9_]+$/)
+    .max(64)
+    .optional(),
+  vibes: z
+    .array(
+      z
+        .string()
+        .regex(/^[a-z0-9_]+$/)
+        .max(64),
+    )
+    .max(50)
+    .optional(),
+  name_ar: z.string().trim().max(100).optional(),
+  name_en: z.string().trim().max(100).optional(),
+  address: z.string().trim().max(1000).optional(),
+  city: z.string().trim().max(100).optional(),
+  district: z.string().trim().max(100).optional(),
+  phone: z.string().trim().max(100).optional(),
+  website: z.url().max(2048).optional(),
+  opening_hours: z.string().trim().max(1000).optional(),
+  status: z
+    .enum(["active", "temporarily_closed", "permanently_closed", "unverified"])
+    .optional(),
   name: z.string().trim().min(1).max(100),
   area: z.string().trim().max(100).optional(),
   vibe: vibeSchema.optional(),

@@ -183,6 +183,7 @@ class OutingChatSocketClient {
         }
         _scheduleAuthRetryIfNeeded(error);
       });
+      socket.on('catalog:changed', (_) {if(!_disposed && session==_session)_dataController.add(RealtimeChange(kind:'catalog',session:session));});
       socket.on('data:changed', (dynamic raw) {
         final data = _asStringKeyedMap(raw);
         final kind = data?['kind'];

@@ -22,5 +22,6 @@ export function notificationTarget(eventKey: string | null, fallback: string) {
   return {
     type,
     ...(type === "chat_message" && id ? { messageId: id } : {}),
+    ...(type === "group_invite" && id ? { invitationId: id } : {}),
   };
 }

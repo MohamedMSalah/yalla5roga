@@ -4,7 +4,6 @@ import type { IOutingRepository } from "../../repositories/outings/i-outing.repo
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
 import { MediaService } from "../../services/media/media.service.js";
 import { assertEndsAfterStart } from "../../services/outings/outing-time-window.js";
-import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import type {
   CreateOutingInput,
   Outing,
@@ -36,17 +35,20 @@ export class CreateOutingUseCase {
 
     if (occasion !== "none" && (!input.scheduled_at || input.scheduled_at.getTime() <= Date.now() ||
         !input.location_name?.trim())) {
-      throw new ValidationError("Special events require a future schedule and a fixed named venue");
+      throw new ValidationError("Special events require a future schedule and a fixed named venue",
+      );
     }
 
     const hasLocation = Boolean(input.location_place_id || input.location_name);
     const options = input.initial_vote_options;
     if (options) {
       if (!hasGroup || occasion !== "none" || hasLocation) {
-        throw new ValidationError("Initial options require a group outing in voting without a fixed venue");
+        throw new ValidationError("Initial options require a group outing in voting without a fixed venue",
+        );
       }
       if (options.length < 2 || options.length > 5) {
-        throw new ValidationError("Choose between two and five initial options");
+        throw new ValidationError("Choose between two and five initial options",
+        );
       }
       const ids = new Set<string>();
       for (const option of options) {
@@ -54,7 +56,8 @@ export class CreateOutingUseCase {
         if ((latitude == null) !== (longitude == null) ||
             (latitude != null && (!Number.isFinite(latitude) || Math.abs(latitude) > 90)) ||
             (longitude != null && (!Number.isFinite(longitude) || Math.abs(longitude) > 180))) {
-          throw new ValidationError("Initial option coordinates must be a valid pair");
+          throw new ValidationError("Initial option coordinates must be a valid pair",
+          );
         }
         const name = option.label.trim().normalize("NFC").toLowerCase();
         const area = option.area?.trim().normalize("NFC").toLowerCase() ?? "";
@@ -63,16 +66,19 @@ export class CreateOutingUseCase {
         ids.add(id);
       }
     }
-    const status = options ? "voting" : (hasLocation ? "confirmed" : "draft");
+    const status = options ? "voting" : hasLocation ? "confirmed" : "draft";
 
-    const phones = [...new Set((input.guest_phones ?? []).map(normalizePhoneNumber))];
+    const phones = [...new Set((input.guest_phones ?? []).map(normalizePhoneNumber)),
+    ];
     if (phones.length > 0) {
       if (occasion === "none" || !input.guest_phones_whatsapp_opt_in || !input.create_request_key) {
-        throw new ValidationError("Phone invitations require a special event, a request key and recipient WhatsApp opt-in");
+        throw new ValidationError("Phone invitations require a special event, a request key and recipient WhatsApp opt-in",
+        );
       }
       if (!input.scheduled_at || input.scheduled_at.getTime() <= Date.now() ||
           !input.location_name?.trim() || (status !== "confirmed" && status !== "draft")) {
-        throw new ValidationError("Phone invitations require a future event with a fixed named venue");
+        throw new ValidationError("Phone invitations require a future event with a fixed named venue",
+        );
       }
     }
     const imageUrl = await this.media.resolveEntityImage({
@@ -95,20 +101,6 @@ export class CreateOutingUseCase {
       imageValue: imageUrl,
       link: { outing_id: outing.id },
     });
-    if (options && outing.status === "voting" && outing.vote_closed_at == null) {
-      try {
-        await notifyOutingParticipants({
-          outing,
-          type: "outing",
-          eventType: "outing_updated",
-          body: `Voting is open for "${outing.title}".`,
-          eventKey: `outing_initial_vote_options:${outing.id}`,
-          excludeUserId: input.created_by,
-        });
-      } catch (error) {
-        console.error("[outings] initial vote option notify failed", error);
-      }
-    }
     return outing;
   }
 }

@@ -1,0 +1,111 @@
+{
+  "verifiedAt": "2026-11-14T17:02:24.216Z",
+  "scope": "isolated Neon schema; real Prisma/HTTP/Swagger, controlled OSM and Firebase boundaries",
+  "checks": 26,
+  "results": [
+    {
+      "scenario": "Insert across node/way namespaces, bilingual taxonomy and manual-place preservation",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Repeated complete sync deduplicates stable OSM identities",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Updates source fields, temporary closure evidence and preserves fallback/existing image",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Permanent closure blocked for new selection; existing historical outing retained",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Current supported source evidence reliably reopens closed identity",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Older OSM element versions cannot overwrite newer names or lifecycle evidence",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Curator managed OSM and source=manual records are never overwritten",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Validation limit marks partial coverage and never advances missing streak",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Failed/incomplete sync cannot change any place or lifecycle counters",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Exactly three successful complete missing cycles yield unverified, never permanent closure",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Dry-run logs projected counters without mutating places or mappings",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Database lease rejects concurrent worker including independent invocations",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Seven-day persisted due gate skips duplicate schedule; reports last successful timestamp",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Expired worker lease is safely reclaimed and abandoned run logged failed",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Status history stores run IDs and source evidence",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Served Swagger includes taxonomy, filters, sync administration and protected worker",
+      "result": "PASS"
+    },
+    {
+      "scenario": "HTTP taxonomy returns all active bilingual definitions with icons",
+      "result": "PASS"
+    },
+    {
+      "scenario": "HTTP combined category, multi-vibe, search, nearby and distance sorting",
+      "result": "PASS"
+    },
+    {
+      "scenario": "HTTP geographic bounding box and stable server-side pagination",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Default recommendations exclude unavailable; explicit status reads preserve access",
+      "result": "PASS"
+    },
+    {
+      "scenario": "HTTP rejects invalid spatial, status and pagination requests",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Sync status enforces Firebase authentication and existing curator allowlist",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Sync logs and worker secret protection; external scheduled worker safely skips not-due catalog",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Saved places retain hydrated catalog details and save/unsave through the existing API",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Curator delete archives place, retains history and excludes from nearby endpoint",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing application public outing rows remain byte-for-byte intact",
+      "result": "PASS"
+    }
+  ]
+}

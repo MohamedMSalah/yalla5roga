@@ -34,6 +34,8 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     required this.invitations,
     this.clearMediaCache,
     this.savedOutings,
+    this.onNotificationRecovery,
+    this.onCatalogRecovery,
   }) {
     auth.addListener(_accountChanged);
     WidgetsBinding.instance.addObserver(this);
@@ -54,6 +56,16 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final OutingsProvider outings;
   final NotificationsProvider notifications;
   final InvitationsProvider invitations;
+  final Future<void> Function()? onNotificationRecovery;
+  final Future<void> Function()? onCatalogRecovery;
+
+  void notificationsChanged({String? groupId, String? outingId}) {
+    if (_uid == null || _disposed) return;
+    _inboxDirty = true;
+    if (groupId != null) _groupIds.add(groupId);
+    if (outingId != null) _outingIds.add(outingId);
+    _scheduleSync();
+  }
 
   /// Clears account-scoped media URL metadata and private image caches when
   /// the signed-in account changes (including token revocation).
@@ -215,6 +227,10 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final synchronized = await auth.synchronizeRestoredAccount();
       if (_disposed || (_uid != uid || generation != _generation)) return;
+      await onNotificationRecovery?.call();
+      await onCatalogRecovery?.call();
+      if (_disposed || (_uid != uid || generation != _generation)) return;
+      _inboxDirty = true;
       if (synchronized) {
         _groupsDirty = _outingsDirty = true;
         // Synchronization returned the canonical profile already.
@@ -295,6 +311,8 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
     if (_syncAttempt > 5) _syncAttempt = 0;
     switch (event.kind) {
+      case 'catalog':
+        unawaited(onCatalogRecovery?.call()??Future<void>.value());
       case 'membership':
         _chatDirty = true;
         _outingsDirty = true;

@@ -3,13 +3,18 @@ import { ChatRepository } from "../../repositories/chat/chat.repository.js";
 import { assertCanChat } from "../../services/chat/chat-access.js";
 import { canonicalizeMentions } from "../../services/chat/chat-mentions.js";
 import { emitOutingMessage } from "../../realtime/chat-emitter.js";
-import { outingRealtimeUsers } from "../../realtime/data-changes.js";
-import { ConflictError, ForbiddenError, NotFoundError } from "../../utils/errors.js";
+import {
+  emitDataChange,
+  outingRealtimeUsers,
+} from "../../realtime/data-changes.js";
+import { ConflictError, ForbiddenError, NotFoundError,
+} from "../../utils/errors.js";
 
 export class MutateMessageUseCase {
   constructor(private readonly chat = new ChatRepository()) {}
 
-  async execute(outingId: string, messageId: string, uid: string, text: string | null) {
+  async execute(outingId: string, messageId: string, uid: string, text: string | null,
+  ) {
     await assertCanChat(outingId, uid);
     const message = await this.chat.findMessageById(messageId);
     if (!message || message.outing_id !== outingId) throw new NotFoundError("Message");
@@ -25,7 +30,9 @@ export class MutateMessageUseCase {
     // Recheck closure after mention resolution, before persistence.
     await assertCanChat(outingId, uid);
     const saved = await this.chat.updateMessage(messageId, canonical);
-    await emitOutingMessage(outingId, saved, await outingRealtimeUsers(outingId));
+    const audience = await outingRealtimeUsers(outingId);
+    await emitOutingMessage(outingId, saved, audience);
+    emitDataChange({ kind: "inbox" }, audience);
     return saved;
   }
 }

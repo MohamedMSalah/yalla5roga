@@ -6,7 +6,7 @@ FCM registration upserts on the globally unique token. The same device token can
 |----------|-------|
 | Last verified | 2026-11-10 |
 | Documentation version | 1.0.0 |
-| Implementation status | Outbox + channels implemented; **real device FCM delivery NOT RUN** |
+| Implementation status | Transactional inbox/outbox + Android background actions implemented; **device FCM delivery NOT RUN** |
 | Needs verification | End-to-end push on iOS/Android; WhatsApp provider in each environment |
 
 ## Architecture
@@ -79,7 +79,7 @@ Exact recipient sets are coded in `outing-notifier.ts` / resolution helpers — 
 
 ## Push and inbox destinations
 
-FCM sends a visible notification plus string data. The data carries `type`, `pushId`, `recipientUserId`, and the related `groupId`, `outingId`, and `messageId` when applicable. `notificationId` identifies the matching inbox row for mark-read. The worker derives routing metadata from outbox columns and the durable inbox event key, including for queued events written before this contract. The inbox API exposes the specific `eventType` and optional chat `messageId` alongside its existing display category.
+FCM sends data-only Android messages to notificationVersion=2 registrations, while legacy Android registrations retain redacted OS-visible delivery; APNs keeps visible alerts for ordinary iOS pushes. The data carries `type`, `pushId`, `recipientUserId`, and the related `groupId`, `outingId`, and `messageId` when applicable. `notificationId` identifies the matching inbox row for mark-read. The worker derives routing metadata from outbox columns and the durable inbox event key, including for queued events written before this contract. The inbox API exposes the specific `eventType` and optional chat `messageId` alongside its existing display category.
 
 | Event | Destination |
 |-------|-------------|
@@ -93,7 +93,7 @@ FCM sends a visible notification plus string data. The data carries `type`, `pus
 | `attendance_vote`, `attendance_changed` | Attendance section in Outing Details |
 | General notification without a related resource | Notifications inbox |
 
-Group create/update, membership changes, individual place votes, and scheduled outing reminders have destination support but no push producer. Group outing creation currently emits a notification when initial voting options are added. Group phone invitations use WhatsApp. Already delivered legacy pushes can open a related resource from their IDs but may lack the inbox or exact message ID.
+Group creation, accepted membership, joins/departures, outing creation/transitions, voting transitions and scheduled reminders now have durable push producers. Individual votes intentionally do not notify. Group updates retain navigation support. Registered verified group invitees receive pending-invitation pushes; the existing nonregistered-user WhatsApp service is unchanged. Already delivered legacy pushes can open a related resource from their IDs but may lack the inbox or exact message ID.
 
 ## Flutter handling
 
@@ -104,7 +104,7 @@ Group create/update, membership changes, individual place votes, and scheduled o
 | Terminated | Firebase initial message or local notification launch details |
 | In-app inbox | Selected notification row |
 
-The client holds taps until the authenticated shell is mounted. It checks the intended recipient when present, deduplicates push opens, and pushes onto the existing route stack. It marks the selected inbox item read and validates the destination through the authenticated API. Deleted and inaccessible content shows localized feedback on the current screen. Chat and mention notifications open the regular chat without fetching, repositioning, or specially labeling the notification message, even when the payload includes a message ID.
+The client holds taps until the authenticated shell is mounted. It checks the intended recipient when present, deduplicates push opens, and pushes onto the existing route stack. It marks the selected inbox item read and validates the destination through the authenticated API. Deleted and inaccessible content shows localized feedback on the current screen. Chat and mention notifications open the existing chat and fetch/focus/highlight the referenced authorized nondeleted message; inaccessible messages show localized feedback. This supersedes the earlier ordinary-chat-only tap policy.
 
 ## Idempotency
 
@@ -113,6 +113,8 @@ The client holds taps until the authenticated shell is mounted. It checks the in
 - Retries reuse event keys. Outing fan-out batches inbox and push outbox writes in one transaction so both records are persisted together.
 
 ## WhatsApp configuration
+
+Group Create/Add people require one unchecked-by-default checkbox confirming recipient consent to a WhatsApp invitation if they are not already app users. Recipient edits clear confirmation, and Create Group forwards the explicit consent instead of assuming consent for unknown phones. `InviteToGroupUseCase` skips WhatsApp for existing verified app accounts; pending in-app invitations and explicit acceptance remain unchanged. The API still allows consent-free pending invitation creation for other callers, but it never queues WhatsApp without opt-in.
 
 Set `WHATSAPP_PROVIDER=meta`, `WHATSAPP_ACCESS_TOKEN`, and `WHATSAPP_PHONE_NUMBER_ID` for automatic delivery. Configure approved templates with `WHATSAPP_INVITE_TEMPLATE` and `WHATSAPP_SPECIAL_EVENT_TEMPLATE` and set `WHATSAPP_INVITE_TEMPLATE_LANG` to the approved language. The special-event template must have five body parameters in order: event title, Cairo date/time, venue, Google Calendar URL, and optional try-the-app URL. The fixed template copy must say guests can attend without the app. Set `APP_DOWNLOAD_URL` to the public try-the-app page. Meta requires recipient opt-in before outbound messages. The app records the organizer’s confirmation before queueing. [WhatsApp Business Messaging Policy](https://business.whatsapp.com/policy)
 
@@ -148,7 +150,7 @@ No verified per-event user preference matrix in Neon as of last verification. Do
 
 ## Mention notification handling — 2026-11-11
 
-Stable-ID mentions reuse `chat_message`, type `chat`, and the regular outing-chat destination. The mentioned recipient sees a “mentioned you” body using the canonical sender name; other chat recipients retain the ordinary new-message body. Repeated tokens and concurrent REST retries share the existing durable message/recipient event key and unique outbox key. The sender is excluded from both recipient sets. A retry after chat closure can acknowledge an already committed message and repair notification enqueue without creating another row. Delivery workers and real device push were not exercised in this task. Inbox producers and mark-read endpoints publish targeted Socket.IO invalidations after persistence.
+Stable-ID mentions reuse `chat_message`, type `chat`, and the regular outing-chat destination. Current system pushes show sender/outing context and canonical message text, with a higher-priority direct-mention channel when preferences allow. Repeated tokens and concurrent REST retries share the existing durable message/recipient event key and unique outbox key. The sender is excluded from both recipient sets. A retry after chat closure can acknowledge an already committed message; the message and notification rows already committed together. Delivery workers and real device push were not exercised in this task. Inbox producers and mark-read endpoints publish targeted Socket.IO invalidations after persistence.
 
 ## Cancellation and inbox corrections — 2026-11-13
 
@@ -167,6 +169,31 @@ Birthday, Wedding, Celebration and Other share the existing special-event invita
 
 The inbox uses All/Unread choice chips, unread count, shared NotificationCard with localized event-category title, body, avatar/event icon, relative timestamp and unread surface/dot. Provider errors have explicit retry; cached items can remain visible. Existing producers and event aliases are preserved; destination support does not create missing producers.
 
-Android local foreground chat notifications use RemoteInput Reply and Mark as read with `showsUserInterface: true` and the existing authenticated handler. The action receiver is declared. **Android OS-rendered background/terminated FCM notifications retain ordinary delivery and taps but do not include these local action buttons.** No data-only delivery replacement was introduced. iOS registers `outing_chat` text-input/read actions with foreground/authentication-required options; local responses use the plugin, remote APNs responses use the AppDelegate channel and cold-start pending-action handoff. APNs chat pushes include the matching category. These actions open the app to use the current Firebase session; silent background API execution is not promised.
+The Android push implementation below supersedes the original Phase 5 foreground-only actions and push-UUID reply behavior. iOS retains its existing APNs category and AppDelegate bridge; device verification is still outstanding.
 
-Recipient checks run before interactive actions; chat requests pin the expected user. Reply reuses the outbox push UUID as clientMessageId; a failed/404 response is not reported as success. Successful native actions update the inbox read row. Native labels use saved English/Arabic locale; iOS categories register at initialization. Platform setup follows the installed flutter_local_notifications 22.3.1 APIs: https://pub.dev/packages/flutter_local_notifications and https://pub.dev/documentation/flutter_local_notifications/latest/flutter_local_notifications/AndroidNotificationAction-class.html . No Android/iOS action, native iOS compilation or physical FCM delivery was exercised in this task.
+
+## Android system notification delivery — 2026-11-14
+
+- PostgreSQL remains the sole notification/history/read-state authority. `notifications.data` stores structured routing/display metadata. `users.notification_preferences` stores push/category/mention/privacy preferences. `user_fcm_tokens.notification_version` defaults to 1; updated clients register notificationVersion=2 so older installations retain ordinary visible delivery during rollout. Firebase stores no application notification records.
+- `persistNotifications(tx, ...)` writes deterministic inbox/outbox IDs and unique event keys inside the business transaction. Chat insert, invitation link/decision, group create/removal, outing create/update/confirmation/cancellation, candidate reset, RSVP changes and verified arrivals enqueue atomically. FCM failures happen later and cannot roll back these writes.
+- Existing Socket.IO inbox invalidations refresh the existing Provider. Only FCM renders OS alerts; socket/API delivery never independently posts a new system notification. Stable account-scoped notification IDs and bounded persisted event deduplication suppress FCM retries. API reconciliation updates or removes active OS notifications without recreating dismissed ones.
+- `PushChannel` validates current access, current message text, invitation state, preferences and reminder relevance. Action-capable Android v2 registrations have no top-level FCM notification, allowing the background Dart handler to render actions. Version 1 registrations retain ordinary OS-visible pushes (redacted when lock-screen previews are disabled) until the client refreshes its capability. iOS retains APNs alert/category. Transport priority wakes Android for visible rendering; ordinary channels remain default importance and only opted-in direct mentions use high importance.
+- The outbox worker claims with SKIP LOCKED, counts attempts on claim, recovers processing leases after five minutes, dead-letters exhausted attempts and applies 10s/30s/90s exponential retry capped at 15 minutes. Delivery logs keep successful token-row IDs, so partial multicast retries skip successful devices; multicast batches stay within 500 tokens. Only definitive invalid/unregistered token errors delete tokens, scoped to the still-owning account. Generic invalid-argument errors do not erase registrations. Shutdown drains in-flight work.
+
+### Native display and actions
+
+`LocalNotificationsService` creates chat, mentions, invitations, groups, outings, voting and reminder channels, uses the existing launcher branding, timestamps, MessagingStyle, per-outing grouping/summaries and launcher-supported unread numbers. Android POST_NOTIFICATIONS is requested by existing FCM permission handling; denied display is skipped. Private lock-screen previews default to secret visibility. The installed native plugin uses explicit receiver/activity PendingIntents, immutable for ordinary actions and mutable only for RemoteInput; the action receiver is nonexported. Channel labels/actions follow saved Arabic/English preferences.
+
+`NotificationActionDispatcher` is shared by foreground responses, cold-start handoff and the background response entry point. It stores drafts before HTTP, derives a stable UUID per submitted reply, binds every request to its recipient Firebase UID through existing Dio interceptors and only completes after backend acknowledgement. Up to five automatic recovery attempts use backoff; explicit Retry remains available, with seven-day/100-record bounds. Completed action records drop reply text. Logout/account changes clear account-specific actions, display metadata and existing caches; explicit logout best-effort unregisters/deletes the device token before signing out. Offline logout can leave a server registration until a later cleanup/reassignment, but stale account pushes/actions are rejected locally.
+
+Reply uses POST `/api/outings/{outingId}/messages`; Mark as Read uses PATCH `/api/outings/{outingId}/chat/read`. Invitation decisions reuse POST `/api/invitations/{invitationId}/accept|decline`. Successful read updates both chat_reads and conversation inbox rows transactionally and sends a silent dismissal to the user's other devices. Edits/deletions update or tombstone the inbox, send silent control events and revalidate content before any new display. Silent controls are best effort; resume restores authoritative state.
+
+### Events and reminders
+
+Produced categories: group_created, group_invite, membership_activated, member_joined, member_left; outing_created, outing_updated, outing_cancelled, outing_confirmed, outing_invite; chat_message; voting_started, voting_closed, winner_selected, tie_break_selected; rsvp_opened, attendance_changed, arrival_changed; voting_deadline_approaching, outing_reminder, venue_reminder and arrival_reminder. Candidate changes retain outing_updated with a voting-section hint. Existing legacy event aliases still route.
+
+The reminder scan is paged and row-locked. Stable keys include the actual deadline or schedule, preventing duplicate sends on worker restarts. One-hour windows are phrased “within 1 hour”; no expired deadline reminder, cancelled/past reminder or already-verified arrival reminder is delivered. Arrival uses a confirmed pinned venue and the existing attendance time window, and routes to GPS verification rather than marking presence. No separate RSVP deadline exists in this product/schema, so its conditional reminder is not scheduled. Confirmed venues remain immutable.
+
+Every visible payload contains notificationId, eventId, notificationType, actionType, createdAt and applicable group/outing/invitation/message IDs. The authenticated no-store GET `/api/notifications/{id}/system-payload` resolves current authorized display content. Failed online validation produces no private offline preview. Taps wait for authenticated shell/restore synchronization; repeated tap IDs are deduplicated and every destination revalidates access.
+
+Evidence: [OpenAPI results](audit/ANDROID_PUSH_OPENAPI_RESULTS.json), [changed files and manual checks](audit/ANDROID_SYSTEM_PUSH.md). No Android/iOS app, emulator, device or UI automation was run. Platform background delivery, force-stop restrictions and action execution remain manual verification items. Platform references: [Firebase Flutter background delivery](https://firebase.google.com/docs/cloud-messaging/flutter/receive-messages), [Android grouped notifications](https://developer.android.com/develop/ui/views/notifications/group), [RemoteInput](https://developer.android.com/reference/android/app/RemoteInput).

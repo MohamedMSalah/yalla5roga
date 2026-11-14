@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
+import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
@@ -23,6 +24,7 @@ class CreateOutingProvider extends ChangeNotifier {
     required this._contacts,
     required this._catalogPlaces,
     required this._specialEventImage,
+    this.placeCatalog,
     Group? group,
     SuggestedPlace? suggestedPlace,
     this.saved,
@@ -40,6 +42,7 @@ class CreateOutingProvider extends ChangeNotifier {
            (saved?.occasion ?? OutingOccasion.none) != OutingOccasion.none,
        _draftId = draft?.id ?? _newDraftId() {
     _deadlineNow = _now();
+    placeCatalog?.addListener(notifyListeners);
     if (draft == null) _date = _now().add(const Duration(days: 1));
     nameController = TextEditingController(
       text: saved?.title ?? draft?.title ?? '',
@@ -122,6 +125,7 @@ class CreateOutingProvider extends ChangeNotifier {
   final List<Group> _groups;
   final List<GroupMember> _contacts;
   final List<Place> _catalogPlaces;
+  final PlaceCatalogProvider? placeCatalog;
   final String Function(OutingOccasion) _specialEventImage;
   final SavedOuting? saved;
   final OutingDraft? draft;
@@ -227,6 +231,9 @@ class CreateOutingProvider extends ChangeNotifier {
 
   /// Places matching the selected vibe (all places for special events).
   List<Place> get suggestedPlaces {
+    if (placeCatalog case final catalog?) {
+      return catalog.places.map((p) => p.toOutingPlace()).toList();
+    }
     if (_specialEvent) return catalogPlaces;
     final selectedVibe =
         OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)];
@@ -552,6 +559,7 @@ class CreateOutingProvider extends ChangeNotifier {
       multiPlaceMode && _selectedPlaces.length < OutingsProvider.maxVotePlaces;
 
   void addSelectedPlace(Place place) {
+    if (place.status == 'permanently_closed') return;
     if (!multiPlaceMode) {
       setCatalogPlace(place);
       return;
@@ -598,6 +606,7 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   void setCatalogPlace(Place value) {
+    if (value.status == 'permanently_closed') return;
     if (multiPlaceMode) {
       togglePlace(value);
       return;
@@ -719,6 +728,8 @@ class CreateOutingProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    placeCatalog?.removeListener(notifyListeners);
+    placeCatalog?.dispose();
     _deadlineTimer?.cancel();
     customPlaceController.removeListener(_onCustomPlaceChanged);
     nameController.dispose();

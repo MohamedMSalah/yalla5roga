@@ -1,5 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart'
+    show PlaceCatalogAttribution;
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
@@ -13,7 +16,7 @@ import 'package:yalla_5roga/features/discover/presentation/providers/discover_pr
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_cover_image.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
 
-class DiscoverPlaceDetailsPage extends StatelessWidget {
+class DiscoverPlaceDetailsPage extends StatefulWidget {
   const DiscoverPlaceDetailsPage({
     super.key,
     required this.placeId,
@@ -61,11 +64,67 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
   }
 
   @override
+  State<DiscoverPlaceDetailsPage> createState() => _DiscoverPlaceDetailsState();
+}
+
+class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
+  SuggestedPlace? _place;
+  bool _loading = true, _failed = false;
+  StreamSubscription<void>? _changes;
+  @override
+  void initState() {
+    super.initState();
+    final provider = context.read<DiscoverProvider>();
+    _place = widget.initialPlace ?? provider.findById(widget.placeId);
+    _changes = provider.repository.catalogChanges.listen((_) => _load());
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    final result = await context.read<DiscoverProvider>().repository.getPlace(
+      widget.placeId,
+      forceRefresh: true,
+    );
+    if (!mounted) return;
+    setState(() {
+      _loading = false;
+      result.fold(
+        (_) {
+          _failed = true;
+        },
+        (place) {
+          _failed = false;
+          _place = place;
+        },
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _changes?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final palette = context.palette;
-    final place = initialPlace ?? context.read<DiscoverProvider>().placeById(placeId);
-    final laidOut = heroGallery(place: place, tappedCoverUrl: coverUrl);
+    final place = _place;
+    if (place == null) {
+      return Scaffold(
+        appBar: AppPageBar(title: l10n.allPlaces),
+        body: Center(
+          child: _loading
+              ? const CircularProgressIndicator()
+              : TextButton(onPressed: _load, child: Text(l10n.catalogRetry)),
+        ),
+      );
+    }
+    final laidOut = DiscoverPlaceDetailsPage.heroGallery(
+      place: place,
+      tappedCoverUrl: widget.coverUrl,
+    );
     final gallery = laidOut.gallery;
     final coverIndex = laidOut.coverIndex;
 
@@ -77,6 +136,9 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
             child: ListView(
               padding: Responsive.pagePadding(),
               children: [
+                if (_loading) const LinearProgressIndicator(),
+                if (_failed)
+                  TextButton(onPressed: _load, child: Text(l10n.catalogRetry)),
                 SizedBox(
                   height: 210.h,
                   child: ListView.builder(
@@ -90,7 +152,7 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
                               : Responsive.spaceSm,
                         ),
                         child: AppHero(
-                          tag: index == coverIndex ? coverHeroTag : null,
+                          tag: index == coverIndex ? widget.coverHeroTag : null,
                           url: gallery[index].imageUrl,
                           radius: 18.r,
                           child: PlaceCoverImage(
@@ -126,13 +188,22 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
                 ),
                 Responsive.spaceXs.gapH,
                 Text(
-                  '${place.localizedArea(l10n)} · ${l10n.priceLevelLabel(place.priceLevel.name)}',
+                  place.localizedSummary(l10n),
                   style: TextStyle(
                     color: palette.textMuted,
                     fontWeight: FontWeight.w700,
                     fontSize: Responsive.fontSm,
                   ),
                 ),
+                if (place.status != 'active')
+                  AppBadge(
+                    label: l10n.catalogStatus(place.status),
+                    color: palette.brandSoft,
+                    textColor: palette.brandStrong,
+                  ),
+                if (place.openingHours.isNotEmpty) Text(place.openingHours),
+                if (place.address.isNotEmpty) Text(place.address),
+                if (place.source == 'osm') const PlaceCatalogAttribution(),
                 if (place.localizedDescription(l10n).trim().isNotEmpty) ...[
                   Responsive.spaceMd.gapH,
                   Text(
@@ -237,8 +308,10 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
               child: CustomButton(
                 label: l10n.planOutingHere,
                 icon: Icons.event_available_outlined,
-                onPressed: () =>
-                    Get.to(() => CreateOutingPage(suggestedPlace: place)),
+                onPressed: place.status == 'active'
+                    ? () =>
+                          Get.to(() => CreateOutingPage(suggestedPlace: place))
+                    : null,
               ),
             ),
           ),

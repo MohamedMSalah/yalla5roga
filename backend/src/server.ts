@@ -8,6 +8,7 @@ import { startVotingDeadlineJob } from "./jobs/close-voting-deadline.job.js";
 import { startNotificationWorker } from "./jobs/notification-worker.job.js";
 import { startMediaCleanupJob } from "./jobs/media-cleanup.job.js";
 import { attachRealtime } from "./realtime/index.js";
+import { startCatalogListener } from "./services/places/catalog-notifications.js";
 
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -39,6 +40,7 @@ async function start() {
 
     const httpServer = http.createServer(app);
     attachRealtime(httpServer);
+    startCatalogListener();
 
     httpServer.listen(PORT, HOST, () => {
       console.log(`Server listening on ${HOST}:${PORT}`);

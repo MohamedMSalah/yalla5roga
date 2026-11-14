@@ -116,6 +116,8 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 
 **Approved (outing invitations):** Deep link → auth if needed → explicit accept → Member. Opening link alone must not auto-join. Group invitations also require explicit acceptance. Verified-phone registration/login/sync only links identity and preserves pending status.
 
+Group invitation consent (owner-approved 2026-11-14): Create Group and Add people require one explicit confirmation covering WhatsApp invitations for recipients who do not already use the app. Both UI submit actions and the group provider reject unchecked consent; recipient edits clear confirmation. Consent is never inferred from registration status. The backend checks the verified app identity after persisting the pending invitation and queues WhatsApp only for a consented non-user. Registered users retain pending in-app invitations and must explicitly accept.
+
 | Flow | Status |
 |------|--------|
 | Create group → creator is first member | Implemented — the group and its first `group_members` owner commit atomically; `member_count` starts at 1; members list includes the creator card (`name`/`phone`/`image_url` from `users`) |
@@ -231,3 +233,24 @@ Persisted attendance responses remain going/not_going/maybe. No saved response i
 ## Phase 5 chat mutation policy — 2026-11-14
 
 Participant checks precede chat-closure checks. History and read cursors remain available after closure; send/edit/delete return 409 CHAT_CLOSED. Own-message checks reject other senders with 403; a message outside the outing is 404. Delete clears text while preserving the message UUID/client UUID, sender and timestamp as a tombstone, so retries cannot recreate content. Editing a tombstone is 409 MESSAGE_DELETED. Edit is allowed only before sent_at + 60 seconds; at or after that instant it returns 409 MESSAGE_EDIT_WINDOW_EXPIRED. The write predicate enforces the age again at persistence. Delete remains available to the sender while chat is open, independently of the edit window. Edit validates/canonicalizes mentions but does not create additional mention notifications. No group chat or attendance/voting rule changes.
+
+
+## Android system push rules — 2026-11-14
+
+Notification persistence is transactional with successful chat, group invitation/membership, outing, voting, RSVP and arrival writes. FCM delivery occurs asynchronously and cannot undo valid business operations. Send only to the current authorized audience; recheck access/content/preferences at delivery. Pending group invitations do not create membership, and sync only links verified phone identity. Acceptance alone produces membership activation/join notifications; decisions retain their history and serialize conflicting operations.
+
+Individual votes do not notify. Voting start/close/winner/tie-break/owner-confirmation and candidate-reset transitions notify once under durable keys; confirmed venues remain immutable. One-hour reminders use actual configured vote_ends_at and scheduled_at, including day-based deadlines. No closed/expired/cancelled reminder is delivered. RSVP opening is independent of voting, and repeated identical RSVP writes do not produce duplicate notifications. No distinct RSVP-deadline configuration exists, so no separate deadline is invented.
+
+Arrival reminders require the confirmed pinned venue and existing attendance window and exclude already-arrived users. Actual arrival still requires backend location verification; notification actions cannot write presence. Read actions affect only the caller's selected conversation, including its inbox rows. Edits/deletions preserve chat authorization/window, replace previews or tombstone them, and never regenerate deleted text. See [current notification behavior](NOTIFICATIONS.md) and [audit](audit/ANDROID_SYSTEM_PUSH.md).
+
+
+## Place taxonomy and lifecycle — 2026-11-14
+
+The owner-approved [places rules](PRODUCT_SCENARIOS.md#places-catalog-synchronization-and-filters--owner-approved-2026-11-14) replace the former catalog's fixed-vibe filtering model. Place category/vibes are independent database definitions; four-value outing vibes remain unchanged. One shared client filter object and one server query policy apply categories/vibes/search/distance to both list and map results. Active is the default status. Temporary/permanent/unverified records remain readable for history, with availability labels; new selection rejects permanent closure on the backend.
+
+Absence is review evidence, never proof of permanent closure: only three complete successful covered cycles yield unverified. A limited/dry/failed run cannot advance absence. Positive current tags restore availability; explicit retirement/demolition/removal supports permanent closure and ambiguous disuse/hours supports temporary closure. Every change stores source evidence. Manually created or curator-managed source identities are protected. Imported raw opening hours are not fabricated into weekday schedules; absent source images preserve existing covers/fallbacks. Budget/work vibes require explicit supporting tags, and no romantic inference exists. Weekly due calculation uses the last committed full success, so failures/partial validation do not postpone catch-up.
+
+
+## Saved place cards and filter — 2026-11-14
+
+Saved place bookmarks are independent of outings and drafts. Confirmed backend success updates the bookmark; errors retain its state. The saved Places filter includes unavailable saved places with status labels and current detail navigation. Account changes clear bookmark state and in-flight results from the prior account.

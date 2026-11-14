@@ -1,0 +1,12 @@
+[Unit]
+Description=Yalla 5roga OSM places catch-up worker
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/yalla5roga/backend
+EnvironmentFile=/etc/yalla5roga/backend.env
+ExecStart=/usr/bin/node dist/cli/places-sync.js --due-only
+TimeoutStartSec=3300
+User=yalla5roga
+NoNewPrivileges=true

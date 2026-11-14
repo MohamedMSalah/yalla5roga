@@ -13,8 +13,14 @@ abstract class NotificationsRemoteDataSource {
   Future<int> markRead(String id);
 }
 
+abstract interface class NotificationPreferencesRemoteDataSource {
+  Future<Map<String, bool>> updatePreferences(Map<String, bool> patch);
+}
+
 class NotificationsRemoteDataSourceImpl
-    implements NotificationsRemoteDataSource {
+    implements
+        NotificationsRemoteDataSource,
+        NotificationPreferencesRemoteDataSource {
   const NotificationsRemoteDataSourceImpl(this._client);
 
   final ApiClient _client;
@@ -25,6 +31,8 @@ class NotificationsRemoteDataSourceImpl
       final items = <Map<String, dynamic>>[];
       final cursors = <String>{};
       String? cursor;
+      var preferences = <String, bool>{};
+      int? totalUnread;
       do {
         final response = await _client.get<Map<String, dynamic>>(
           ApiConstants.notifications,
@@ -37,6 +45,9 @@ class NotificationsRemoteDataSourceImpl
           ),
         );
         final raw = response.data;
+        totalUnread ??= raw?['unreadCount'] as int?;
+        if (raw?['preferences'] is Map)
+          preferences = Map<String, bool>.from(raw!['preferences'] as Map);
         cursor =
             apiString((raw?['pagination'] as Map?)?['nextCursor']) ??
             apiString(raw?['next_cursor']);
@@ -45,11 +56,25 @@ class NotificationsRemoteDataSourceImpl
       final models = [
         for (final item in items) NotificationModel.fromJson(_normalize(item)),
       ];
-      final unreadCount = models.where((item) => item.unread).length;
-      return NotificationsFeedModel(unreadCount: unreadCount, items: models);
+      final unreadCount =
+          totalUnread ?? models.where((item) => item.unread).length;
+      return NotificationsFeedModel(
+        unreadCount: unreadCount,
+        items: models,
+        preferences: preferences,
+      );
     } on DioException catch (error) {
       throw _unwrap(error);
     }
+  }
+
+  @override
+  Future<Map<String, bool>> updatePreferences(Map<String, bool> patch) async {
+    final response = await _client.patch<Map<String, dynamic>>(
+      '${ApiConstants.notifications}/preferences',
+      data: patch,
+    );
+    return Map<String, bool>.from(apiPayload(response.data));
   }
 
   @override

@@ -2,11 +2,38 @@ import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/features/notifications/domain/entities/notification_item.dart';
 import 'package:yalla_5roga/features/notifications/domain/repositories/notifications_repository.dart';
+import 'package:yalla_5roga/features/notifications/domain/repositories/notification_preferences_repository.dart';
 
 class NotificationsProvider extends ChangeNotifier {
-  NotificationsProvider({required this.repository});
+  NotificationsProvider({required this.repository, this.onSynchronized});
 
   final NotificationsRepository repository;
+  final Future<void> Function(List<NotificationItem>, int, Map<String, bool>)?
+  onSynchronized;
+  Map<String, bool> _preferences = {};
+  Map<String, bool> get preferences => Map.unmodifiable(_preferences);
+  bool get pushEnabled => _preferences['pushEnabled'] ?? true;
+
+  Future<void> setPushEnabled(bool value) =>
+      updatePreferences({'pushEnabled': value});
+
+  Future<void> updatePreferences(Map<String, bool> patch) async {
+    final source = repository;
+    if (source is! NotificationPreferencesRepository || _isUpdating) return;
+    final account = _accountEpoch;
+    _isUpdating = true;
+    notifyListeners();
+    final result = await (source as NotificationPreferencesRepository)
+        .updatePreferences(patch);
+    if (account != _accountEpoch) return;
+    result.fold(
+      (failure) => AppErrorFeedback.report(failure, kind: AppErrorKind.send),
+      (prefs) => _preferences = prefs,
+    );
+    _isUpdating = false;
+    notifyListeners();
+    await refresh(forceRefresh: true);
+  }
 
   var _items = <NotificationItem>[];
   int _unreadCount = 0;
@@ -84,10 +111,13 @@ class NotificationsProvider extends ChangeNotifier {
       (feed) {
         _items = feed.items;
         _unreadCount = feed.unreadCount;
+        _preferences = feed.preferences;
         _errorMessage = null;
       },
     );
 
+    if (token == _epoch && _errorMessage == null)
+      await _synchronizeSystemDisplay();
     _finishInitialLoad();
   }
 
@@ -155,6 +185,7 @@ class NotificationsProvider extends ChangeNotifier {
     _epoch++;
     repository.clearCache();
     _items = [];
+    _preferences = {};
     _unreadCount = 0;
     _filter = 0;
     _isLoading = false;
@@ -173,6 +204,17 @@ class NotificationsProvider extends ChangeNotifier {
     if (account != _accountEpoch) return false;
     _isUpdating = false;
     notifyListeners();
+    if (success) await _synchronizeSystemDisplay();
     return success;
+  }
+
+  Future<void> _synchronizeSystemDisplay() async {
+    try {
+      await onSynchronized?.call(_items, _unreadCount, _preferences);
+    } catch (error) {
+      debugPrint(
+        '[Notifications] System display reconciliation deferred: $error',
+      );
+    }
   }
 }

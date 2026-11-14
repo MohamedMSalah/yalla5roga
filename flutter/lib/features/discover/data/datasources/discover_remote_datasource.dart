@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/features/discover/data/datasources/saved_places_remote_datasource.dart';
 import 'package:dio/dio.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
@@ -5,6 +6,7 @@ import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
+import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 
 abstract class DiscoverDataSource {
   Future<List<SuggestedPlace>> getNearbyPlaces({
@@ -23,6 +25,62 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
   DiscoverRemoteDataSource(this._client);
 
   final ApiClient _client;
+  Future<List<SuggestedPlace>> savedPlaces() async {
+    try {
+      final rows = await SavedPlacesRemoteDataSource(_client).listSavedPlaces();
+      return rows
+          .where((row) => row['places'] is Map)
+          .map(
+            (row) => _fromJson(Map<String, dynamic>.from(row['places'] as Map)),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw _unwrap(e);
+    }
+  }
+
+  Future<void> setSaved(String id, bool saved) async {
+    try {
+      if (saved) {
+        await SavedPlacesRemoteDataSource(_client).save(id);
+      } else {
+        await SavedPlacesRemoteDataSource(_client).unsave(id);
+      }
+    } on DioException catch (e) {
+      throw _unwrap(e);
+    }
+  }
+
+  Future<String> catalogVersion() async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${ApiConstants.places}/version',
+    );
+    return apiPayload(response.data)['version'] as String? ?? '';
+  }
+
+  Future<List<CatalogDefinition>> definitions(String kind) async {
+    final response = await _client.get<Map<String, dynamic>>(
+      '${ApiConstants.places}/$kind',
+    );
+    return apiObjectList(response.data)
+        .map(CatalogDefinition.fromJson)
+        .toList();
+  }
+
+  Future<List<SuggestedPlace>> queryPlaces(
+    PlaceFilters filters,
+    int offset,
+  ) async {
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        ApiConstants.places,
+        queryParameters: filters.query(offset: offset),
+      );
+      return apiObjectList(response.data).map(_fromJson).toList();
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
+  }
 
   @override
   Future<List<SuggestedPlace>> getNearbyPlaces({
@@ -78,11 +136,15 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
 
   @override
   Future<List<SuggestedPlace>> getFeaturedPlaces() async {
-    final places = await getPlaces();
-    return [
-      for (final place in places)
-        if (place.featured) place,
-    ];
+    try {
+      final response = await _client.get<Map<String, dynamic>>(
+        ApiConstants.places,
+        queryParameters: {'featured': 'true', 'limit': 50},
+      );
+      return apiObjectList(response.data).map(_fromJson).toList();
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
   }
 
   @override
@@ -104,6 +166,23 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
     return SuggestedPlace(
       id: apiString(json['id']) ?? '',
       name: apiString(json['name']) ?? '',
+      categoryId: apiString(json['category_id']) ?? '',
+      status: apiString(json['status']) ?? 'active',
+      nameAr: apiString(json['name_ar']) ?? '',
+      nameEn: apiString(json['name_en']) ?? '',
+      source: apiString(json['source']) ?? 'manual',
+      vibeIds:
+          (json['vibes'] as List? ??
+                  (json['place_vibes'] as List?)
+                      ?.map((v) => v['vibe_id'])
+                      .toList() ??
+                  const [])
+              .whereType<String>()
+              .toList(),
+      openingHours: apiString(json['opening_hours']) ?? '',
+      website: apiString(json['website']) ?? '',
+      phone: apiString(json['phone']) ?? '',
+      address: apiString(json['address']) ?? '',
       area: apiString(json['area']) ?? '',
       vibe: OutingVibe.values.firstWhere(
         (item) => item.name == json['vibe'],

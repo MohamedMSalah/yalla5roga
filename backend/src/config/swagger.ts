@@ -1,3 +1,4 @@
+import { extendPlacesOpenApi } from "./places-openapi.js";
 import { notification_event_type } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
@@ -286,8 +287,10 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
       },
       responses: {
-        Conflict: errorResponse("Resource changed or conflicts with existing state", "Draft changed; reload before saving"),
-        TooManyRequests: errorResponse("HTTP API request limit exceeded; honor Retry-After", "Too many requests. Try again later."),
+        Conflict: errorResponse("Resource changed or conflicts with existing state", "Draft changed; reload before saving",
+        ),
+        TooManyRequests: errorResponse("HTTP API request limit exceeded; honor Retry-After", "Too many requests. Try again later.",
+        ),
         BadRequest: errorResponse(
           "The request body, query, or path failed validation",
           "name: name is required",
@@ -505,12 +508,14 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           anyOf: [{ required: ["phone"] }, { required: ["phoneNumber"] }],
           properties: {
             name: { type: "string", minLength: 1, maxLength: 30 },
-            password: { type: "string", minLength: 6, maxLength: 128, description: "New passwords are limited to 72 UTF-8 bytes." },
+            password: { type: "string", minLength: 6, maxLength: 128, description: "New passwords are limited to 72 UTF-8 bytes.",
+            },
             phoneNumber: {
               type: "string", minLength: 8, maxLength: 20, pattern: "^\\+?[0-9\\s().-]+$",
               description: "Accepted alias of phone",
             },
-            phone: { type: "string", minLength: 8, maxLength: 20, pattern: "^\\+?[0-9\\s().-]+$" },
+            phone: { type: "string", minLength: 8, maxLength: 20, pattern: "^\\+?[0-9\\s().-]+$",
+            },
             phoneVerificationToken: {
               type: "string", minLength: 1, maxLength: 10000,
               description: "Firebase ID token from a phone OTP sign-in within ten minutes, matching the signup phone.",
@@ -521,7 +526,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         AuthSession: {
           type: "object",
-          required: ["idToken", "refreshToken", "expiresIn", "uid", "customToken"],
+          required: ["idToken", "refreshToken", "expiresIn", "uid", "customToken",
+          ],
           properties: {
             idToken: {
               type: "string",
@@ -750,13 +756,16 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
                   description: "Group-scoped invitation history, newest first. Only active group members can read it.",
                   items: {
                     type: "object",
-                    required: ["invitation_id", "invited_phone", "invitee_name", "inviter_name", "status", "created_at"],
+                    required: ["invitation_id", "invited_phone", "invitee_name", "inviter_name", "status", "created_at",
+                    ],
                     properties: {
                       invitation_id: uuid,
                       invited_phone: { type: "string" },
                       invitee_name: { type: "string", nullable: true },
                       inviter_name: { type: "string" },
-                      status: { type: "string", enum: ["pending", "accepted", "declined", "expired", "revoked"] },
+                      status: { type: "string", enum: ["pending", "accepted", "declined", "expired", "revoked",
+                        ],
+                      },
                       created_at: dateTime,
                     },
                   },
@@ -781,7 +790,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           required: ["phoneNumber"],
           properties: {
-            whatsappOptIn: { type: "boolean", description: "Organizer attests that the recipient agreed to a WhatsApp invitation." },
+            whatsappOptIn: { type: "boolean", description: "Organizer attests that the recipient agreed to a WhatsApp invitation.",
+            },
             phoneNumber: {
               type: "string",
               minLength: 8,
@@ -849,7 +859,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
                       enum: ["already_pending", "already_member"],
                     },
                     invitation_id: { ...uuid, nullable: true },
-                    whatsapp_url: { type: "string", format: "uri", nullable: true },
+                    whatsapp_url: { type: "string", format: "uri", nullable: true,
+                    },
                     status: { type: "string", enum: ["pending"] },
                     member: ref("GroupMember"),
                   },
@@ -906,7 +917,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           required: ["text"],
           properties: {
-            text: { type: "string", minLength: 1, maxLength: 2000, description: "Plain text or stable mention tokens <@URI-encoded-user-id|URI-encoded-name>. Mention IDs must be current chat participants. Names are canonicalized from Neon; malformed encodings and overlength canonical text return 400. Legacy @name remains plain text." },
+            text: { type: "string", minLength: 1, maxLength: 2000, description: "Plain text or stable mention tokens <@URI-encoded-user-id|URI-encoded-name>. Mention IDs must be current chat participants. Names are canonicalized from Neon; malformed encodings and overlength canonical text return 400. Legacy @name remains plain text.",
+            },
             clientMessageId: {
               ...uuid,
               description:
@@ -921,8 +933,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             "outing_id",
             "sender_id",
             "text",
-            "sent_at",
-          ],
+            "sent_at"],
           properties: {
             id: uuid,
             outing_id: uuid,
@@ -938,7 +949,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         ChatMessageListResponse: {
           allOf: [listResponse("ChatMessage"), {
             type: "object", properties: { next_cursor: { ...uuid, nullable: true } },
-          }],
+          },
+          ],
         },
         ChatRead: {
           type: "object",
@@ -950,6 +962,59 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           },
         },
         ChatReadResponse: itemResponse("ChatRead"),
+        NotificationPreferences: {
+          type: "object",
+          additionalProperties: false,
+          properties: Object.fromEntries(
+            [
+              "pushEnabled",
+              "chatMessages",
+              "mentions",
+              "mentionPriority",
+              "groupEvents",
+              "outings",
+              "voting",
+              "reminders",
+              "attendance",
+              "lockScreenPreview",
+            ].map((key) => [
+              key,
+              { type: "boolean", default: key !== "lockScreenPreview" },
+            ]),
+          ),
+        },
+        NotificationPreferencesResponse: itemResponse(
+          "NotificationPreferences",
+        ),
+        NotificationSystemPayloadResult: {
+          type: "object",
+          required: ["available", "payload"],
+          properties: {
+            available: { type: "boolean" },
+            payload: {
+              type: "object",
+              nullable: true,
+              additionalProperties: true,
+              properties: {
+                notificationId: uuid,
+                eventId: uuid,
+                notificationType: { type: "string" },
+                actionType: { type: "string" },
+                createdAt: dateTime,
+                recipientUserId: firebaseUid,
+                groupId: { ...uuid, nullable: true },
+                outingId: { ...uuid, nullable: true },
+                invitationId: uuid,
+                messageId: uuid,
+                title: { type: "string" },
+                body: { type: "string" },
+              },
+            },
+          },
+        },
+        NotificationSystemPayloadResponse: itemResponse(
+          "NotificationSystemPayloadResult",
+        ),
         Notification: {
           type: "object",
           required: [
@@ -970,8 +1035,19 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               type: "string",
               enum: ["outing", "group", "chat", "vote", "invitation", "system"],
             },
-            eventType: { type: "string", enum: [...Object.values(notification_event_type), "outing_created", "place_vote", "outing", "group", "chat", "vote", "invitation", "system"], description: "Specific event used by the inbox to select a destination" },
-            messageId: { ...uuid, description: "Chat message targeted by the notification" },
+            eventType: { type: "string", enum: [...Object.values(notification_event_type), "outing_created", "place_vote", "outing", "group", "chat", "vote", "invitation", "system",
+              ], description: "Specific event used by the inbox to select a destination",
+            },
+            messageId: { ...uuid, description: "Chat message targeted by the notification",
+            },
+            notificationId: uuid,
+            eventId: uuid,
+            notificationType: { type: "string" },
+            invitationId: uuid,
+            actionType: { type: "string", enum: ["open", "update"] },
+            createdAt: dateTime,
+            title: { type: "string" },
+            data: { type: "object", additionalProperties: true },
             outing_id: { ...uuid, nullable: true },
             group_id: { ...uuid, nullable: true },
             action_required: { type: "boolean" },
@@ -986,7 +1062,18 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             {
               type: "object",
               properties: {
-                pagination: { type: "object", required: ["limit", "nextCursor"], properties: { limit: { type: "integer", default: 20, maximum: 100 }, nextCursor: { type: "string", nullable: true } } },
+                unreadCount: {
+                  type: "integer",
+                  minimum: 0,
+                  description:
+                    "All unread inbox rows owned by this UID, independent of pagination",
+                },
+                preferences: {
+                  $ref: "#/components/schemas/NotificationPreferences",
+                },
+                pagination: { type: "object", required: ["limit", "nextCursor"], properties: { limit: { type: "integer", default: 20, maximum: 100 }, nextCursor: { type: "string", nullable: true },
+                  },
+                },
                 next_cursor: {
                   type: "string", nullable: true,
                   description: "Opaque cursor for the next older page; null means no more rows.",
@@ -1015,7 +1102,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           description:
             "The server derives the initial status: voting with initial options, confirmed with a fixed venue, otherwise draft. A future vote_ends_at or vote_deadline_hours is required. Group outings require group_id and occasion 'none' (default). Special events use birthday, wedding, celebration or other, with optional group_id. A selected group requires accepted membership. Independent special events retain guest invitations. All special events require a future scheduled_at and a fixed location_name. Type is derived from occasion, not group_id.",
           properties: {
-            create_request_key: { type: "string", maxLength: 80, description: "Creator-scoped idempotency key. Required for special-event phone invitations and recommended for group voting." },
+            create_request_key: { type: "string", maxLength: 80, description: "Creator-scoped idempotency key. Required for special-event phone invitations and recommended for group voting.",
+            },
             initial_vote_options: {
               type: "array",
               minItems: 2,
@@ -1023,8 +1111,10 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               description: "Ordered candidates for a group outing with no fixed location. Saved atomically with the outing.",
               items: { $ref: "#/components/schemas/CreateVoteOptionRequest" },
             },
-            guest_phones: { type: "array", maxItems: 50, items: { type: "string" }, description: "Special-event phone guests." },
-            guest_phones_whatsapp_opt_in: { type: "boolean", description: "Required recipient opt-in confirmation when guest_phones is supplied." },
+            guest_phones: { type: "array", maxItems: 50, items: { type: "string" }, description: "Special-event phone guests.",
+            },
+            guest_phones_whatsapp_opt_in: { type: "boolean", description: "Required recipient opt-in confirmation when guest_phones is supplied.",
+            },
             title: { type: "string", minLength: 3, maxLength: 20 },
             image_url: { type: "string", format: "uri", maxLength: 2048 },
             group_id: { ...uuid, nullable: true },
@@ -1046,7 +1136,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               maximum: 168,
               nullable: true,
             },
-            vote_ends_at: { ...dateTime, nullable: true, description: "Absolute ISO-8601 instant, future and strictly before scheduled_at when supplied. The wizard computes it at submission time; vote_deadline_hours is optional duration metadata (1–168)." },
+            vote_ends_at: { ...dateTime, nullable: true, description: "Absolute ISO-8601 instant, future and strictly before scheduled_at when supplied. The wizard computes it at submission time; vote_deadline_hours is optional duration metadata (1–168).",
+            },
           },
         },
         UpdateOutingRequest: {
@@ -1070,7 +1161,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_area: { type: "string", maxLength: 100, nullable: true },
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
-            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true,
+            },
             vote_ends_at: { ...dateTime, nullable: true },
           },
         },
@@ -1092,7 +1184,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_area: { type: "string", nullable: true },
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
-            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true,
+            },
             vote_ends_at: { ...dateTime, nullable: true },
             vote_closed_at: { ...dateTime, nullable: true },
             vote_close_reason: {
@@ -1135,15 +1228,19 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object", required: ["outing_id", "user_id", "status", "updated_at", "users"],
           properties: {
             outing_id: uuid, user_id: firebaseUid,
-            status: { type: "string", enum: [...attendanceEnum, "no_response"] },
+            status: { type: "string", enum: [...attendanceEnum, "no_response"],
+            },
             updated_at: { ...dateTime, nullable: true },
-            users: { type: "object", properties: { name: { type: "string" }, image_url: { type: "string", nullable: true } } },
+            users: { type: "object", properties: { name: { type: "string" }, image_url: { type: "string", nullable: true },
+              },
+            },
           },
         },
         AttendanceSummary: {
           type: "object",
           properties: {
-            my_response: { type: "string", enum: [...attendanceEnum, "no_response"] },
+            my_response: { type: "string", enum: [...attendanceEnum, "no_response"],
+            },
             summary: {
               type: "object",
               properties: {
@@ -1157,11 +1254,14 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         },
         AttendanceResponse: {
           allOf: [itemResponse("Attendance"), ref("AttendanceSummary"), {
-            type: "object", properties: { items: { type: "array", items: ref("AttendanceRosterEntry") } },
-          }],
+            type: "object", properties: { items: { type: "array", items: ref("AttendanceRosterEntry") },
+              },
+          },
+          ],
         },
         AttendanceListResponse: {
-          allOf: [listResponse("AttendanceRosterEntry"), ref("AttendanceSummary")],
+          allOf: [listResponse("AttendanceRosterEntry"), ref("AttendanceSummary"),
+          ],
         },
         AddGuestRequest: {
           type: "object",
@@ -1172,7 +1272,9 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           required: ["outing_id", "user_id", "invited_at"],
           properties: {
-            users: { type: "object", properties: { name: { type: "string" }, image_url: { type: "string" } } },
+            users: { type: "object", properties: { name: { type: "string" }, image_url: { type: "string" },
+              },
+            },
             status: { type: "string", enum: invitationStatusEnum },
             outing_id: uuid,
             user_id: firebaseUid,
@@ -1232,7 +1334,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           required: ["outing", "outcome"],
           properties: {
             outing: ref("Outing"),
-            outcome: { type: "string", enum: ["confirmed", "tie", "cancelled", "still_open"] },
+            outcome: { type: "string", enum: ["confirmed", "tie", "cancelled", "still_open"],
+            },
             winningOptionId: uuid,
             tiedOptionIds: { type: "array", items: uuid },
           },
@@ -1241,7 +1344,9 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         BallotResponse: envelope({
           type: "object", required: ["votes", "resolution"], properties: {
             votes: { type: "array", items: ref("Vote") },
-            resolution: { oneOf: [ref("VoteResolution"), { type: "object", nullable: true, enum: [null] }] },
+            resolution: { oneOf: [ref("VoteResolution"), { type: "object", nullable: true, enum: [null] },
+              ],
+            },
           },
         }),
         CastVoteResponse: envelope({
@@ -1249,17 +1354,23 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           required: ["vote", "resolution"],
           properties: {
             vote: ref("Vote"),
-            resolution: { oneOf: [ref("VoteResolution"), { type: "object", nullable: true, enum: [null] }] },
+            resolution: { oneOf: [ref("VoteResolution"), { type: "object", nullable: true, enum: [null] },
+              ],
+            },
           },
         }),
         VotingStateResponse: envelope({
           type: "object",
-          required: ["outing", "options", "votes", "tiedOptionIds", "isTied", "isClosed", "my_option_ids", "voted_count"],
+          required: ["outing", "options", "votes", "tiedOptionIds", "isTied", "isClosed", "my_option_ids", "voted_count",
+          ],
           properties: {
             outing: ref("Outing"),
             options: { type: "array", items: { allOf: [ref("VoteOption"), {
               type: "object", properties: { vote_count: { type: "integer" } },
-            }] } },
+            },
+                ],
+              },
+            },
             my_option_id: { ...uuid, nullable: true },
             my_option_ids: { type: "array", uniqueItems: true, items: uuid },
             voted_count: { type: "integer" },
@@ -1281,14 +1392,16 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             max_accuracy_meters: { type: "number" },
             venue: {
               type: "object", nullable: true,
-              properties: { latitude: { type: "number" }, longitude: { type: "number" } },
+              properties: { latitude: { type: "number" }, longitude: { type: "number" },
+              },
             },
             automatic_eligible: { type: "boolean", enum: [true] },
             can_confirm_arrivals: { type: "boolean" },
             total_confirmed: { type: "integer" },
             unconfirmed: { type: "array", items: {
               type: "object", properties: { id: firebaseUid, name: { type: "string" } },
-            } },
+            },
+            },
             arrivals: {
               type: "array",
               items: {
@@ -1298,7 +1411,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
                   user_id: firebaseUid,
                   name: { type: "string" },
                   arrived_at: dateTime,
-                  verification_method: { type: "string", enum: ["legacy", "manual_gps", "automatic_gps", "gps"] },
+                  verification_method: { type: "string", enum: ["legacy", "manual_gps", "automatic_gps", "gps"],
+                  },
                 },
               },
             },
@@ -1336,7 +1450,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         SavedPlace: {
           type: "object",
           required: ["user_id", "place_id", "saved_at"],
-          properties: { user_id: firebaseUid, place_id: uuid, saved_at: dateTime },
+          properties: { user_id: firebaseUid, place_id: uuid, saved_at: dateTime,
+          },
         },
         SavedPlaceResponse: itemResponse("SavedPlace"),
         SavedPlaceListResponse: listResponse("SavedPlace"),
@@ -1374,7 +1489,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
             let_vote: { type: "boolean" },
-            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true,
+            },
             guest_ids: {
               description: "Stored as JSON. Typically an array of user ids.",
             },
@@ -1394,7 +1510,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             occasion: { type: "string", enum: occasionEnum },
             special_event: { type: "boolean" },
             vibe: { type: "string", enum: vibeEnum },
-            scheduled_date: { type: "string", format: "date-time", nullable: true },
+            scheduled_date: { type: "string", format: "date-time", nullable: true,
+            },
             scheduled_hour: { type: "integer", nullable: true },
             scheduled_minute: { type: "integer", nullable: true },
             location_name: { type: "string", nullable: true },
@@ -1402,7 +1519,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
             let_vote: { type: "boolean" },
-            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true,
+            },
             guest_ids: {},
             selected_places: {},
             updated_at: dateTime,
@@ -1434,7 +1552,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             price_level: { type: "string", enum: priceLevelEnum },
             price_min: { type: "number", minimum: 0, nullable: true },
             price_max: { type: "number", minimum: 0, nullable: true },
-            currency: { type: "string", minLength: 3, maxLength: 3, example: "EGP" },
+            currency: { type: "string", minLength: 3, maxLength: 3, example: "EGP",
+            },
             latitude: { type: "number", nullable: true },
             longitude: { type: "number", nullable: true },
             featured: { type: "boolean" },
@@ -1573,7 +1692,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           properties: {
             label: { type: "string", minLength: 1, maxLength: 80 },
             amount: { type: "number", minimum: 0 },
-            currency: { type: "string", minLength: 3, maxLength: 3, example: "EGP" },
+            currency: { type: "string", minLength: 3, maxLength: 3, example: "EGP",
+            },
           },
         },
         PlacePrice: {
@@ -1642,7 +1762,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           properties: {
             media_id: uuid,
-            object_key: { type: "string", example: "profiles/2026-11/uuid.jpg" },
+            object_key: { type: "string", example: "profiles/2026-11/uuid.jpg",
+            },
             bucket: { type: "string" },
             visibility: { type: "string", enum: ["public", "private"] },
             status: { type: "string", enum: ["pending", "ready", "failed"] },
@@ -1670,7 +1791,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             visibility: { type: "string", enum: ["public", "private"] },
             status: { type: "string", enum: ["pending", "ready", "failed"] },
             file_size: { type: "integer" },
-            media_reference: { type: "string", example: "media://0f8fad5b-d9cb-469f-a165-70867728950e" },
+            media_reference: { type: "string", example: "media://0f8fad5b-d9cb-469f-a165-70867728950e",
+            },
             verified_at: { ...dateTime, nullable: true },
           },
         },
@@ -1714,14 +1836,17 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
 };
 
 export const swaggerSpec = swaggerJsdoc(swaggerOptions);
+extendPlacesOpenApi(swaggerSpec);
 
 // Shared /api middleware applies this response to every HTTP API operation.
-const generated = swaggerSpec as { paths?: Record<string, Record<string, { responses?: Record<string, unknown> }>> };
+const generated = swaggerSpec as { paths?: Record<string, Record<string, { responses?: Record<string, unknown> }>>;
+};
 for (const [route, item] of Object.entries(generated.paths ?? {})) {
   if (!route.startsWith("/api/")) continue;
   for (const [method, operation] of Object.entries(item)) {
     if (!["get", "post", "put", "patch", "delete"].includes(method)) continue;
     operation.responses ??= {};
-    operation.responses["429"] ??= { $ref: "#/components/responses/TooManyRequests" };
+    operation.responses["429"] ??= { $ref: "#/components/responses/TooManyRequests",
+    };
   }
 }

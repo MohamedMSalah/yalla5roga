@@ -11,6 +11,7 @@ import { UnauthorizedError } from "../../utils/errors.js";
 const bodySchema = z.object({
   token: z.string().trim().min(10).max(512),
   platform: z.string().trim().max(20).optional().nullable(),
+  notificationVersion: z.number().int().min(1).max(2).optional(),
 });
 
 const register = new RegisterFcmTokenUseCase();
@@ -42,6 +43,11 @@ const unregister = new UnregisterFcmTokenUseCase();
  *                 type: string
  *                 maxLength: 20
  *                 nullable: true
+ *               notificationVersion:
+ *                 type: integer
+ *                 enum: [1, 2]
+ *                 default: 1
+ *                 description: "2 advertises the Android data-only action renderer; omitted/1 keeps legacy visible push delivery."
  *     responses:
  *       "201":
  *         description: Token registered
@@ -126,6 +132,7 @@ router.post(
         req.user.uid,
         req.body.token,
         req.body.platform,
+        req.body.notificationVersion,
       );
       res.status(201).json({ success: true, data });
     } catch (error) {

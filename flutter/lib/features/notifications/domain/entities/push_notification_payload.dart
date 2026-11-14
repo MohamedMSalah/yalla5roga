@@ -15,16 +15,20 @@ enum NotificationActionType { accept, decline, reply, markRead }
 
 class PushNotificationPayload {
   PushNotificationPayload.fromData(Map<String, dynamic> data)
-    : type = _type(data),
+    : data = {
+        for (final entry in data.entries)
+          if (entry.value is String) entry.key: entry.value as String,
+      },
+      type = _type(data),
       outingId =
           _pick(data, 'outingId') ??
           _pick(data, 'outing_id') ??
-          _pick(data, 'chatId') ??
-          _pick(data, 'eventId'),
+          _pick(data, 'chatId'),
       groupId = _pick(data, 'groupId') ?? _pick(data, 'group_id'),
       messageId = _pick(data, 'messageId'),
       invitationId = _pick(data, 'invitationId'),
       pushId = _pick(data, 'pushId'),
+      eventId = _pick(data, 'eventId'),
       notificationId = _pick(data, 'notificationId'),
       recipientUserId = _pick(data, 'recipientUserId'),
       title = _pick(data, 'title'),
@@ -56,6 +60,8 @@ class PushNotificationPayload {
   }
 
   final String type;
+  final Map<String, String> data;
+  final String? eventId;
   final String? outingId;
   final String? groupId;
   final String? messageId;
@@ -68,23 +74,35 @@ class PushNotificationPayload {
   final NotificationActionType? actionType;
   final String? replyText;
 
-  String? get deduplicationId => notificationId ?? pushId;
+  String? get deduplicationId => eventId ?? pushId ?? notificationId;
+  String? get clientMessageId => data['clientMessageId'];
+  DateTime? get createdAt => DateTime.tryParse(data['createdAt'] ?? '');
+  bool get isMention => data['mention'] == 'true';
+  bool get lockScreenPreview => data['lockScreenPreview'] == 'true';
 
   bool get isInteractiveAction => actionType != null;
 
   NotificationDestination get destination => switch (type) {
     'chat' || 'chat_message' => NotificationDestination.chat,
+    'voting_started' ||
+    'voting_deadline_approaching' ||
+    'voting_closed' ||
     'place_vote' ||
     'vote' ||
     'voting_closed_early' ||
     'voting_deadline_reached' ||
     'winner_selected' ||
     'tie_break_selected' => NotificationDestination.placeVoting,
+    'rsvp_opened' ||
+    'rsvp_deadline_approaching' ||
+    'arrival_reminder' ||
+    'arrival_changed' ||
     'attendance_vote' ||
     'attendance_changed' => NotificationDestination.attendance,
     'member_joined' || 'member_left' => NotificationDestination.group,
     'group' ||
     'group_created' ||
+    'membership_activated' ||
     'group_updated' => NotificationDestination.group,
     'invitation' when outingId != null => NotificationDestination.invitation,
     'group_invite' || 'invitation' => NotificationDestination.invitation,
@@ -103,12 +121,13 @@ class PushNotificationPayload {
   bool get hasDisplayContent => title != null || body != null;
 
   Map<String, String> toLocalPayloadMap() {
-    final map = <String, String>{'type': type};
+    final map = <String, String>{...data, 'type': type};
     if (outingId != null) map['outingId'] = outingId!;
     if (groupId != null) map['groupId'] = groupId!;
     if (messageId != null) map['messageId'] = messageId!;
     if (invitationId != null) map['invitationId'] = invitationId!;
     if (pushId != null) map['pushId'] = pushId!;
+    if (eventId != null) map['eventId'] = eventId!;
     if (notificationId != null) map['notificationId'] = notificationId!;
     if (recipientUserId != null) map['recipientUserId'] = recipientUserId!;
     if (title != null) map['title'] = title!;
@@ -117,7 +136,8 @@ class PushNotificationPayload {
   }
 
   static String _type(Map<String, dynamic> data) {
-    final type = _pick(data, 'type')?.toLowerCase();
+    final type = (_pick(data, 'notificationType') ?? _pick(data, 'type'))
+        ?.toLowerCase();
     if (type != null && type != 'unknown') return type;
     return _pick(data, 'notification_type')?.toLowerCase() ?? '';
   }

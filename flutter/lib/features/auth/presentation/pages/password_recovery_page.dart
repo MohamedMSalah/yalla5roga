@@ -1,3 +1,5 @@
+import 'package:yalla_5roga/core/widgets/app_step_progress.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -123,6 +125,21 @@ class _RecoveryFormState extends State<_RecoveryForm> {
               child: ListView(
                 padding: Responsive.pagePadding(),
                 children: [
+                  AppStepProgress(
+                    step: recovery.verified
+                        ? 2
+                        : recovery.codeSent
+                        ? 1
+                        : 0,
+                    total: 3,
+                    label:
+                        '${l10n.n(recovery.verified
+                            ? 3
+                            : recovery.codeSent
+                            ? 2
+                            : 1)} / ${l10n.n(3)}',
+                  ),
+                  Responsive.spaceLg.gapH,
                   Text(
                     recovery.verified
                         ? l10n.recoveryPasswordHelp

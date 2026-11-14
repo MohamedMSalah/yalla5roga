@@ -228,3 +228,44 @@ Password recovery uses the existing Flutter → auth repository → Dio → Expr
 The journal, Socket.IO adapter and global HTTP limiter are **single-process**. There is **no Redis adapter** or shared replay store. Multiple independent API processes cannot provide a shared journal/rate budget. No Redis was introduced. The HTTP limit is 300 requests/IP/minute under `/api`, with existing stricter authentication/recovery limits preserved; `/socket.io` is outside that middleware. Untrusted forwarded IP headers do not expand proxy trust.
 
 PostgreSQL is canonical for authenticated form drafts; the existing SharedPreferences draft cache stores account/origin-scoped snapshots and pending edit/delete metadata. AppSyncProvider invokes serialized recovery at reconnect/resume. UUID create idempotency and row-locked version checks prevent duplicate creates and stale overwrite. Closed outing reads use domain access separately from chat send policy. Catalog mutations retain the existing server curator allowlist and fail closed when absent.
+
+
+## Android external notification path — 2026-11-14
+
+The existing notification outbox remains the delivery boundary. Domain transactions persist inbox records and outbox events together. The worker sends Firebase Admin Android data messages; a shared local-native renderer handles foreground/background/terminated delivery and Direct Reply/invitation decisions using the existing authenticated REST APIs. PostgreSQL remains authoritative, Provider handles app state and the same Socket.IO transport carries live invalidations. No second inbox, socket, state framework or Firebase database is introduced.
+
+```mermaid
+flowchart LR
+  Domain[Domain transaction] --> Neon[(Neon inbox + outbox)]
+  Neon --> Worker[Existing delivery worker]
+  Worker --> Admin[Firebase Admin FCM]
+  Admin --> Native[Android native notifications]
+  Native --> Actions[Account-bound action dispatcher]
+  Actions --> REST[Existing authenticated REST endpoints]
+  REST --> Domain
+  Domain --> Socket[Existing Socket.IO invalidations]
+  Socket --> Providers[Existing Flutter Providers]
+  Neon --> Providers
+```
+
+
+## OSM catalog boundary — 2026-11-14
+
+An external persistent scheduler invokes the standalone places CLI or protected API worker. Overpass is the primary catalog source, queried inside Cairo/Giza OSM administrative areas. PostgreSQL holds the taxonomy, places, source evidence, run history, seven-day due state and fenced lease. A single commit updates imported rows/mappings/statuses; no application/Flutter process must remain open for scheduling.
+
+```mermaid
+flowchart LR
+  Scheduler[Persistent external hourly check] --> Due[Seven-day Neon due gate and lease]
+  Due --> OSM[Rate-limited Overpass administrative areas]
+  OSM --> Validate[Count/freshness/completeness validation]
+  Validate --> Tx[Atomic batched Prisma transaction]
+  Tx --> Neon[(Places, taxonomy, evidence and run logs)]
+  Tx --> Signal[PostgreSQL NOTIFY after commit]
+  Signal --> APIs[Direct LISTEN in each API instance]
+  APIs --> Socket[Existing Socket.IO connection]
+  Socket --> Providers[Shared Flutter catalog providers]
+  Providers --> REST[Existing Dio and offline snapshots]
+  REST --> Neon
+```
+
+NOTIFY is a public catalog invalidation signal, not a second domain datastore/replay system; clients repair gaps with persisted catalog revision reads. Other existing process-local Socket.IO replay limitations remain. [Operating guide](audit/PLACES_MANAGEMENT.md).

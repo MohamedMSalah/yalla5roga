@@ -27,6 +27,16 @@ class OfflineSnapshots {
 
   String? keyFor(String path, Map<String, dynamic>? query) {
     final uid = userId();
+    if (uid != null &&
+        RegExp(
+          r'^/api/places(/(categories|vibes|nearby|saved|[a-f0-9-]{36}))?$',
+        ).hasMatch(path)) {
+      final sorted = {
+        for (final key in (query?.keys.toList() ?? <String>[])..sort())
+          key: query![key],
+      };
+      return '${_prefix(uid)}$path:${jsonEncode(sorted)}';
+    }
     if (uid == null ||
         (query?.isNotEmpty ?? false) ||
         !_resource.hasMatch(path)) {

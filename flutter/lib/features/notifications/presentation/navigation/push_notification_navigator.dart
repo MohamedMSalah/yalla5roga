@@ -108,7 +108,7 @@ class PushNotificationNavigator {
         }
         if (destination == NotificationDestination.chat) {
           Get.to(
-            () => OutingChatPage(event: event),
+            () => OutingChatPage(event: event, messageId: payload.messageId),
             routeName: '/notification/outing/$id/chat',
           );
           return;

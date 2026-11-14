@@ -57,6 +57,25 @@ class OutingChatProvider extends ChangeNotifier {
       _socket?.isRoomReconnecting(id) ?? false;
 
   int unreadFor(String outingId) => _unread[outingId] ?? 0;
+  bool isViewing(String outingId) => _activeOutings.containsKey(outingId);
+
+  Future<bool> focusMessage(String outingId, String messageId) async {
+    final generation = _generation;
+    final result = await repository.getMessage(outingId, messageId);
+    if (generation != _generation) return false;
+    return result.fold(
+      (failure) {
+        AppErrorFeedback.report(failure, kind: AppErrorKind.load);
+        return false;
+      },
+      (message) {
+        if (message.text.isEmpty) return false;
+        _mergeMessages(outingId, [message]);
+        notifyListeners();
+        return true;
+      },
+    );
+  }
 
   List<ChatMessage> messagesFor(String outingId) =>
       List.unmodifiable(_messages[outingId] ?? const []);

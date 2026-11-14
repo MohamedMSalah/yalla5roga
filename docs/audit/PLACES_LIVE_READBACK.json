@@ -1,0 +1,116 @@
+{
+  "checkedAt": "2026-11-14T15:13:51.294Z",
+  "existing_outings_preserved": true,
+  "original_outing_count": 4,
+  "current_outing_count": 4,
+  "categories": 36,
+  "vibes": 15,
+  "places": [],
+  "sync": {
+    "last_successful_sync_at": null,
+    "next_due_at": null,
+    "due": true,
+    "running": false,
+    "last_run": {
+      "id": "740633a8-2d35-4cb0-9335-6ef55191a3bc",
+      "started_at": "2026-11-14T15:04:13.806Z",
+      "completed_at": "2026-11-14T15:08:22.170Z",
+      "status": "failed",
+      "imported_count": 0,
+      "updated_count": 0,
+      "closed_count": 0,
+      "skipped_count": 0,
+      "failed_count": 1,
+      "error_details": [
+        "Overpass HTTP 502"
+      ],
+      "dry_run": false,
+      "complete": false,
+      "coverage": {
+        "keys": [
+          "amenity",
+          "shop",
+          "leisure",
+          "tourism",
+          "historic",
+          "sport"
+        ],
+        "limit": 1000,
+        "regions": [
+          "EG-C",
+          "EG-GZ"
+        ],
+        "version": 1
+      },
+      "progress": {}
+    }
+  },
+  "recent_runs": [
+    {
+      "id": "740633a8-2d35-4cb0-9335-6ef55191a3bc",
+      "started_at": "2026-11-14T15:04:13.806Z",
+      "completed_at": "2026-11-14T15:08:22.170Z",
+      "status": "failed",
+      "imported_count": 0,
+      "updated_count": 0,
+      "closed_count": 0,
+      "skipped_count": 0,
+      "failed_count": 1,
+      "error_details": [
+        "Overpass HTTP 502"
+      ],
+      "dry_run": false,
+      "complete": false,
+      "coverage": {
+        "keys": [
+          "amenity",
+          "shop",
+          "leisure",
+          "tourism",
+          "historic",
+          "sport"
+        ],
+        "limit": 1000,
+        "regions": [
+          "EG-C",
+          "EG-GZ"
+        ],
+        "version": 1
+      },
+      "progress": {}
+    },
+    {
+      "id": "3316f5c9-ab2a-4990-8109-d2e9400e5aed",
+      "started_at": "2026-11-14T14:55:28.852Z",
+      "completed_at": "2026-11-14T15:00:45.090Z",
+      "status": "failed",
+      "imported_count": 0,
+      "updated_count": 0,
+      "closed_count": 0,
+      "skipped_count": 0,
+      "failed_count": 1,
+      "error_details": [
+        "The operation was aborted due to timeout"
+      ],
+      "dry_run": false,
+      "complete": false,
+      "coverage": {
+        "keys": [
+          "amenity",
+          "shop",
+          "leisure",
+          "tourism",
+          "historic",
+          "sport"
+        ],
+        "limit": 1000,
+        "regions": [
+          "EG-C",
+          "EG-GZ"
+        ],
+        "version": 1
+      },
+      "progress": {}
+    }
+  ]
+}

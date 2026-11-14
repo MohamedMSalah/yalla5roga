@@ -1,7 +1,9 @@
 import type { Prisma, PrismaClient, group_role } from "@prisma/client";
 import { prisma } from "../../config/database.js";
+import { persistNotifications } from "../../services/notifications/persist-notification.js";
 import { addInvitedGroupMember } from "./group-membership.js";
-import { ConflictError, ForbiddenError, NotFoundError } from "../../utils/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError,
+} from "../../utils/errors.js";
 import type {
   AddGroupMemberInput,
   CreateGroupInput,
@@ -38,7 +40,8 @@ const groupWithCount = {
 } as const;
 
 export class GroupDatasource {
-  constructor(private readonly db: PrismaClient | Prisma.TransactionClient = prisma) {}
+  constructor(private readonly db: PrismaClient | Prisma.TransactionClient = prisma,
+  ) {}
   findById(id: string): Promise<Group | null> {
     return this.db.groups
       .findUnique({
@@ -76,14 +79,29 @@ export class GroupDatasource {
 
   create(data: CreateGroupInput): Promise<Group> {
     const { created_by, ...profile } = data;
-    return this.db.groups.create({
+    const create = async (tx: Prisma.TransactionClient) => {
+      const row = await tx.groups.create({
       data: {
         ...profile,
         users: { connect: { id: created_by } },
         group_members: { create: { user_id: created_by, role: "owner" } },
       },
       include: groupWithCount,
-    }).then(mapGroup);
+    });
+      await persistNotifications(tx, {
+        recipients: [created_by],
+        eventKey: `group_created:${row.id}`,
+        eventType: "group_created",
+        type: "group",
+        title: row.name,
+        body: `You joined ${row.name}.`,
+        groupId: row.id,
+      });
+      return mapGroup(row);
+    };
+    return "$transaction" in this.db
+      ? this.db.$transaction(create)
+      : create(this.db);
   }
 
   update(id: string, data: UpdateGroupInput): Promise<Group> {
@@ -99,7 +117,8 @@ export class GroupDatasource {
   delete(id: string): Promise<Group> {
     const remove = async (tx: Prisma.TransactionClient) => {
       await tx.$queryRaw`SELECT id FROM groups WHERE id = ${id}::uuid FOR UPDATE`;
-      if (await tx.outings.findFirst({ where: { group_id: id }, select: { id: true } })) {
+      if (await tx.outings.findFirst({ where: { group_id: id }, select: { id: true },
+        })) {
         throw new ConflictError("A group with outings cannot be deleted");
       }
       const group = await tx.groups.delete({ where: { id } });
@@ -126,20 +145,24 @@ export class GroupDatasource {
     });
   }
 
-  removeMember(groupId: string, userId: string, callerId: string): Promise<GroupMember> {
+  removeMember(groupId: string, userId: string, callerId: string,
+  ): Promise<GroupMember> {
     const remove = async (tx: Prisma.TransactionClient) => {
       await tx.$queryRaw`SELECT id FROM groups WHERE id = ${groupId}::uuid FOR UPDATE`;
       const caller = await tx.group_members.findUnique({
         where: { group_id_user_id: { group_id: groupId, user_id: callerId } },
       });
       if (!caller || (callerId !== userId && caller.role !== "owner")) {
-        throw new ForbiddenError("Only the group owner can remove another member");
+        throw new ForbiddenError("Only the group owner can remove another member",
+        );
       }
-      const where = { group_id_user_id: { group_id: groupId, user_id: userId } };
+      const where = { group_id_user_id: { group_id: groupId, user_id: userId },
+      };
       const target = await tx.group_members.findUnique({ where });
       if (!target) throw new NotFoundError("Group member");
       if (target.role === "owner" &&
-          await tx.group_members.count({ where: { group_id: groupId, role: "owner" } }) <= 1) {
+        (await tx.group_members.count({ where: { group_id: groupId, role: "owner" },
+        })) <= 1) {
         throw new ForbiddenError("Cannot remove the last owner from the group");
       }
       const user = await tx.users.findUniqueOrThrow({
@@ -147,10 +170,30 @@ export class GroupDatasource {
         select: { phone: true },
       });
       await tx.group_invitations.updateMany({
-        where: { group_id: groupId, invited_phone: user.phone, status: "pending" },
+        where: { group_id: groupId, invited_phone: user.phone, status: "pending",
+        },
         data: { status: "revoked" },
       });
-      return tx.group_members.delete({ where });
+      const removed = await tx.group_members.delete({ where });
+      const group = await tx.groups.findUniqueOrThrow({
+        where: { id: groupId },
+      });
+      const person = await tx.users.findUniqueOrThrow({
+        where: { id: userId },
+      });
+      const members = await tx.group_members.findMany({
+        where: { group_id: groupId },
+      });
+      await persistNotifications(tx, {
+        recipients: members.map((m) => m.user_id),
+        eventKey: `member_left:${groupId}:${userId}:${removed.joined_at.toISOString()}`,
+        eventType: "member_left",
+        type: "group",
+        title: group.name,
+        body: `${person.name} ${callerId === userId ? "left" : "was removed from"} ${group.name}.`,
+        groupId,
+      });
+      return removed;
     };
     return "$transaction" in this.db ? this.db.$transaction(remove) : remove(this.db);
   }
@@ -158,7 +201,7 @@ export class GroupDatasource {
   listRoster(groupId: string): Promise<GroupRoster> {
     const read = async (tx: Prisma.TransactionClient): Promise<GroupRoster> => {
       const members = await new GroupDatasource(tx).listMembers(groupId);
-      const activePhones = new Set(members.map(member => member.phone));
+      const activePhones = new Set(members.map((member) => member.phone));
       const invitations = await tx.group_invitations.findMany({
         where: { group_id: groupId },
         select: {
@@ -171,9 +214,12 @@ export class GroupDatasource {
       return {
         members,
         pendingMembers: invitations
-          .filter(row => row.status === "pending" && !activePhones.has(row.invited_phone))
-          .map(row => ({ invitation_id: row.id, phone: row.invited_phone, status: "pending" })),
-        invitationHistory: invitations.map(row => ({
+          .filter(
+            (row) => row.status === "pending" && !activePhones.has(row.invited_phone),
+          )
+          .map((row) => ({ invitation_id: row.id, phone: row.invited_phone, status: "pending",
+          })),
+        invitationHistory: invitations.map((row) => ({
           invitation_id: row.id, invited_phone: row.invited_phone,
           invitee_name: row.invitee?.name ?? null, inviter_name: row.inviter.name,
           status: row.status, created_at: row.created_at,

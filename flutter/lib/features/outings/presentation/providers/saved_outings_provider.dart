@@ -15,6 +15,10 @@ class SavedOutingsProvider extends ChangeNotifier {
   int _tab = 0;
   var _hasLoaded = false;
   int _epoch = 0;
+  bool _loading = false;
+  bool _loadFailed = false;
+  bool get isLoading => _loading;
+  bool get loadFailed => _loadFailed;
   Future<void>? _syncingDrafts;
   bool get hasPendingDrafts => _drafts.any((d) => d.pending);
   bool get hasDraftConflicts => _drafts.any((d) => d.conflict);
@@ -51,16 +55,34 @@ class SavedOutingsProvider extends ChangeNotifier {
   bool get hasLoaded => _hasLoaded;
 
   Future<void> load() async {
+    if (_loading) return;
     final epoch = _epoch;
-    final savedFuture = repository.getSaved();
-    final draftFuture = repository.getDrafts();
-    final savedResult = await savedFuture;
-    final draftResult = await draftFuture;
-    if (epoch != _epoch) return;
-    savedResult.fold((_) {}, (items) => _saved = List.of(items));
-    draftResult.fold((_) {}, (items) => _drafts = List.of(items));
-    _hasLoaded = true;
+    _loading = true;
+    _loadFailed = false;
     notifyListeners();
+    try {
+      final savedFuture = repository.getSaved();
+      final draftFuture = repository.getDrafts();
+      final savedResult = await savedFuture;
+      final draftResult = await draftFuture;
+      if (epoch != _epoch) return;
+      savedResult.fold(
+        (_) => _loadFailed = true,
+        (items) => _saved = List.of(items),
+      );
+      draftResult.fold(
+        (_) => _loadFailed = true,
+        (items) => _drafts = List.of(items),
+      );
+    } catch (_) {
+      if (epoch == _epoch) _loadFailed = true;
+    } finally {
+      if (epoch == _epoch) {
+        _hasLoaded = true;
+        _loading = false;
+        notifyListeners();
+      }
+    }
   }
 
   void removeDeletedOuting(String outingId) {
@@ -76,6 +98,8 @@ class SavedOutingsProvider extends ChangeNotifier {
     _drafts = [];
     _tab = 0;
     _hasLoaded = false;
+    _loading = false;
+    _loadFailed = false;
     notifyListeners();
   }
 

@@ -12,10 +12,10 @@ class PlaceCard extends StatelessWidget {
     required this.cover,
     required this.onTap,
     this.compact = false,
+    this.trailing,
   }) : inline = false,
        selected = false,
-       progress = null,
-       trailing = null;
+       progress = null;
 
   const PlaceCard.option({
     super.key,
@@ -120,6 +120,16 @@ class PlaceCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (trailing != null)
+                PositionedDirectional(
+                  top: 8,
+                  end: 8,
+                  child: Material(
+                    color: context.palette.surface,
+                    shape: const CircleBorder(),
+                    child: trailing!,
+                  ),
+                ),
               Positioned(
                 left: AppSpacing.compact.w,
                 right: AppSpacing.compact.w,

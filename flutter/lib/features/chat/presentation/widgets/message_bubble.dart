@@ -19,10 +19,12 @@ class MessageBubble extends StatelessWidget {
     this.onEdit,
     this.onDelete,
     this.onRetry,
+    this.highlighted = false,
   });
   final ChatMessage message;
   final String name;
   final bool mine, grouped;
+  final bool highlighted;
   final List<GroupMember> members;
   final VoidCallback? onEdit, onDelete, onRetry;
 
@@ -96,6 +98,9 @@ class MessageBubble extends StatelessWidget {
             vertical: AppSpacing.sm,
           ),
           decoration: BoxDecoration(
+            border: highlighted
+                ? Border.all(color: context.colors.primary, width: 2)
+                : null,
             color: mine ? context.colors.primary : context.palette.surfaceMuted,
             borderRadius: BorderRadiusDirectional.only(
               topStart: const Radius.circular(AppRadii.card),

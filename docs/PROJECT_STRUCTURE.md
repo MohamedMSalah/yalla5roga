@@ -318,3 +318,53 @@ Outing feature verification uses `backend/scripts/backend-full-integration.ts`. 
 
 - `backend/scripts/neon-sync-deploy.ts`: target/checksum audit; explicit `--apply` backs up all public rows, rehearses keys/indexes/FKs and exact reviewed pending migrations in a rolled-back schema with an isolated occasion enum, then uses Prisma migrate deploy and verifies rows/history. Only the reviewed special-event/deadline migrations are permitted.
 - `docs/audit/NEON_GITHUB_SYNC_{READBACK,DEPLOYMENT}.json`: public deployment metadata; private row backups remain ignored under `backend/.database-backups/`.
+
+
+## Phase 6 settings / onboarding / auth presentation — 2026-11-14
+
+- `flutter/lib/core/widgets/stat_card.dart`: shared localized value/label renderer.
+- `flutter/lib/features/setting/presentation/widgets/settings_{account,preferences,support,about}_section.dart`, `settings_section.dart`: focused sections over existing SettingsTile/SettingsList; `delete_account_action.dart` shares destructive confirmation.
+- `flutter/lib/features/auth/presentation/widgets/{auth_scaffold,signup_photo_picker}.dart`: bounded auth form and optional avatar selection.
+- `flutter/lib/features/splash/presentation/providers/onboarding_provider.dart`, `widgets/onboarding_content.dart`: local first-run completion and three-step presentation.
+- Existing auth datasource/repository/provider connect the already-documented self-profile DELETE; existing saved provider/pages add feedback and details navigation.
+- `backend/scripts/phase6-openapi-verification.ts`, `docs/audit/PHASE_6_OPENAPI_RESULTS.json`, `docs/audit/PHASE_6_UI_UX.md`: read-only Swagger/HTTP checks, file inventory and verification limits.
+
+
+## Android system push files — 2026-11-14
+
+- `backend/src/services/notifications/{persist-notification,group-notifier,outing-events,notification-preferences,resolve-push}.ts`: transactional producers, preferences and current authorized display resolution, over existing tables.
+- `backend/src/usecases/notifications/notification-state.usecase.ts`: summary/preference/system-payload orchestration through existing notification repository/datasource.
+- `backend/src/jobs/notification-reminders.job.ts`: paged, locked and idempotent reminder enqueue, invoked by existing notification worker.
+- Existing mutation datasources/use cases, PushChannel, notification dispatcher/worker and scoped realtime publisher contain the integrations.
+- `flutter/lib/features/notifications/data/services/{notification_action_dispatcher,notification_background_runtime}.dart`: account-bound action drafts/retry and background bootstrap; existing local/FCM services handle native display.
+- `flutter/lib/features/notifications/domain/repositories/notification_preferences_repository.dart`: narrow preference interface implemented by the existing notification repository.
+- Existing chat page/provider/message list/bubble handle exact-message focus, while existing DI/AppSync/notification Provider connect resume and account boundaries.
+- `backend/prisma/migrations/20261114030000_android_system_notifications/migration.sql`: additive JSON fields, token capability and event enum values; deployed to the application schema by the subsequent owner-authorized release task.
+- `backend/scripts/android-push-openapi-verification.ts` and `docs/audit/ANDROID_PUSH_OPENAPI_RESULTS.json`: served OpenAPI/HTTP fixtures in an automatically removed disposable Neon schema, with controlled Firebase/FCM network boundaries.
+- `docs/audit/ANDROID_SYSTEM_PUSH.md`: complete task inventory, verification and Android manual checklist.
+
+Notification rollout compatibility: the existing token registration accepts notificationVersion=2 from updated clients; existing Android registrations default to 1 and retain OS-visible delivery. The additive migration includes this token capability field alongside inbox metadata and user preferences.
+
+### Release build / notification migration deployment — 2026-11-14
+
+- `backend/scripts/deploy-notification-migration.ts`: read-only audit by default; `--apply` checks the exact Neon target and migration checksums, backs up all public rows privately, restores tables/keys/indexes/FKs, rehearses the reviewed additive notification SQL against an isolated enum in a rolled-back schema, deploys with Prisma Migrate, and verifies original application-column checksums plus new schema attributes.
+- `docs/audit/NOTIFICATION_MIGRATION_{READBACK,DEPLOYMENT}.json`: deployment metadata only; private row snapshots stay ignored under `backend/.database-backups/`.
+- `docs/audit/RELEASE_APK_NEON_DEPLOYMENT.md`: build error fix, release artifacts, migration verification and practical limitations.
+
+
+## Places management files — 2026-11-14
+
+- `backend/prisma/migrations/20261114040000_places_catalog_sync/migration.sql`: additive catalog/lifecycle/taxonomy/run schema and bilingual definitions.
+- `backend/src/{controllers,datasources,repositories,usecases}/places/catalog.*.ts`, `validators/places/catalog.validator.ts`, existing place CRUD and `routes/places/place.catalog.routes.ts`: one extended catalog API.
+- `backend/src/services/places/{taxonomy,osm,places-sync,place-selection,catalog-notifications}.ts`: source rules, import/lease, selection checks and cross-process invalidations.
+- `backend/src/config/places-openapi.ts`, `backend/src/cli/places-sync.ts`: Swagger augmentation and deployable/manual worker.
+- `.github/workflows/places-sync.yml`, `backend/deploy/places-sync.{service,timer}`: persistent external scheduling alternatives.
+- `backend/scripts/{deploy-places-migration,places-openapi-verification,places-import-verification,places-osm-probe,places-source-health,places-live-readback}.ts`, `backend/tests/places-catalog.test.ts`: target-checked deployment, isolated lifecycle/HTTP checks and source/import evidence.
+- `flutter/lib/features/discover/domain/entities/place_catalog.dart`, `presentation/providers/place_catalog_provider.dart`, `flutter/lib/core/widgets/place_catalog_filters.dart`: shared dynamic definitions, query/offline policy and widgets used by Discover/Create Outing/map picker.
+- Existing canonical Place/SuggestedPlace, datasource/repository, ApiClient snapshots, AppSync, socket client, Discover and create/location views contain the integrations.
+- `docs/audit/PLACES_MANAGEMENT.md` and `PLACES_*.json`: operation/deployment/verification evidence. Private row backups remain ignored under `backend/.database-backups/`.
+
+
+## Saved place cards and filter — 2026-11-14
+
+Added discover/presentation/widgets/save_place_button.dart and saved_places_list.dart. Existing Discover provider/repository/datasource, shared PlaceCard, Discover cards and SavedOutingsPage contain bookmark/filter integration.

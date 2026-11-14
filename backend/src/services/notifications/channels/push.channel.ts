@@ -1,139 +1,168 @@
 import { getMessaging } from "firebase-admin/messaging";
 import { prisma } from "../../../config/database.js";
 import { initFirebase } from "../../../config/firebase.js";
+import { controlTypes, resolvePush } from "../resolve-push.js";
 import type {
   ChannelSendInput,
   ChannelSendResult,
   NotificationChannelSender,
 } from "./notification-channel.js";
 
-/**
- * FCM push channel. Requires Firebase Admin credentials in the environment.
- * Invalid / unregistered tokens are deleted from user_fcm_tokens.
- */
 export class PushChannel implements NotificationChannelSender {
   readonly channel = "push" as const;
+  constructor(
+    private readonly messaging = () => {
+      initFirebase();
+      return getMessaging();
+    },
+  ) {}
 
   async send(input: ChannelSendInput): Promise<ChannelSendResult> {
-    if (!input.recipientUserId) {
+    const uid = input.recipientUserId;
+    if (!uid)
       return {
         provider: "fcm",
         status: "failed",
-        error: "Missing recipient_user_id for push delivery",
+        retryable: false,
+        error: "Missing push recipient",
       };
-    }
-
-    const tokens = await prisma.user_fcm_tokens.findMany({
-      where: { user_id: input.recipientUserId },
-      select: { token: true },
+    const skip = (reason: string): ChannelSendResult => ({
+      provider: "fcm",
+      status: "sent",
+      response: { skipped: true, reason },
     });
-
-    if (tokens.length === 0) {
-      // No device registered — treat as sent so outbox does not infinite-retry.
-      return {
-        provider: "fcm",
-        providerMessageId: `no-token-${input.eventId}`,
-        status: "sent",
-        response: { skipped: true, reason: "no_device_tokens" },
-      };
-    }
-
-    try {
-      initFirebase();
-    } catch (error) {
-      return {
-        provider: "fcm",
-        status: "failed",
-        error:
-          error instanceof Error
-            ? error.message
-            : "Firebase Admin not configured for FCM",
-      };
-    }
-
-    const payload = input.payload as Record<string, unknown>;
-    const title =
-      typeof payload.title === "string" && payload.title.trim()
-        ? payload.title
-        : "Yalla 5roga";
-    const body =
-      typeof payload.body === "string"
-        ? payload.body
-        : "You have a new notification";
-
-    const inbox = input.inboxEventKey
-      ? await prisma.notifications.findFirst({
-          where: { event_key: input.inboxEventKey, user_id: input.recipientUserId },
-          select: { id: true },
-        })
-      : null;
+    const registered = await prisma.user_fcm_tokens.findMany({
+      where: { user_id: uid },
+    });
+    if (!registered.length) return skip("no_device_tokens");
+    const payload = await resolvePush(
+      uid,
+      input.payload as Record<string, unknown>,
+      input.inboxEventKey,
+    );
+    if (!payload) return skip("no_longer_relevant_or_disabled");
     const data: Record<string, string> = {
+      eventId: input.eventId,
       pushId: input.eventId,
-      recipientUserId: input.recipientUserId,
+      recipientUserId: uid,
     };
-    for (const key of ["type", "groupId", "outingId", "messageId", "invitationId"] as const) {
-      const value = payload[key];
-      if (typeof value === "string" && value) data[key] = value;
-    }
-    if (inbox) data.notificationId = inbox.id;
-
-    const messaging = getMessaging();
-    const response = await messaging.sendEachForMulticast({
-      tokens: tokens.map((row) => row.token),
-      notification: { title, body },
-      ...(["chat", "chat_message"].includes(data.type ?? "") ? {
-        apns: { payload: { aps: { category: "outing_chat" } } },
-      } : {}),
-      data,
+    for (const [key, value] of Object.entries(payload))
+      if (typeof value === "string") data[key] = value;
+    data.eventId = input.eventId;
+    const type = data.type ?? "system",
+      control = controlTypes.has(type);
+    data.notificationType = type;
+    data.actionType = control ? "update" : "open";
+    data.createdAt ??= new Date().toISOString();
+    const logs = await prisma.notification_delivery_logs.findMany({
+      where: { event_id: input.eventId, channel: "push" },
+      select: { response: true },
     });
-
-    const invalidTokens: string[] = [];
-    response.responses.forEach((result, index) => {
-      if (result.success) return;
-      const code = result.error?.code ?? "";
-      if (
-        code.includes("registration-token-not-registered") ||
-        code.includes("invalid-registration-token") ||
-        code.includes("invalid-argument")
-      ) {
-        const token = tokens[index]?.token;
-        if (token) invalidTokens.push(token);
-      }
-    });
-
-    if (invalidTokens.length > 0) {
-      await prisma.user_fcm_tokens.deleteMany({
-        where: { token: { in: invalidTokens } },
-      });
-    }
-
-    const anySuccess = response.successCount > 0;
-    const onlyInvalid =
-      !anySuccess && invalidTokens.length === tokens.length;
-
-    if (anySuccess || onlyInvalid) {
+    const delivered = new Set(
+      logs.flatMap((log) => {
+        const response = log.response as {
+          deliveredTokenIds?: string[];
+        } | null;
+        return response?.deliveredTokenIds ?? [];
+      }),
+    );
+    const tokens = registered.filter((t) => !delivered.has(t.id));
+    if (!tokens.length) return skip("no_pending_device_tokens");
+    let messaging;
+    try {
+      messaging = this.messaging();
+    } catch {
       return {
+        provider: "fcm",
+        status: "failed",
+        error: "Firebase Admin unavailable",
+      };
+    }
+
+    const deliveredTokenIds: string[] = [],
+      invalidTokenIds: string[] = [];
+    let failures = 0;
+    // FCM has a maximum of 500 tokens per multicast. Retry only failed devices.
+    const legacyAndroid = tokens.filter(
+      (t) => t.platform === "android" && t.notification_version < 2,
+    );
+    const modern = tokens.filter((t) => !legacyAndroid.includes(t));
+    for (const group of [modern, legacyAndroid])
+      for (let start = 0; start < group.length; start += 500) {
+      const chunk = group.slice(start, start + 500);
+        const legacyVisible = group === legacyAndroid && !control;
+        try {
+          const result = await messaging.sendEachForMulticast({
+      tokens: chunk.map((t) => t.token),
+            data,
+      ...(legacyVisible
+              ? {
+                  notification: {
+                    title:
+                      data.lockScreenPreview === "true"
+                        ? (data.title ?? "Yalla 5roga")
+                        : "Yalla 5roga",
+                    body:
+                      data.lockScreenPreview === "true"
+                        ? (data.body ?? "New notification")
+                        : "You have a new notification",
+                  },
+                }
+              : {}),
+            // Android owns rendering in all app states, including RemoteInput actions.
+            // No top-level notification: otherwise Android bypasses the Dart handler.
+            android: {
+              priority: "high",
+              ttl: control ? 3_600_000 : 86_400_000,
+            },
+            apns: control
+              ? {
+                  headers: {
+                    "apns-push-type": "background",
+                    "apns-priority": "5",
+                  },
+                  payload: { aps: { contentAvailable: true } },
+                }
+              : { payload: { aps: {
+                      alert: {
+                        title: data.title ?? "Yalla 5roga",
+                        body: data.body ?? "New notification",
+                      },
+                      sound: "default",
+                      ...(type === "chat_message"
+                        ? { category: "outing_chat" } : {}),
+                    },
+                  },
+                },
+    });
+          for (let index = 0; index < result.responses.length; index++) {
+            const token = chunk[index]!,
+              response = result.responses[index]!;
+            if (response.success) {
+              deliveredTokenIds.push(token.id);
+              continue;
+            }
+            const code = response.error?.code;
+      if (
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-registration-token"
+            ) {
+              invalidTokenIds.push(token.id);
+              await prisma.user_fcm_tokens.deleteMany({
+        where: { id: token.id, user_id: uid, token: token.token },
+      });
+    } else failures++;
+          }
+        } catch {
+          failures += chunk.length;
+        }
+      }
+    return {
         provider: "fcm",
         providerMessageId: `fcm-${input.eventId}`,
-        status: "sent",
-        response: {
-          successCount: response.successCount,
-          failureCount: response.failureCount,
-          invalidTokens,
-        },
-        invalidTokens,
-      };
-    }
-
-    return {
-      provider: "fcm",
-      status: "failed",
-      error: `FCM send failed (${response.failureCount} failures)`,
-      response: {
-        successCount: response.successCount,
-        failureCount: response.failureCount,
-      },
-      invalidTokens,
+        status: failures ? "failed" : "sent",
+      error: failures ? "FCM transient or configuration failure" : undefined,
+        response: { deliveredTokenIds, invalidTokenIds, retryCount: failures },
     };
   }
 }

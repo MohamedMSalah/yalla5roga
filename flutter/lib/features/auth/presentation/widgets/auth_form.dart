@@ -1,3 +1,9 @@
+import 'package:yalla_5roga/core/media/media_upload_service.dart';
+import 'package:yalla_5roga/core/widgets/image_source_sheet.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
+
+import 'signup_photo_picker.dart';
+
 import 'package:yalla_5roga/features/auth/presentation/pages/password_recovery_page.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -29,6 +35,16 @@ class _AuthFormState extends State<AuthForm> {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   bool _obscurePassword = true;
+  bool _obscureConfirmation = true;
+  bool _submitting = false;
+  String? _photoPath;
+  final _confirmationController = TextEditingController();
+  Future<void> _pickPhoto() async {
+    final path = await ImageSourceSheet.pick(
+      title: context.l10n.changeProfileImage,
+    );
+    if (mounted && path != null) setState(() => _photoPath = path);
+  }
 
   @override
   void initState() {
@@ -39,6 +55,7 @@ class _AuthFormState extends State<AuthForm> {
   @override
   void dispose() {
     _phoneController.removeListener(_onPhoneChanged);
+    _confirmationController.dispose();
     _nameController.dispose();
     _passwordController.dispose();
     _phoneController.dispose();
@@ -111,7 +128,7 @@ class _AuthFormState extends State<AuthForm> {
 
   Future<void> _submitRegister() async {
     final auth = context.read<AuthProvider>();
-    if (auth.isLoading) return;
+    if (auth.isLoading || _submitting) return;
     if (!_formKey.currentState!.validate()) return;
     final l10n = context.l10n;
     if (!auth.agreeTerms) {
@@ -124,6 +141,7 @@ class _AuthFormState extends State<AuthForm> {
     }
 
     FocusScope.of(context).unfocus();
+    setState(() => _submitting = true);
     final ok = await auth.register(
       name: _nameController.text.trim(),
       password: _passwordController.text,
@@ -133,8 +151,17 @@ class _AuthFormState extends State<AuthForm> {
 
     if (!mounted) return;
     if (!ok) {
+      setState(() => _submitting = false);
       AppSnackBar.showError(_authError(auth));
       return;
+    }
+    if (_photoPath != null) {
+      final saved = await auth.saveSignupPhoto(
+        context.read<MediaUploadService>(),
+        _photoPath!,
+      );
+      if (!mounted) return;
+      if (!saved) AppSnackBar.showError(context.l10n.imageUploadFailed);
     }
     Get.offAll(() => const MainShell());
   }
@@ -161,131 +188,156 @@ class _AuthFormState extends State<AuthForm> {
 
     return Form(
       key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (!isLogin) ...[
-            CustomTextField(
-              controller: _nameController,
-              label: l10n.name,
-              hint: l10n.nameHint,
-              prefixIcon: Icons.person_outline,
-              textInputAction: TextInputAction.next,
-              inputFormatters: [
-                InputFormatters.maxLength(AppConstants.maxNameLength),
-              ],
-              validator: (value) => Validators.name(value, l10n),
-            ),
-            Responsive.spaceMd.gapH,
-          ],
-          if (isLogin) ...[
-            PhoneTextField(controller: _phoneController),
-            Responsive.spaceMd.gapH,
-          ],
-          CustomTextField(
-            controller: _passwordController,
-            label: l10n.password,
-            hint: l10n.passwordHint,
-            prefixIcon: Icons.lock_outline,
-            obscureText: _obscurePassword,
-            textInputAction: isLogin
-                ? TextInputAction.done
-                : TextInputAction.next,
-            onToggleObscure: () =>
-                setState(() => _obscurePassword = !_obscurePassword),
-            validator: (value) => isLogin
-                ? Validators.required(value, l10n)
-                : Validators.password(value, l10n),
-          ),
-          if (isLogin)
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: TextButton(
-                style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                onPressed: auth.isLoading
-                    ? null
-                    : () {
-                        _passwordController.clear();
-                        Get.to(() => const PasswordRecoveryPage());
-                      },
-                child: Text(l10n.forgotPassword),
+      child: AbsorbPointer(
+        absorbing: auth.isLoading || _submitting,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (!isLogin) ...[
+              SignupPhotoPicker(
+                path: _photoPath,
+                onPick: auth.isLoading || _submitting ? null : _pickPhoto,
               ),
-            ),
-          if (!isLogin) ...[
-            Responsive.spaceMd.gapH,
+              Responsive.spaceMd.gapH,
+              CustomTextField(
+                controller: _nameController,
+                label: l10n.name,
+                hint: l10n.nameHint,
+                prefixIcon: Icons.person_outline,
+                textInputAction: TextInputAction.next,
+                inputFormatters: [
+                  InputFormatters.maxLength(AppConstants.maxNameLength),
+                ],
+                validator: (value) => Validators.name(value, l10n),
+              ),
+              Responsive.spaceMd.gapH,
+            ],
             PhoneTextField(controller: _phoneController),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              alignment: Alignment.topCenter,
-              child: otpSent
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Responsive.spaceMd.gapH,
-                        OtpInput(
-                          controller: _otpController,
-                          label: l10n.otp,
-                          length: Validators.otpLength,
-                          validator: (value) => Validators.otp(value, l10n),
-                          onCompleted: _onOtpCompleted,
-                          action: TextButton(
-                            onPressed: auth.isLoading ? null : _resendOtp,
-                            style: TextButton.styleFrom(
-                              padding: EdgeInsets.zero,
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            child: Text(
-                              l10n.resendOtp,
-                              style: TextStyle(
-                                color: AppColors.brand600,
-                                fontSize: Responsive.fontSm,
-                                fontWeight: FontWeight.w800,
+            Responsive.spaceMd.gapH,
+            CustomTextField(
+              controller: _passwordController,
+              label: l10n.password,
+              hint: l10n.passwordHint,
+              prefixIcon: Icons.lock_outline,
+              obscureText: _obscurePassword,
+              textInputAction: isLogin
+                  ? TextInputAction.done
+                  : TextInputAction.next,
+              onToggleObscure: () =>
+                  setState(() => _obscurePassword = !_obscurePassword),
+              validator: (value) => isLogin
+                  ? Validators.required(value, l10n)
+                  : Validators.password(value, l10n),
+            ),
+            if (isLogin)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: auth.isLoading
+                      ? null
+                      : () {
+                          _passwordController.clear();
+                          Get.to(() => const PasswordRecoveryPage());
+                        },
+                  child: Text(l10n.forgotPassword),
+                ),
+              ),
+            if (!isLogin) ...[
+              Responsive.spaceMd.gapH,
+              CustomTextField(
+                controller: _confirmationController,
+                label: l10n.confirmPassword,
+                prefixIcon: Icons.lock_outline,
+                obscureText: _obscureConfirmation,
+                onToggleObscure: () => setState(
+                  () => _obscureConfirmation = !_obscureConfirmation,
+                ),
+                textInputAction: TextInputAction.next,
+                validator: (value) =>
+                    Validators.required(value, l10n) ??
+                    (value == _passwordController.text
+                        ? null
+                        : l10n.passwordsDoNotMatch),
+              ),
+              AnimatedSize(
+                duration: AppMotion.of(context, AppMotion.standard),
+                curve: Curves.easeOut,
+                alignment: Alignment.topCenter,
+                child: otpSent
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Responsive.spaceMd.gapH,
+                          OtpInput(
+                            controller: _otpController,
+                            label: l10n.otp,
+                            length: Validators.otpLength,
+                            validator: (value) => Validators.otp(value, l10n),
+                            onCompleted: _onOtpCompleted,
+                            action: TextButton(
+                              onPressed: auth.isLoading || _submitting
+                                  ? null
+                                  : _resendOtp,
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(48, 48),
+                              ),
+                              child: Text(
+                                l10n.resendOtp,
+                                style: TextStyle(
+                                  color: AppColors.brand600,
+                                  fontSize: Responsive.fontSm,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    )
-                  : const SizedBox(width: double.infinity),
-            ),
-            Responsive.spaceSm.gapH,
-            Row(
-              children: [
-                Checkbox(
-                  value: auth.agreeTerms,
-                  activeColor: AppColors.brand600,
-                  onChanged: (value) => auth.setAgreeTerms(value ?? false),
-                ),
-                Expanded(
-                  child: Text(
-                    l10n.agreeTerms,
-                    style: TextStyle(
-                      color: context.palette.textMuted,
-                      fontSize: Responsive.fontSm,
+                        ],
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
+              Responsive.spaceSm.gapH,
+              Row(
+                children: [
+                  Checkbox(
+                    value: auth.agreeTerms,
+                    activeColor: AppColors.brand600,
+                    onChanged: (value) => auth.setAgreeTerms(value ?? false),
+                  ),
+                  Expanded(
+                    child: Text(
+                      l10n.agreeTerms,
+                      style: TextStyle(
+                        color: context.palette.textMuted,
+                        fontSize: Responsive.fontSm,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
+            Responsive.spaceMd.gapH,
+            if (isLogin)
+              CustomButton(
+                label: l10n.login,
+                icon: Icons.arrow_forward,
+                isLoading: auth.isLoading || _submitting,
+                onPressed: _submitLogin,
+              )
+            else
+              CustomButton(
+                label: otpSent ? l10n.register : l10n.sendOtp,
+                icon: otpSent ? Icons.person_add_alt_1 : Icons.sms_outlined,
+                isLoading: auth.isLoading || _submitting,
+                onPressed: _submitting
+                    ? null
+                    : otpSent
+                    ? _submitRegister
+                    : _sendOtp,
+              ),
           ],
-          Responsive.spaceMd.gapH,
-          if (isLogin)
-            CustomButton(
-              label: l10n.login,
-              icon: Icons.arrow_forward,
-              isLoading: auth.isLoading,
-              onPressed: _submitLogin,
-            )
-          else
-            CustomButton(
-              label: otpSent ? l10n.register : l10n.sendOtp,
-              icon: otpSent ? Icons.person_add_alt_1 : Icons.sms_outlined,
-              isLoading: auth.isLoading,
-              onPressed: otpSent ? _submitRegister : _sendOtp,
-            ),
-        ],
+        ),
       ),
     );
   }

@@ -4,7 +4,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/error/failure_message_mapper.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/map_location.dart';
 import 'package:yalla_5roga/core/widgets/app_map.dart';
@@ -16,14 +15,14 @@ import 'package:yalla_5roga/core/maps/location_repository.dart';
 import 'package:yalla_5roga/core/maps/location_search_provider.dart';
 import 'package:yalla_5roga/core/widgets/map_controls.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/discover_results.dart';
-import 'package:yalla_5roga/core/widgets/app_error_state.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/discover_map_panel.dart';
 import 'package:yalla_5roga/features/discover/presentation/pages/discover_place_details_page.dart';
 
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
-import 'package:yalla_5roga/core/widgets/vibe_picker.dart';
+import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
+import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 
 class DiscoverPage extends StatefulWidget {
   const DiscoverPage({
@@ -42,7 +41,7 @@ class DiscoverPage extends StatefulWidget {
 class _DiscoverPageState extends State<DiscoverPage> {
   final _map = GlobalKey<AppMapState>();
   final _mapPanel = GlobalKey();
-  final _searchText = TextEditingController();
+  TextEditingController get _searchText => _catalog.searchController;
   LocationSearchProvider? _search;
 
   @override
@@ -88,7 +87,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
   void dispose() {
     _search?.removeListener(_searchChanged);
     _search?.dispose();
-    _searchText.dispose();
+    _catalog.removeListener(_catalogChanged);
+    _catalog.dispose();
     super.dispose();
   }
 
@@ -96,24 +96,35 @@ class _DiscoverPageState extends State<DiscoverPage> {
   String? _selectedId;
   LatLng? _nearbyCenter;
   LatLng? _userLocation;
-  List<SuggestedPlace>? _nearby;
   String? _error;
   bool _busy = false;
   bool _offerSettings = false;
-  int _filter = -1;
+  late final PlaceCatalogProvider _catalog;
+  void _catalogChanged() {
+    if (mounted) {
+      setState(() {
+        _query = _catalog.filters.search.trim().toLowerCase();
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _catalog = PlaceCatalogProvider(context.read<DiscoverProvider>().repository)
+      ..addListener(_catalogChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _findNearby(requestPermission: false);
+      if (mounted) {
+        _catalog.loadDefinitions();
+        _catalog.load();
+        _findNearby(requestPermission: false);
+      }
     });
   }
 
   Future<void> _findNearby({bool requestPermission = true}) async {
     if (_busy) return;
     final l10n = context.l10n;
-    final discover = context.read<DiscoverProvider>();
     setState(() {
       _busy = true;
       _error = null;
@@ -130,14 +141,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
     if (!mounted) return;
     center = location.point;
     if (center != null) {
-      final result = await discover.getNearbyPlaces(
-        latitude: center.latitude,
-        longitude: center.longitude,
+      await _catalog.update(
+        _catalog.filters.copyWith(
+          latitude: center.latitude,
+          longitude: center.longitude,
+        ),
       );
-      result.fold(
-        (failure) => error = FailureMessageMapper.localize(failure, l10n),
-        (items) => results = items,
-      );
+      results = _catalog.places;
+      if (_catalog.error != null) error = l10n.mapLookupFailed;
     } else {
       error = switch (location.issue) {
         MapLocationIssue.disabled => l10n.locationDisabled,
@@ -151,7 +162,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
     if (!mounted) return;
     setState(() {
       if (results != null) {
-        _nearby = results;
         _nearbyCenter = center;
         _userLocation = center;
         _selectedId = null;
@@ -169,21 +179,18 @@ class _DiscoverPageState extends State<DiscoverPage> {
       _error = null;
     });
     _map.currentState?.focus(point, zoom: 13);
-    final result = await context.read<DiscoverProvider>().getNearbyPlaces(
-      latitude: point.latitude,
-      longitude: point.longitude,
+    await _catalog.update(
+      _catalog.filters.copyWith(
+        latitude: point.latitude,
+        longitude: point.longitude,
+        search: '',
+      ),
     );
     if (!mounted) return;
     setState(() {
-      result.fold(
-        (failure) =>
-            _error = FailureMessageMapper.localize(failure, context.l10n),
-        (items) {
-          _nearby = items;
-          _nearbyCenter = point;
-          _selectedId = null;
-        },
-      );
+      _nearbyCenter = point;
+      _selectedId = null;
+      if (_catalog.error != null) _error = context.l10n.mapLookupFailed;
       _busy = false;
     });
   }
@@ -191,14 +198,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final discover = context.watch<DiscoverProvider>();
-    final vibe = _filter < 0 ? null : OutingVibe.values[_filter];
-    final places = [
-      for (final place in _nearby ?? discover.places)
-        if ((vibe == null || place.vibe == vibe) &&
-            '${place.name} ${place.area}'.toLowerCase().contains(_query))
-          place,
-    ];
+    final places = _catalog.places;
     final selected = places
         .where((place) => place.id == _selectedId)
         .firstOrNull;
@@ -257,23 +257,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   ),
               ],
               Responsive.spaceSm.gapH,
-              SectionHeader(
-                title: l10n.placeVibes,
-                actionLabel: l10n.allVibes,
-                onAction: _filter < 0
-                    ? null
-                    : () => setState(() => _filter = -1),
-              ),
-              MapVibeFilters(
-                labels: VibeOption.outingVibes(l10n)
-                    .map((option) => option.label)
-                    .toList(),
-                index: _filter,
-                onChanged: (index) => setState(() {
-                  _filter = index;
-                  _selectedId = null;
-                }),
-              ),
+              PlaceCatalogFilters(catalog: _catalog),
               Responsive.spaceMd.gapH,
               DiscoverMapPanel(
                 key: _mapPanel,
@@ -288,6 +272,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 onSearch: (value) {
                   setState(() {
                     _query = value.trim().toLowerCase();
+                    _catalog.update(
+                      _catalog.filters.copyWith(search: value),
+                      debounce: true,
+                    );
                     _selectedId = null;
                   });
                   _search?.search(value);
@@ -312,9 +300,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
               if (selected != null) ...[
                 Responsive.spaceSm.gapH,
                 MapPlacePreview(
-                  title: selected.name,
-                  subtitle:
-                      '${selected.area} · ${l10n.priceLevelLabel(selected.priceLevel.name)}',
+                  title: selected.localizedName(l10n),
+                  subtitle: selected.localizedSummary(l10n),
                   imageUrl: selected.coverImageUrl,
                   onDetails: () => Get.to(
                     () => DiscoverPlaceDetailsPage(
@@ -323,31 +310,33 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     ),
                   ),
                   onClose: () => setState(() => _selectedId = null),
-                  actionLabel: l10n.createOutingAt(selected.name),
+                  actionLabel: l10n.createOutingAt(
+                    selected.localizedName(l10n),
+                  ),
                   onAction: () =>
                       Get.to(() => CreateOutingPage(suggestedPlace: selected)),
                 ),
               ],
               Responsive.spaceLg.gapH,
-              if (_nearby != null || discover.hasLoaded)
+              if (places.isNotEmpty ||
+                  (!_catalog.loading && _catalog.error == null))
                 DiscoverPlacesResults(
                   places: places,
-                  title: _nearby == null ? l10n.allPlaces : l10n.nearbyPlaces,
-                  emptyMessage: _query.isNotEmpty || _filter >= 0
+                  title: _catalog.filters.latitude == null
+                      ? l10n.allPlaces
+                      : l10n.nearbyPlaces,
+                  emptyMessage:
+                      _query.isNotEmpty ||
+                          _catalog.filters.categories.isNotEmpty ||
+                          _catalog.filters.vibes.isNotEmpty
                       ? l10n.mapNoResults
                       : l10n.noNearbyPlaces,
                   selectedId: _selectedId,
                   onSelect: _select,
                   onPlan: (place) =>
                       Get.to(() => CreateOutingPage(suggestedPlace: place)),
-                )
-              else if (!_busy && discover.errorMessage == null)
-                const LinearProgressIndicator(),
-              if (_nearby == null && discover.errorMessage != null)
-                AppErrorState(
-                  message: discover.errorMessage!,
-                  onRetry: () => discover.load(forceRefresh: true),
                 ),
+              CatalogLoadMore(catalog: _catalog),
             ],
           ),
         ),

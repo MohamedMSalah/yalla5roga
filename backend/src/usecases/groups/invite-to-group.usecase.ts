@@ -5,7 +5,8 @@ import { GroupRepository } from "../../repositories/groups/group.repository.js";
 import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
 import { UserRepository } from "../../repositories/users/user.repository.js";
 import { invitationExpiresAt } from "../../services/groups/invitation-policy.js";
-import { getNotificationConfig, hasAutomaticWhatsApp } from "../../config/notifications.js";
+import { getNotificationConfig, hasAutomaticWhatsApp,
+} from "../../config/notifications.js";
 import {
   buildGroupInviteDeepLinks,
   primaryInviteDeepLink,
@@ -20,12 +21,12 @@ import {
 } from "../../services/phone/firebase-verified-phone.js";
 import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
 import {
-  buildInvitationMessage,
-} from "../../services/whatsapp/invitation-message.js";
+  buildInvitationMessage } from "../../services/whatsapp/invitation-message.js";
 import type { GroupInvitation } from "../../types/groups/group-invitation.types.js";
 import type { GroupMember } from "../../types/groups/group.types.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
-import { emitDataChange, publishGroupChange } from "../../realtime/data-changes.js";
+import { emitDataChange, publishGroupChange,
+} from "../../realtime/data-changes.js";
 
 export type InviteToGroupInput = {
   groupId: string;
@@ -92,7 +93,8 @@ export class InviteToGroupUseCase {
     }
 
     const now = this.now();
-    const pending = await this.invitations.findPending(input.groupId, phone, now);
+    const pending = await this.invitations.findPending(input.groupId, phone, now,
+    );
     const result = pending
       ? { created: false, invitation: pending }
       : await this.invitations.createPending({
@@ -100,19 +102,24 @@ export class InviteToGroupUseCase {
           invited_by_user_id: input.invitedByUserId,
           invited_phone: phone,
           expires_at: invitationExpiresAt(now),
-        }, now);
+        }, now,
+        );
 
     // Registration can finish between the first Firebase lookup and the
     // pending insert. Recheck after persistence and claim only live rows.
     const registeredId = await this.verifiedPhones.findUserIdByVerifiedPhone(phone);
-    if (registeredId && (await this.users.findById(registeredId))?.phone === phone) {
-      const claimed = await this.invitations.claimForVerifiedPhone(registeredId, phone);
+    const hasAppAccount = Boolean(registeredId && (await this.users.findById(registeredId))?.phone === phone,
+    );
+    if (registeredId && hasAppAccount) {
+      const claimed = await this.invitations.claimForVerifiedPhone(registeredId, phone,
+      );
       if (claimed.length) emitDataChange({ kind: "inbox" }, [registeredId]);
       // This race-repair claim can link other groups too. The controller
       // publishes this group; publish every other committed link here.
-      await Promise.all([...new Set(claimed.map(row => row.group_id))]
-        .filter(id => id !== input.groupId)
-        .map(id => publishGroupChange(id, "group", [registeredId])));
+      await Promise.all([...new Set(claimed.map((row) => row.group_id))]
+        .filter((id) => id !== input.groupId)
+        .map((id) => publishGroupChange(id, "group", [registeredId])),
+      );
       const member = await this.groups.findMember(input.groupId, registeredId);
       if (member) {
         return {
@@ -127,7 +134,9 @@ export class InviteToGroupUseCase {
       result.invitation.invited_by_user_id,
       result.invitation,
     );
-    let notificationQueued = input.whatsappOptIn === true && this.automaticWhatsApp();
+    let notificationQueued =
+      !hasAppAccount &&
+      input.whatsappOptIn === true && this.automaticWhatsApp();
     if (notificationQueued) {
       await this.notifications.publishGroupInvite({
         whatsappOptIn: true,

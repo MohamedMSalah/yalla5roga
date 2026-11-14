@@ -12,6 +12,12 @@ class Place {
     this.longitude,
     this.imageUrl = '',
     this.vibe = OutingVibe.food,
+    this.categoryId = '',
+    this.vibeIds = const [],
+    this.status = 'active',
+    this.nameAr = '',
+    this.nameEn = '',
+    this.address = '',
   });
 
   /// Stable id when known; otherwise [placeId] derives a slug from [name].
@@ -29,10 +35,17 @@ class Place {
 
   /// Category used for fallback icons when [imageUrl] is empty.
   final OutingVibe vibe;
+  final String categoryId, status, nameAr, nameEn, address;
+  final List<String> vibeIds;
 
   String get placeId => id.isNotEmpty ? id : slugForName(name);
 
   bool get hasCoordinates => latitude != null && longitude != null;
+  String displayName(String language) => language == 'ar' && nameAr.isNotEmpty
+      ? nameAr
+      : language == 'en' && nameEn.isNotEmpty
+      ? nameEn
+      : name;
 
   PlaceLocation toLocation() => PlaceLocation(
     placeId: id.isEmpty ? null : id,
@@ -60,6 +73,12 @@ class Place {
       longitude: longitude ?? this.longitude,
       imageUrl: imageUrl ?? this.imageUrl,
       vibe: vibe ?? this.vibe,
+      categoryId: categoryId,
+      vibeIds: vibeIds,
+      status: status,
+      nameAr: nameAr,
+      nameEn: nameEn,
+      address: address,
     );
   }
 
@@ -71,12 +90,26 @@ class Place {
     'longitude': longitude,
     'imageUrl': imageUrl,
     'vibe': vibe.name,
+    'category_id': categoryId,
+    'vibes': vibeIds,
+    'status': status,
+    'name_ar': nameAr,
+    'name_en': nameEn,
+    'address': address,
   };
 
   factory Place.fromJson(Map<String, dynamic> json) {
     return Place(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
+      categoryId: json['category_id'] as String? ?? '',
+      status: json['status'] as String? ?? 'active',
+      nameAr: json['name_ar'] as String? ?? '',
+      nameEn: json['name_en'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      vibeIds: (json['vibes'] as List? ?? const [])
+          .whereType<String>()
+          .toList(),
       area: json['area'] as String? ?? '',
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
@@ -97,7 +130,8 @@ class Place {
     if (name.trim().toLowerCase() != other.name.trim().toLowerCase()) {
       return false;
     }
-    if (area.isNotEmpty && other.area.isNotEmpty &&
+    if (area.isNotEmpty &&
+        other.area.isNotEmpty &&
         area.trim().toLowerCase() != other.area.trim().toLowerCase()) {
       return false;
     }

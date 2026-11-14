@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/maps/location_repository.dart';
 import 'package:yalla_5roga/core/maps/location_search_provider.dart';
@@ -36,17 +37,23 @@ class DiscoverPlacesResults extends StatelessWidget {
           ),
         for (final place in places)
           MapSelectedLocationCard(
-            title: place.name,
+            title: place.localizedName(l10n),
             subtitle:
-                '${place.area} · ${l10n.priceLevelLabel(place.priceLevel.name)}'
+                '${place.localizedSummary(l10n)}'
                 '${place.distanceKm == null ? '' : ' · ${l10n.digits(place.distanceKm!.toStringAsFixed(1))} ${l10n.kilometersShort}'}',
             imageUrl: place.coverImageUrl,
             selected: selectedId == place.id,
             onTap: () => onSelect(place),
-            trailing: IconButton(
-              tooltip: l10n.createOutingAt(place.name),
-              icon: const Icon(Icons.add),
-              onPressed: () => onPlan(place),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SavePlaceButton(place: place),
+                IconButton(
+                  tooltip: l10n.createOutingAt(place.localizedName(l10n)),
+                  icon: const Icon(Icons.add),
+                  onPressed: () => onPlan(place),
+                ),
+              ],
             ),
           ),
       ],

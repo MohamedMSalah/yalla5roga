@@ -35,6 +35,8 @@ import 'package:yalla_5roga/features/setting/presentation/providers/settings_pro
 import 'package:yalla_5roga/features/shell/presentation/providers/shell_provider.dart';
 import 'package:yalla_5roga/features/shell/presentation/pages/main_shell.dart';
 import 'package:yalla_5roga/features/splash/presentation/pages/splash_page.dart';
+import 'package:yalla_5roga/features/splash/presentation/providers/onboarding_provider.dart';
+import 'package:yalla_5roga/features/auth/presentation/pages/auth_page.dart';
 
 class App extends StatelessWidget {
   const App({super.key, required this.deps});
@@ -70,7 +72,9 @@ class App extends StatelessWidget {
         ),
         ChangeNotifierProvider<ShellProvider>.value(value: deps.shell),
         ChangeNotifierProvider<GroupsProvider>.value(value: deps.groups),
-        ChangeNotifierProvider<InvitationsProvider>.value(value: deps.invitations),
+        ChangeNotifierProvider<InvitationsProvider>.value(
+          value: deps.invitations,
+        ),
         ChangeNotifierProvider<DiscoverProvider>.value(value: deps.discover),
         ChangeNotifierProvider<SettingsProvider>.value(value: deps.settings),
         Provider<LocationRepository>.value(value: deps.geocoding),
@@ -99,6 +103,8 @@ class App extends StatelessWidget {
             ],
             home: deps.auth.isAuthenticated
                 ? const MainShell()
+                : deps.prefs.getBool(OnboardingProvider.completionKey) == true
+                ? const AuthPage()
                 : const SplashPage(),
             builder: (context, child) {
               Responsive.init(context);

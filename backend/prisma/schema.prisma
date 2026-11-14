@@ -12,6 +12,7 @@ model users {
   name                              String                @db.VarChar(30)
   phone                             String                @unique @db.VarChar(16)
   password_hash                     String?               @db.VarChar(255)
+  notification_preferences          Json                  @default("{}")
   image_url                         String?               @db.VarChar(2048)
   created_at                        DateTime              @default(now()) @db.Timestamptz(6)
   updated_at                        DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
@@ -91,22 +92,44 @@ model group_invitations {
 }
 
 model places {
-  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name                String                @db.VarChar(100)
-  area                String                @default("") @db.VarChar(100)
-  vibe                outing_vibe           @default(food)
-  description         String                @default("") @db.VarChar(1000)
-  cover_image_url     String                @default("") @db.VarChar(2048)
-  price_level         price_level           @default(moderate)
-  price_min           Decimal?              @db.Decimal(12, 2)
-  price_max           Decimal?              @db.Decimal(12, 2)
-  currency            String                @default("EGP") @db.Char(3)
+  id                  String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                String                 @db.VarChar(100)
+  area                String                 @default("") @db.VarChar(100)
+  vibe                outing_vibe            @default(food)
+  description         String                 @default("") @db.VarChar(1000)
+  cover_image_url     String                 @default("") @db.VarChar(2048)
+  price_level         price_level            @default(moderate)
+  price_min           Decimal?               @db.Decimal(12, 2)
+  price_max           Decimal?               @db.Decimal(12, 2)
+  currency            String                 @default("EGP") @db.Char(3)
   latitude            Float?
   longitude           Float?
-  featured            Boolean               @default(false)
-  is_active           Boolean               @default(true)
-  created_at          DateTime              @default(now()) @db.Timestamptz(6)
-  updated_at          DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  featured            Boolean                @default(false)
+  is_active           Boolean                @default(true)
+  name_ar             String?                @db.VarChar(100)
+  name_en             String?                @db.VarChar(100)
+  category_id         String?                @db.VarChar(64)
+  address             String?                @db.VarChar(1000)
+  city                String?                @db.VarChar(100)
+  district            String?                @db.VarChar(100)
+  phone               String?                @db.VarChar(100)
+  website             String?                @db.VarChar(2048)
+  opening_hours       String?                @db.VarChar(1000)
+  source              String                 @default("manual") @db.VarChar(16)
+  source_id           String?                @db.VarChar(32)
+  source_type         String?                @db.VarChar(16)
+  status              String                 @default("active") @db.VarChar(32)
+  last_synced_at      DateTime?              @db.Timestamptz(6)
+  last_seen_at        DateTime?              @db.Timestamptz(6)
+  missing_sync_count  Int                    @default(0)
+  source_region       String?                @db.VarChar(16)
+  source_tags         Json                   @default("{}")
+  manually_managed    Boolean                @default(false)
+  category            place_categories?      @relation(fields: [category_id], references: [id], onDelete: Restrict)
+  place_vibes         place_vibes[]
+  status_changes      place_status_changes[]
+  created_at          DateTime               @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime               @default(now()) @updatedAt @db.Timestamptz(6)
   outing_vote_options outing_vote_options[]
   outings             outings[]
   place_hours         place_hours[]
@@ -115,8 +138,86 @@ model places {
   saved_places        saved_places[]
   media_assets        media_assets[]
 
+  @@unique([source, source_type, source_id], map: "places_source_identity_key")
   @@index([vibe], map: "idx_places_vibe")
   @@index([latitude, longitude], map: "idx_places_lat_lng")
+  @@index([status, category_id], map: "idx_places_status_category")
+  @@index([category_id], map: "idx_places_category")
+  @@index([source_region, source], map: "idx_places_region_source")
+}
+
+model place_categories {
+  updated_at  DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  id          String      @id @db.VarChar(64)
+  name_en     String      @db.VarChar(100)
+  name_ar     String      @db.VarChar(100)
+  group_id    String      @db.VarChar(64)
+  icon        String      @db.VarChar(64)
+  legacy_vibe outing_vibe
+  is_active   Boolean     @default(true)
+  sort_order  Int         @default(0)
+  places      places[]
+}
+
+model vibes {
+  updated_at  DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  id          String        @id @db.VarChar(64)
+  name_en     String        @db.VarChar(100)
+  name_ar     String        @db.VarChar(100)
+  icon        String        @db.VarChar(64)
+  is_active   Boolean       @default(true)
+  sort_order  Int           @default(0)
+  place_vibes place_vibes[]
+}
+
+model place_vibes {
+  place_id String @db.Uuid
+  vibe_id  String @db.VarChar(64)
+  source   String @default("manual") @db.VarChar(16)
+  place    places @relation(fields: [place_id], references: [id], onDelete: Restrict)
+  vibe     vibes  @relation(fields: [vibe_id], references: [id], onDelete: Restrict)
+
+  @@id([place_id, vibe_id])
+  @@index([vibe_id, place_id], map: "idx_place_vibes_vibe")
+}
+
+model place_sync_runs {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  started_at     DateTime  @default(now()) @db.Timestamptz(6)
+  completed_at   DateTime? @db.Timestamptz(6)
+  status         String    @db.VarChar(32)
+  imported_count Int       @default(0)
+  updated_count  Int       @default(0)
+  closed_count   Int       @default(0)
+  skipped_count  Int       @default(0)
+  failed_count   Int       @default(0)
+  error_details  Json      @default("[]")
+  dry_run        Boolean   @default(false)
+  complete       Boolean   @default(false)
+  coverage       Json      @default("{}")
+  progress       Json      @default("{}")
+
+  @@index([status, completed_at], map: "idx_place_sync_success")
+  @@index([started_at], map: "idx_place_sync_started")
+}
+
+model place_sync_lock {
+  id         String   @id @db.VarChar(32)
+  token      String   @db.Uuid
+  expires_at DateTime @db.Timestamptz(6)
+}
+
+model place_status_changes {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  place_id   String   @db.Uuid
+  run_id     String?  @db.Uuid
+  old_status String   @db.VarChar(32)
+  new_status String   @db.VarChar(32)
+  evidence   Json
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  place      places   @relation(fields: [place_id], references: [id], onDelete: Restrict)
+
+  @@index([place_id, created_at], map: "idx_place_status_history")
 }
 
 model place_images {
@@ -348,6 +449,8 @@ model notifications {
   is_read         Boolean           @default(false)
   /// Idempotency key so retries do not duplicate in-app notifications.
   event_key       String?           @unique @db.VarChar(191)
+  /// Structured navigation and display metadata; history remains in PostgreSQL.
+  data            Json              @default("{}")
   created_at      DateTime          @default(now()) @db.Timestamptz(6)
   groups          groups?           @relation(fields: [group_id], references: [id], onUpdate: NoAction)
   outings         outings?          @relation(fields: [outing_id], references: [id], onUpdate: NoAction)
@@ -359,13 +462,14 @@ model notifications {
 }
 
 model user_fcm_tokens {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id    String   @db.VarChar(128)
-  token      String   @db.VarChar(512)
-  platform   String?  @db.VarChar(20)
-  created_at DateTime @default(now()) @db.Timestamptz(6)
-  updated_at DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id              String   @db.VarChar(128)
+  token                String   @db.VarChar(512)
+  platform             String?  @db.VarChar(20)
+  notification_version Int      @default(1) @db.SmallInt
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  users                users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@unique([token], map: "uq_user_fcm_tokens_token")
   @@index([user_id], map: "idx_user_fcm_tokens_user")
@@ -498,6 +602,23 @@ enum invitation_status {
 }
 
 enum notification_event_type {
+  group_created
+  member_joined
+  member_left
+  membership_activated
+  outing_created
+  outing_reminder
+  voting_started
+  voting_deadline_approaching
+  voting_closed
+  rsvp_opened
+  venue_reminder
+  arrival_reminder
+  arrival_changed
+  chat_updated
+  chat_deleted
+  conversation_read
+  invitation_resolved
   group_invite
   outing_invite
   outing_updated

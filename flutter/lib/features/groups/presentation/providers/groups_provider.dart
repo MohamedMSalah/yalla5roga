@@ -314,8 +314,14 @@ class GroupsProvider extends ChangeNotifier {
     required String ownerName,
     String? ownerAvatar,
     String bio = '',
+    bool whatsappOptIn = false,
   }) async {
     if (_isCreating || name.trim().isEmpty) return null;
+    if (!whatsappOptIn) {
+      _errorMessage = _l10n?.whatsappOptInPrompt;
+      notifyListeners();
+      return null;
+    }
 
     _isCreating = true;
     notifyListeners();
@@ -387,10 +393,6 @@ class GroupsProvider extends ChangeNotifier {
     var queuedInvites = 0;
     if (createdGroup != null) {
       for (final phone in phonesToInvite) {
-        // If the phone belongs to an existing app user, use API invitation (no WhatsApp).
-        // Otherwise, send a WhatsApp invitation to the non-user.
-        final known = repository.memberByPhone(phone);
-        final whatsappOptIn = known == null;
         final invite = await repository.inviteByPhone(
           groupId: createdGroup.id,
           phoneNumber: phone,
@@ -481,19 +483,21 @@ class GroupsProvider extends ChangeNotifier {
   Future<void> promptAddMember(String groupId) async {
     final l10n = _l10n;
     if (l10n == null) return;
+    final epoch = _epoch;
 
     final added = await AddMemberPhoneSheet.show();
-    if (added == null) return;
+    if (added == null || epoch != _epoch) return;
 
-    final error = await inviteMember(
-      groupId,
-      added.phone,
-      l10n,
-      whatsappOptIn: added.whatsappOptIn,
-    );
-    // API failures already surface via AppErrorFeedback; validation only here.
-    if (error != null) {
-      AppSnackBar.show(error);
+    for (final phone in added.phones) {
+      if (epoch != _epoch) break;
+      final error = await inviteMember(
+        groupId,
+        phone,
+        l10n,
+        whatsappOptIn: added.whatsappOptIn,
+      );
+      // API failures already surface via AppErrorFeedback; validation only here.
+      if (error != null) AppSnackBar.show(error);
     }
   }
 
@@ -626,6 +630,7 @@ class GroupsProvider extends ChangeNotifier {
     bool whatsappOptIn = false,
   }) async {
     final epoch = _epoch;
+    if (!whatsappOptIn) return l10n.whatsappOptInPrompt;
     if (findById(groupId)?.containsMember(id: phone, phone: phone) == true) {
       return l10n.phoneAlreadyAdded;
     }

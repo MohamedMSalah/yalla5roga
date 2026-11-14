@@ -64,8 +64,13 @@ class NotificationItem {
 }
 
 class NotificationsFeed {
-  const NotificationsFeed({required this.unreadCount, required this.items});
+  const NotificationsFeed({
+    required this.unreadCount,
+    required this.items,
+    this.preferences = const {},
+  });
 
   final int unreadCount;
   final List<NotificationItem> items;
+  final Map<String, bool> preferences;
 }

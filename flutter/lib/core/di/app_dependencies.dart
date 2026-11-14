@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/network/app_sync_provider.dart';
 import 'package:yalla_5roga/features/chat/data/datasources/chat_send_queue.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/cache/cached_remote.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
@@ -32,6 +36,8 @@ import 'package:yalla_5roga/features/notifications/data/datasources/fcm_token_re
 import 'package:yalla_5roga/features/notifications/data/repositories/push_messaging_repository_impl.dart';
 import 'package:yalla_5roga/features/notifications/data/services/fcm_messaging_service.dart';
 import 'package:yalla_5roga/features/notifications/data/services/local_notifications_service.dart';
+import 'package:yalla_5roga/features/notifications/data/services/interactive_notification_handler.dart';
+import 'package:yalla_5roga/features/notifications/data/services/notification_action_dispatcher.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:yalla_5roga/features/outings/data/datasources/outing_arrivals_remote_datasource.dart';
@@ -169,17 +175,69 @@ class AppDependencies {
 
     MemberDisplayName.memberByPhoneLookup = groupsRepository.memberByPhone;
 
-    final localNotifications = LocalNotificationsService();
+    OutingChatProvider? activeChat;
+    final localNotifications = LocalNotificationsService(
+      client: apiClient,
+      currentUserId: uid,
+      isViewingChat: (id) =>
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed &&
+          activeChat?.isViewing(id) == true,
+    );
+    final notificationActions = NotificationActionDispatcher(
+      handler: InteractiveNotificationHandler(apiClient),
+      currentUserId: uid,
+      onSuccess: (payload) async {
+        await localNotifications.completeAction(payload);
+        activeSync?.notificationsChanged(
+          groupId: payload.groupId,
+          outingId: payload.outingId,
+        );
+      },
+      onFailure: localNotifications.showActionFailure,
+    );
+    localNotifications.onAction = (payload) async {
+      await notificationActions.dispatch(payload);
+    };
     final fcmMessaging = FcmMessagingService(
       prefs: prefs,
       localNotifications: localNotifications,
     );
+    fcmMessaging.onReceived = () => activeSync?.notificationsChanged();
+    firebaseAuth.beforeSignOut = () async {
+      final previous = uid();
+      final token = fcmMessaging.token;
+      if (token != null) {
+        try {
+          await FcmTokenRemoteDataSource(apiClient)
+              .unregister(token)
+              .timeout(const Duration(seconds: 5));
+        } catch (_) {
+          /* Offline logout still clears local identity. */
+        }
+      }
+      try {
+        await FirebaseMessaging.instance.deleteToken().timeout(
+          const Duration(seconds: 5),
+        );
+      } catch (_) {
+        /* Recipient checks also reject stale pushes. */
+      }
+      await fcmMessaging.forgetToken();
+      if (previous != null) {
+        await notificationActions.clearAccount(previous);
+        await localNotifications.clearAccount(previous);
+      }
+    };
     final pushMessaging = PushMessagingRepositoryImpl(
       messaging: fcmMessaging,
       tokenRemote: FcmTokenRemoteDataSource(apiClient),
+      currentUserId: uid,
     );
     // FCM (local notifications + getToken) is deferred until after first frame.
-    final fcm = FcmProvider(messaging: pushMessaging);
+    final fcm = FcmProvider(
+      messaging: pushMessaging,
+      actionDispatcher: (payload) => notificationActions.dispatch(payload),
+    );
 
     // Feature data loads when MainShell mounts — not during splash/auth boot.
     final outings = OutingsProvider(
@@ -212,6 +270,7 @@ class AppDependencies {
     final chatRepository = repos.outingChat(queue);
     final notifications = NotificationsProvider(
       repository: repos.notifications(),
+      onSynchronized: localNotifications.reconcile,
     );
     final invitations = InvitationsProvider(repository: repos.invitations());
     late final AppSyncProvider sync;
@@ -222,7 +281,23 @@ class AppDependencies {
       persistLiveMessage: chatRepository.persistLiveMessage,
       socketClient: outingChatSocket,
     );
+    activeChat = outingChat;
+    String? notificationAccount;
+    auth.addListener(() {
+      final next = auth.isAuthenticated ? auth.user?.id : null;
+      if (next == notificationAccount) return;
+      discover.clear();
+      final previous = notificationAccount;
+      notificationAccount = next;
+      fcm.bindAccount(next);
+      if (previous != null) {
+        unawaited(notificationActions.clearAccount(previous));
+        unawaited(localNotifications.clearAccount(previous));
+      }
+      if (next != null) unawaited(fcm.refreshToken());
+    });
     sync = AppSyncProvider(
+      onCatalogRecovery:discoverRepository.checkCatalogVersion,
       chat: outingChat,
       savedOutings: savedOutings,
       auth: auth,
@@ -236,6 +311,7 @@ class AppDependencies {
       notifications: notifications,
       invitations: invitations,
       clearMediaCache: mediaUrls.clearForAccount,
+      onNotificationRecovery: notificationActions.retryPending,
     );
     activeSync = sync;
     return AppDependencies(

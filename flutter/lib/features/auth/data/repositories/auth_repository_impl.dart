@@ -295,6 +295,10 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     });
   });
 
+  @override
+  Future<Either<Failure, void>> deleteAccount() =>
+      _recovery(remote.deleteAccount);
+
   final _accountSyncs = RequestDeduper();
   final AuthRemoteDataSource remote;
   @override

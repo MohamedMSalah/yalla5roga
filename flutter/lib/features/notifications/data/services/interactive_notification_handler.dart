@@ -21,7 +21,7 @@ class InteractiveNotificationHandler {
     required String? currentUserId,
     required String? currentUserName,
   }) async {
-    if (currentUserId == null) {
+    if (currentUserId == null || payload.recipientUserId != currentUserId) {
       debugPrint('[InteractiveNotification] No authenticated user');
       return false;
     }
@@ -30,26 +30,26 @@ class InteractiveNotificationHandler {
       NotificationActionType.accept => _respondInvitation(
         payload,
         accept: true,
+        currentUserId: currentUserId,
       ),
       NotificationActionType.decline => _respondInvitation(
         payload,
         accept: false,
+        currentUserId: currentUserId,
       ),
       NotificationActionType.reply => _replyToChat(
         payload,
         currentUserId: currentUserId,
         currentUserName: currentUserName,
       ),
-      NotificationActionType.markRead => _markChatRead(
-        payload.outingId,
-        currentUserId,
-      ),
+      NotificationActionType.markRead => _markChatRead(payload, currentUserId),
     };
   }
 
   Future<bool> _respondInvitation(
     PushNotificationPayload payload, {
     required bool accept,
+    required String currentUserId,
   }) async {
     final outing = payload.outingId;
     final invitation = payload.invitationId;
@@ -65,11 +65,17 @@ class InteractiveNotificationHandler {
               ? ApiConstants.invitationAccept(invitation!)
               : ApiConstants.invitationDecline(invitation!));
     try {
-      final response = await _client.post<Map<String, dynamic>>(path);
-      return apiPayload(response.data)['status'] ==
+      final response = await _client.post<Map<String, dynamic>>(
+        path,
+        options: Options(extra: {expectedUserIdKey: currentUserId}),
+      );
+      final succeeded =
+          apiPayload(response.data)['status'] ==
           (accept ? 'accepted' : 'declined');
-    } on DioException {
-      return false;
+      if (!succeeded) payload.data['retryableFailure'] = 'false';
+      return succeeded;
+    } on DioException catch (error) {
+      return _failed(payload, error);
     }
   }
 
@@ -91,42 +97,66 @@ class InteractiveNotificationHandler {
     }
 
     try {
-      // The outbox UUID keeps a repeated native action idempotent.
-      final clientMessageId = payload.pushId;
+      // The persisted action UUID keeps native retries idempotent.
+      final clientMessageId = payload.clientMessageId;
       if (clientMessageId == null ||
           !RegExp(
             r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
           ).hasMatch(clientMessageId)) {
         return false;
       }
-      await _client.post<Map<String, dynamic>>(
+      final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.outingChatMessages(outingId),
         data: {'text': replyText.trim(), 'clientMessageId': clientMessageId},
         options: Options(extra: {expectedUserIdKey: currentUserId}),
       );
-      debugPrint('[InteractiveNotification] Reply sent to outing: $outingId');
-      return true;
+      final message = apiPayload(response.data);
+      return message['id'] is String &&
+          message['outing_id'] == outingId &&
+          message['sender_id'] == currentUserId &&
+          message['client_message_id'] == clientMessageId;
     } on DioException catch (error) {
       debugPrint('[InteractiveNotification] Reply failed: $error');
-      return false;
+      return _failed(payload, error);
     }
   }
 
-  Future<bool> _markChatRead(String? outingId, String currentUserId) async {
+  Future<bool> _markChatRead(
+    PushNotificationPayload payload,
+    String currentUserId,
+  ) async {
+    final outingId = payload.outingId;
     if (outingId == null) {
       debugPrint('[InteractiveNotification] Missing outingId for markRead');
       return false;
     }
     try {
-      await _client.patch<Map<String, dynamic>>(
+      final response = await _client.patch<Map<String, dynamic>>(
         ApiConstants.outingChatRead(outingId),
         options: Options(extra: {expectedUserIdKey: currentUserId}),
       );
-      debugPrint('[InteractiveNotification] Chat marked read: $outingId');
+      final read = apiPayload(response.data), readAt = read['last_read_at'];
+      if (readAt is! String ||
+          DateTime.tryParse(readAt) == null ||
+          read['outing_id'] != outingId ||
+          read['user_id'] != currentUserId)
+        return false;
+      payload.data['readAt'] = readAt;
       return true;
     } on DioException catch (error) {
       debugPrint('[InteractiveNotification] Mark read failed: $error');
-      return false;
+      return _failed(payload, error);
     }
+  }
+
+  bool _failed(PushNotificationPayload payload, DioException error) {
+    final status = error.response?.statusCode;
+    if (status != null &&
+        status >= 400 &&
+        status < 500 &&
+        ![401, 408, 429].contains(status)) {
+      payload.data['retryableFailure'] = 'false';
+    }
+    return false;
   }
 }

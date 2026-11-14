@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-11-14T17:20:01.749Z",
+  "mode": "read-only",
+  "migration": "20261114040000_places_catalog_sync",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [],
+  "pendingAfter": [],
+  "appliedMigration": {
+    "migration_name": "20261114040000_places_catalog_sync",
+    "checksum": "4773f3b58c78f2c742c2f2f32b7eeeecc1864b0c96389ca482984cdbdcba6c83"
+  },
+  "columns": [
+    {
+      "column_name": "last_synced_at"
+    },
+    {
+      "column_name": "category_id"
+    },
+    {
+      "column_name": "source_id"
+    },
+    {
+      "column_name": "status"
+    }
+  ],
+  "taxonomy": {
+    "categories": 36,
+    "vibes": 15
+  },
+  "result": "PASS"
+}

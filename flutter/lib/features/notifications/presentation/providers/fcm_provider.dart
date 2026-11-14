@@ -18,10 +18,12 @@ class FcmProvider extends ChangeNotifier {
   FcmProvider({
     required this.messaging,
     InteractiveNotificationHandler? interactiveHandler,
+    this.actionDispatcher,
   }) : _interactiveHandler = interactiveHandler;
 
   final PushMessagingRepository messaging;
   final InteractiveNotificationHandler? _interactiveHandler;
+  final Future<bool> Function(PushNotificationPayload)? actionDispatcher;
 
   StreamSubscription<String?>? _tokenSub;
   var _ready = false;
@@ -36,6 +38,16 @@ class FcmProvider extends ChangeNotifier {
   String? get token => _token;
   PushAuthorizationStatus? get authorizationStatus => _authorizationStatus;
   PushNotificationPayload? get pendingTap => _pendingTap;
+  String? _accountId;
+
+  void bindAccount(String? uid) {
+    if (_accountId == uid) return;
+    _accountId = uid;
+    _handledPushes.clear();
+    if (_pendingTap?.recipientUserId != null &&
+        _pendingTap?.recipientUserId != uid)
+      _pendingTap = null;
+  }
 
   Future<void> initialize() async {
     if (_ready) return;
@@ -130,7 +142,14 @@ class FcmProvider extends ChangeNotifier {
 
     // Handle interactive action first if present.
     if (pending.isInteractiveAction && pending.actionType != null) {
-      await _handleInteractiveAction(shell, pending, id);
+      _opening = true;
+      try {
+        await _handleInteractiveAction(shell, pending, id);
+      } finally {
+        _opening = false;
+        unawaited(_flushPendingNavigation());
+      }
+      return;
     }
 
     // For non-interactive notifications, mark as handled immediately.
@@ -139,16 +158,6 @@ class FcmProvider extends ChangeNotifier {
       if (_handledPushes.length > 100) {
         _handledPushes.remove(_handledPushes.first);
       }
-    }
-
-    // Only proceed to _open if not already handled by a failed interactive action.
-    // A failed interactive action already showed feedback and we should let
-    // the user explicitly retry by tapping the notification again.
-    final alreadyHandled = id != null && _handledPushes.contains(id);
-    if (pending.isInteractiveAction && !alreadyHandled) {
-      // Interactive action failed - don't proceed to navigation yet.
-      // User can retry by tapping the notification again.
-      return;
     }
 
     await _open(pending, fromInbox: false, markRead: true);
@@ -173,12 +182,14 @@ class FcmProvider extends ChangeNotifier {
     final alreadyHandled = id != null && _handledPushes.contains(id);
 
     // Execute the action.
-    final success = await _interactiveHandler?.handleAction(
-      payload,
-      payload.actionType!,
-      currentUserId: userId,
-      currentUserName: userName,
-    );
+    final success = actionDispatcher != null
+        ? await actionDispatcher!(payload)
+        : await _interactiveHandler?.handleAction(
+            payload,
+            payload.actionType!,
+            currentUserId: userId,
+            currentUserName: userName,
+          );
 
     if (success == true) {
       if (!shell.mounted || shell.read<AuthProvider>().user?.id != userId) {
@@ -240,6 +251,8 @@ class FcmProvider extends ChangeNotifier {
         auth.isAuthenticated &&
         auth.user?.id == userId;
     try {
+      await auth.synchronizeRestoredAccount();
+      if (!shell.mounted || !isCurrent()) return;
       final notificationId = payload.notificationId;
       if (markRead && notificationId != null) {
         unawaited(shell.read<NotificationsProvider>().markRead(notificationId));

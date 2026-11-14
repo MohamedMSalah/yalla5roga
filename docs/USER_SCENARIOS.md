@@ -122,6 +122,10 @@ The group owner can open Group Info and use **Edit bio** in the About card. Save
 
 ### INV-02 Add a group member by phone
 
+- **Required consent:** Create Group and Group Info → Add people each require one unchecked-by-default checkbox confirming recipients agreed to WhatsApp invitations if they do not already use the app. Submission is disabled until checked; editing recipient numbers, calling code or contact selections clears it. The explicit value reaches the invitation API; no lookup infers consent. Existing verified users receive pending in-app invitations, while consented non-users can receive WhatsApp invitations when the sender is configured.
+
+- **Group phone entry (2026-11-14):** Create Group and Group Info → Add people show a country calling-code selector beside the national number, initially Egypt (`+20`). Manual numbers are normalized with the selected code; pasted `+`/`00` international numbers retain their explicit prefix. Arabic-Indic input is accepted. Group Info also opens the same multi-select device contacts page as Create Group, retains selected phones for review/removal, and submits deduplicated invitations through the existing provider. Changing recipients or the manual calling code clears WhatsApp consent so it can be reconfirmed. The add-people sheet scrolls above the keyboard.
+
 - **API:** `POST /api/groups/:id/invitations` adds by phone. A group owner can revoke a still-pending association with `DELETE /api/groups/:id/pending-memberships/:invitationId`.
 - **Flutter:** Create-group member picker loads device contacts (`PickDeviceContactsPage` + `READ_CONTACTS`); manual phone still supported. Create/add flows use the invitation endpoint. The inline checkbox records recipient agreement. The backend queues the consented message when configured; after invitee installs + verifies that phone, `POST /api/users/sync` links pending `group_invitations` to the verified account without membership. Group cover `image_url` is optional.
 - **Special events:** Choose device contacts in the guest picker. Confirm recipient opt-in before creating the event. Phone guests receive the title, time, venue, Google Calendar link and optional app link. When automatic delivery is unavailable, send the prefilled invitations from the new outing’s details. Phone invitees do not become app members.
@@ -228,7 +232,7 @@ With a matching Firebase session, cached profile, groups/outings, previously ope
 
 ### SAVE-01/02 Save/unsave outing — Neon APIs — Implemented (Flutter remote wired)  
 ### SAVE-03 View saved outings — Implemented  
-### SAVE-04/05 Save/unsave place — APIs Implemented; UI Partial  
+### SAVE-04/05 Save/unsave place — Implemented
 ### SAVE-06 Duplicate save — PK prevents duplicates — Implemented  
 ### SAVE-07 Survive re-login — Neon — Implemented when using API (not prefs-only)  
 
@@ -333,7 +337,7 @@ Additional journey diagrams for vote change, candidate reset, attendance, chat, 
 | LIFE-05 | Lifecycle | Cancel | `POST /api/outings/:id/cancel` | outings | Cancelled | Implemented |
 | CHAT-02 | Chat | Send | `POST /api/outings/:outingId/messages` | chat_messages | Stored | Implemented |
 | SAVE-01 | Saved | Save outing | `POST /api/outings/:id/save` | saved_outings | Row | Implemented |
-| SAVE-04 | Saved | Save place | `POST /api/places/:id/save` | saved_places | Row | Partial UI |
+| SAVE-04 | Saved | Save place | `POST /api/places/:id/save` | saved_places | Row and saved Places filter | Implemented |
 | DIS-01 | Discover | Browse | `GET /api/places` | places | List | Implemented |
 | NOT-03 | Notify | Options changed | outbox | notifications, notification_events | Fan-out | Implemented path |
 | NOT-07 | Notify | Receive push | FCM worker | user_fcm_tokens | Device alert | NOT RUN |
@@ -442,3 +446,40 @@ Before submitting Going/Maybe/Not Going, a member sees No response in their RSVP
 Open an outing chat to read grouped sender/avatar bubbles with date separators and local timestamps. Type text or choose an @member suggestion. Durable local save shows Pending; server rejection shows Failed and Retry keeps the same UUID. Long-press an own persisted message to open Edit/Delete while chat is open. Edit is enabled only during the first minute after sending; at expiration the edit composer cancels with localized feedback. Delete remains available while chat is open. Other members’ messages expose no mutation actions. Edit preserves stable mention IDs; Delete leaves a readable deleted-message label. At two hours after scheduled start, or on completed/cancelled status, the composer becomes a subtle read-only explanation and mutation/retry controls disappear. History/pagination remain participant-authorized. Connection status is local to chat: Connected/Reconnecting/Offline. Inserts/near-bottom scrolling respect reduced motion and do not pull readers away from older messages.
 
 Notifications offers All/Unread, unread count, read surfaces, event titles/icons, empty/loading/error states and retry. Taps mark the inbox entry read and navigate through authenticated resource reads. Group and membership events open Group Details. Group invitations open Invitations; outing invitations open Invitations with their specific outing entry, then View outing opens existing explicit acceptance/decline controls. Outing updates and voting/RSVP/GPS events open relevant Outing Details; messages open that outing's regular chat. Back preserves the prior stack. Native Reply/Mark as read are implemented for local notifications and iOS category responses; Android background OS notifications retain delivery/body taps without these action buttons. No Flutter/device/emulator/UI tests or visual state checks were run for Phase 5.
+
+
+## Phase 6 entry and account presentation — 2026-11-14
+
+- First run: branded introduction for groups, outing planning/voting and nearby discovery. Next advances through three localized steps; Skip or Get Started saves completion and opens Login. Subsequent signed-out starts open Login. A restored authenticated session opens Home directly.
+- Signup: full name, phone, password/confirmation, optional camera/gallery photo, existing terms consent and Firebase OTP. Registration never bypasses the Firebase proof. The optional photo uploads after successful registration; a photo error is shown without discarding the created account.
+- Login and recovery: existing phone/password login, Sign Up and Forgot Password links; recovery retains phone → Firebase OTP proof → new password/confirmation → Login. Existing loading, validation, network/timeout/error and resend handling remain active.
+- Settings: profile name/phone/avatar/logout; real groups, total outings and server-completed outing counts; Account (edit/photo/phone proof/member date/information/delete), Preferences (Saved, History, theme, notifications, invitations, language), Support and About (including Developer). Completed count is not a physical-attendance count.
+- Delete Account: destructive confirmation calls existing DELETE `/api/users/cuser`. Only success runs the existing logout/provider/cache cleanup and opens Login. Server errors, including referenced-profile conflicts, retain the session and show normal localized failure feedback. This existing endpoint deletes the Neon profile, not the Firebase identity.
+- Saved: bookmarks open their existing details; drafts resume editing. Shared cards provide loading/empty/error/retry feedback. History retains existing started/completed/cancelled entries and detail navigation. Completed chats continue to open read-only under the existing backend/client closure rules.
+
+Implementation verified statically; no Flutter, device, emulator or UI tests were run in Phase 6. SMS and successful destructive flows were not executed against real accounts.
+
+
+## Android system notification journeys — 2026-11-14
+
+Chat: an FCM event renders sender + outing context, current message preview, Reply and Mark as Read outside the app. Reply runs without opening Android UI, stores its draft first, uses the ordinary authenticated UUID-deduplicated message POST and completes only after backend acknowledgement. Network/auth failures retain a bounded account-bound retry; terminal permission/resource conflicts do not automatically repeat. Mark as Read updates only that conversation's receipts/inbox and dismisses its read notifications. A currently viewed foreground chat suppresses its new system alert. Message/mention taps now fetch/focus/highlight the referenced authorized message within the existing chat, superseding the earlier ordinary-chat-only destination wording. Deleted/inaccessible references show existing localized feedback.
+
+Invitations: system Accept/Decline uses the same pending-invitation APIs as Settings → Invitations. Body taps open that existing Invitations page, whose Pending/Accepted/Declined history is preserved. Verified signup/login links pending invitations without acceptance or access. Only an accepted invitation generates “You joined” and new-member notifications; decline removes the pending roster projection while retaining history. Registered invite pushes complement the unchanged nonregistered-user WhatsApp service.
+
+Group/membership taps revalidate and open Group Details. Outing transitions/reminders open current Outing Details. Voting state/reminders/candidate changes open the voting section after an authenticated forced refresh. RSVP/arrival notifications open attendance; arrival continues through the existing GPS verification path. Taps await shared session-restore synchronization and check recipient identity; repeated tap IDs are deduplicated. Settings' existing push switch now persists through the notification repository to Neon; category/mention/privacy preferences are available through the same repository/API.
+
+Loading/offline history remains in existing account-scoped caches. Resume/reconnect performs inbox catch-up independently of auth synchronization, reconciles active OS notifications and retries eligible action drafts with bounded backoff. Logout/account switches clear notification-specific local state. Native Android foreground/background/terminated, permission denial, RTL display, lock-screen privacy, badge and action behavior require manual verification; no app/device/UI execution was performed.
+
+
+## Places discovery and outing selection — 2026-11-14
+
+- **PLACE-01** Discover loads backend categories/vibes and an active places page; chips support multiple selections with outlined/filled icons, reduced-motion-aware selection, bilingual labels, group sections and Clear All Filters. Search is debounced and distance is selectable after locating. The same page feeds list and map; Load more requests the next bounded server page.
+- **PLACE-02** Create Outing's location step reuses the same catalog repository/provider/filter widget. Opening the existing map picker retains filters/search/results; catalog markers match the filtered list while prior selections remain marked. Existing single/multi-place voting and custom pins/geographic search remain available. Returning between wizard steps retains catalog state.
+- **PLACE-03** Previously loaded catalog pages, taxonomy and details use account/origin-scoped snapshots offline; in-memory known places can be filtered without a new matching snapshot. Existing image cache/fallback rendering remains. Socket catalog changes and reconnect/resume revision checks refresh mounted catalog providers with in-flight deduplication and stale-result guards.
+- **PLACE-04** Historical unavailable places show localized status. Permanent closure archives a place and preserves outing/vote/saved/media references. New catalog selections default to active and the backend rejects permanently closed IDs.
+- **PLACE-05** Operators validate a limited import, expand with an unlimited full run, review sync logs and run weekly through an external persistent scheduler. Missing/error/closure policies follow the approved product section. Verification and deployment limits: [Places Management](audit/PLACES_MANAGEMENT.md).
+
+
+## Saved place cards and filter — 2026-11-14
+
+SAVE-04/05: Discover result/featured/nearby cards now expose shared bookmark controls. My Saved offers a Places filter with current saved place details, localized availability, unsave, loading/empty/error/retry states. Existing saved outings and draft navigation remain. Successful writes refresh the saved snapshot; failed writes retain the previous bookmark state.

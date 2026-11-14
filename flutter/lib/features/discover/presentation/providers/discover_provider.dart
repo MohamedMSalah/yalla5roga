@@ -1,4 +1,7 @@
 import 'package:dartz/dartz.dart';
+
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
@@ -7,9 +10,79 @@ import 'package:yalla_5roga/features/discover/domain/repositories/discover_repos
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
 class DiscoverProvider extends ChangeNotifier {
-  DiscoverProvider({required this.repository});
+  DiscoverProvider({required this.repository}) {
+    _catalogChanges = repository.catalogChanges.listen(
+      (_) => load(forceRefresh: true),
+    );
+  }
+  late final StreamSubscription<void> _catalogChanges;
+  @override
+  void dispose() {
+    _catalogChanges.cancel();
+    super.dispose();
+  }
 
   final DiscoverRepository repository;
+  List<SuggestedPlace> savedPlaces = [];
+  bool savedLoading = false, savedLoaded = false, savedFailed = false;
+  String? savingPlaceId;
+  int _savedEpoch = 0;
+  Future<void>? _savedRequest;
+  bool isPlaceSaved(String id) => savedPlaces.any((p) => p.id == id);
+  Future<void> loadSavedPlaces({bool force = false}) {
+    if (!force && savedLoaded) return Future<void>.value();
+    final epoch = _savedEpoch;
+    return _savedRequest ??= _loadSavedPlaces(force).whenComplete(() {
+      if (epoch == _savedEpoch) _savedRequest = null;
+    });
+  }
+
+  Future<void> _loadSavedPlaces(bool force) async {
+    final epoch = _savedEpoch;
+    savedLoading = true;
+    notifyListeners();
+    final result = await repository.getSavedPlaces(forceRefresh: force);
+    if (epoch != _savedEpoch) return;
+    result.fold(
+      (_) {
+        savedFailed = true;
+      },
+      (places) {
+        savedPlaces = places;
+        savedFailed = false;
+      },
+    );
+    savedLoading = false;
+    savedLoaded = true;
+    notifyListeners();
+  }
+
+  Future<bool> toggleSavedPlace(SuggestedPlace place) async {
+    if (savingPlaceId != null || !savedLoaded || savedFailed) return false;
+    final epoch = _savedEpoch;
+    final save = !isPlaceSaved(place.id);
+    savingPlaceId = place.id;
+    notifyListeners();
+    final result = await repository.setPlaceSaved(place.id, save);
+    if (epoch != _savedEpoch) return false;
+    final success = result.isRight();
+    if (success) {
+      savedPlaces = [
+        if (save) place,
+        ...savedPlaces.where((p) => p.id != place.id),
+      ];
+    }
+    notifyListeners();
+    if (success) {
+      await _savedRequest;
+      if (epoch != _savedEpoch) return false;
+      await loadSavedPlaces(force: true);
+    }
+    if (epoch != _savedEpoch) return false;
+    savingPlaceId = null;
+    notifyListeners();
+    return success;
+  }
 
   int _filter = 0;
   var _places = <SuggestedPlace>[];
@@ -123,6 +196,13 @@ class DiscoverProvider extends ChangeNotifier {
   }
 
   void clear() {
+    _savedEpoch++;
+    _savedRequest = null;
+    savedPlaces = [];
+    savedLoading = false;
+    savedLoaded = false;
+    savedFailed = false;
+    savingPlaceId = null;
     repository.clearCache();
     _filter = 0;
     _places = [];

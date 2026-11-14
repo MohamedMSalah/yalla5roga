@@ -128,7 +128,7 @@ The socket client keeps an in-memory invalidation cursor and reconciles missed r
 
 ## 9. Navigation
 
-Imperative GetX — no named route table. The five-tab shell (Home, Groups, Outings, Discover, Settings) uses the existing lazy page cache and mounted tab slots to retain state. Its floating StadiumBorder navigation has a filled violet active pill, directional positioning, safe-area padding and an opaque outlined high-contrast variant. Incoming tabs move by the shared reveal offset; reduced motion disables the transition. Inactive tabs are excluded from pointer input, semantics, focus and tickers. Existing scroll padding reserves the bar height at the end of each tab. Deep links handled by `InviteDeepLinkProvider` + navigator helpers. Outing deep-link accept UX is **partial** (group invites more complete).
+Imperative GetX — no named route table. The five-tab shell (Home, Groups, Outings, Discover, Settings) uses the existing lazy page cache and mounted tab slots to retain state. Its floating StadiumBorder navigation retains safe-area padding and an opaque outlined high-contrast variant. Inactive icons are outlined; selected icons use matching filled variants in the theme primary color, without a selection background. Feature-provided icon pairs render through the existing reusable nav item. AnimatedSwitcher crossfades icons, icon/label colors tween, and selection pulses the icon 1.0 → 1.12 → 1.0 over 200ms with easeInOutCubic. Equal-width items share measured label height so localized/scaled text wraps without ellipsis or moving the icon baseline between items. Reduced motion disables these animations. Incoming tabs move by the shared reveal offset; reduced motion disables the transition. Inactive tabs are excluded from pointer input, semantics, focus and tickers. Existing scroll padding reserves the bar height at the end of each tab. Deep links handled by `InviteDeepLinkProvider` + navigator helpers. Outing deep-link accept UX is **partial** (group invites more complete).
 
 ## 10. Error handling
 
@@ -160,6 +160,10 @@ Rules:
 - Auth (no `guardRemote`) logs blueprints once from `AuthProvider._reportFailure`.
 
 ## 11. Localization and theme
+
+Create Group owns an initially false WhatsApp consent state passed to `GroupInviteePicker`; `AddMemberPhoneSheet` owns the same required checkbox. Localized copy covers WhatsApp invitations only if recipients are not app users. Both submit actions are disabled until checked. Recipient input, calling-code or contact-selection changes clear consent. `GroupsProvider.createGroup` accepts and forwards explicit `whatsappOptIn` rather than inferring it from `memberByPhone`; create/invite provider entry points reject unchecked consent before repository mutation.
+
+Group invitation forms opt into `PhoneTextField`'s controlled calling-code selector (`callingCode`, `onCallingCodeChanged`), defaulting to `+20`. Route/sheet state owns that selection; `Validators.normalizeGroupPhone(..., callingCode: ...)` produces the E.164 payload. Other phone fields retain their existing behavior. `AddMemberPhoneSheet` reuses `PickDeviceContactsPage`, returns a deduplicated phone list plus explicit WhatsApp consent, and `GroupsProvider.promptAddMember` sends each invitation through `inviteMember`, stopping if the account epoch changes. No new dependency or API contract is introduced.
 
 - Manual `L10n` (en/ar) + `LocaleProvider` (prefs).
 - `ThemeProvider` + `AppColors` / `AppPalette` / `AppTheme`.
@@ -349,3 +353,41 @@ Chat retains Provider/repository/remote datasource and the shared authenticated 
 Own-message mutations and retries run through OutingChatProvider and OutingChatRepository. MessageBubble long-press opens the shared AppBottomSheet action surface, with no persistent ellipsis. Edit selection/submission checks ChatMessage.canEditAt and a route-owned one-shot timer exits expired editing; backend checks remain authoritative. Sender labels sit above bubbles, avatars occupy outer directional edges, dates use localized Today/Yesterday pills, and the composer has an @ shortcut and circular Send button without attachments/recording. Retry retains the durable client UUID. Forced recovery refreshes a bounded authoritative message window (up to three existing 40-row pages), including tombstones/edits, resets its older cursor, and preserves live updates arriving during the refresh. Older history remains pageable. The page closes mutation controls at start + two hours and on completed/cancelled status, rescheduling when the outing schedule changes. Backend authorization remains authoritative.
 
 The inbox uses existing NotificationsProvider filters/read state and PushNotificationNavigator. Group/member → Group Details; group invitations → Invitations; outing invitations → Invitations with an authorized outing entry; chat → regular outing chat; voting/RSVP → relevant outing section. `OutingInvitationTarget` is a presentation adapter over the shared card and existing EventPage. The local notification service/native iOS channel and InteractiveNotificationHandler own platform payload/action work outside widgets. Theme, Responsive width caps, manual L10n and reduced-motion AppMotion remain.
+
+
+## Phase 6 settings, entry and authentication presentation — 2026-11-14
+
+SettingsPage composes ProfileHeader/ProfileStats and focused SettingsAccountSection, SettingsPreferencesSection, SettingsSupportSection and SettingsAboutSection widgets. SettingsSection reuses SettingsList; StatCard is a core value/label component. Statistics use the signed-in providers: groups, all loaded outings and server `past` outings (Completed), with an unknown marker before lists load. Completion is not inferred from RSVP or GPS attendance. Account information reads existing profile fields; Change Photo opens the existing editor/picker and retains its password confirmation/save flow.
+
+AuthScaffold constrains and scrolls auth forms; SignupPhotoPicker reuses UserAvatar and ImageSourceSheet. AuthProvider uploads an optional signup photo through MediaUploadService only after Firebase-verified registration, then syncs the stable reference through the existing profile API. Photo failure does not repeat registration. Confirmation is client validation; signup/login/OTP payloads are unchanged. PasswordRecoveryPage adds shared AppStepProgress over the existing route-local provider.
+
+SplashPage is the branded three-step introduction. Route-local OnboardingProvider persists `onboarding_completed` through the already-injected SharedPreferences. Next advances; Skip/Get Started persist completion before replacing the stack with AuthPage. App still selects MainShell first for a restored authenticated account, otherwise AuthPage for completed onboarding or SplashPage for first run. No prior onboarding flag existed in the inspected source. Locale/theme/auth persistence, deferred user sync, pending deep links, logout cleanup and account caches retain their existing owners.
+
+SavedOutingsPage reuses OutingListTile → core OutingCard, opens existing saved outings via authorized refresh and EventPage, and keeps drafts in CreateOutingPage. SavedOutingsProvider exposes loading/failure/retry while retaining account epochs and data on failed refresh. History keeps scheduled-start/past/cancelled classification, shared cards and completed-chat read-only policy. No new data source, routing framework or dependency was introduced. Static/OpenAPI verification only; visual and device validation were explicitly excluded.
+
+
+## Android system notification extension — 2026-11-14
+
+Existing Provider/Clean Architecture/Dio/GetX remains. AppDependencies connects LocalNotificationsService, FcmMessagingService and the existing interactive handler through NotificationActionDispatcher. The top-level FCM background handler and native action background callback bootstrap only Firebase session plus the existing ApiClient/interceptors; they do not construct screens/providers or call users/sync. Local native rendering is shared by foreground/background Android data events. iOS retains APNs categories/bridge.
+
+NotificationActionDispatcher owns bounded account-specific draft/retry state in SharedPreferencesAsync so Flutter isolates do not use stale preference caches. Completed actions discard text. LocalNotificationsService owns persisted deduplication, stable native IDs, category channels, MessagingStyle, conversation summaries, active-display reconciliation and privacy. It validates fresh display metadata via the authenticated no-store system-payload endpoint, with redacted offline fallback. Only FCM creates new OS alerts; Socket.IO/API synchronization updates existing state.
+
+The existing notification datasource/repository now carries server unread totals/preferences. A narrow NotificationPreferencesRepository interface is implemented by the existing repository. NotificationsProvider owns persisted push state; the existing Settings switch uses it. AppSyncProvider invokes bounded action recovery after shared session synchronization and always refreshes the inbox on resume/reconnect. No new global synchronization loop or socket subscription is introduced. AuthService's pre-signout callback unregisters/clears push state without coupling screens to transport logic.
+
+OutingChatPage optionally accepts a referenced message ID, fetches it through the existing chat repository and focuses/highlights its normal bubble with theme tokens. Existing message editing and deletion controls remain unchanged. Flutter code was analyzed/formatted only; no tests, runtime, hot reload, preview, emulator, device or UI automation was run at the user's request.
+
+Notification rollout compatibility: the existing token registration accepts notificationVersion=2 from updated clients; existing Android registrations default to 1 and retain OS-visible delivery. The additive migration includes this token capability field alongside inbox metadata and user preferences.
+
+
+## Dynamic place taxonomy and shared filters — 2026-11-14
+
+`discover/domain/entities/place_catalog.dart` defines backend-driven `CatalogDefinition` and the shared `PlaceFilters` policy. `SuggestedPlace` and canonical outing `Place` retain category/vibe IDs, availability and bilingual names; old outing enums remain compatible. Discover datasource/repository fetch taxonomy, paginated queries and revision metadata through the existing Dio ApiClient. TTL/in-flight caches and raw account-scoped OfflineSnapshots cover categories/vibes/pages/details; query keys are canonicalized and bounded by existing snapshot quotas. Known loaded places support offline filtering. Existing cached-image widgets and fallback images are reused.
+
+`PlaceCatalogProvider` owns route filters, a shared search controller, paged results, stale-result generations, loading/errors and taxonomy. `core/widgets/place_catalog_filters.dart` supplies reusable grouped chips, dynamic icon pairs, distance/clear/retry/load-more controls. Discover uses one result collection for map and list. CreateOutingProvider owns an optional route catalog provider across wizard/map navigation and disposes it with the form; the existing picker retains custom pin/geocoder behavior. All copy is in manual L10n or backend bilingual labels; no routing/localization/state dependency changed.
+
+AppSync invokes repository revision recovery at resume/reconnect; existing Socket.IO transport forwards `catalog:changed`. Repository change streams refresh mounted catalog providers, with one concurrent version request and deduplicated page/definition reads. No Flutter/emulator/device/widget test or visual runtime check was run for this task, per owner instruction; Dart static analysis is the Flutter verification boundary.
+
+
+## Saved place cards and filter — 2026-11-14
+
+DiscoverRepository/datasource now expose saved-place list and write operations. DiscoverProvider owns account-cleared bookmark/loading/mutation state with stale-account guards. SavePlaceButton is reused across cards and SavedPlacesList; SavedOutingsPage retains its existing views and adds a Places filter. Saved lists reuse account-scoped ApiClient snapshots. No new state/network dependency is introduced.

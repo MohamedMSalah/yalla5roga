@@ -8,6 +8,52 @@ class L10n {
   const L10n(this.locale);
 
   final Locale locale;
+  String get savePlace=>_t('Save place','حفظ المكان');
+  String get unsavePlace=>_t('Unsave place','إلغاء حفظ المكان');
+  String get savedPlacesFilter=>_t('Places','الأماكن');
+  String get noSavedPlaces=>_t('No saved places yet','لا توجد أماكن محفوظة بعد');
+  String get savedPlaceFailed=>_t('Could not update saved places. Try again.','تعذر تحديث الأماكن المحفوظة. حاول مرة أخرى.');
+  String get catalogClearFilters=>_t('Clear All Filters','مسح كل الفلاتر');
+  String get catalogRetryCategories=>_t('Retry categories','إعادة تحميل التصنيفات');
+  String get catalogSearch=>_t('Search places','ابحث عن مكان');
+  String get catalogSearchLocations=>_t('Search locations','نتائج البحث عن مواقع');
+  String get catalogNoCategories=>_t('No categories available','لا توجد تصنيفات متاحة');
+  String get catalogDistance=>_t('Distance','المسافة');
+  String get catalogRetry=>_t('Could not load places. Retry','تعذر تحميل الأماكن. حاول تاني');
+  String get catalogMore=>_t('Load more','عرض المزيد');
+  String catalogKm(num value)=>'${n(value)} ${_t('km','كم')}';
+  String catalogStatus(String status)=>switch(status){'temporarily_closed'=>_t('Temporarily closed','مغلق مؤقتًا'),'permanently_closed'=>_t('Permanently closed','مغلق نهائيًا'),'unverified'=>_t('Availability unverified','التوفر غير مؤكد'),_=>''};
+  String catalogGroup(String group)=>switch(group){'food_drinks'=>_t('Food & Drinks','أكل ومشروبات'),'entertainment'=>_t('Entertainment','ترفيه'),'outdoor'=>_t('Outdoor','أماكن خارجية'),'shopping'=>_t('Shopping','تسوق'),'activities'=>_t('Activities','أنشطة'),'culture'=>_t('Culture','ثقافة'),'social'=>_t('Social','اجتماعي'),_=>group};
+  String get openingDetails => _t('Opening details…', 'جاري فتح التفاصيل…');
+  String get onboardingSkip => _t('Skip', 'تخطي');
+  String get onboardingNext => _t('Next', 'التالي');
+  String get onboardingGroups =>
+      _t('Bring your people together', 'اجمع أصحابك');
+  String get onboardingGroupsBody => _t(
+    'Create groups, invite your friends and keep everyone in the loop.',
+    'اعمل مجموعات واعزم أصحابك وخلي الكل متابع الخطط.',
+  );
+  String get onboardingPlans =>
+      _t('Make a plan everyone loves', 'خطط لخروجة تعجب الكل');
+  String get onboardingPlansBody => _t(
+    'Organize outings and vote together on where to go.',
+    'نظم الخروجات وصوتوا مع بعض على المكان.',
+  );
+  String get onboardingDiscover =>
+      _t('Find your next favorite place', 'اكتشف مكانك المفضل الجاي');
+  String get onboardingDiscoverBody => _t(
+    'Explore nearby places and turn a discovery into your next outing.',
+    'اكتشف الأماكن القريبة وخليها وجهتكم في الخروجة الجاية.',
+  );
+  String get accountInformation => _t('Account information', 'معلومات الحساب');
+  String get confirmPassword => _t('Confirm password', 'تأكيد كلمة المرور');
+  String get optionalProfilePhoto =>
+      _t('Profile photo (optional)', 'صورة الحساب (اختياري)');
+  String get savedLoadFailed => _t(
+    'Could not load your saved outings. Try again.',
+    'تعذر تحميل الخروجات المحفوظة. حاول مرة أخرى.',
+  );
+
   String get outingSchedule => _t('Date and time', 'التاريخ والوقت');
   String get editOuting => _t('Edit outing', 'تعديل الخروجة');
   String get cancelOuting => _t('Cancel outing', 'إلغاء الخروجة');
@@ -403,6 +449,8 @@ class L10n {
   String get phone => _t('Phone number', 'رقم الهاتف');
   String get phoneHint => digits(_t('100 123 4567', '100 123 4567'));
   String get phoneCountryCode => digits('+20');
+  String get countryCallingCode => _t('Country calling code', 'مفتاح الدولة');
+  String get nationalPhoneNumberHint => _t('Phone number', 'رقم الهاتف');
   String get email => _t('Email', 'البريد الإلكتروني');
   String get emailHint => _t('name@example.com', 'name@example.com');
   String get nameTooShort => digits(
@@ -612,8 +660,8 @@ class L10n {
     'رقم مصري أو رقم يبدأ بمفتاح الدولة',
   );
   String get groupWhatsAppConsent => _t(
-    'These contacts agreed to receive a WhatsApp invitation from Yalla 5roga.',
-    'وافق أصحاب هذه الأرقام على تلقي دعوة واتساب من يلا خروجة.',
+    'These people agreed to receive a WhatsApp invitation from Yalla 5roga if they don’t already use the app.',
+    'وافق هؤلاء الأشخاص على تلقي دعوة واتساب من يلا خروجة إذا لم يكونوا يستخدمون التطبيق بالفعل.',
   );
   String get whatsappInvites => _t('WhatsApp invitations', 'دعوات واتساب');
   String get whatsappOptInPrompt => _t(
@@ -1648,8 +1696,8 @@ class L10n {
   String get deleteAccount => _t('Delete account', 'حذف الحساب');
   String get deleteAccountTitle => _t('Delete account?', 'حذف الحساب؟');
   String get deleteAccountBody => _t(
-    'This will remove your account from this device. You can create a new one anytime.',
-    'سيتم حذف حسابك من هذا الجهاز. يمكنك إنشاء حساب جديد في أي وقت.',
+    'Permanently delete your Yalla 5roga profile? This cannot be undone. Profiles linked to existing records may require help from support.',
+    'هل تريد حذف حساب يلا خروجة نهائيًا؟ لا يمكن التراجع. قد تحتاج الحسابات المرتبطة بسجلات موجودة إلى مساعدة الدعم.',
   );
   String get accountDeleted => _t('Account deleted', 'تم حذف الحساب');
   String get aboutDeveloper => _t('About Developer', 'عن المطوّر');

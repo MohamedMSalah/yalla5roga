@@ -141,15 +141,29 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         _pageFor(4, shell),
       ],
       items: [
-        AppBottomNavItem(icon: Icons.home_rounded, label: l10n.navHome),
-        AppBottomNavItem(icon: Icons.groups_2_rounded, label: l10n.navGroups),
+        AppBottomNavItem(
+          icon: Icons.home_outlined,
+          selectedIcon: Icons.home,
+          label: l10n.navHome,
+        ),
+        AppBottomNavItem(
+          icon: Icons.groups_2_outlined,
+          selectedIcon: Icons.groups_2,
+          label: l10n.navGroups,
+        ),
         AppBottomNavItem(
           icon: Icons.calendar_month_outlined,
+          selectedIcon: Icons.calendar_month,
           label: l10n.navOutings,
         ),
-        AppBottomNavItem(icon: Icons.explore_outlined, label: l10n.navDiscover),
+        AppBottomNavItem(
+          icon: Icons.explore_outlined,
+          selectedIcon: Icons.explore,
+          label: l10n.navDiscover,
+        ),
         AppBottomNavItem(
           icon: Icons.settings_outlined,
+          selectedIcon: Icons.settings,
           label: l10n.navSettings,
         ),
       ],

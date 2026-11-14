@@ -25,6 +25,7 @@ import 'package:yalla_5roga/features/outings/presentation/providers/outings_prov
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_basics_step.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_location_step.dart';
+import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_review_step.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_step_header.dart';
 
@@ -60,6 +61,9 @@ class CreateOutingPage extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) {
         final form = CreateOutingProvider(
+          placeCatalog: PlaceCatalogProvider(discover.repository)
+            ..loadDefinitions()
+            ..load(),
           groups: groups.groups,
           contacts: groups.contacts,
           catalogPlaces: discover.catalogPlaces().isNotEmpty
@@ -160,6 +164,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     final selected = await Get.to<List<Place>>(
       () => PickLocationPage(
         catalog: discover.catalogPlaces(),
+        placeCatalog: form.placeCatalog,
         initial: multi ? null : form.mapInitialPlace,
         selected: multi ? form.selectedPlaces : const [],
         maxSelections: multi ? OutingsProvider.maxVotePlaces : 1,

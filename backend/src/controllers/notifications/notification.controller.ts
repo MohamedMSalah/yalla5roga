@@ -7,12 +7,14 @@ import { notificationTarget } from "../../services/notifications/notification-ta
 import { emitDataChange } from "../../realtime/data-changes.js";
 import { listNotificationsQuerySchema } from "../../validators/notifications/notification.validator.js";
 import type { Notification } from "../../types/notifications/notification.types.js";
+import { NotificationStateUseCase } from "../../usecases/notifications/notification-state.usecase.js";
 
 export class NotificationController {
   constructor(
     private readonly listNotifications = new ListNotificationsUseCase(),
     private readonly markRead = new MarkNotificationReadUseCase(),
     private readonly markAllRead = new MarkAllNotificationsReadUseCase(),
+    private readonly state = new NotificationStateUseCase(),
   ) {}
 
   list = async (req: Request, res: Response, next: NextFunction) => {
@@ -23,14 +25,20 @@ export class NotificationController {
       if (!parsed.success) {
         throw new ValidationError(
           parsed.error.issues
-            .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`)
+            .map((issue) => `${issue.path.join(".") || "request"}: ${issue.message}`,
+            )
             .join("; "),
         );
       }
       const { limit, cursor } = parsed.data;
       const toResponse = (row: Notification) => {
         const target = notificationTarget(row.event_key, row.type);
-        return { ...row, eventType: target.type, messageId: target.messageId };
+        const data = row.data as Record<string, string>;
+        return { ...row,
+          ...data,
+          type: row.type,
+          eventType: data.notificationType ?? target.type, messageId: data.messageId ?? target.messageId,
+        };
       };
 
       const page = await this.listNotifications.executePage(req.user.uid, {
@@ -40,9 +48,51 @@ export class NotificationController {
       res.json({
         success: true,
         data: page.items.map(toResponse),
+        ...(await this.state.summary(req.user.uid)),
         next_cursor: page.nextCursor,
         pagination: { limit: limit ?? 20, nextCursor: page.nextCursor },
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  preferences = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      res.json({
+        success: true,
+        data: await this.state.preferences(req.user.uid),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updatePreferences = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.state.updatePreferences(req.user.uid, req.body);
+      emitDataChange({ kind: "inbox" }, [req.user.uid]);
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  systemPayload = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const data = await this.state.systemPayload(
+        req.user.uid,
+        req.params.id as string,
+      );
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ success: true, data });
     } catch (error) {
       next(error);
     }

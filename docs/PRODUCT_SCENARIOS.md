@@ -62,6 +62,8 @@ Group invitation creation always records `pending`, including invitations to reg
 
 Group share links (`yalla5roga://invite` or HTTPS) restore the invitation destination after authentication. With recipient consent and a configured WhatsApp Business provider, the backend queues the existing invitation template. Delivery availability does not decide membership.
 
+**Approved (owner clarification, 2026-11-14):** Create Group and Add people require one initially unchecked confirmation: the selected people agreed to receive a WhatsApp invitation if they do not already use the app. Both submit actions remain disabled until checked. Changing phone input, calling code, or selected recipients clears confirmation. Create never infers consent from an unknown phone. Existing verified app users retain pending in-app invitations; only non-users are eligible for the consented WhatsApp send. A separate assertion that recipients are non-users is not required.
+
 ---
 
 ## 4. Outing types
@@ -199,7 +201,7 @@ Backend enforces all rows; Flutter visibility is not authorization.
 
 **Approved events:** new invitation; invitation accepted (where applicable); outing details updated; candidate places changed; voting reset; attendance changed (policy); new chat (preferences); voting closed early; deadline reached; unique winner; tie-break winner; confirmed; cancelled.
 
-**Tap destinations:** Group creation and updates open Group Details. Outing creation, updates, and reminders open Outing Details. Chat opens the related outing chat with normal history and message styling. Place votes open Place Voting. Attendance votes open Attendance. Member joins and departures open Group Details. Group invitations open Invitations; outing invitations open Invitations with the specific authorized outing card, whose View outing action opens its existing invitation decisions. Opening a notification marks its inbox item read, and Back returns to the previous screen. Access follows the destination's existing authorization rules.
+**Tap destinations:** Group creation and updates open Group Details. Outing creation, updates, and reminders open Outing Details. Chat opens the related outing chat; message and mention pushes focus and highlight the referenced authorized message. Place votes open Place Voting. Attendance votes open Attendance. Member joins and departures open Group Details. Group invitations open Invitations; outing invitations open Invitations with the specific authorized outing card, whose View outing action opens its existing invitation decisions. Opening a notification marks its inbox item read, and Back returns to the previous screen. Access follows the destination's existing authorization rules.
 
 **Infrastructure:** FCM token register/refresh; multi-device; invalid token handling; outbox → worker → real Push sender (Firebase Admin); retries; idempotency; delivery failure logging. Persisted notification rows alone do not prove push delivery.
 
@@ -283,7 +285,7 @@ None that conflict with approved text above. Group-outing eligibility includes m
 
 ## Approved chat and background refresh behavior — 2026-11-11
 
-The owner requests silent background synchronization with no global loading or connection banner. Socket.IO invalidations update affected providers; reconnect/resume reconciles missed changes without polling. Cached content remains visible offline. Chat alone shows Connected after authenticated transport and room-join acknowledgement, Reconnecting during recovery, or Offline when unavailable. Each message group shows the Neon sender name and avatar, with localized “(You)” for the current user; consecutive messages from that sender share the compact group treatment. Selecting an @mention identifies a current chat participant by stable user ID, highlights the name, and notifies that member once per message; self-mentions never notify the sender. Notification navigation opens the regular outing chat. Message and mention notification taps use normal history and bubble styling, without a separate highlighted or labeled notification message.
+The owner requests silent background synchronization with no global loading or connection banner. Socket.IO invalidations update affected providers; reconnect/resume reconciles missed changes without polling. Cached content remains visible offline. Chat alone shows Connected after authenticated transport and room-join acknowledgement, Reconnecting during recovery, or Offline when unavailable. Each message group shows the Neon sender name and avatar, with localized “(You)” for the current user; consecutive messages from that sender share the compact group treatment. Selecting an @mention identifies a current chat participant by stable user ID, highlights the name, and notifies that member once per message; self-mentions never notify the sender. Notification navigation opens the regular outing chat. The owner-approved Android push extension (2026-11-14) supersedes the earlier ordinary-chat-only tap policy: message and mention pushes focus and highlight the referenced authorized message within the existing chat.
 
 ## Password recovery — owner-approved 2026-11-11
 
@@ -318,4 +320,27 @@ The default RSVP for a member who has not replied is **No response** / **لم ي
 
 ## Phase 5 chat and inbox presentation — 2026-11-14
 
-Outing-only chat uses grouped sender bubbles, localized timestamps/date separators, a text-only composer and current-member mention suggestions. Pending sends remain in the existing durable UUID queue; failed sends expose Retry. Completed/cancelled/two-hour-closed chats hide all message mutations. The inbox supports All/Unread, unread count, event titles/icons, read state and explicit loading/empty/error recovery. Reply and Mark as read use authenticated native actions where the platform infrastructure supports them. Android OS-rendered background FCM currently lacks action buttons; ordinary FCM delivery remains. iOS category actions and the native response bridge require later device verification.
+Outing-only chat uses grouped sender bubbles, localized timestamps/date separators, a text-only composer and current-member mention suggestions. Pending sends remain in the existing durable UUID queue; failed sends expose Retry. Completed/cancelled/two-hour-closed chats hide all message mutations. The inbox supports All/Unread, unread count, event titles/icons, read state and explicit loading/empty/error recovery. Reply and Mark as read use authenticated native actions where the platform infrastructure supports them. Android data-only FCM now uses the local native notification renderer and background action dispatcher; actual OS delivery/actions remain manually unverified. iOS category actions and the native response bridge require later device verification.
+
+
+## Android system push extension — owner-approved 2026-11-14
+
+Android system notifications complement the PostgreSQL inbox and existing Socket.IO synchronization. FCM delivers data-only Android events; the existing local-notification plugin renders category channels, MessagingStyle chat, conversation grouping, Direct Reply and Mark as Read, plus pending group invitation Accept/Decline. Only confirmed backend responses complete actions. Replies use a durable, account-bound clientMessageId and the normal chat send API; failures retain a bounded draft/retry record. Read actions affect only the relevant conversation. Lock-screen message previews default to hidden. Current foreground chat suppresses redundant system alerts.
+
+Group invitations remain pending through verified signup/login/sync; membership and its confirmation notification require explicit acceptance. Decline retains history. New group/membership/outing/voting/RSVP/arrival events use the existing durable outbox. Reminder jobs respect current access, deadline/schedule, confirmed pinned venue and attendance window; no notification action can create physical presence. RSVP is independent of voting. This app has no separately configured RSVP deadline, so no RSVP-deadline reminder is fabricated. Confirmed venues retain the existing immutable policy; valid winner/tie-break/owner-confirmation transitions notify without reopening a confirmed outing.
+
+Android execution in foreground/background/terminated states, permission denial, RemoteInput, badges, privacy and OEM restrictions require manual device verification. Implementation and HTTP/OpenAPI evidence are recorded in [Android push audit](audit/ANDROID_SYSTEM_PUSH.md).
+
+
+## Places catalog, synchronization and filters — owner-approved 2026-11-14
+
+The OSM-backed catalog covers the administrative boundaries of Cairo (EG-C) and Giza (EG-GZ), including their eastern/western new cities; district names never define import coverage. Categories and place vibes are bilingual, extensible database definitions. The existing four-value outing vibe remains a compatibility field for outing creation/history; it is distinct from the many-to-many place vibes. Discover and Create Outing share the same dynamic definitions, multi-category/multi-vibe filters, search, nearby distance, pagination and map results. Filters remain in the route's provider across wizard/map navigation. Default recommendations contain active places only. Historical details label temporary closure, permanent closure and unverified availability.
+
+Source identities are `(source, source_type, source_id)`. Source=manual and curator-managed records are never overwritten. Source tags may support objective category/vibe assignments; romance, affordability and work suitability cannot be inferred from category alone. Explicit retired/demolished/removed feature evidence can permanently close an OSM identity; disused/ambiguous `opening_hours=closed` is temporary. Current supported source tags may reopen it. Absence counts only in successful complete cycles; three consecutive covered absences mark an otherwise available identity unverified. Errors, partial/limited imports and dry runs never advance absence counters. Referenced places are archived, never hard-deleted. New outing/catalog candidate IDs reject permanently closed places on the backend while historical references remain readable.
+
+Weekly synchronization runs outside Flutter through a persistent external scheduler and a seven-day database due gate. Limited 1,000-place validation is explicit; scheduled/full imports have no 1,000-place ceiling. Source attribution is OpenStreetMap contributors / ODbL 1.0. See [operations and verification](audit/PLACES_MANAGEMENT.md).
+
+
+## Saved place cards and filter — 2026-11-14
+
+Place cards expose Save/Unsave bookmarks. My Saved adds a Places filter alongside the existing saved outing and draft views; saved places open their current details and can be unsaved there. Bookmarks persist in the existing account-owned Neon saved_places relation.

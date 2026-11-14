@@ -1,5 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
+import {
+  persistGroupInvitation,
+  persistInvitationDecision,
+} from "../../services/notifications/group-notifier.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
 import {
   claimPendingInvitations,
@@ -36,10 +40,13 @@ export class PrismaInvitationClaimStore implements InvitationClaimStore {
     now: Date,
   ): Promise<InvitationRecord[]> {
     // Verified identity links the inbox only. Membership needs explicit acceptance.
-    return this.db.group_invitations.updateManyAndReturn({
-      where: { id: { in: pending.map(row => row.id) } },
+    const linked = await this.db.group_invitations.updateManyAndReturn({
+      where: { id: { in: pending.map((row) => row.id) } },
       data: { user_id: userId, updated_at: now },
     });
+    for (const invitation of linked)
+      await persistGroupInvitation(this.db, invitation);
+    return linked;
   }
 }
 
@@ -50,8 +57,7 @@ export class GroupInvitationDatasource {
 
   findPending(
     groupId: string,
-    phone: string,
-  ): Promise<GroupInvitation | null> {
+    phone: string): Promise<GroupInvitation | null> {
     return prisma.group_invitations.findFirst({
       where: {
         group_id: groupId,
@@ -71,10 +77,15 @@ export class GroupInvitationDatasource {
         `;
         if (!rows.length) throw new NotFoundError("Group");
         const inviter = await tx.group_members.findUnique({
-          where: { group_id_user_id: { group_id: input.group_id, user_id: input.invited_by_user_id } },
+          where: { group_id_user_id: { group_id: input.group_id, user_id: input.invited_by_user_id,
+            },
+          },
         });
         if (!inviter) throw new ForbiddenError("Only group members can invite");
-        return tx.group_invitations.create({ data: { ...input, status: "pending" } });
+        const saved = await tx.group_invitations.create({ data: { ...input, status: "pending" },
+        });
+        await persistGroupInvitation(tx, saved);
+        return saved;
       });
       return { invitation, created: true };
     } catch (error) {
@@ -89,7 +100,8 @@ export class GroupInvitationDatasource {
     }
   }
 
-  async revokePending(groupId: string, id: string): Promise<GroupInvitation | null> {
+  async revokePending(groupId: string, id: string,
+  ): Promise<GroupInvitation | null> {
     const [revoked] = await prisma.group_invitations.updateManyAndReturn({
       where: { id, group_id: groupId, status: "pending" },
       data: { status: "revoked" },
@@ -105,10 +117,20 @@ export class GroupInvitationDatasource {
     return prisma.$transaction(async (tx) => {
       // Serialize conflicting decisions before reading status or writing membership.
       await tx.$queryRaw`SELECT id FROM group_invitations WHERE id = ${invitationId}::uuid FOR UPDATE`;
-      const invitation = await tx.group_invitations.findUnique({ where: { id: invitationId } });
+      const invitation = await tx.group_invitations.findUnique({ where: { id: invitationId },
+      });
       if (!invitation) return null;
       if (invitation.user_id !== null && invitation.user_id !== userId) return null;
       if (invitation.status !== "pending") return invitation;
+
+      if (invitation.expires_at <= now) {
+        const expired = await tx.group_invitations.update({
+          where: { id: invitationId },
+          data: { status: "expired", user_id: userId },
+        });
+        await persistInvitationDecision(tx, expired);
+        return expired;
+      }
 
       // Create the group membership
       await tx.group_members.createMany({
@@ -125,6 +147,7 @@ export class GroupInvitationDatasource {
         where: { id: invitationId },
         data: { status: "accepted", user_id: userId, updated_at: now },
       });
+      if (updated) await persistInvitationDecision(tx, updated);
       return updated ?? null;
     });
   }
@@ -137,7 +160,8 @@ export class GroupInvitationDatasource {
     return prisma.$transaction(async (tx) => {
       // Serialize conflicting decisions before reading status or writing membership.
       await tx.$queryRaw`SELECT id FROM group_invitations WHERE id = ${invitationId}::uuid FOR UPDATE`;
-      const invitation = await tx.group_invitations.findUnique({ where: { id: invitationId } });
+      const invitation = await tx.group_invitations.findUnique({ where: { id: invitationId },
+      });
       if (!invitation) return null;
       if (invitation.user_id !== null && invitation.user_id !== userId) return null;
       if (invitation.status !== "pending") return invitation;
@@ -146,8 +170,10 @@ export class GroupInvitationDatasource {
         where: { id: invitationId, status: "pending" },
         // Link a phone-only invitation to the caller for history; the status
         // stays `declined`, so this never creates or implies membership.
-        data: { status: "declined", user_id: invitation.user_id ?? userId, updated_at: now },
+        data: { status: "declined", user_id: invitation.user_id ?? userId, updated_at: now,
+        },
       });
+      if (updated) await persistInvitationDecision(tx, updated);
       return updated ?? null;
     });
   }

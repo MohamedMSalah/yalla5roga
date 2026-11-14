@@ -57,12 +57,16 @@ export class NotificationEventDatasource {
    * Atomically claims due pending/failed events for the worker.
    * Uses SKIP LOCKED so multiple workers can scale horizontally.
    */
-  async claimDue(batchSize: number, now = new Date()): Promise<NotificationEvent[]> {
+  async claimDue(batchSize: number, now = new Date(),
+  ): Promise<NotificationEvent[]> {
     return this.db.$transaction(async (tx) => {
+      const leaseExpired = new Date(now.getTime() - 5 * 60_000);
+      await tx.$executeRaw`UPDATE notification_events SET status = 'dead', last_error = 'Worker lease expired after retry limit', updated_at = ${now}
+        WHERE status = 'processing' AND updated_at <= ${leaseExpired} AND attempts >= max_attempts`;
       const due = await tx.$queryRaw<Array<{ id: string }>>`
         SELECT id
         FROM notification_events
-        WHERE status IN ('pending', 'failed')
+        WHERE (status IN ('pending', 'failed') OR (status = 'processing' AND updated_at <= ${leaseExpired}))
           AND next_attempt_at <= ${now}
           AND attempts < max_attempts
         ORDER BY next_attempt_at ASC
@@ -77,6 +81,7 @@ export class NotificationEventDatasource {
         where: { id: { in: ids } },
         data: {
           status: "processing",
+          attempts: { increment: 1 },
           updated_at: now,
         },
       });
@@ -112,7 +117,6 @@ export class NotificationEventDatasource {
       where: { id: eventId },
       data: {
         status: dead ? "dead" : "failed",
-        attempts: { increment: 1 },
         last_error: error.slice(0, 1000),
         next_attempt_at: nextAttemptAt,
         updated_at: new Date(),

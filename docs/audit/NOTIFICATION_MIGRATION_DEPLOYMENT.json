@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-11-14T14:18:49.404Z",
+  "mode": "deploy",
+  "migration": "20261114030000_android_system_notifications",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [
+    "20261114030000_android_system_notifications"
+  ],
+  "privateBackup": ".database-backups/notifications-2026-11-14T14-19-03.158Z/snapshot.json",
+  "backupSha256": "12ffdcf20125999a17851fda6d6801af7d4737d0d57ea9a91594d43751848a31",
+  "rehearsal": "PASS: all public rows restored with keys/indexes/FKs; exact migration rehearsed using an isolated enum and rolled back",
+  "tableCount": 27,
+  "rowCount": 662,
+  "existingRowsPreserved": true,
+  "pendingAfter": [],
+  "appliedMigration": {
+    "migration_name": "20261114030000_android_system_notifications",
+    "checksum": "9a5af7f9a8a8a03c2b76f0cccc06ef56ceabd3eb1b33d50429778bc6d259fcfb"
+  },
+  "columns": [
+    {
+      "table_name": "notifications",
+      "column_name": "data",
+      "data_type": "jsonb",
+      "column_default": "'{}'::jsonb",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "user_fcm_tokens",
+      "column_name": "notification_version",
+      "data_type": "smallint",
+      "column_default": "1",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "users",
+      "column_name": "notification_preferences",
+      "data_type": "jsonb",
+      "column_default": "'{}'::jsonb",
+      "is_nullable": "NO"
+    }
+  ],
+  "constraint": [
+    {
+      "definition": "CHECK ((notification_version = ANY (ARRAY[1, 2])))",
+      "convalidated": true
+    }
+  ],
+  "enumLabels": [
+    "group_invite",
+    "outing_invite",
+    "outing_updated",
+    "attendance_changed",
+    "chat_message",
+    "voting_closed_early",
+    "voting_deadline_reached",
+    "winner_selected",
+    "tie_break_selected",
+    "outing_confirmed",
+    "outing_cancelled",
+    "group_created",
+    "member_joined",
+    "member_left",
+    "membership_activated",
+    "outing_created",
+    "outing_reminder",
+    "voting_started",
+    "voting_deadline_approaching",
+    "voting_closed",
+    "rsvp_opened",
+    "venue_reminder",
+    "arrival_reminder",
+    "arrival_changed",
+    "chat_updated",
+    "chat_deleted",
+    "conversation_read",
+    "invitation_resolved"
+  ],
+  "result": "PASS"
+}

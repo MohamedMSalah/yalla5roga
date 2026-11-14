@@ -4,6 +4,7 @@ import 'package:yalla_5roga/features/groups/presentation/widgets/group_invitee_p
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
@@ -25,6 +26,8 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
   final _phoneController = TextEditingController();
+  var _callingCode = '+20';
+  var _whatsappOptIn = false;
 
   @override
   void initState() {
@@ -61,11 +64,16 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
     );
     if (!mounted || selected == null) return;
     groups.setCreatePhones(selected);
+    setState(() => _whatsappOptIn = false);
   }
 
-  bool _addPhone() {
+  bool _addPhone({bool resetConsent = true}) {
     final error = context.read<GroupsProvider>().addCreatePhone(
-      _phoneController.text,
+      Validators.normalizeGroupPhone(
+            _phoneController.text,
+            callingCode: _callingCode,
+          ) ??
+          '',
       context.l10n,
     );
     if (error != null) {
@@ -73,14 +81,19 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       return false;
     }
     _phoneController.clear();
+    if (resetConsent) setState(() => _whatsappOptIn = false);
     return true;
   }
 
   void _create() async {
     final groups = context.read<GroupsProvider>();
     if (groups.isCreating) return;
+    if (!_whatsappOptIn) return;
     if (!_formKey.currentState!.validate()) return;
-    if (_phoneController.text.trim().isNotEmpty && !_addPhone()) return;
+    if (_phoneController.text.trim().isNotEmpty &&
+        !_addPhone(resetConsent: false)) {
+      return;
+    }
     FocusScope.of(context).unfocus();
     final user = context.read<AuthProvider>().user;
     final l10n = context.l10n;
@@ -89,6 +102,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
       ownerName: user?.name ?? l10n.guestFallback,
       ownerAvatar: user?.imageUrl,
       bio: _bioController.text.trim(),
+      whatsappOptIn: _whatsappOptIn,
     );
     if (!mounted) return;
     if (group == null) {
@@ -134,11 +148,24 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                           Responsive.spaceLg.gapH,
                           GroupInviteePicker(
                             phoneController: _phoneController,
+                            callingCode: _callingCode,
+                            onCallingCodeChanged: (code) => setState(() {
+                              _callingCode = code;
+                              _whatsappOptIn = false;
+                            }),
+                            whatsappOptIn: _whatsappOptIn,
+                            onWhatsAppOptInChanged: (value) =>
+                                setState(() => _whatsappOptIn = value),
+                            onPhoneChanged: (_) =>
+                                setState(() => _whatsappOptIn = false),
                             phones: phones,
                             isCreating: groups.isCreating,
                             onPickContacts: _pickContacts,
                             onAddPhone: _addPhone,
-                            onRemovePhone: groups.removeCreatePhone,
+                            onRemovePhone: (phone) {
+                              groups.removeCreatePhone(phone);
+                              setState(() => _whatsappOptIn = false);
+                            },
                           ),
                         ],
                       ),
@@ -155,7 +182,7 @@ class _CreateGroupPageState extends State<CreateGroupPage> {
                     label: l10n.createGroup,
                     icon: Icons.check,
                     isLoading: groups.isCreating,
-                    onPressed: _create,
+                    onPressed: _whatsappOptIn ? _create : null,
                   ),
                 ),
               ],

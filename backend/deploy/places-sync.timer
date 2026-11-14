@@ -1,0 +1,9 @@
+[Unit]
+Description=Check the seven-day places sync deadline with catch-up
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=300
+Unit=places-sync.service
+[Install]
+WantedBy=timers.target

@@ -1,7 +1,11 @@
 import { ConflictError, ForbiddenError } from "../../utils/errors.js";
-import { getNotificationConfig, hasAutomaticWhatsApp } from "../../config/notifications.js";
+import { getNotificationConfig, hasAutomaticWhatsApp,
+} from "../../config/notifications.js";
 import { specialEventInvitation } from "../../services/whatsapp/special-event-invitation.js";
 import { prisma } from "../../config/database.js";
+import { assertSelectablePlaces } from "../../services/places/place-selection.js";
+import { persistOutingTransition } from "../../services/notifications/outing-events.js";
+import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import type {
   AddGuestInput,
   CastVoteInput,
@@ -42,7 +46,10 @@ export class OutingDatasource {
       where: {
         OR: [
           { created_by: userId },
-          { outing_guests: { some: { user_id: userId, status: { in: ["pending", "accepted"] } } } },
+          { outing_guests: { some: { user_id: userId, status: { in: ["pending", "accepted"] },
+              },
+            },
+          },
           { groups: { group_members: { some: { user_id: userId } } } },
         ],
       },
@@ -62,7 +69,8 @@ export class OutingDatasource {
           where: { created_by_create_request_key: {
             created_by: data.created_by,
             create_request_key: data.create_request_key,
-          } },
+          },
+          },
         });
         if (existing) return existing;
       }
@@ -82,6 +90,10 @@ export class OutingDatasource {
         initial_vote_options: options,
         ...fields
       } = data;
+      await assertSelectablePlaces(tx, [
+        data.location_place_id,
+        ...(options ?? []).map((o) => o.place_id),
+      ]);
       const outing = await tx.outings.create({
         data: {
           ...fields,
@@ -110,7 +122,8 @@ export class OutingDatasource {
       });
 
       if (phones?.length && outing.scheduled_at && hasAutomaticWhatsApp()) {
-        const payload = specialEventInvitation({ ...outing, scheduled_at: outing.scheduled_at });
+        const payload = specialEventInvitation({ ...outing, scheduled_at: outing.scheduled_at,
+        });
         await tx.notification_events.createMany({
           data: phones.map((phone) => ({
             type: "outing_invite",
@@ -124,14 +137,27 @@ export class OutingDatasource {
         });
       }
 
+      await persistOutingTransition(tx, null, outing);
       return outing;
     });
   }
 
   update(id: string, data: UpdateOutingInput): Promise<Outing> {
-    return prisma.outings.update({
+    return prisma.$transaction(async (tx) => {
+      const [before] = await tx.$queryRaw<
+        Outing[]
+      >`SELECT * FROM outings WHERE id = ${id}::uuid FOR UPDATE`;
+      if (
+        data.location_place_id &&
+        data.location_place_id !== before?.location_place_id
+      )
+        await assertSelectablePlaces(tx, [data.location_place_id]);
+      const updated = await tx.outings.update({
       where: { id },
       data: { ...data, updated_at: new Date() },
+      });
+      await persistOutingTransition(tx, before!, updated);
+      return updated;
     });
   }
 
@@ -140,11 +166,26 @@ export class OutingDatasource {
   }
 
   listAttendance(outingId: string): Promise<OutingAttendance[]> {
-    return prisma.outing_attendance.findMany({ where: { outing_id: outingId } });
+    return prisma.outing_attendance.findMany({ where: { outing_id: outingId },
+    });
   }
 
   upsertAttendance(data: UpsertAttendanceInput): Promise<OutingAttendance> {
-    return prisma.$queryRaw<OutingAttendance[]>`
+    return prisma.$transaction(async (tx) => {
+      const [outing] = await tx.$queryRaw<
+        Outing[]
+      >`SELECT * FROM outings WHERE id = ${data.outing_id}::uuid FOR UPDATE`;
+      if (!outing || ["cancelled", "past"].includes(outing.status))
+        throw new ConflictError("Attendance is closed for this outing");
+      const before = await tx.outing_attendance.findUnique({
+        where: {
+          outing_id_user_id: {
+            outing_id: data.outing_id,
+            user_id: data.user_id,
+          },
+        },
+      });
+      const [row] = await tx.$queryRaw<OutingAttendance[]>`
       INSERT INTO outing_attendance (outing_id, user_id, status)
       VALUES (${data.outing_id}::uuid, ${data.user_id}, ${data.status}::attendance_status)
       ON CONFLICT (outing_id, user_id) DO UPDATE
@@ -152,11 +193,30 @@ export class OutingDatasource {
           updated_at = CASE WHEN outing_attendance.status <> EXCLUDED.status
             THEN clock_timestamp() ELSE outing_attendance.updated_at END
       RETURNING *
-    `.then(([row]) => row!);
+    `;
+      if (
+        data.user_id !== outing.created_by &&
+        before?.status !== row!.status
+      ) {
+        await notifyOutingParticipants(
+          {
+            outing,
+            type: "outing",
+            eventType: "attendance_changed",
+            body: "A participant updated their attendance.",
+            userIds: [outing.created_by],
+            eventKey: `attendance:${outing.id}:${data.user_id}:${row!.status}:${row!.updated_at.toISOString()}`,
+          },
+          tx,
+        );
+      }
+      return row!;
+    });
   }
 
   listGuests(outingId: string): Promise<OutingGuest[]> {
-    return prisma.outing_guests.findMany({ where: { outing_id: outingId }, include: { users: { select: { name: true, image_url: true } } } });
+    return prisma.outing_guests.findMany({ where: { outing_id: outingId }, include: { users: { select: { name: true, image_url: true } } },
+    });
   }
 
   async addGuest(data: AddGuestInput): Promise<OutingGuest> {
@@ -171,7 +231,26 @@ export class OutingDatasource {
         where: { ...key, status: { notIn: ["pending", "accepted"] } },
         data: { status, invited_at: new Date() },
       });
-      return tx.outing_guests.findUniqueOrThrow({ where: { outing_id_user_id: key } });
+      const guest = await tx.outing_guests.findUniqueOrThrow({ where: { outing_id_user_id: key },
+      });
+      if (guest.status === "pending") {
+        const outing = await tx.outings.findUniqueOrThrow({
+          where: { id: data.outing_id },
+        });
+        await notifyOutingParticipants(
+          {
+            outing,
+            type: "invitation",
+            eventType: "outing_invite",
+            body: `You were invited to "${outing.title}".`,
+            eventKey: `outing_invite:${outing.id}:${guest.user_id}:${guest.invited_at.toISOString()}`,
+            userIds: [guest.user_id],
+            actionRequired: true,
+          },
+          tx,
+        );
+      }
+      return guest;
     });
   }
 
@@ -208,22 +287,27 @@ export class OutingDatasource {
 
   /** Idempotently add one selection without removing the rest of the ballot. */
   castVote(data: CastVoteInput): Promise<OutingVote> {
-    return prisma.$transaction(async tx => {
-      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null}>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${data.outing_id}::uuid FOR UPDATE`;
+    return prisma.$transaction(async (tx) => {
+      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null;
+        }>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${data.outing_id}::uuid FOR UPDATE`;
       if (!outing || outing.status !== "voting" || outing.vote_closed_at || !outing.vote_ends_at || outing.vote_ends_at <= new Date()) throw new ConflictError("Voting is closed");
       return tx.outing_votes.upsert({
       where: { outing_id_user_id_option_id: {
         outing_id: data.outing_id, user_id: data.user_id, option_id: data.option_id,
-      } }, create: data, update: {},
+      },
+        }, create: data, update: {},
       });
     });
   }
 
-  async removeVote(outingId: string, userId: string, optionId?: string): Promise<OutingVote> {
-    return prisma.$transaction(async tx => {
-      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null}>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
+  async removeVote(outingId: string, userId: string, optionId?: string,
+  ): Promise<OutingVote> {
+    return prisma.$transaction(async (tx) => {
+      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null;
+        }>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
       if (!outing || outing.status !== "voting" || outing.vote_closed_at || !outing.vote_ends_at || outing.vote_ends_at <= new Date()) throw new ConflictError("Voting is closed");
-      const where = { outing_id: outingId, user_id: userId, ...(optionId ? { option_id: optionId } : {}) };
+      const where = { outing_id: outingId, user_id: userId, ...(optionId ? { option_id: optionId } : {}),
+      };
       const vote = await tx.outing_votes.findFirstOrThrow({ where });
       await tx.outing_votes.deleteMany({ where });
       return vote;
@@ -251,25 +335,31 @@ export class OutingDatasource {
   async createDraft(data: CreateOutingDraftInput): Promise<OutingDraft> {
     if (!data.id) return prisma.outing_drafts.create({ data });
     // The caller's stable UUID makes response-loss retries safe.
-    await prisma.outing_drafts.createMany({ data: [data], skipDuplicates: true });
-    const draft = await prisma.outing_drafts.findUniqueOrThrow({ where: { id: data.id } });
+    await prisma.outing_drafts.createMany({ data: [data], skipDuplicates: true,
+    });
+    const draft = await prisma.outing_drafts.findUniqueOrThrow({ where: { id: data.id },
+    });
     if (draft.user_id !== data.user_id) throw new ForbiddenError();
     return draft;
   }
 
-  async updateDraft(id: string, data: UpdateOutingDraftInput, expected?: Date): Promise<OutingDraft> {
-    return prisma.$transaction(async tx => {
+  async updateDraft(id: string, data: UpdateOutingDraftInput, expected?: Date,
+  ): Promise<OutingDraft> {
+    return prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM outing_drafts WHERE id = ${id}::uuid FOR UPDATE`;
-      const current = await tx.outing_drafts.findUniqueOrThrow({ where: { id } });
+      const current = await tx.outing_drafts.findUniqueOrThrow({ where: { id },
+      });
       if (expected && current.updated_at.getTime() !== expected.getTime()) throw new ConflictError("Draft changed; reload before saving");
       return tx.outing_drafts.update({ where: { id }, data: {
-        ...data, updated_at: new Date(Math.max(Date.now(), current.updated_at.getTime() + 1)),
-      } });
+        ...data, updated_at: new Date(Math.max(Date.now(), current.updated_at.getTime() + 1),
+          ),
+      },
+      });
     });
   }
 
   async deleteDraft(id: string, expected?: Date): Promise<OutingDraft> {
-    return prisma.$transaction(async tx => {
+    return prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM outing_drafts WHERE id = ${id}::uuid FOR UPDATE`;
       const draft = await tx.outing_drafts.findUniqueOrThrow({ where: { id } });
       if (expected && draft.updated_at.getTime() !== expected.getTime()) throw new ConflictError("Draft changed; reload before deleting");
@@ -302,6 +392,7 @@ export class OutingDatasource {
 
   listSavedPlacesByUser(userId: string): Promise<SavedPlace[]> {
     return prisma.saved_places.findMany({
+      include:{places:{include:{place_vibes:true,category:true}}},
       where: { user_id: userId },
       orderBy: { saved_at: "desc" },
     });

@@ -12,6 +12,12 @@ import type {
 
 export class NotificationRepository implements INotificationRepository {
   constructor(private readonly datasource = new NotificationDatasource()) {}
+  summary(uid: string) {
+    return this.datasource.summary(uid);
+  }
+  updatePreferences(uid: string, patch: Record<string, boolean>) {
+    return this.datasource.updatePreferences(uid, patch);
+  }
 
   findById(id: string): Promise<Notification | null> {
     return this.datasource.findById(id);

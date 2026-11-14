@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -27,7 +28,9 @@ class SuggestedPlaceTile extends StatelessWidget {
     final thumb = Responsive.avatarLg * 0.62;
     final distance = place.distanceKm;
     final detail = distance == null
-        ? l10n.priceLevelLabel(place.priceLevel.name)
+        ? (place.hasKnownPrice
+              ? l10n.priceLevelLabel(place.priceLevel.name)
+              : '')
         : l10n.distanceInKm(distance);
 
     return AppCard(
@@ -62,7 +65,10 @@ class SuggestedPlaceTile extends StatelessWidget {
                 ),
                 Responsive.spaceXs.gapH,
                 Text(
-                  '${place.localizedArea(l10n)} · $detail',
+                  [
+                    place.localizedArea(l10n),
+                    detail,
+                  ].where((v) => v.isNotEmpty).join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -75,6 +81,7 @@ class SuggestedPlaceTile extends StatelessWidget {
             ),
           ),
           Responsive.spaceSm.gapW,
+          SavePlaceButton(place: place),
           AppBadge(
             label: l10n.vibeLabel(place.vibe.name),
             color: palette.brandSoft,

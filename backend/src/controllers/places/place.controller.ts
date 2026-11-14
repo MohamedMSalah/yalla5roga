@@ -17,6 +17,7 @@ import {
 } from "../../usecases/places/place-details.usecase.js";
 import { UpdatePlaceUseCase } from "../../usecases/places/update-place.usecase.js";
 import { nearbyPlacesQuerySchema } from "../../validators/places/place.validator.js";
+import { CatalogController } from "./catalog.controller.js";
 
 export class PlaceController {
   constructor(
@@ -39,9 +40,7 @@ export class PlaceController {
 
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const featuredOnly = Boolean(req.query.featured);
-      const places = await this.listPlaces.execute(featuredOnly);
-      res.json({ success: true, data: places });
+      return new CatalogController().list(req, res, next);
     } catch (error) {
       next(error);
     }

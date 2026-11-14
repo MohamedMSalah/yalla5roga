@@ -4,6 +4,8 @@ import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dar
 import 'package:yalla_5roga/features/auth/domain/entities/user.dart';
 
 abstract class AuthRepository {
+  Future<Either<Failure, void>> deleteAccount();
+
   Future<Either<Failure, String>> startPasswordRecovery(String phone);
   Future<Either<Failure, String>> verifyPasswordRecovery({
     required String requestToken,

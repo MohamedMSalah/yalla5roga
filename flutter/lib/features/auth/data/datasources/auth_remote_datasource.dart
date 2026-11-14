@@ -12,6 +12,8 @@ import 'package:yalla_5roga/features/auth/domain/entities/phone_verification.dar
 ///
 /// Phone/password sessions are established by Neon, then exchanged for Firebase tokens.
 abstract class AuthRemoteDataSource {
+  Future<void> deleteAccount();
+
   Future<Map<String, dynamic>> recovery(String path, Map<String, dynamic> body);
 
   Future<AuthSessionModel> login({
@@ -59,6 +61,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   const AuthRemoteDataSourceImpl(this._client);
 
   final ApiClient _client;
+
+  @override
+  Future<void> deleteAccount() async {
+    try {
+      await _client.delete<Map<String, dynamic>>(ApiConstants.profile);
+    } on DioException catch (error) {
+      _mapDio(error);
+    }
+  }
 
   @override
   Future<Map<String, dynamic>> recovery(

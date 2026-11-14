@@ -38,9 +38,9 @@ export class NotificationDispatcher {
 
   private async processOne(
     event: NotificationEvent,
-    now: Date,
-  ): Promise<void> {
-    const channel = this.channels.find((item) => item.channel === event.channel);
+    now: Date): Promise<void> {
+    const channel = this.channels.find((item) => item.channel === event.channel,
+    );
     if (!channel) {
       await this.fail(
         event,
@@ -55,19 +55,35 @@ export class NotificationDispatcher {
     const inboxEventKey = event.event_key?.startsWith("outbox:")
       ? event.event_key.slice("outbox:".length)
       : null;
-    const result = await channel.send({
+    let result;
+    try {
+      result = await channel.send({
       eventId: event.id,
       channel: event.channel,
       recipientPhone: event.recipient_phone,
       recipientUserId: event.recipient_user_id,
       payload: event.channel === "push" ? {
-        ...payload,
         ...notificationTarget(inboxEventKey, event.type),
+                ...payload,
         groupId: event.group_id,
         outingId: event.outing_id,
-      } : payload,
+                invitationId:
+                  event.invitation_id ??
+                  (payload as unknown as Record<string, unknown>).invitationId,
+                eventId: event.id,
+                notificationType: event.type,
+                createdAt: event.created_at.toISOString(),
+                actionType: "open",
+              } : payload,
       inboxEventKey,
     });
+    } catch (error) {
+      result = {
+        provider: event.channel === "push" ? "fcm" : "whatsapp",
+        status: "failed" as const,
+        error: error instanceof Error ? error.message : "Delivery failed",
+      };
+    }
 
     await this.events.addDeliveryLog({
       eventId: event.id,
@@ -97,16 +113,17 @@ export class NotificationDispatcher {
     now: Date,
     forceDead: boolean,
   ): Promise<void> {
-    const nextAttempts = event.attempts + 1;
+    const nextAttempts = event.attempts;
     const dead =
       forceDead || nextAttempts >= event.max_attempts;
-    const nextAttemptAt = new Date(now.getTime() + backoffMs(nextAttempts));
+    const nextAttemptAt = new Date(
+      Math.max(now.getTime(), Date.now()) + backoffMs(nextAttempts),
+    );
 
     await this.events.markAttemptFailed(
       event.id,
       error,
       nextAttemptAt,
-      dead,
-    );
+      dead);
   }
 }

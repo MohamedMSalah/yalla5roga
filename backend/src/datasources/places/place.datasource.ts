@@ -1,6 +1,9 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
-import { EARTH_RADIUS_KM, nearbySearchBounds } from "../../services/places/nearby-search-bounds.js";
+import { notifyCatalogChanged } from "../../services/places/catalog-notifications.js";
+import {
+  EARTH_RADIUS_KM, nearbySearchBounds,
+} from "../../services/places/nearby-search-bounds.js";
 import type {
   CreatePlaceImageInput,
   CreatePlaceInput,
@@ -23,19 +26,21 @@ const MAX_LIMIT = 50;
 
 export class PlaceDatasource {
   findById(id: string): Promise<Place | null> {
-    return prisma.places.findUnique({ where: { id } });
+    return prisma.places.findUnique({ where: { id },
+      include: { category: true, place_vibes: { include: { vibe: true } } },
+    });
   }
 
   findMany(): Promise<Place[]> {
     return prisma.places.findMany({
-      where: { is_active: true },
+      where: { is_active: true, status: "active" },
       orderBy: { created_at: "desc" },
     });
   }
 
   findFeatured(): Promise<Place[]> {
     return prisma.places.findMany({
-      where: { featured: true, is_active: true },
+      where: { featured: true, is_active: true, status: "active" },
       orderBy: { updated_at: "desc" },
     });
   }
@@ -57,8 +62,9 @@ export class PlaceDatasource {
     const bounds = nearbySearchBounds(lat, lng, radiusKm);
     const longitudeFilter = bounds.longitudes.length
       ? Prisma.sql`(${Prisma.join(
-          bounds.longitudes.map(([min, max]) =>
-            Prisma.sql`longitude BETWEEN ${min}::float8 AND ${max}::float8`,
+          bounds.longitudes.map(
+            ([min, max]) =>
+              Prisma.sql`longitude BETWEEN ${min}::float8 AND ${max}::float8`,
           ),
           " OR ",
         )})`
@@ -75,7 +81,7 @@ export class PlaceDatasource {
             POWER(SIN(RADIANS(longitude - ${lng}::float8) / 2), 2)
           ))) AS distance_km
         FROM places
-        WHERE is_active = true
+        WHERE is_active = true AND status='active'
           AND latitude BETWEEN ${bounds.latitude[0]}::float8 AND ${bounds.latitude[1]}::float8
           AND ${longitudeFilter}
           AND (${vibe}::outing_vibe IS NULL OR vibe = ${vibe}::outing_vibe)
@@ -87,18 +93,63 @@ export class PlaceDatasource {
   }
 
   create(data: CreatePlaceInput): Promise<Place> {
-    return prisma.places.create({ data });
+    const { vibes, ...fields } = data;
+    return prisma.$transaction(async (tx) => {
+      const result = await tx.places.create({ data: {
+          ...fields,
+          manually_managed: true,
+          place_vibes: vibes
+            ? {
+                create: [...new Set(vibes)].map((vibe_id) => ({
+                  vibe_id,
+                  source: "manual",
+                })),
+              }
+            : undefined,
+        },
+      });
+      await notifyCatalogChanged(tx);
+      return result;
+    });
   }
 
   update(id: string, data: UpdatePlaceInput): Promise<Place> {
-    return prisma.places.update({
+    const { vibes, ...fields } = data;
+    return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM places WHERE id=${id}::uuid FOR UPDATE`;
+      const old = await tx.places.findUniqueOrThrow({ where: { id } });
+      if (vibes) await tx.place_vibes.deleteMany({ where: { place_id: id } });
+      const result = await tx.places.update({
       where: { id },
-      data: { ...data, updated_at: new Date() },
+      data: { ...fields,
+          manually_managed: true, updated_at: new Date(),
+          place_vibes: vibes
+            ? {
+                create: [...new Set(vibes)].map((vibe_id) => ({
+                  vibe_id,
+                  source: "manual",
+                })),
+              }
+            : undefined,
+        },
+      });
+      if (data.status && data.status !== old.status)
+        await tx.place_status_changes.create({
+          data: {
+            place_id: id,
+            old_status: old.status,
+            new_status: data.status,
+            evidence: { source: "curator" },
+          },
+        });
+      await notifyCatalogChanged(tx);
+      return result;
     });
   }
 
   delete(id: string): Promise<Place> {
-    return prisma.places.delete({ where: { id } });
+    // Preserve saved places, voting candidates, outing history and media references.
+    return this.update(id, { status: "permanently_closed" });
   }
 
   // Hours

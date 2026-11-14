@@ -1,7 +1,6 @@
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
 import { MediaService } from "../../services/media/media.service.js";
-import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import { assertIsOutingCreator } from "../../services/outings/outing-access.js";
 import { assertEndsAfterStart } from "../../services/outings/outing-time-window.js";
 import { assertValidStatusTransition } from "../../services/outings/vote-resolution.js";
@@ -9,7 +8,8 @@ import type {
   Outing,
   UpdateOutingInput,
 } from "../../types/outings/outing.types.js";
-import { ConflictError, NotFoundError, ValidationError } from "../../utils/errors.js";
+import { ConflictError, NotFoundError, ValidationError,
+} from "../../utils/errors.js";
 
 export class UpdateOutingUseCase {
   constructor(
@@ -48,14 +48,14 @@ export class UpdateOutingUseCase {
         data.location_longitude !== undefined;
       if (locationTouched) {
         throw new ConflictError(
-          "Confirmed winning place cannot be changed",
-        );
+          "Confirmed winning place cannot be changed");
       }
     }
 
     if (data.status != null && data.status !== existing.status) {
       if (data.status === "confirmed") {
-        throw new ValidationError("Confirm a proposed venue through the venue confirmation endpoint");
+        throw new ValidationError("Confirm a proposed venue through the venue confirmation endpoint",
+        );
       }
       assertValidStatusTransition(existing.status, data.status);
       if (data.status === "voting" && existing.status === "confirmed") {
@@ -79,42 +79,21 @@ export class UpdateOutingUseCase {
       );
     }
 
-    const requestedCancel = data.status === "cancelled";
-
     const patch = { ...data };
     if (data.image_url !== undefined) {
-      patch.image_url = await this.media.resolveEntityImage({
+      patch.image_url =
+        (await this.media.resolveEntityImage({
         uid: callerUid,
         imageValue: data.image_url,
         purpose: "outing",
         link: { outing_id: id },
-      }) ?? undefined;
+      })) ?? undefined;
     }
 
     const updated = await this.outings.update(id, {
       ...patch,
       type: occasion === "none" ? "group" : "special_event",
     });
-
-    await notifyOutingParticipants({
-      outing: updated,
-      type: "outing",
-      eventType: "outing_updated",
-      body: `Outing "${updated.title}" was updated.`,
-      eventKey: `outing_updated:${updated.id}:${updated.updated_at.toISOString()}`,
-      excludeUserId: callerUid,
-    });
-
-    if (requestedCancel) {
-      await notifyOutingParticipants({
-        outing: updated,
-        type: "outing",
-        eventType: "outing_cancelled",
-        body: `Outing "${updated.title}" was cancelled.`,
-        eventKey: `outing_cancelled:${updated.id}:owner`,
-        excludeUserId: callerUid,
-      });
-    }
 
     return updated;
   }

@@ -1,9 +1,13 @@
+import type { Prisma } from "@prisma/client";
+import { persistOutingTransition } from "../../services/notifications/outing-events.js";
 import { prisma } from "../../config/database.js";
+import { assertSelectablePlaces } from "../../services/places/place-selection.js";
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
 import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import { assertIsOutingCreator } from "../../services/outings/outing-access.js";
-import { assertEligibleVoter, listEligibleVoterIds } from "../../services/outings/outing-participants.js";
+import { assertEligibleVoter, listEligibleVoterIds,
+} from "../../services/outings/outing-participants.js";
 import {
   assertCanAddVoteOption,
   assertVotingOpen,
@@ -19,7 +23,8 @@ import type {
   OutingVote,
   OutingVoteOption,
 } from "../../types/outings/outing.types.js";
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../utils/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError,
+} from "../../utils/errors.js";
 
 async function assertDeadlineOpen(outing: Outing): Promise<void> {
   if (!outing.vote_ends_at) {
@@ -28,6 +33,47 @@ async function assertDeadlineOpen(outing: Outing): Promise<void> {
   if (outing.vote_ends_at.getTime() <= Date.now()) {
     throw new ConflictError("Voting deadline has passed");
   }
+}
+
+async function changeCandidates<T>(
+  outingId: string,
+  uid: string,
+  write: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return prisma.$transaction(async (tx) => {
+    const [outing] = await tx.$queryRaw<
+      Outing[]
+    >`SELECT * FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
+    if (!outing) throw new NotFoundError("Outing");
+    assertIsOutingCreator(outing, uid);
+    assertCanAddVoteOption(outing);
+    await assertDeadlineOpen(outing);
+    await tx.outing_votes.deleteMany({ where: { outing_id: outingId } });
+    const result = await write(tx);
+    const updated = await tx.outings.update({
+      where: { id: outingId },
+      data: {
+        status: outing.status === "draft" ? "voting" : outing.status,
+        updated_at: new Date(
+          Math.max(Date.now(), outing.updated_at.getTime() + 1),
+        ),
+      },
+    });
+    await persistOutingTransition(tx, outing, updated);
+    await notifyOutingParticipants(
+      {
+        outing: updated,
+        type: "vote",
+        eventType: "outing_updated",
+        body: `Voting options for "${outing.title}" changed. Votes were reset � please vote again.`,
+        eventKey: `vote_options_reset:${outingId}:${updated.updated_at.toISOString()}`,
+        excludeUserId: uid,
+        data: { navigationSection: "voting" },
+      },
+      tx,
+    );
+    return result;
+  });
 }
 
 export class ListVoteOptionsUseCase {
@@ -58,26 +104,10 @@ export class CreateVoteOptionUseCase {
     assertCanAddVoteOption(outing);
     await assertDeadlineOpen(outing);
 
-    const option = await this.outings.createVoteOption(input);
-    await this.outings.clearVotes(outing.id);
-    if (outing.status === "draft") {
-      await this.outings.update(outing.id, { status: "voting" });
-    }
-
-    try {
-      await notifyOutingParticipants({
-        outing,
-        type: "outing",
-        eventType: "outing_updated",
-        body: `Voting options for "${outing.title}" changed. Votes were reset — please vote again.`,
-        eventKey: `vote_options_reset:${outing.id}:${option.id}`,
-        excludeUserId: callerUid,
-      });
-    } catch (error) {
-      console.error("[outings] vote option notify failed", error);
-    }
-
-    return option;
+    return changeCandidates(outing.id, callerUid, async (tx) => {
+      await assertSelectablePlaces(tx, [input.place_id]);
+      return tx.outing_vote_options.create({ data: input });
+    });
   }
 }
 
@@ -100,23 +130,9 @@ export class DeleteVoteOptionUseCase {
     assertCanAddVoteOption(outing);
     await assertDeadlineOpen(outing);
 
-    await this.outings.clearVotes(outing.id);
-    const deleted = await this.outings.deleteVoteOption(optionId);
-
-    try {
-      await notifyOutingParticipants({
-        outing,
-        type: "outing",
-        eventType: "outing_updated",
-        body: `Voting options for "${outing.title}" changed. Votes were reset — please vote again.`,
-        eventKey: `vote_options_reset:${outing.id}:del:${optionId}`,
-        excludeUserId: callerUid,
-      });
-    } catch (error) {
-      console.error("[outings] vote option delete notify failed", error);
-    }
-
-    return deleted;
+    return changeCandidates(outing.id, callerUid, (tx) =>
+      tx.outing_vote_options.delete({ where: { id: optionId } }),
+    );
   }
 }
 
@@ -139,14 +155,16 @@ export class ReplaceVoteOptionsUseCase {
     assertCanAddVoteOption(outing);
     await assertDeadlineOpen(outing);
 
-    const preservedDeadline = outing.vote_ends_at;
-
-    const created = await prisma.$transaction(async (tx) => {
-      await tx.outing_votes.deleteMany({ where: { outing_id: outingId } });
-      await tx.outing_vote_options.deleteMany({ where: { outing_id: outingId } });
+    return changeCandidates(outingId, callerUid, async (tx) => {
+      await assertSelectablePlaces(
+        tx,
+        options.map((o) => o.place_id),
+      );
+      await tx.outing_vote_options.deleteMany({ where: { outing_id: outingId },
+      });
 
       const rows: OutingVoteOption[] = [];
-      for (let i = 0; i < options.length; i += 1) {
+      for (let i = 0; i < options.length; i ++) {
         const option = options[i]!;
         if (!option.label) throw new ValidationError("label is required");
         rows.push(
@@ -159,29 +177,8 @@ export class ReplaceVoteOptionsUseCase {
           }),
         );
       }
-
-      await tx.outings.update({
-        where: { id: outingId },
-        data: {
-          status: outing.status === "draft" ? "voting" : outing.status,
-          vote_ends_at: preservedDeadline,
-          updated_at: new Date(),
-        },
-      });
-
       return rows;
     });
-
-    await notifyOutingParticipants({
-      outing,
-      type: "outing",
-      eventType: "outing_updated",
-      body: `Voting options for "${outing.title}" changed. Votes were reset — please vote again.`,
-      eventKey: `vote_options_replace:${outingId}:${created.map((o) => o.id).join(",")}`,
-      excludeUserId: callerUid,
-    });
-
-    return created;
   }
 }
 
@@ -239,22 +236,28 @@ export class ReplaceBallotUseCase {
     if (!Array.isArray(optionIds) || optionIds.length > 5 || new Set(optionIds).size !== optionIds.length) {
       throw new ValidationError("Select up to five distinct options");
     }
-    const result = await prisma.$transaction(async tx => {
+    const result = await prisma.$transaction(async (tx) => {
       const [outing] = await tx.$queryRaw<Outing[]>`SELECT * FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
       if (!outing) throw new NotFoundError("Outing");
       assertVotingOpen(outing);
       await assertDeadlineOpen(outing);
       const eligible = await listEligibleVoterIds(outing, tx);
       if (!eligible.includes(userId)) throw new ForbiddenError("Only outing members can vote");
-      const options = await tx.outing_vote_options.findMany({ where: { outing_id: outingId, id: { in: optionIds } } });
+      const options = await tx.outing_vote_options.findMany({ where: { outing_id: outingId, id: { in: optionIds } },
+      });
       if (options.length !== optionIds.length) throw new ValidationError("Every option must belong to this outing");
-      await tx.outing_votes.deleteMany({ where: { outing_id: outingId, user_id: userId } });
-      if (optionIds.length) await tx.outing_votes.createMany({ data: optionIds.map(option_id => ({ outing_id: outingId, user_id: userId, option_id })) });
-      const votes = await tx.outing_votes.findMany({ where: { outing_id: outingId } });
-      const voters = new Set(votes.map(vote => vote.user_id));
-      const resolution = eligible.length && eligible.every(id => voters.has(id))
+      await tx.outing_votes.deleteMany({ where: { outing_id: outingId, user_id: userId },
+      });
+      if (optionIds.length) await tx.outing_votes.createMany({ data: optionIds.map((option_id) => ({ outing_id: outingId, user_id: userId, option_id,
+          })),
+        });
+      const votes = await tx.outing_votes.findMany({ where: { outing_id: outingId },
+      });
+      const voters = new Set(votes.map((vote) => vote.user_id));
+      const resolution = eligible.length && eligible.every((id) => voters.has(id))
         ? await resolveClosedVoting(tx, outing, "all_voted") : null;
-      return { votes: votes.filter(vote => vote.user_id === userId), resolution };
+      return { votes: votes.filter((vote) => vote.user_id === userId), resolution,
+      };
     });
     if (result.resolution) await emitResolutionNotifications(result.resolution);
     return result;
@@ -266,7 +269,8 @@ export class RemoveVoteUseCase {
     private readonly outings: IOutingRepository = new OutingRepository(),
   ) {}
 
-  async execute(outingId: string, userId: string, optionId?: string): Promise<OutingVote> {
+  async execute(outingId: string, userId: string, optionId?: string,
+  ): Promise<OutingVote> {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
     assertVotingOpen(outing);
@@ -346,7 +350,6 @@ export class GetVotingStateUseCase {
 export class CancelOutingUseCase {
   constructor(
     private readonly outings: IOutingRepository = new OutingRepository(),
-    private readonly notify: typeof notifyOutingParticipants = notifyOutingParticipants,
   ) {}
 
   async execute(outingId: string, callerUid: string): Promise<Outing> {
@@ -357,19 +360,7 @@ export class CancelOutingUseCase {
     if (outing.status === "past") {
       throw new ConflictError("Past outings cannot be cancelled");
     }
-    const cancelled = await this.outings.update(outingId, { status: "cancelled" });
-
-    // Notify participants after the persisted transition. The event key is
-    // stable (`:owner`) and shared with the PATCH status=cancelled path, so a
-    // repeated cancel or a mixed PATCH/POST cancel cannot fan out twice:
-    // notifications.event_key is unique and inserts use skipDuplicates.
-    await this.notify({
-      outing: cancelled,
-      type: "outing",
-      eventType: "outing_cancelled",
-      body: `Outing "${cancelled.title}" was cancelled.`,
-      eventKey: `outing_cancelled:${cancelled.id}:owner`,
-      excludeUserId: callerUid,
+    const cancelled = await this.outings.update(outingId, { status: "cancelled",
     });
 
     return cancelled;

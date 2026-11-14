@@ -1,0 +1,44 @@
+{
+  "checkedAt": "2026-11-14T14:53:56.249Z",
+  "mode": "deploy",
+  "migration": "20261114040000_places_catalog_sync",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [
+    "20261114040000_places_catalog_sync"
+  ],
+  "privateBackup": ".database-backups/places-2026-11-14T14-54-06.243Z/snapshot.json",
+  "backupSha256": "17aba77629a09886ee8afabcfdd77009c353545ed090afdc8415842af02279f3",
+  "rehearsal": "PASS: all public rows restored with keys/indexes/FKs; exact migration rehearsed using an isolated enum and rolled back",
+  "tableCount": 27,
+  "rowCount": 663,
+  "existingRowsPreserved": true,
+  "pendingAfter": [],
+  "appliedMigration": {
+    "migration_name": "20261114040000_places_catalog_sync",
+    "checksum": "4773f3b58c78f2c742c2f2f32b7eeeecc1864b0c96389ca482984cdbdcba6c83"
+  },
+  "columns": [
+    {
+      "column_name": "last_synced_at"
+    },
+    {
+      "column_name": "category_id"
+    },
+    {
+      "column_name": "source_id"
+    },
+    {
+      "column_name": "status"
+    }
+  ],
+  "taxonomy": {
+    "categories": 36,
+    "vibes": 15
+  },
+  "result": "PASS"
+}

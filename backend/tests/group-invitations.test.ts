@@ -45,7 +45,8 @@ const E164 = "+201001234567";
 const OTHER_E164 = "+201112345678";
 const NOW = new Date("2026-10-12T00:00:00.000Z");
 
-function member(groupId: string, userId: string, role: "owner" | "member" = "member"): GroupMember {
+function member(groupId: string, userId: string, role: "owner" | "member" = "member",
+): GroupMember {
   return {
     group_id: groupId,
     user_id: userId,
@@ -54,7 +55,8 @@ function member(groupId: string, userId: string, role: "owner" | "member" = "mem
   };
 }
 
-function invitation(overrides: Partial<InvitationRecord> = {}): InvitationRecord {
+function invitation(overrides: Partial<InvitationRecord> = {},
+): InvitationRecord {
   return {
     id: "invite-1",
     group_id: GROUP_ID,
@@ -163,8 +165,16 @@ class FakeInvitations implements IGroupInvitationRepository {
     return Promise.resolve({ invitation: row, created: true });
   }
 
-  claimForVerifiedPhone(): Promise<GroupInvitation[]> {
-    throw new Error("not used");
+  claimForVerifiedPhone(
+    userId: string,
+    phone: string,
+  ): Promise<GroupInvitation[]> {
+    const claimed = this.rows.filter(
+      (row) =>
+        row.invited_phone === phone && row.status === "pending" && !row.user_id,
+    );
+    for (const row of claimed) row.user_id = userId;
+    return Promise.resolve(claimed);
   }
 }
 
@@ -275,7 +285,8 @@ function inviteUseCase(options?: {
 
 type ClaimState = {
   invitations: InvitationRecord[];
-  members: Array<{ group_id: string; user_id: string; role: "owner" | "member" }>;
+  members: Array<{ group_id: string; user_id: string; role: "owner" | "member";
+  }>;
   groups: string[];
   profiles: Array<{ id: string; phone: string }>;
 };
@@ -342,7 +353,8 @@ class MemoryClaimStore implements InvitationClaimStore {
       (item) => item.group_id === groupId && item.user_id === userId,
     );
     if (!existing) {
-      this.state.members.push({ group_id: groupId, user_id: userId, role: "member" });
+      this.state.members.push({ group_id: groupId, user_id: userId, role: "member",
+      });
     }
     return Promise.resolve();
   }
@@ -364,7 +376,8 @@ async function claimInTransaction(
   const draft: ClaimState = structuredClone(state);
   const store = new MemoryClaimStore(draft, failOnAcceptAttempt);
   try {
-    const accepted = await claimPendingInvitations(store, { userId, phone, now });
+    const accepted = await claimPendingInvitations(store, { userId, phone, now,
+    });
     state.invitations = draft.invitations;
     state.members = draft.members;
     state.groups = draft.groups;
@@ -471,7 +484,8 @@ describe("invite to group", () => {
     assert.equal(result.whatsappUrl, null);
     assert.match(
       result.deepLink,
-      new RegExp(`^https://yalla5roga.com/invite/${result.invitation.id}\\?groupId=${GROUP_ID}$`),
+      new RegExp(`^https://yalla5roga.com/invite/${result.invitation.id}\\?groupId=${GROUP_ID}$`,
+      ),
     );
     assert.equal(invitations.rows.length, 1);
     assert.equal(groups.added.length, 0);
@@ -479,7 +493,8 @@ describe("invite to group", () => {
   });
 
   it("queues an automatic WhatsApp message for an opted-in non-user", async () => {
-    const { useCase, notifications } = inviteUseCase({ automaticWhatsApp: true });
+    const { useCase, notifications } = inviteUseCase({ automaticWhatsApp: true,
+    });
     const result = await useCase.execute({
       groupId: GROUP_ID,
       phoneNumber: E164,
@@ -496,7 +511,30 @@ describe("invite to group", () => {
     assert.equal(notifications.published[0]?.deepLink, result.deepLink);
   });
 
-  it("adds an existing user whose Firebase phone is verified", async () => {
+  it("does not queue WhatsApp for an opted-in existing app user", async () => {
+    const users = new FakeUsers();
+    users.users.set(EXISTING_ID, { id: EXISTING_ID, phone: E164 } as User);
+    const phones = new FakeVerifiedPhones();
+    phones.ids.set(E164, EXISTING_ID);
+    const { useCase, notifications } = inviteUseCase({
+      users,
+      phones,
+      automaticWhatsApp: true,
+    });
+    const result = await useCase.execute({
+      groupId: GROUP_ID,
+      phoneNumber: E164,
+      invitedByUserId: INVITER_ID,
+      whatsappOptIn: true,
+    });
+    assert.equal(result.outcome, "invited");
+    if (result.outcome !== "invited") return;
+    assert.equal(result.invitation.user_id, EXISTING_ID);
+    assert.equal(result.notificationQueued, false);
+    assert.equal(notifications.published.length, 0);
+  });
+
+  it("links an existing user whose Firebase phone is verified", async () => {
     const users = new FakeUsers();
     users.users.set(EXISTING_ID, { id: EXISTING_ID, phone: E164 } as User);
     const phones = new FakeVerifiedPhones();
@@ -509,15 +547,15 @@ describe("invite to group", () => {
       invitedByUserId: INVITER_ID,
     });
 
-    assert.equal(result.outcome, "member_added");
-    if (result.outcome !== "member_added") return;
-    assert.equal(result.member.user_id, EXISTING_ID);
-    assert.equal(result.member.role, "member");
-    assert.equal(invitations.rows.length, 0);
-    assert.deepEqual(groups.added, [{ groupId: GROUP_ID, userId: EXISTING_ID }]);
+    assert.equal(result.outcome, "invited");
+    if (result.outcome !== "invited") return;
+    assert.equal(result.invitation.user_id, EXISTING_ID);
+    assert.equal(result.invitation.status, "pending");
+    assert.equal(invitations.rows.length, 1);
+    assert.deepEqual(groups.added, []);
     assert.equal(
       groups.members.filter((item) => item.user_id === EXISTING_ID).length,
-      1,
+      0,
     );
   });
 
@@ -683,7 +721,8 @@ describe("claim pending invitations", () => {
     );
     assert.equal(state.members.length, 2);
     assert.equal(
-      state.members.every((item) => item.role === "member" && item.user_id === NEW_USER_ID),
+      state.members.every((item) => item.role === "member" && item.user_id === NEW_USER_ID,
+      ),
       true,
     );
     assert.equal(
@@ -800,7 +839,8 @@ describe("claim pending invitations", () => {
     );
     assert.equal(calls, 0);
 
-    await useCase.execute({ userId: NEW_USER_ID, verifiedPhone: "01001234567" });
+    await useCase.execute({ userId: NEW_USER_ID, verifiedPhone: "01001234567",
+    });
     assert.equal(calls, 1);
   });
 });
@@ -862,8 +902,10 @@ describe("account sync", () => {
 
   it("links a verified phone to an existing UID before claiming invitations", async () => {
     const { users, claimed, useCase } = syncHarness();
-    users.users.set(NEW_USER_ID, { id: NEW_USER_ID, name: "Nour", phone: null } as User);
-    const result = await useCase.execute({ id: NEW_USER_ID, verifiedPhone: "01001234567" });
+    users.users.set(NEW_USER_ID, { id: NEW_USER_ID, name: "Nour", phone: null,
+    } as User);
+    const result = await useCase.execute({ id: NEW_USER_ID, verifiedPhone: "01001234567",
+    });
     assert.equal(users.users.size, 1);
     assert.equal(result.user.id, NEW_USER_ID);
     assert.equal(result.user.phone, E164);
@@ -940,7 +982,8 @@ describe("account sync", () => {
       2,
     );
     assert.equal(
-      state.members.filter((item) => item.user_id === INVITER_ID && item.role === "owner")
+      state.members.filter((item) => item.user_id === INVITER_ID && item.role === "owner",
+      )
         .length,
       1,
     );
@@ -951,7 +994,8 @@ describe("account sync", () => {
 describe("invitation feature boundaries", () => {
   it("does not add an email field or email delivery for invitations", () => {
     const root = process.cwd();
-    const schema = fs.readFileSync(path.join(root, "prisma", "schema.prisma"), "utf8");
+    const schema = fs.readFileSync(path.join(root, "prisma", "schema.prisma"), "utf8",
+    );
     const model = schema.slice(
       schema.indexOf("model group_invitations"),
       schema.indexOf("model user_fcm_tokens"),

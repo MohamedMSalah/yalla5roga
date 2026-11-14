@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { emitDataChange, outingRealtimeUsers, publishOutingChange } from "../../realtime/data-changes.js";
+import { emitDataChange, outingRealtimeUsers, publishOutingChange,
+} from "../../realtime/data-changes.js";
 import { GroupRepository } from "../../repositories/groups/group.repository.js";
 import { assertGroupMember } from "../../services/groups/group-access.js";
 import { confirmProposedVenue } from "../../services/outings/vote-resolution.js";
@@ -97,7 +98,8 @@ export class OutingController {
   listArrivals = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
-      res.json({ success: true, data: await this.arrivals.list(req.params.id as string, req.user.uid) });
+      res.json({ success: true, data: await this.arrivals.list(req.params.id as string, req.user.uid),
+      });
     } catch (error) {
       next(error);
     }
@@ -106,7 +108,9 @@ export class OutingController {
   recordArrival = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
-      res.json({ success: true, data: await this.arrivals.record(req.params.id as string, req.user.uid, req.body) });
+      res.json({ success: true, data: await this.arrivals.record(req.params.id as string, req.user.uid, req.body,
+        ),
+      });
     } catch (error) {
       next(error);
     }
@@ -156,7 +160,8 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       if (req.body.group_id) {
-        await assertGroupMember(new GroupRepository(), req.body.group_id, req.user.uid);
+        await assertGroupMember(new GroupRepository(), req.body.group_id, req.user.uid,
+        );
       }
       const outing = await this.createOuting.execute({
         ...req.body,
@@ -167,14 +172,16 @@ export class OutingController {
         ? [...new Set(phones.map(normalizePhoneNumber))].map((phone) =>
             buildWhatsAppClickToChatUrl(
               phone,
-              specialEventMessage({ ...outing, scheduled_at: outing.scheduled_at! }),
+              specialEventMessage({ ...outing, scheduled_at: outing.scheduled_at!,
+                }),
             ),
           )
         : [];
       await publishOutingChange(outing.id, "outings");
       res.status(201).json({
         success: true,
-        data: { ...outing, ...(manualUrls.length ? { manual_whatsapp_urls: manualUrls } : {}) },
+        data: { ...outing, ...(manualUrls.length ? { manual_whatsapp_urls: manualUrls } : {}),
+        },
       });
     } catch (error) {
       next(error);
@@ -185,7 +192,8 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       if (req.body.group_id) {
-        await assertGroupMember(new GroupRepository(), req.body.group_id, req.user.uid);
+        await assertGroupMember(new GroupRepository(), req.body.group_id, req.user.uid,
+        );
       }
       const audience = req.body.group_id !== undefined
         ? await outingRealtimeUsers(req.params.id as string) : [];
@@ -222,7 +230,8 @@ export class OutingController {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
       const data = await this.listAttendance.execute(id, req.user.uid);
-      res.json({ success: true, data, ...attendanceSummary(data, req.user.uid) });
+      res.json({ success: true, data, ...attendanceSummary(data, req.user.uid),
+      });
     } catch (error) {
       next(error);
     }
@@ -236,11 +245,18 @@ export class OutingController {
         req.user.uid,
         req.body.status,
       );
+      const recipients = await outingRealtimeUsers(data.outing_id, false);
       emitDataChange({ kind: "attendance", id: data.outing_id, payload: {
         user_id: data.user_id, status: data.status, updated_at: data.updated_at.toISOString(),
-      } }, await outingRealtimeUsers(data.outing_id, false));
-      const items = await this.listAttendance.execute(data.outing_id, req.user.uid);
-      res.json({ success: true, data, items, ...attendanceSummary(items, req.user.uid) });
+      },
+        },
+        recipients,
+      );
+      emitDataChange({ kind: "inbox" }, recipients);
+      const items = await this.listAttendance.execute(data.outing_id, req.user.uid,
+      );
+      res.json({ success: true, data, items, ...attendanceSummary(items, req.user.uid),
+      });
     } catch (error) {
       next(error);
     }
@@ -282,7 +298,8 @@ export class OutingController {
         req.user.uid,
         req.params.userId as string,
       );
-      await publishOutingChange(req.params.id as string, "outings", [req.params.userId as string]);
+      await publishOutingChange(req.params.id as string, "outings", [req.params.userId as string,
+      ]);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -352,7 +369,8 @@ export class OutingController {
         req.params.id as string,
         req.user.uid,
       );
-      await publishOutingChange(req.params.id as string, "outings", [req.user.uid]);
+      await publishOutingChange(req.params.id as string, "outings", [req.user.uid,
+      ]);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -410,7 +428,8 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      const data = await new ReplaceBallotUseCase().execute(id, req.user.uid, req.body.option_ids);
+      const data = await new ReplaceBallotUseCase().execute(id, req.user.uid, req.body.option_ids,
+      );
       await publishOutingChange(id);
       res.json({ success: true, data });
     } catch (error) { next(error); }
@@ -447,7 +466,8 @@ export class OutingController {
   confirmVenue = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
-      const data = await confirmProposedVenue(req.params.id as string, req.user.uid, req.body.option_id);
+      const data = await confirmProposedVenue(req.params.id as string, req.user.uid, req.body.option_id,
+      );
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -464,11 +484,13 @@ export class OutingController {
       for (const vote of state.votes) counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
       res.json({ success: true, data: {
         ...state,
-        options: state.options.map((option) => ({ ...option, vote_count: counts.get(option.id) ?? 0 })),
-        my_option_ids: state.votes.filter(vote => vote.user_id === req.user?.uid).map(vote => vote.option_id),
-        voted_count: new Set(state.votes.map(vote => vote.user_id)).size,
+        options: state.options.map((option) => ({ ...option, vote_count: counts.get(option.id) ?? 0,
+          })),
+        my_option_ids: state.votes.filter((vote) => vote.user_id === req.user?.uid).map((vote) => vote.option_id),
+        voted_count: new Set(state.votes.map((vote) => vote.user_id)).size,
         my_option_id: state.votes.find((vote) => vote.user_id === req.user?.uid)?.option_id ?? null,
-      } });
+      },
+      });
     } catch (error) {
       next(error);
     }
@@ -624,8 +646,11 @@ export class OutingController {
   };
 }
 
-function attendanceSummary(rows: { user_id: string; status: "going" | "maybe" | "not_going" | "no_response" }[], userId: string) {
+function attendanceSummary(rows: { user_id: string; status: "going" | "maybe" | "not_going" | "no_response";
+  }[], userId: string,
+) {
   const summary = { going: 0, maybe: 0, not_going: 0, no_response: 0 };
   for (const row of rows) summary[row.status]++;
-  return { summary, my_response: rows.find((row) => row.user_id === userId)?.status ?? "no_response" };
+  return { summary, my_response: rows.find((row) => row.user_id === userId)?.status ?? "no_response",
+  };
 }

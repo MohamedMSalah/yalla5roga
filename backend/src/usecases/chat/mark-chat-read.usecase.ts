@@ -3,6 +3,7 @@ import { ChatRepository } from "../../repositories/chat/chat.repository.js";
 import { assertChatParticipant } from "../../services/chat/chat-access.js";
 import { emitOutingRead } from "../../realtime/chat-emitter.js";
 import type { ChatRead } from "../../types/chat/chat.types.js";
+import { emitDataChange } from "../../realtime/data-changes.js";
 
 export class MarkChatReadUseCase {
   constructor(
@@ -23,6 +24,7 @@ export class MarkChatReadUseCase {
       last_read_at: new Date(),
     });
     await emitOutingRead(outingId, read);
+    emitDataChange({ kind: "inbox" }, [userId]);
     return read;
   }
 }

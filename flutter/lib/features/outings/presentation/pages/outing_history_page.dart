@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/app_error_state.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -36,12 +37,12 @@ class _OutingHistoryPageState extends State<OutingHistoryPage> {
           children: [
             Text(l10n.outingHistoryHint, style: context.texts.titleMedium),
             Responsive.spaceMd.gapH,
-            if (!outings.hasLoaded)
+            if (!outings.hasLoaded && outings.errorMessage == null)
               const AppShimmer(child: ShimmerOutingList(count: 3))
             else if (outings.errorMessage != null && history.isEmpty)
-              TextButton(
-                onPressed: () => outings.load(forceRefresh: true),
-                child: Text(l10n.tryAgain),
+              AppErrorState(
+                message: l10n.dataLoadFailed,
+                onRetry: () => outings.load(forceRefresh: true),
               )
             else
               OutingsList(

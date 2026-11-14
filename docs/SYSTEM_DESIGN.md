@@ -97,7 +97,7 @@ Type is derived from occasion: `none` requires a group and produces `group`; bir
 
 | Path | Components | Status |
 |------|------------|--------|
-| Group phone invite | `InviteToGroupUseCase` → pending `group_invitations` + optional WhatsApp for all recipients. Verified signup/login/sync links account identity only; explicit acceptance creates `group_members`; deep-link restore via `InviteDeepLinkProvider` | Implemented |
+| Group phone invite | Create/Add UI requires explicit WhatsApp consent for non-users → `InviteToGroupUseCase` → pending `group_invitations` + configured WhatsApp only for consented non-users. Verified signup/login/sync links account identity only; explicit acceptance creates `group_members`; deep-link restore via `InviteDeepLinkProvider` | Implemented |
 | Outing invite | `guests.usecase` + accept/decline for registered members. Special-event phone invitations use the notification outbox or click-to-chat and do not create members. | Implemented; Flutter member deep-link UI **Partial** |
 
 Pending ≠ Member. Outing guest responses transition a pending row once. The same response is idempotent and a competing response returns 409. Reissuing an invite preserves an existing pending or accepted row. Group phone associations use verified-phone linking. PostgreSQL permits one pending row per group and E.164 phone. Matching rows are locked while bulk membership insertion and link recording share a transaction. Owners can revoke a pending association and registered member removal prevents a pending row from restoring access. The add flow rechecks the account after persisting a pending row to close the race with signup. Roster reads use a single snapshot for active and pending rows so they reflect one side of a concurrent account link. Signup verifies OTP proof and keeps its UID; password login checks the canonical Firebase phone before claiming. Session restore displays cached state first; the coordinator defers one-time users/sync until after cache hydration and before online group revalidation. Settings verification uses sync (not a profile PATCH), then refreshes groups once. Legacy unused OTP identities can supply recent proof to bind their phone to the signed-in UID; no registered accounts are merged.
@@ -473,4 +473,45 @@ Accepted membership + persisted RSVP rows → existing authorized attendance rea
 
 Chat history authorization is independent of mutation availability. Sending, editing and deletion close at scheduled_at + two hours (independent of the existing six-hour default outing completion job), or immediately on past/cancelled status. The frontend timer reflects that boundary; the backend shared guard enforces it, including native replies and replayed sends. Own-message edit additionally requires now < sent_at + one minute, checked both by the client and backend write predicate. Delete is not age-limited within open chat. REST mutation → authorized persistence → existing outing:message delivery updates bubbles/tombstones. Reconnect replaces a bounded authoritative window, preserving queue/live updates and cursor access to earlier history.
 
-Native Reply/Mark as read → recipient/current-session validation → existing authenticated message/read API → inbox read update. Android local notifications supply text input; iOS local/APNs categories supply it through the plugin/native bridge. Android background FCM remains OS-rendered without chat actions. No new room, transport, database or notification worker exists.
+Native Reply/Mark as read → recipient/current-session validation → existing authenticated message/read API → inbox read update. Android local notifications supply text input; iOS local/APNs categories supply it through the plugin/native bridge. The Android extension below supersedes the initial OS-rendered background path with data-only delivery and the shared native action renderer. No new room, transport, database or notification worker exists.
+
+
+## Phase 6 entry presentation — 2026-11-14
+
+After existing dependency creation and session restoration, App chooses authenticated MainShell first. Signed-out users see AuthPage when `onboarding_completed` is true, otherwise the branded three-step SplashPage introduction. The route-local OnboardingProvider writes completion only on Skip/Get Started; a persistence failure leaves the introduction with retry feedback. Authentication/deep-link synchronization and logout/account caches keep their existing lifecycle. Signup photo upload follows verified registration and never replaces phone proof. Account deletion uses existing self-profile DELETE before the established cleanup/navigation path. No API/backend workflow or schema was changed.
+
+
+## Android system push workflow — 2026-11-14
+
+Business transaction → canonical entity write + inbox metadata + outbox event → commit → existing scoped Socket.IO invalidation → notification Provider refresh. Independent worker delivery revalidates current access/state/preferences/content → Firebase Admin data-only Android push → shared local native renderer. Stable event/inbox IDs deduplicate transport retries. APNs normal alerts are preserved.
+
+Native action → account-bound persisted draft/idempotency UUID → restored Firebase session + existing Dio authentication → existing message/read/invitation endpoint → business transaction → existing Socket.IO publication → acknowledged success and OS dismissal/update. Failed requests retain draft/retry state without claiming success. Resume retries eligible records after shared restore sync, refreshes unread state and reconciles active notifications; it never runs users/sync per push. Background silent controls dismiss/update other devices on read/edit/delete/decision; missed controls are repaired on resume.
+
+Reminder job → paged due outings → locked current state → idempotent keys containing deadline/schedule → existing inbox/outbox. Closed voting, cancelled/past outings, stale schedules, inaccessible recipients and completed arrivals are suppressed again at send. Arrival actions only navigate to existing GPS verification. No separate RSVP deadline exists and confirmed venue rules remain unchanged.
+
+```mermaid
+sequenceDiagram
+  participant API
+  participant Neon
+  participant Worker
+  participant FCM
+  participant Android
+  API->>Neon: Business write + inbox + outbox (one transaction)
+  Worker->>Neon: Claim lease; validate current state
+  Worker->>FCM: Android data event
+  FCM->>Android: Stable event + navigation IDs
+  Android->>Android: Deduplicate; native message/actions
+  Android->>API: Authenticated action + clientMessageId
+  API->>Neon: Authorize and commit
+  API-->>Android: Canonical acknowledgement
+  Android->>Android: Complete action; dismiss/update
+```
+
+
+## Weekly places synchronization workflow — 2026-11-14
+
+The persistent external trigger checks hourly; the database permits a due run every seven days from the last complete committed success. A failed API/host/Overpass run remains due and is retried on the next trigger; systemd Persistent additionally catches missed host schedules. A database lease with a UUID fencing token excludes concurrent API/CLI workers; expired leases are reclaimed and abandoned runs logged failed. Each source request renews the lease; the final transaction locks and validates the lease again.
+
+Overpass resolves EG-C/EG-GZ administrative areas and fetches supported tag families plus lifecycle prefixes, sequentially with exponential backoff, rate limits and mirror fallback. Boundary cardinality, final counts, source timestamp and absence of runtime remarks must validate before writes. Normalization retains provided fields/raw tags only. A limited initial validation distributes its cap across the two regions and never enables absence processing. Production/full runs have no cap.
+
+After all fetches validate, the worker serializes curator edits on place rows and uses parameterized batched upserts through Prisma, refreshes inferred mappings without deleting manual mappings, writes status evidence and timestamps, and increments missing counters only under full covered success. Three covered consecutive absences yield unverified; never inferred permanent closure. Any data transaction failure rolls back places/status/mappings and marks the run failed separately. A transactional NOTIFY forwards invalidation through each API's existing socket. Revision reads on reconnect/resume recover missed signals without periodic Flutter polling. Outing create/new candidates validate availability in their existing mutation transactions; old references remain untouched. [Operations](audit/PLACES_MANAGEMENT.md).

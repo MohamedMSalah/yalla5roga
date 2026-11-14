@@ -9,8 +9,39 @@ import type {
   NotificationPageResult,
 } from "../../repositories/notifications/i-notification.repository.js";
 import { ValidationError } from "../../utils/errors.js";
+import { notificationPreferences } from "../../services/notifications/notification-preferences.js";
+import { persistNotificationControl } from "../../services/notifications/persist-notification.js";
 
 export class NotificationDatasource {
+  async summary(uid: string) {
+    const user = await prisma.users.findUniqueOrThrow({
+      where: { id: uid },
+      select: {
+        notification_preferences: true,
+        _count: { select: { notifications: { where: { is_read: false } } } },
+      },
+    });
+    return {
+      unreadCount: user._count.notifications,
+      preferences: notificationPreferences(user.notification_preferences),
+    };
+  }
+
+  updatePreferences(uid: string, patch: Record<string, boolean>) {
+    return prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${uid} FOR UPDATE`;
+      const user = await tx.users.findUniqueOrThrow({ where: { id: uid } });
+      const preferences = {
+        ...notificationPreferences(user.notification_preferences),
+        ...patch,
+      };
+      await tx.users.update({
+        where: { id: uid },
+        data: { notification_preferences: preferences },
+      });
+      return preferences;
+    });
+  }
   findById(id: string): Promise<Notification | null> {
     return prisma.notifications.findUnique({ where: { id } });
   }
@@ -70,13 +101,34 @@ export class NotificationDatasource {
   }
 
   update(id: string, data: UpdateNotificationInput): Promise<Notification> {
-    return prisma.notifications.update({ where: { id }, data });
+    return prisma.$transaction(async (tx) => {
+      const row = await tx.notifications.update({ where: { id }, data });
+      if (data.is_read)
+        await persistNotificationControl(tx, {
+          recipients: [row.user_id],
+          type: "conversation_read",
+          eventKey: `notification_read:${id}`,
+          data: { notificationId: id },
+        });
+      return row;
+    });
   }
 
   markAllRead(userId: string): Promise<{ count: number }> {
-    return prisma.notifications.updateMany({
-      where: { user_id: userId, is_read: false },
+    return prisma.$transaction(async (tx) => {
+      const now = new Date();
+      const result = await tx.notifications.updateMany({
+      where: { user_id: userId, is_read: false, created_at: { lte: now } },
       data: { is_read: true },
+      });
+      if (result.count)
+        await persistNotificationControl(tx, {
+          recipients: [userId],
+          type: "conversation_read",
+          eventKey: `notifications_read:${userId}:${now.toISOString()}`,
+          data: { readAll: "true", createdAt: now.toISOString() },
+        });
+      return result;
     });
   }
 

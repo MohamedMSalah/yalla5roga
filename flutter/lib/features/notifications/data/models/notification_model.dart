@@ -39,6 +39,7 @@ class NotificationsFeedModel extends NotificationsFeed {
   const NotificationsFeedModel({
     required super.unreadCount,
     required super.items,
+    super.preferences,
   });
 
   factory NotificationsFeedModel.fromJson(Map<String, dynamic> json) {

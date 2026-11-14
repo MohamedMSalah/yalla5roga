@@ -1,5 +1,6 @@
 import { getNotificationConfig } from "../config/notifications.js";
 import { NotificationDispatcher } from "../services/notifications/dispatch-notification.js";
+import { enqueueDueNotificationReminders } from "./notification-reminders.job.js";
 
 /**
  * Background consumer for the notification outbox. Mirrors the architecture
@@ -8,13 +9,17 @@ import { NotificationDispatcher } from "../services/notifications/dispatch-notif
 export function startNotificationWorker(
   dispatcher = new NotificationDispatcher(),
   config = getNotificationConfig(),
-): () => void {
+): () => Promise<void> {
   let running = false;
+  let inFlight: Promise<void> = Promise.resolve();
 
   const tick = async () => {
     if (running) return;
     running = true;
     try {
+      await enqueueDueNotificationReminders().catch((error) =>
+        console.error("[notifications] reminders failed", error),
+      );
       const count = await dispatcher.processBatch();
       if (count > 0) {
         console.log(`[notifications] processed ${count} event(s)`);
@@ -26,9 +31,15 @@ export function startNotificationWorker(
     }
   };
 
-  void tick();
-  const timer = setInterval(() => void tick(), config.worker.intervalMs);
+  const trigger = () => {
+    if (!running) inFlight = tick();
+  };
+  trigger();
+  const timer = setInterval(trigger, config.worker.intervalMs);
   timer.unref();
 
-  return () => clearInterval(timer);
+  return async () => {
+    clearInterval(timer);
+    await inFlight;
+  };
 }

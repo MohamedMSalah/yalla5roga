@@ -17,6 +17,21 @@ export type PlaceImage = place_images;
 export type PlacePrice = place_prices;
 
 export type CreatePlaceInput = {
+  category_id?: string;
+  vibes?: string[];
+  name_ar?: string;
+  name_en?: string;
+  address?: string;
+  city?: string;
+  district?: string;
+  phone?: string;
+  website?: string;
+  opening_hours?: string;
+  status?:
+    | "active"
+    | "temporarily_closed"
+    | "permanently_closed"
+    | "unverified";
   name: string;
   area?: string;
   vibe?: OutingVibe;

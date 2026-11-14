@@ -1,137 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/constants/asset_constants.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
-import 'package:yalla_5roga/features/auth/presentation/pages/auth_page.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/language_choice.dart';
-import 'package:yalla_5roga/features/splash/presentation/widgets/splash_preview.dart';
+import 'package:yalla_5roga/core/widgets/app_step_progress.dart';
+import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
+import 'package:yalla_5roga/features/auth/presentation/pages/auth_page.dart';
+
+import '../providers/onboarding_provider.dart';
+import '../widgets/onboarding_content.dart';
 
 class SplashPage extends StatelessWidget {
   const SplashPage({super.key});
+  @override
+  Widget build(BuildContext context) => ChangeNotifierProvider(
+    create: (_) => OnboardingProvider(context.read<SharedPreferences>()),
+    child: const _OnboardingPage(),
+  );
+}
+
+class _OnboardingPage extends StatelessWidget {
+  const _OnboardingPage();
+  Future<void> _complete(BuildContext context) async {
+    final ok = await context.read<OnboardingProvider>().complete();
+    if (!context.mounted) return;
+    if (ok) {
+      Get.offAll(() => const AuthPage());
+    } else {
+      AppSnackBar.showError(context.l10n.unexpectedError);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-
+    final onboarding = context.watch<OnboardingProvider>();
     return Scaffold(
-      backgroundColor: AppColors.brand600,
-      body: Stack(
-        children: [
-          Positioned(
-            left: -90.w,
-            top: 70.h,
-            child: _blob(const Color(0xFFA78BFA)),
-          ),
-          Positioned(
-            right: -70.w,
-            bottom: 180.h,
-            child: _blob(Colors.white.withValues(alpha: 0.12)),
-          ),
-          SafeArea(
-            child: Padding(
-              padding: Responsive.padding(horizontal: 24, top: 12, bottom: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36.w,
-                        height: 36.w,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: SvgPicture.asset(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+            child: ListView(
+              padding: Responsive.pagePadding(),
+              children: [
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SvgPicture.asset(
                           AssetConstants.logo,
-                          width: 20.w,
-                          height: 20.w,
+                          width: 40,
+                          height: 40,
                         ),
-                      ),
-                      Responsive.spaceSm.gapW,
-                      Text(
-                        l10n.appName,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 18.sp,
-                        ),
-                      ),
-
-                      const Spacer(),
-
-                      // LanguageChoice — English / العربية (same as Settings)
-                      const LanguageChoice(onBrand: true),
-                    ],
-                  ),
-                  28.gapH,
-                  // SplashPreview — decorative marketing card
-                  const SplashPreview(),
-                  const Spacer(),
-                  Container(
-                    padding: Responsive.padding(horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(999.r),
+                        Responsive.spaceSm.gapW,
+                        Text(l10n.appName, style: context.texts.titleLarge),
+                      ],
                     ),
-                    child: Text(
-                      l10n.plansMadeSimple.toUpperCase(),
-                      style: TextStyle(
-                        color: AppColors.brand100,
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
+                    const LanguageChoice(),
+                  ],
+                ),
+                Responsive.spaceLg.gapH,
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton(
+                    onPressed: onboarding.busy
+                        ? null
+                        : () => _complete(context),
+                    child: Text(l10n.onboardingSkip),
                   ),
-                  12.gapH,
-                  Text(
-                    '${l10n.splashHeadline1}\n${l10n.splashHeadline2}',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: Responsive.fontXl,
-                      height: 1.08,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  12.gapH,
-                  Text(
-                    l10n.splashBody,
-                    style: TextStyle(
-                      color: AppColors.brand100,
-                      height: 1.5,
-                      fontSize: Responsive.fontBody,
-                    ),
-                  ),
-                  Responsive.spaceLg.gapH,
-                  // CustomButton — Get started → AuthPage
-                  CustomButton(
-                    label: l10n.getStarted,
-                    icon: Icons.arrow_forward,
-                    variant: AppButtonVariant.light,
-                    onPressed: () {
-                      Get.to(() => const AuthPage());
-                    },
-                  ),
-                ],
-              ),
+                ),
+                OnboardingContent(step: onboarding.step),
+                Responsive.spaceXl.gapH,
+                AppStepProgress(
+                  step: onboarding.step,
+                  total: 3,
+                  label: '${l10n.n(onboarding.step + 1)} / ${l10n.n(3)}',
+                ),
+                Responsive.spaceLg.gapH,
+                CustomButton(
+                  label: onboarding.step == 2
+                      ? l10n.getStarted
+                      : l10n.onboardingNext,
+                  isLoading: onboarding.busy,
+                  onPressed: onboarding.busy
+                      ? null
+                      : onboarding.step == 2
+                      ? () => _complete(context)
+                      : onboarding.next,
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _blob(Color color) {
-    return Container(
-      width: 220.w,
-      height: 220.w,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: 0.28),
+        ),
       ),
     );
   }

@@ -19,6 +19,7 @@ class OutingChatMessageList extends StatefulWidget {
     this.onEdit,
     this.onDelete,
     this.onRetry,
+    this.highlightedMessageId,
   });
   final List<ChatMessage> messages;
   final List<GroupMember> members;
@@ -27,6 +28,7 @@ class OutingChatMessageList extends StatefulWidget {
   final VoidCallback? onLoadOlder;
   final bool loadingOlder;
   final ValueChanged<ChatMessage>? onEdit, onDelete, onRetry;
+  final String? highlightedMessageId;
   @override
   State<OutingChatMessageList> createState() => _OutingChatMessageListState();
 }
@@ -34,6 +36,50 @@ class OutingChatMessageList extends StatefulWidget {
 class _OutingChatMessageListState extends State<OutingChatMessageList> {
   final _scroll = ScrollController();
   String? _insertedId;
+  final _targetKey = GlobalKey();
+  String? _focusedId;
+  bool _seeking = false;
+
+  void _seekTarget() {
+    final target = widget.highlightedMessageId;
+    if (_seeking ||
+        target == null ||
+        _focusedId == target ||
+        !widget.messages.any((m) => m.id == target))
+      return;
+    _seeking = true;
+    var steps = 0;
+    void seek() {
+      if (!mounted || !_scroll.hasClients) {
+        _seeking = false;
+        return;
+      }
+      final targetContext = _targetKey.currentContext;
+      if (targetContext != null) {
+        _focusedId = target;
+        _seeking = false;
+        Scrollable.ensureVisible(
+          targetContext,
+          alignment: 0.5,
+          duration: AppMotion.of(context, AppMotion.standard),
+        );
+        return;
+      }
+      final next = (_scroll.offset + _scroll.position.viewportDimension).clamp(
+        0.0,
+        _scroll.position.maxScrollExtent,
+      );
+      if (++steps > 100 || next == _scroll.offset) {
+        _seeking = false;
+        return;
+      }
+      _scroll.jumpTo(next);
+      WidgetsBinding.instance.addPostFrameCallback((_) => seek());
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => seek());
+  }
+
   @override
   void didUpdateWidget(covariant OutingChatMessageList oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -69,6 +115,7 @@ class _OutingChatMessageListState extends State<OutingChatMessageList> {
 
   @override
   Widget build(BuildContext context) {
+    _seekTarget();
     final byId = {for (final member in widget.members) member.id: member};
     return ListView.builder(
       controller: _scroll,
@@ -106,6 +153,7 @@ class _OutingChatMessageListState extends State<OutingChatMessageList> {
         final mutable =
             mine && message.text.isNotEmpty && !message.id.startsWith('local_');
         final bubble = MessageBubble(
+          highlighted: message.id == widget.highlightedMessageId,
           message: message,
           name: mine ? '$name (${context.l10n.you})' : name,
           mine: mine,
@@ -125,7 +173,9 @@ class _OutingChatMessageListState extends State<OutingChatMessageList> {
               : null,
         );
         return Column(
-          key: ValueKey(message.id),
+          key: message.id == widget.highlightedMessageId
+              ? _targetKey
+              : ValueKey(message.id),
           children: [
             if (!sameDay && message.sentAt != null)
               ChatDateSeparator(date: message.sentAt!),

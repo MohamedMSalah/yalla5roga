@@ -35,8 +35,8 @@ class SettingsTile extends StatelessWidget {
               size: 32,
               radius: 8,
               iconSize: 16,
-              background: background,
-              foreground: foreground,
+              background: background ?? context.palette.brandSoft,
+              foreground: foreground ?? context.palette.brandStrong,
             ),
             12.gapW,
             Expanded(
@@ -47,7 +47,7 @@ class SettingsTile extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      fontSize: 12.sp,
+                      fontSize: Responsive.fontBody,
                     ),
                   ),
                   if (subtitle != null)
@@ -55,7 +55,7 @@ class SettingsTile extends StatelessWidget {
                       subtitle!,
                       style: TextStyle(
                         color: context.palette.textMuted,
-                        fontSize: 10.sp,
+                        fontSize: Responsive.fontSm,
                       ),
                     ),
                 ],
@@ -67,4 +67,14 @@ class SettingsTile extends StatelessWidget {
       ),
     );
   }
+}
+
+class SettingsChevron extends StatelessWidget {
+  const SettingsChevron({super.key});
+  @override
+  Widget build(BuildContext context) => Icon(
+    context.chevronForward,
+    color: context.palette.textMuted,
+    size: 20.w,
+  );
 }

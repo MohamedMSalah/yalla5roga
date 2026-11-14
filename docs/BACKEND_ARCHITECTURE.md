@@ -259,3 +259,26 @@ ListAttendanceUseCase merges persisted responses with the existing accepted-part
 ## Phase 5 chat mutations — 2026-11-14
 
 The existing outing chat router validates PATCH/DELETE message operations. ChatController delegates to MutateMessageUseCase, which checks participant, open window and sender ownership, canonicalizes edited mentions, then persists through ChatRepository/ChatDatasource before using the existing participant-filtered `emitOutingMessage`. Deletion is an empty-text tombstone to preserve retry idempotency and cursors. Editing checks sent_at + 60 seconds in the use case and atomic updateMany predicate; expiration returns MESSAGE_EDIT_WINDOW_EXPIRED. Delete has no edit-age restriction. No schema, Socket.IO room/event or Firebase-token changes. The shared chat access guard now enforces scheduled_at + two hours as well as past/cancelled status. PushChannel adds only the matching APNs chat-action category; worker/token handling and delivery retries remain unchanged.
+
+
+## Durable system push extension — 2026-11-14
+
+NotificationStateUseCase extends the existing notification repository/datasource for summary/preferences/current system display; the controller stays an HTTP adapter. persistNotifications and group/outing event helpers are reused inside existing mutation transactions. PushChannel revalidates current audience/state/content/preferences and sends through Firebase Admin after commit. Silent read/edit/delete/invitation controls use the existing outbox without adding inbox history spam.
+
+The existing interval notification worker now enqueues paged due reminders, claims/reclaims delivery leases, logs attempts, backs off bounded retries and drains on shutdown. Successful token IDs in delivery-log JSON prevent partial-multicast resend to already-delivered devices. No Redis queue or Firebase application database is introduced. WhatsApp channel and service implementations are unchanged. Existing realtime invalidations publish after commit and drive the same Flutter coordinator; notification creation never calls FCM inside the business transaction.
+
+Notification rollout compatibility: the existing token registration accepts notificationVersion=2 from updated clients; existing Android registrations default to 1 and retain OS-visible delivery. The additive migration includes this token capability field alongside inbox metadata and user preferences.
+
+
+## Places import and catalog — 2026-11-14
+
+The existing places route remains canonical. `catalog.controller` → `CatalogUseCase` → `CatalogRepository` → `CatalogDatasource` adds bounded parameterized PostgreSQL filtering, pagination and taxonomy. Existing create/update routes support category/vibes and lifecycle fields through the place datasource; curator updates mark records manually managed. Delete archives instead of cascading user references. Existing nearby reads exclude unavailable places.
+
+`services/places/taxonomy.ts`, `osm.ts` and `places-sync.ts` implement indexed Overpass administrative-area queries, conservative normalization/classification, sequential rate-limited retries/failover, validated counts/freshness, a fenced database lease and atomic batched SQL upserts through Prisma. Fetches finish before the data transaction. Manual overrides serialize on place locks; failures roll back all place/status/mapping changes. `src/cli/places-sync.ts` is an independent deployable worker; no API setInterval/node-cron performs weekly sync. Progress and failures persist in `place_sync_runs`.
+
+`catalog-notifications.ts` publishes transactional PostgreSQL NOTIFY and maintains one direct LISTEN session per API process. It forwards public revision invalidations through the existing Socket.IO connection, including CLI imports and multiple API instances; reconnect revision reads repair missed signals. Listener reconnect timers only recover transport, never schedule imports. Existing chat/group replay remains process-local. Operations: [Places Management](audit/PLACES_MANAGEMENT.md).
+
+
+## Saved place cards and filter — 2026-11-14
+
+The existing saved-place list datasource includes related place/category/vibe data in one Prisma query, avoiding a request per saved item. Existing saved-place routes, authentication and per-user ownership remain unchanged.

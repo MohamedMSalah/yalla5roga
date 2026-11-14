@@ -47,3 +47,4 @@ class SettingsList extends StatelessWidget {
 
 /// Backward-compatible alias.
 typedef SettingsGroup = SettingsList;
+typedef SettingsSection = SettingsList;

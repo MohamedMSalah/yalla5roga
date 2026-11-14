@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-11-14T09:28:04.725Z",
+  "mode": "OpenAPI / Swagger HTTP only; no data writes",
+  "rows": [
+    {
+      "scenario": "loginWithPhonePassword: existing request and success contracts present",
+      "result": "PASS"
+    },
+    {
+      "scenario": "signupWithPhonePassword: existing request and success contracts present",
+      "result": "PASS"
+    },
+    {
+      "scenario": "startPasswordRecovery: existing request and success contracts present",
+      "result": "PASS"
+    },
+    {
+      "scenario": "verifyPasswordRecovery: existing request and success contracts present",
+      "result": "PASS"
+    },
+    {
+      "scenario": "resetRecoveredPassword: existing request and success contracts present",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Served Swagger UI exposes the existing Phase 6 OpenAPI contracts",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "getCurrentUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getCurrentUser: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteCurrentUser: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "deleteCurrentUser: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listSavedOutings: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listSavedOutings: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listCurrentUserOutings: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "listCurrentUserOutings: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getOuting: missing authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "getOuting: invalid authentication",
+      "result": "PASS",
+      "status": 401
+    },
+    {
+      "scenario": "Authenticated deletion/data reads, Firebase SMS, signup and password recovery success",
+      "result": "NOT RUN: no task-supplied disposable authenticated fixtures; no real accounts mutated"
+    }
+  ]
+}

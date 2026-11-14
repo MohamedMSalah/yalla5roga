@@ -67,7 +67,7 @@ class DiscoverMapPanel extends StatelessWidget {
                     height: 48,
                     alignment: Alignment.bottomCenter,
                     child: MapPlaceMarker(
-                      label: place.name,
+                      label: place.localizedName(context.l10n),
                       selected: selectedId == place.id,
                       onPressed: () => onSelect(place),
                     ),

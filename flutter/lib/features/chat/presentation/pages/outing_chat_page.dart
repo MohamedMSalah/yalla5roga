@@ -23,9 +23,10 @@ import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
 class OutingChatPage extends StatefulWidget {
-  const OutingChatPage({super.key, required this.event});
+  const OutingChatPage({super.key, required this.event, this.messageId});
 
   final HeroSlide event;
+  final String? messageId;
 
   @override
   State<OutingChatPage> createState() => _OutingChatPageState();
@@ -64,6 +65,15 @@ class _OutingChatPageState extends State<OutingChatPage> {
       unawaited(outings.refreshLifecycle(outingId: _outingId));
       await _chat!.subscribe(_outingId, userId: userId);
       if (!mounted) return;
+      if (widget.messageId != null) {
+        final available = await _chat!.focusMessage(
+          _outingId,
+          widget.messageId!,
+        );
+        if (!mounted) return;
+        if (!available)
+          AppSnackBar.showError(context.l10n.notificationTargetUnavailable);
+      }
       final groupId = widget.event.groupId;
       if (groupId != null && groupId.isNotEmpty) {
         await groups.ensureGroupLoaded(groupId);
@@ -467,6 +477,7 @@ class _OutingChatPageState extends State<OutingChatPage> {
                             : l10n.noChatMessagesHint,
                       )
                     : OutingChatMessageList(
+                        highlightedMessageId: widget.messageId,
                         messages: messages,
                         members: members,
                         onEdit: closed ? null : _edit,

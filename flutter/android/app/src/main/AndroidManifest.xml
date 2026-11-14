@@ -14,7 +14,7 @@
         <!-- Default FCM channel when the OS displays a notification while backgrounded. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="yalla_5roga_high_importance" />
+            android:value="yalla_outings_v1" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@mipmap/ic_launcher" />

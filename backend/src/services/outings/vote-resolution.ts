@@ -1,10 +1,11 @@
-import { createHash, randomInt } from "node:crypto";
+import { randomInt } from "node:crypto";
 import type { Prisma, vote_close_reason } from "@prisma/client";
 import { prisma } from "../../config/database.js";
 import type { Outing } from "../../types/outings/outing.types.js";
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../utils/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError,
+} from "../../utils/errors.js";
 import { publishOutingChange } from "../../realtime/data-changes.js";
-import { notifyOutingParticipants } from "../notifications/outing-notifier.js";
+import { persistOutingTransition } from "../notifications/outing-events.js";
 import { listEligibleVoterIds } from "./outing-participants.js";
 
 export type VoteResolutionResult = {
@@ -53,7 +54,10 @@ async function applyWinner(
   });
   if (!option) throw new NotFoundError("Vote option");
 
-  return tx.outings.update({
+  const before = await tx.outings.findUniqueOrThrow({
+    where: { id: outingId },
+  });
+  const updated = await tx.outings.update({
     where: { id: outingId },
     data: {
       status: "confirmed",
@@ -67,6 +71,8 @@ async function applyWinner(
       location_longitude: option.longitude,
     },
   });
+  await persistOutingTransition(tx, before, updated);
+  return updated;
 }
 
 async function applyCancelZeroVotes(
@@ -74,7 +80,10 @@ async function applyCancelZeroVotes(
   outingId: string,
   closeReason: vote_close_reason,
 ): Promise<Outing> {
-  return tx.outings.update({
+  const before = await tx.outings.findUniqueOrThrow({
+    where: { id: outingId },
+  });
+  const updated = await tx.outings.update({
     where: { id: outingId },
     data: {
       status: "cancelled",
@@ -83,6 +92,8 @@ async function applyCancelZeroVotes(
       winning_option_id: null,
     },
   });
+  await persistOutingTransition(tx, before, updated);
+  return updated;
 }
 
 async function markVotingClosedPendingTie(
@@ -90,7 +101,10 @@ async function markVotingClosedPendingTie(
   outingId: string,
   closeReason: vote_close_reason,
 ): Promise<Outing> {
-  return tx.outings.update({
+  const before = await tx.outings.findUniqueOrThrow({
+    where: { id: outingId },
+  });
+  const updated = await tx.outings.update({
     where: { id: outingId },
     data: {
       // Stay in voting but record closure metadata so votes are rejected.
@@ -99,6 +113,8 @@ async function markVotingClosedPendingTie(
       vote_close_reason: closeReason,
     },
   });
+  await persistOutingTransition(tx, before, updated);
+  return updated;
 }
 
 /**
@@ -293,13 +309,16 @@ export async function confirmProposedVenue(
       throw new ForbiddenError("Only the outing owner can confirm the venue");
     }
     if (outing.status === "confirmed" && outing.winning_option_id === optionId) {
-      return { outing, outcome: "confirmed" as const, winningOptionId: optionId };
+      return { outing, outcome: "confirmed" as const, winningOptionId: optionId,
+      };
     }
     if (outing.status !== "voting") {
       throw new ConflictError("This outing is no longer awaiting a venue");
     }
-    const confirmed = await applyWinner(tx, outingId, optionId, "owner_confirmed");
-    return { outing: confirmed, outcome: "confirmed" as const, winningOptionId: optionId };
+    const confirmed = await applyWinner(tx, outingId, optionId, "owner_confirmed",
+    );
+    return { outing: confirmed, outcome: "confirmed" as const, winningOptionId: optionId,
+    };
   });
   await emitResolutionNotifications(result).catch((error: unknown) => {
     console.error("[voting] venue confirmation notification failed", error);
@@ -310,58 +329,8 @@ export async function confirmProposedVenue(
 export async function emitResolutionNotifications(
   result: VoteResolutionResult,
 ): Promise<void> {
-  const { outing, outcome } = result;
+  const { outing } = result;
   await publishOutingChange(outing.id);
-  if (outcome === "confirmed" && result.winningOptionId) {
-    const eventType =
-      outing.vote_close_reason === "tie_break"
-        ? "tie_break_selected"
-        : "winner_selected";
-    await notifyOutingParticipants({
-      outing,
-      type: "vote",
-      eventType,
-      body:
-        outing.vote_close_reason === "tie_break"
-          ? "Yalla 5roga picked the winning place!"
-          : "Voting finished — a place was selected.",
-      eventKey: `${eventType}:${outing.id}:${result.winningOptionId}`,
-      actionRequired: false,
-    });
-    await notifyOutingParticipants({
-      outing,
-      type: "outing",
-      eventType: "outing_confirmed",
-      body: `Outing "${outing.title}" is confirmed.`,
-      eventKey: `outing_confirmed:${outing.id}`,
-      actionRequired: false,
-    });
-  } else if (outcome === "cancelled") {
-    await notifyOutingParticipants({
-      outing,
-      type: "outing",
-      eventType: "outing_cancelled",
-      body: `Outing "${outing.title}" was cancelled (no votes).`,
-      eventKey: `outing_cancelled:${outing.id}:zero_votes`,
-      actionRequired: false,
-    });
-  } else if (outcome === "tie") {
-    await notifyOutingParticipants({
-      outing,
-      type: "vote",
-      eventType:
-        outing.vote_close_reason === "deadline"
-          ? "voting_deadline_reached"
-          : "voting_closed_early",
-      body: `Voting tied for "${outing.title}". Waiting for the owner to decide.`,
-      eventKey: `vote_tie:${outing.id}:${hashIds(result.tiedOptionIds ?? [])}`,
-      actionRequired: true,
-    });
-  }
-}
-
-function hashIds(ids: string[]): string {
-  return createHash("sha256").update(ids.slice().sort().join(",")).digest("hex").slice(0, 16);
 }
 
 export function assertVotingOpen(outing: Outing): void {

@@ -27,6 +27,7 @@ class FcmMessagingService {
   var _initialized = false;
   String? _token;
   PushMessageCallback? onOpenedFromNotification;
+  VoidCallback? onReceived;
 
   String? get token => _token;
   Stream<String?> get tokenStream => _tokenController.stream;
@@ -96,6 +97,8 @@ class FcmMessagingService {
     }
   }
 
+  Future<void> forgetToken() => _storeToken(null);
+
   /// Cold-start: user launched the app by tapping a notification.
   Future<PushNotificationPayload?> takeInitialMessage() async {
     try {
@@ -117,17 +120,20 @@ class FcmMessagingService {
 
   Future<void> _onForegroundMessage(RemoteMessage message) async {
     if (kDebugMode) {
-      debugPrint(
-        '[FCM][foreground] id=${message.messageId} data=${message.data}',
-      );
+      debugPrint('[FCM][foreground] id=${message.messageId}');
     }
     final payload = PushNotificationPayload.fromRemoteMessage(message);
-    await _localNotifications.showFromPayload(payload);
+    try {
+      await _localNotifications.showFromPayload(payload);
+    } catch (error) {
+      debugPrint('[FCM] System display deferred: $error');
+    }
+    onReceived?.call();
   }
 
   void _onMessageOpenedApp(RemoteMessage message) {
     if (kDebugMode) {
-      debugPrint('[FCM][opened] id=${message.messageId} data=${message.data}');
+      debugPrint('[FCM][opened] id=${message.messageId}');
     }
     final payload = PushNotificationPayload.fromRemoteMessage(message);
     onOpenedFromNotification?.call(payload);

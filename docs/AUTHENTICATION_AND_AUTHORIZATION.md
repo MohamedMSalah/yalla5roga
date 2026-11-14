@@ -161,3 +161,24 @@ All four special occasions may carry group_id. POST creation and PATCH group ass
 ## Phase 5 chat authorization — 2026-11-14
 
 Editing/deletion require the existing Firebase bearer identity, current chat participation and ownership of the stored sender_id. Cross-outing message IDs return 404, other senders 403, and past/cancelled/two-hour-closed mutations 409. Own-message editing additionally requires the server send timestamp to be less than one minute old, including at persistence; expired edits return 409 MESSAGE_EDIT_WINDOW_EXPIRED. Deletion retains its existing own-sender/open-chat guard without an edit-age restriction. History/read authorization stays participant-scoped. Native actions validate recipient identity before processing; reply/read requests use expectedUserId to prevent account-switch token substitution. iOS actions require foreground authentication; Android local actions open the app. No authorization bypass or global role is introduced.
+
+
+## Phase 6 client composition — 2026-11-14
+
+Phone/password login, Firebase signup OTP proof, Neon synchronization, recovery request/proof/reset tokens and Firebase session restoration retain their existing contracts. Password confirmation adds local validation only. Optional signup media is uploaded after verified registration under the authenticated profile purpose and synced using the existing profile operation. No local image path is sent as profile data.
+
+The previously signout-only Delete Account UI now invokes the existing self-scoped DELETE `/api/users/cuser` through AuthProvider → AuthRepository → AuthRemoteDataSource. Logout/account cache cleanup occurs only after API success. Foreign-key conflicts remain server-owned and preserve the session. The endpoint removes the application profile; Firebase identity deletion/revocation is outside this existing contract and was not added. First-run onboarding completion is a local presentation preference, never an authentication or authorization signal. Restored authenticated users bypass onboarding.
+
+
+## Android notification actions and account isolation — 2026-11-14
+
+Background actions restore the existing Firebase session and use ApiClient/Dio AuthInterceptor with expectedFirebaseUserId. The dispatcher requires payload.recipientUserId to match the active Firebase UID, checks again after asynchronous work and never syncs/provisions a user for each event. Protected taps wait for the existing shared one-time restore synchronization before resource navigation. Action records, display metadata and deduplication are account-bound and cleared on logout/switch.
+
+Reply/read/invitation decisions reuse existing authenticated and authorized endpoints. Backend UID selects the sender/reader/recipient; client routing IDs never confer access. Reply UUIDs provide retry idempotency. Membership and status decisions remain row-locked/transactional, with no preacceptance group access or membership-confirmation push. GET notification system-payload checks row ownership then current resource access/state/preferences, returning no content when unavailable.
+
+Explicit logout best-effort unregisters the account's FCM token and deletes the installation token before Firebase signout; cleanup failure cannot prevent signout. Offline logout can leave a registration on the server until reassignment/cleanup, so recipient checks and session validation still apply on receipt. Invalid token deletion is restricted to definitive invalid/unregistered errors and the still-owning registration row. Preferences/read/history stay in Neon, never Firebase application storage.
+
+
+## Places worker authorization — 2026-11-14
+
+Existing public catalog reads stay public. Manual taxonomy/place metadata writes and sync administration reuse Firebase ID-token verification and the existing fail-closed `PLACES_CURATOR_UIDS` allowlist; there is no client/admin role flag. The external worker endpoint accepts only a distinct constant-time-compared `PLACES_SYNC_WORKER_SECRET` of at least 32 characters. The secret is server/scheduler-only, cannot authenticate as an app curator, and is never included in Flutter or response bodies. Requests to the external worker always use the persisted seven-day due gate. CLI workers use the backend database credential in the deployment environment. Source URLs are operator-configured HTTPS; user API requests cannot select arbitrary import endpoints. Imports cannot change source=manual or curator-managed places.

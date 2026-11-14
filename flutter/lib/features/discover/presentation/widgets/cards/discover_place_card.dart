@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -28,9 +29,10 @@ class DiscoverPlaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return PlaceCard(
+      trailing: SavePlaceButton(place: place),
       title: place.localizedName(l10n),
       subtitle: showPriceLevel
-          ? '${place.localizedArea(l10n)} · ${l10n.priceLevelLabel(place.priceLevel.name)}'
+          ? place.localizedSummary(l10n)
           : place.localizedArea(l10n),
       compact: compact,
       onTap: onTap,
