@@ -10,6 +10,6 @@ export class DeleteGroupUseCase {
 
   async execute(id: string, callerUid: string): Promise<Group> {
     await assertGroupOwner(this.groups, id, callerUid);
-    return this.groups.delete(id);
+    return this.groups.delete(id, callerUid);
   }
 }

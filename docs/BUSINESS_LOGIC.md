@@ -254,3 +254,8 @@ Absence is review evidence, never proof of permanent closure: only three complet
 ## Saved place cards and filter — 2026-11-14
 
 Saved place bookmarks are independent of outings and drafts. Confirmed backend success updates the bookmark; errors retain its state. The saved Places filter includes unavailable saved places with status labels and current detail navigation. Account changes clear bookmark state and in-flight results from the prior account.
+
+
+## Sole-owner group leave — 2026-11-14
+
+The confirmed sole owner's leave uses the existing group DELETE operation. Deletion revalidates that the caller is an owner and is the only active group member inside the existing group row lock/transaction. Other active members cause 409; groups with any outings retain the existing 409 history protection. Pending invitations do not count as active members. A failed deletion leaves group/membership intact. Ordinary member self-removal and the last-owner prohibition remain unchanged. There is no separate Delete Group UI action.

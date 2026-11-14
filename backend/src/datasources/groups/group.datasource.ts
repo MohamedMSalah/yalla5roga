@@ -114,9 +114,17 @@ export class GroupDatasource {
       .then(mapGroup);
   }
 
-  delete(id: string): Promise<Group> {
+  delete(id: string, callerUid: string): Promise<Group> {
     const remove = async (tx: Prisma.TransactionClient) => {
       await tx.$queryRaw`SELECT id FROM groups WHERE id = ${id}::uuid FOR UPDATE`;
+      const members = await tx.group_members.findMany({ where: { group_id: id } });
+      const caller = members.find((member) => member.user_id === callerUid);
+      if (!caller || caller.role !== "owner") {
+        throw new ForbiddenError("Only the group owner can delete the group");
+      }
+      if (members.length !== 1) {
+        throw new ConflictError("Only a group with its owner as the sole member can be deleted");
+      }
       if (await tx.outings.findFirst({ where: { group_id: id }, select: { id: true },
         })) {
         throw new ConflictError("A group with outings cannot be deleted");

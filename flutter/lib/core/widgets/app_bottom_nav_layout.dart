@@ -36,7 +36,11 @@ class AppBottomNavLayout extends StatelessWidget {
       extendBody: true,
       body: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+          constraints: BoxConstraints(
+            maxWidth: currentIndex == 3
+                ? double.infinity
+                : Responsive.contentMaxWidth,
+          ),
           child: _TabSwap(index: currentIndex, pages: pages),
         ),
       ),

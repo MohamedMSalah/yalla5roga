@@ -1,0 +1,67 @@
+{
+  "checkedAt": "2026-11-14T20:02:32.921Z",
+  "scope": "schema and live vector data only; no rendered UI or device verification",
+  "results": [
+    {
+      "scenario": "light_ar: official MapLibre style schema, palette, zoom thresholds and vector-only sources",
+      "result": "PASS",
+      "layers": 24
+    },
+    {
+      "scenario": "light_en: official MapLibre style schema, palette, zoom thresholds and vector-only sources",
+      "result": "PASS",
+      "layers": 24
+    },
+    {
+      "scenario": "dark_ar: official MapLibre style schema, palette, zoom thresholds and vector-only sources",
+      "result": "PASS",
+      "layers": 24
+    },
+    {
+      "scenario": "dark_en: official MapLibre style schema, palette, zoom thresholds and vector-only sources",
+      "result": "PASS",
+      "layers": 24
+    },
+    {
+      "scenario": "Free OpenFreeMap TileJSON responds with vector PBF endpoints, maxzoom 14",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Live Cairo/Nile/Zamalek/Al-Azhar vector geometry and bilingual/fallback labels exist",
+      "result": "PASS",
+      "featureCounts": {
+        "building": 72,
+        "housenumber": 1234,
+        "landcover": 585,
+        "landuse": 289,
+        "park": 11,
+        "place": 235,
+        "poi": 3686,
+        "transportation": 952,
+        "transportation_name": 2550,
+        "water": 47,
+        "waterway": 7,
+        "boundary": 2,
+        "mountain_peak": 11,
+        "aerodrome_label": 1
+      },
+      "labelCounts": {
+        "arabic": 3455,
+        "english": 4403,
+        "fallback": 4244
+      },
+      "namedWaterways": 5,
+      "buildingsWithHeightData": 71
+    },
+    {
+      "scenario": "Provider glyph range 0-255 available for the configured font",
+      "result": "PASS",
+      "bytes": 76580
+    },
+    {
+      "scenario": "Provider glyph range 1536-1791 available for the configured font",
+      "result": "PASS",
+      "bytes": 96133
+    }
+  ]
+}

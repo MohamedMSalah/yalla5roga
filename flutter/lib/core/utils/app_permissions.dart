@@ -1,18 +1,38 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
 
-enum AppPermissionResult {
-  granted,
-  denied,
-  openedSettings,
-}
+enum AppPermissionResult { granted, denied, openedSettings }
 
 class AppPermissions {
   const AppPermissions._();
 
   static var _notificationAskedThisSession = false;
+  static var _locationAskedThisSession = false;
+  static final locationChanges = ValueNotifier<int>(0);
+  static Future<void>? _notificationRequest;
+
+  static Future<void> promptLocationOnLaunch(L10n l10n) async {
+    if (_locationAskedThisSession) return;
+    _locationAskedThisSession = true;
+    if (!await isLocationGranted) {
+      final allowed = await AppAlert.confirm(
+        title: l10n.locationAccessTitle,
+        message: l10n.locationAccessBody,
+        confirmText: l10n.allowLocation,
+        cancelText: l10n.notNow,
+      );
+      if (!allowed) return;
+      if (await Geolocator.checkPermission() == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+    }
+    if (await isLocationGranted) {
+      locationChanges.value++;
+    }
+  }
 
   static Future<bool> get isNotificationGranted async {
     return Permission.notification.isGranted;
@@ -30,6 +50,17 @@ class AppPermissions {
     if (_notificationAskedThisSession) return;
     if (await Permission.notification.isGranted) return;
     _notificationAskedThisSession = true;
+
+    await promptNotificationAccess(l10n);
+  }
+
+  /// Explicit Settings action may request permission again after a launch skip.
+  static Future<void> promptNotificationAccess(L10n l10n) =>
+      _notificationRequest ??= _promptNotificationAccess(l10n)
+          .whenComplete(() => _notificationRequest = null);
+
+  static Future<void> _promptNotificationAccess(L10n l10n) async {
+    if (await isNotificationGranted) return;
 
     final allowed = await AppAlert.confirm(
       title: l10n.notificationAccessTitle,
@@ -102,7 +133,8 @@ class AppPermissions {
     return AppPermissionResult.openedSettings;
   }
 
-  static Future<AppPermissionResult> _requestNotificationOrOpenSettings() async {
+  static Future<AppPermissionResult>
+  _requestNotificationOrOpenSettings() async {
     var status = await Permission.notification.status;
     if (!status.isGranted && !status.isPermanentlyDenied) {
       status = await Permission.notification.request();

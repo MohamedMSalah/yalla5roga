@@ -1,0 +1,165 @@
+{
+  "checkedAt": "2026-11-14T20:38:28.533Z",
+  "mode": "Served Swagger/OpenAPI HTTP, disposable PostgreSQL schema, controlled Firebase identity boundary; no application-schema changes or Flutter execution",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "Served Swagger/OpenAPI matches application contract",
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteGroup",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getNotificationPreferences",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateNotificationPreferences",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listGroupMembers",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteGroup",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteGroup",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getGroup",
+      "status": 404,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "inviteToGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptGroupInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listGroupMembers",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteGroup",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "removeGroupMember",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listGroupMembers",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "removeGroupMember",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listGroupMembers",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteGroup",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteGroup",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listGroupMembers",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Sole-owner deletion preserves groups with historical outings",
+      "result": "PASS"
+    }
+  ]
+}

@@ -161,9 +161,8 @@ class _NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final labelStyle =
-            context.texts.labelSmall ??
-            const TextStyle(fontSize: AppTypography.caption);
+        final labelStyle = (context.texts.labelSmall ?? const TextStyle())
+            .copyWith(fontSize: AppTypography.navigationLabel);
         final labelWidth = constraints.maxWidth / items.length - AppSpacing.sm;
         var labelHeight = 0.0;
         for (final item in items) {

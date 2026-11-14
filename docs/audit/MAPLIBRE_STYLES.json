@@ -1,0 +1,5674 @@
+{
+  "light_ar": {
+    "version": 8,
+    "name": "Yalla 5roga Day ar",
+    "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    "transition": {
+      "duration": 200,
+      "delay": 0
+    },
+    "sources": {
+      "basemap": {
+        "type": "vector",
+        "url": "https://tiles.openfreemap.org/planet/latest",
+        "attribution": "OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors"
+      }
+    },
+    "layers": [
+      {
+        "id": "land",
+        "type": "background",
+        "paint": {
+          "background-color": "#F7F8F4"
+        }
+      },
+      {
+        "id": "green",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landcover",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "grass",
+              "wood",
+              "scrub"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#DDEDD6"
+        }
+      },
+      {
+        "id": "parks",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "park",
+        "paint": {
+          "fill-color": "#CFE8CF"
+        }
+      },
+      {
+        "id": "gardens",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "garden",
+              "recreation_ground"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#CFE8CF"
+        }
+      },
+      {
+        "id": "sports",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "pitch",
+              "stadium"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#D4E4D1"
+        }
+      },
+      {
+        "id": "parking",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "parking"
+            ]
+          ]
+        ],
+        "minzoom": 14.0,
+        "paint": {
+          "fill-color": "#ECEEE9"
+        }
+      },
+      {
+        "id": "water",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "water",
+        "paint": {
+          "fill-color": "#A9DCEB"
+        }
+      },
+      {
+        "id": "waterways",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 0.0,
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#A9DCEB",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.5,
+            13,
+            2.0,
+            18,
+            6.0
+          ]
+        }
+      },
+      {
+        "id": "buildings",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 13.0,
+        "paint": {
+          "fill-color": [
+            "case",
+            [
+              "has",
+              "name"
+            ],
+            "#DDE0DA",
+            "#E8E9E6"
+          ],
+          "fill-outline-color": "#D5D8D4"
+        }
+      },
+      {
+        "id": "minor-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 13.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "minor",
+              "service",
+              "track"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#FFFFFF",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.0,
+            13,
+            1.5,
+            18,
+            8.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#DADDD6",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.4,
+            13,
+            4.5,
+            18,
+            16.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#FFFFFF",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.2,
+            13,
+            3.0,
+            18,
+            13.0
+          ]
+        }
+      },
+      {
+        "id": "main-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#D8CDB6",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            7.0,
+            18,
+            23.0
+          ]
+        }
+      },
+      {
+        "id": "main-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#F6E6BF",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.6,
+            13,
+            5.0,
+            18,
+            19.0
+          ]
+        }
+      },
+      {
+        "id": "bridges-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#D5D8D4",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            8.0,
+            18,
+            25.0
+          ]
+        }
+      },
+      {
+        "id": "bridges",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#FFF4D9",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.7,
+            13,
+            5.5,
+            18,
+            20.0
+          ]
+        }
+      },
+      {
+        "id": "building-heights",
+        "type": "fill-extrusion",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 16,
+        "filter": [
+          ">",
+          [
+            "coalesce",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ],
+          0
+        ],
+        "paint": {
+          "fill-extrusion-color": "#E8E9E6",
+          "fill-extrusion-height": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            16,
+            0,
+            17,
+            [
+              "min",
+              80,
+              [
+                "get",
+                "render_height"
+              ]
+            ]
+          ],
+          "fill-extrusion-base": [
+            "min",
+            80,
+            [
+              "coalesce",
+              [
+                "get",
+                "render_min_height"
+              ],
+              0
+            ]
+          ],
+          "fill-extrusion-opacity": 0.72,
+          "fill-extrusion-vertical-gradient": false
+        }
+      },
+      {
+        "id": "nile-water-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "water_name",
+        "minzoom": 9.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "nile-river-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 10.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "major-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 12.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "secondary-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 16.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 11.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "districts",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 10.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "suburb",
+              "quarter",
+              "neighbourhood"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "cities",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 5.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "city",
+              "town"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 17.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "landmarks",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "poi",
+        "minzoom": 14.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "monument",
+              "museum",
+              "attraction",
+              "castle"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      }
+    ]
+  },
+  "light_en": {
+    "version": 8,
+    "name": "Yalla 5roga Day en",
+    "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    "transition": {
+      "duration": 200,
+      "delay": 0
+    },
+    "sources": {
+      "basemap": {
+        "type": "vector",
+        "url": "https://tiles.openfreemap.org/planet/latest",
+        "attribution": "OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors"
+      }
+    },
+    "layers": [
+      {
+        "id": "land",
+        "type": "background",
+        "paint": {
+          "background-color": "#F7F8F4"
+        }
+      },
+      {
+        "id": "green",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landcover",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "grass",
+              "wood",
+              "scrub"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#DDEDD6"
+        }
+      },
+      {
+        "id": "parks",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "park",
+        "paint": {
+          "fill-color": "#CFE8CF"
+        }
+      },
+      {
+        "id": "gardens",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "garden",
+              "recreation_ground"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#CFE8CF"
+        }
+      },
+      {
+        "id": "sports",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "pitch",
+              "stadium"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#D4E4D1"
+        }
+      },
+      {
+        "id": "parking",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "parking"
+            ]
+          ]
+        ],
+        "minzoom": 14.0,
+        "paint": {
+          "fill-color": "#ECEEE9"
+        }
+      },
+      {
+        "id": "water",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "water",
+        "paint": {
+          "fill-color": "#A9DCEB"
+        }
+      },
+      {
+        "id": "waterways",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 0.0,
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#A9DCEB",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.5,
+            13,
+            2.0,
+            18,
+            6.0
+          ]
+        }
+      },
+      {
+        "id": "buildings",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 13.0,
+        "paint": {
+          "fill-color": [
+            "case",
+            [
+              "has",
+              "name"
+            ],
+            "#DDE0DA",
+            "#E8E9E6"
+          ],
+          "fill-outline-color": "#D5D8D4"
+        }
+      },
+      {
+        "id": "minor-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 13.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "minor",
+              "service",
+              "track"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#FFFFFF",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.0,
+            13,
+            1.5,
+            18,
+            8.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#DADDD6",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.4,
+            13,
+            4.5,
+            18,
+            16.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#FFFFFF",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.2,
+            13,
+            3.0,
+            18,
+            13.0
+          ]
+        }
+      },
+      {
+        "id": "main-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#D8CDB6",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            7.0,
+            18,
+            23.0
+          ]
+        }
+      },
+      {
+        "id": "main-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#F6E6BF",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.6,
+            13,
+            5.0,
+            18,
+            19.0
+          ]
+        }
+      },
+      {
+        "id": "bridges-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#D5D8D4",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            8.0,
+            18,
+            25.0
+          ]
+        }
+      },
+      {
+        "id": "bridges",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#FFF4D9",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.7,
+            13,
+            5.5,
+            18,
+            20.0
+          ]
+        }
+      },
+      {
+        "id": "building-heights",
+        "type": "fill-extrusion",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 16,
+        "filter": [
+          ">",
+          [
+            "coalesce",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ],
+          0
+        ],
+        "paint": {
+          "fill-extrusion-color": "#E8E9E6",
+          "fill-extrusion-height": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            16,
+            0,
+            17,
+            [
+              "min",
+              80,
+              [
+                "get",
+                "render_height"
+              ]
+            ]
+          ],
+          "fill-extrusion-base": [
+            "min",
+            80,
+            [
+              "coalesce",
+              [
+                "get",
+                "render_min_height"
+              ],
+              0
+            ]
+          ],
+          "fill-extrusion-opacity": 0.72,
+          "fill-extrusion-vertical-gradient": false
+        }
+      },
+      {
+        "id": "nile-water-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "water_name",
+        "minzoom": 9.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "nile-river-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 10.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "major-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 12.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "secondary-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 16.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 11.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "districts",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 10.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "suburb",
+              "quarter",
+              "neighbourhood"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "cities",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 5.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "city",
+              "town"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 17.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "landmarks",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "poi",
+        "minzoom": 14.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "monument",
+              "museum",
+              "attraction",
+              "castle"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#414D4C",
+          "text-halo-color": "#F7F8F4",
+          "text-halo-width": 1.4
+        }
+      }
+    ]
+  },
+  "dark_ar": {
+    "version": 8,
+    "name": "Yalla 5roga Night ar",
+    "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    "transition": {
+      "duration": 200,
+      "delay": 0
+    },
+    "sources": {
+      "basemap": {
+        "type": "vector",
+        "url": "https://tiles.openfreemap.org/planet/latest",
+        "attribution": "OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors"
+      }
+    },
+    "layers": [
+      {
+        "id": "land",
+        "type": "background",
+        "paint": {
+          "background-color": "#202628"
+        }
+      },
+      {
+        "id": "green",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landcover",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "grass",
+              "wood",
+              "scrub"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#2B4034"
+        }
+      },
+      {
+        "id": "parks",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "park",
+        "paint": {
+          "fill-color": "#304B3E"
+        }
+      },
+      {
+        "id": "gardens",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "garden",
+              "recreation_ground"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#304B3E"
+        }
+      },
+      {
+        "id": "sports",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "pitch",
+              "stadium"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#354B40"
+        }
+      },
+      {
+        "id": "parking",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "parking"
+            ]
+          ]
+        ],
+        "minzoom": 14.0,
+        "paint": {
+          "fill-color": "#303638"
+        }
+      },
+      {
+        "id": "water",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "water",
+        "paint": {
+          "fill-color": "#285569"
+        }
+      },
+      {
+        "id": "waterways",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 0.0,
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#285569",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.5,
+            13,
+            2.0,
+            18,
+            6.0
+          ]
+        }
+      },
+      {
+        "id": "buildings",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 13.0,
+        "paint": {
+          "fill-color": [
+            "case",
+            [
+              "has",
+              "name"
+            ],
+            "#424949",
+            "#383F40"
+          ],
+          "fill-outline-color": "#495151"
+        }
+      },
+      {
+        "id": "minor-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 13.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "minor",
+              "service",
+              "track"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#62696A",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.0,
+            13,
+            1.5,
+            18,
+            8.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#424B4D",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.4,
+            13,
+            4.5,
+            18,
+            16.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#7D8584",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.2,
+            13,
+            3.0,
+            18,
+            13.0
+          ]
+        }
+      },
+      {
+        "id": "main-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#525453",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            7.0,
+            18,
+            23.0
+          ]
+        }
+      },
+      {
+        "id": "main-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#BAAF91",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.6,
+            13,
+            5.0,
+            18,
+            19.0
+          ]
+        }
+      },
+      {
+        "id": "bridges-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#495151",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            8.0,
+            18,
+            25.0
+          ]
+        }
+      },
+      {
+        "id": "bridges",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#C5BCA6",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.7,
+            13,
+            5.5,
+            18,
+            20.0
+          ]
+        }
+      },
+      {
+        "id": "building-heights",
+        "type": "fill-extrusion",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 16,
+        "filter": [
+          ">",
+          [
+            "coalesce",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ],
+          0
+        ],
+        "paint": {
+          "fill-extrusion-color": "#383F40",
+          "fill-extrusion-height": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            16,
+            0,
+            17,
+            [
+              "min",
+              80,
+              [
+                "get",
+                "render_height"
+              ]
+            ]
+          ],
+          "fill-extrusion-base": [
+            "min",
+            80,
+            [
+              "coalesce",
+              [
+                "get",
+                "render_min_height"
+              ],
+              0
+            ]
+          ],
+          "fill-extrusion-opacity": 0.72,
+          "fill-extrusion-vertical-gradient": false
+        }
+      },
+      {
+        "id": "nile-water-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "water_name",
+        "minzoom": 9.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "nile-river-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 10.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "major-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 12.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "secondary-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 16.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 11.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "districts",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 10.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "suburb",
+              "quarter",
+              "neighbourhood"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "cities",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 5.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "city",
+              "town"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 17.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "landmarks",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "poi",
+        "minzoom": 14.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "monument",
+              "museum",
+              "attraction",
+              "castle"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:ar"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:ar"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:ar"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_ar"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_ar"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_ar"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      }
+    ]
+  },
+  "dark_en": {
+    "version": 8,
+    "name": "Yalla 5roga Night en",
+    "glyphs": "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
+    "transition": {
+      "duration": 200,
+      "delay": 0
+    },
+    "sources": {
+      "basemap": {
+        "type": "vector",
+        "url": "https://tiles.openfreemap.org/planet/latest",
+        "attribution": "OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors"
+      }
+    },
+    "layers": [
+      {
+        "id": "land",
+        "type": "background",
+        "paint": {
+          "background-color": "#202628"
+        }
+      },
+      {
+        "id": "green",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landcover",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "grass",
+              "wood",
+              "scrub"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#2B4034"
+        }
+      },
+      {
+        "id": "parks",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "park",
+        "paint": {
+          "fill-color": "#304B3E"
+        }
+      },
+      {
+        "id": "gardens",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "garden",
+              "recreation_ground"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#304B3E"
+        }
+      },
+      {
+        "id": "sports",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "pitch",
+              "stadium"
+            ]
+          ]
+        ],
+        "paint": {
+          "fill-color": "#354B40"
+        }
+      },
+      {
+        "id": "parking",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "landuse",
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "parking"
+            ]
+          ]
+        ],
+        "minzoom": 14.0,
+        "paint": {
+          "fill-color": "#303638"
+        }
+      },
+      {
+        "id": "water",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "water",
+        "paint": {
+          "fill-color": "#285569"
+        }
+      },
+      {
+        "id": "waterways",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 0.0,
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#285569",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.5,
+            13,
+            2.0,
+            18,
+            6.0
+          ]
+        }
+      },
+      {
+        "id": "buildings",
+        "type": "fill",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 13.0,
+        "paint": {
+          "fill-color": [
+            "case",
+            [
+              "has",
+              "name"
+            ],
+            "#424949",
+            "#383F40"
+          ],
+          "fill-outline-color": "#495151"
+        }
+      },
+      {
+        "id": "minor-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 13.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "minor",
+              "service",
+              "track"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#62696A",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.0,
+            13,
+            1.5,
+            18,
+            8.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#424B4D",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.4,
+            13,
+            4.5,
+            18,
+            16.0
+          ]
+        }
+      },
+      {
+        "id": "secondary-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 9.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#7D8584",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.2,
+            13,
+            3.0,
+            18,
+            13.0
+          ]
+        }
+      },
+      {
+        "id": "main-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#525453",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            7.0,
+            18,
+            23.0
+          ]
+        }
+      },
+      {
+        "id": "main-roads",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#BAAF91",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.6,
+            13,
+            5.0,
+            18,
+            19.0
+          ]
+        }
+      },
+      {
+        "id": "bridges-casing",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#495151",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            1.0,
+            13,
+            8.0,
+            18,
+            25.0
+          ]
+        }
+      },
+      {
+        "id": "bridges",
+        "type": "line",
+        "source": "basemap",
+        "source-layer": "transportation",
+        "minzoom": 0.0,
+        "filter": [
+          "all",
+          [
+            "in",
+            [
+              "get",
+              "class"
+            ],
+            [
+              "literal",
+              [
+                "motorway",
+                "trunk",
+                "primary"
+              ]
+            ]
+          ],
+          [
+            "==",
+            [
+              "get",
+              "brunnel"
+            ],
+            "bridge"
+          ]
+        ],
+        "layout": {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        "paint": {
+          "line-color": "#C5BCA6",
+          "line-width": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            7,
+            0.7,
+            13,
+            5.5,
+            18,
+            20.0
+          ]
+        }
+      },
+      {
+        "id": "building-heights",
+        "type": "fill-extrusion",
+        "source": "basemap",
+        "source-layer": "building",
+        "minzoom": 16,
+        "filter": [
+          ">",
+          [
+            "coalesce",
+            [
+              "get",
+              "render_height"
+            ],
+            0
+          ],
+          0
+        ],
+        "paint": {
+          "fill-extrusion-color": "#383F40",
+          "fill-extrusion-height": [
+            "interpolate",
+            [
+              "linear"
+            ],
+            [
+              "zoom"
+            ],
+            16,
+            0,
+            17,
+            [
+              "min",
+              80,
+              [
+                "get",
+                "render_height"
+              ]
+            ]
+          ],
+          "fill-extrusion-base": [
+            "min",
+            80,
+            [
+              "coalesce",
+              [
+                "get",
+                "render_min_height"
+              ],
+              0
+            ]
+          ],
+          "fill-extrusion-opacity": 0.72,
+          "fill-extrusion-vertical-gradient": false
+        }
+      },
+      {
+        "id": "nile-water-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "water_name",
+        "minzoom": 9.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "nile-river-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "waterway",
+        "minzoom": 10.0,
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "major-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 12.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "motorway",
+              "trunk",
+              "primary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "secondary-road-labels",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "transportation_name",
+        "minzoom": 16.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "secondary",
+              "tertiary"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 11.0,
+          "text-padding": 12,
+          "text-max-width": 8,
+          "text-allow-overlap": false,
+          "symbol-placement": "line",
+          "symbol-spacing": 420
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "districts",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 10.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "suburb",
+              "quarter",
+              "neighbourhood"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 14.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "cities",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "place",
+        "minzoom": 5.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "city",
+              "town"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 17.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      },
+      {
+        "id": "landmarks",
+        "type": "symbol",
+        "source": "basemap",
+        "source-layer": "poi",
+        "minzoom": 14.0,
+        "filter": [
+          "in",
+          [
+            "get",
+            "class"
+          ],
+          [
+            "literal",
+            [
+              "monument",
+              "museum",
+              "attraction",
+              "castle"
+            ]
+          ]
+        ],
+        "layout": {
+          "text-field": [
+            "case",
+            [
+              "all",
+              [
+                "has",
+                "name:en"
+              ],
+              [
+                "!=",
+                [
+                  "get",
+                  "name:en"
+                ],
+                ""
+              ]
+            ],
+            [
+              "get",
+              "name:en"
+            ],
+            [
+              "case",
+              [
+                "all",
+                [
+                  "has",
+                  "name_en"
+                ],
+                [
+                  "!=",
+                  [
+                    "get",
+                    "name_en"
+                  ],
+                  ""
+                ]
+              ],
+              [
+                "get",
+                "name_en"
+              ],
+              [
+                "case",
+                [
+                  "all",
+                  [
+                    "has",
+                    "name"
+                  ],
+                  [
+                    "!=",
+                    [
+                      "get",
+                      "name"
+                    ],
+                    ""
+                  ]
+                ],
+                [
+                  "get",
+                  "name"
+                ],
+                [
+                  "case",
+                  [
+                    "all",
+                    [
+                      "has",
+                      "name:latin"
+                    ],
+                    [
+                      "!=",
+                      [
+                        "get",
+                        "name:latin"
+                      ],
+                      ""
+                    ]
+                  ],
+                  [
+                    "get",
+                    "name:latin"
+                  ],
+                  ""
+                ]
+              ]
+            ]
+          ],
+          "text-font": [
+            "Noto Sans Regular"
+          ],
+          "text-size": 12.0,
+          "text-padding": 8,
+          "text-max-width": 8,
+          "text-allow-overlap": false
+        },
+        "paint": {
+          "text-color": "#D6DEDA",
+          "text-halo-color": "#202628",
+          "text-halo-width": 1.4
+        }
+      }
+    ]
+  }
+}

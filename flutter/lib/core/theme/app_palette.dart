@@ -104,6 +104,16 @@ class AppPalette extends ThemeExtension<AppPalette> {
   Color get info => brandStrong;
   Color get infoSoft => brandSoft;
 
+  Color get outingAction => danger;
+  Color get outingActionSoft =>
+      isDark ? const Color(0xFF451D2C) : const Color(0xFFFCE4ED);
+  Color get groupAction =>
+      isDark ? const Color(0xFFA9C7FF) : const Color(0xFF1D4ED8);
+  Color get groupActionSoft =>
+      isDark ? const Color(0xFF1D3054) : const Color(0xFFE4EDFF);
+  Color get eventAction => brandStrong;
+  Color get eventActionSoft => isDark ? brandSoft : const Color(0xFFF3E3FB);
+
   @override
   AppPalette copyWith({
     Color? background,

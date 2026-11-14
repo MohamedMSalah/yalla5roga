@@ -5,7 +5,7 @@
 | Last verified | 2026-11-13 |
 | Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | All fifteen repository migrations are applied as of 2026-11-14 (Cairo), including `20261114000000_special_event_occasions` and `20261114010000_voting_deadline_durations`; see [deployment evidence](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json). Recovery and media migration deployments are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md) and [media report](audit/MEDIA_STORAGE_REPORT.md). |
+| Configured Neon schema | All **17** repository migrations are applied, including special-event occasions, voting duration presets, Android notification metadata and places taxonomy/catalog synchronization. Current target/history/checksum verification and successful Prisma deployment check: [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json). Earlier deployment/backup evidence remains in [prior migration deployment](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json) and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -284,3 +284,8 @@ Migration `20261114040000_places_catalog_sync` extends `places` without replacin
 `place_categories` (36 stable bilingual entries, seven groups, icons and legacy outing-vibe projection), `vibes` (15 bilingual entries), and `place_vibes` (composite PK and mapping provenance) supply taxonomy. `place_sync_runs` records timing, completeness, dry-run, coverage/progress, counters and errors. `place_sync_lock` is the single expiring/fenced worker lease. `place_status_changes` records old/new status, run ID and JSON evidence. Status/source checks, source identity uniqueness, category/status/region/vibe indexes and the existing coordinate index are retained/extended; a partial active-coordinate index is intentionally SQL-managed. Categories/vibes carry revision timestamps. Foreign keys restrict deletion of referenced catalog data.
 
 The deployment script verifies the configured Neon target and migration checksums, backs up all public rows privately, rehearses restore/migration in a rolled-back schema and checks original-column checksums after Prisma Migrate. See [deployment evidence](audit/PLACES_MIGRATION_DEPLOYMENT.json).
+
+
+## Release migration review — 2026-11-14
+
+Current UI/map/Home/Settings/group-leave changes introduce no Prisma schema or migration SQL changes. All 17 local SQL SHA-256 checksums match successful Neon history, with no incomplete migration or pending SQL. The target-checked Prisma migrate deploy command completed with no pending migrations. Before/after schema, migration history and application-row fingerprints are unchanged. No migration was reapplied and no backup/restore was needed for this no-op check. Group deletion remains an application transaction/authorization change, not a schema change. [Review and release notes](audit/NEON_GITHUB_RELEASE.md). No ER diagram change is required.

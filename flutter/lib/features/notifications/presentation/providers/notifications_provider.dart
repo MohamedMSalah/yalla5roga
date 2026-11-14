@@ -13,26 +13,34 @@ class NotificationsProvider extends ChangeNotifier {
   Map<String, bool> _preferences = {};
   Map<String, bool> get preferences => Map.unmodifiable(_preferences);
   bool get pushEnabled => _preferences['pushEnabled'] ?? true;
+  bool _savingPreferences = false;
+  bool get isSavingPreferences => _savingPreferences;
+  int _preferencesRevision = 0;
 
   Future<void> setPushEnabled(bool value) =>
       updatePreferences({'pushEnabled': value});
 
   Future<void> updatePreferences(Map<String, bool> patch) async {
     final source = repository;
-    if (source is! NotificationPreferencesRepository || _isUpdating) return;
+    if (source is! NotificationPreferencesRepository || _savingPreferences)
+      return;
     final account = _accountEpoch;
-    _isUpdating = true;
+    final previous = Map<String, bool>.of(_preferences);
+    _preferencesRevision++;
+    _savingPreferences = true;
+    _preferences = {..._preferences, ...patch};
     notifyListeners();
     final result = await (source as NotificationPreferencesRepository)
         .updatePreferences(patch);
     if (account != _accountEpoch) return;
-    result.fold(
-      (failure) => AppErrorFeedback.report(failure, kind: AppErrorKind.send),
-      (prefs) => _preferences = prefs,
-    );
-    _isUpdating = false;
+    result.fold((failure) {
+      _preferences = previous;
+      AppErrorFeedback.report(failure, kind: AppErrorKind.send);
+    }, (prefs) => _preferences = prefs);
+    _savingPreferences = false;
+    _preferencesRevision++;
     notifyListeners();
-    await refresh(forceRefresh: true);
+    await _synchronizeSystemDisplay();
   }
 
   var _items = <NotificationItem>[];
@@ -88,6 +96,7 @@ class NotificationsProvider extends ChangeNotifier {
 
   Future<void> refresh({bool forceRefresh = false}) async {
     final token = ++_epoch;
+    final preferencesRevision = _preferencesRevision;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -111,7 +120,10 @@ class NotificationsProvider extends ChangeNotifier {
       (feed) {
         _items = feed.items;
         _unreadCount = feed.unreadCount;
-        _preferences = feed.preferences;
+        if (!_savingPreferences &&
+            preferencesRevision == _preferencesRevision) {
+          _preferences = feed.preferences;
+        }
         _errorMessage = null;
       },
     );
@@ -186,6 +198,8 @@ class NotificationsProvider extends ChangeNotifier {
     repository.clearCache();
     _items = [];
     _preferences = {};
+    _savingPreferences = false;
+    _preferencesRevision++;
     _unreadCount = 0;
     _filter = 0;
     _isLoading = false;

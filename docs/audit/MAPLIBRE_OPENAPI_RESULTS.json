@@ -1,0 +1,99 @@
+{
+  "checkedAt": "2026-11-14T20:18:27.408Z",
+  "mode": "read-only served Swagger/OpenAPI HTTP; no fixtures, migrations or Flutter execution",
+  "results": [
+    {
+      "scenario": "Served Swagger UI and OpenAPI document",
+      "result": "PASS",
+      "status": 200
+    },
+    {
+      "scenario": "Existing catalog query contract: bbox",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing catalog query contract: categories",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing catalog query contract: vibes",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing catalog query contract: search",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing catalog query contract: status",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing catalog query contract: sort",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing catalog query contract: limit",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Existing catalog query contract: offset",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Place contract includes all database marker fields",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Bilingual category definitions and icon tokens",
+      "result": "PASS",
+      "count": 36
+    },
+    {
+      "scenario": "Bilingual vibe definitions",
+      "result": "PASS",
+      "count": 15
+    },
+    {
+      "scenario": "Catalog revision read",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Active catalog GET and pagination envelope (empty rows are retained honestly)",
+      "result": "PASS",
+      "count": 0
+    },
+    {
+      "scenario": "Non-empty next-page HTTP verification requires active catalog rows",
+      "result": "NOT_RUN"
+    },
+    {
+      "scenario": "Cairo viewport GET and active/bounds checks on returned rows",
+      "result": "PASS",
+      "count": 0
+    },
+    {
+      "scenario": "Filtered/detail/search HTTP checks require a categorized place in the viewport",
+      "result": "NOT_RUN"
+    },
+    {
+      "scenario": "Swagger-declared validation: reversed bounds",
+      "result": "PASS",
+      "status": 400
+    },
+    {
+      "scenario": "Swagger-declared validation: invalid page size",
+      "result": "PASS",
+      "status": 400
+    },
+    {
+      "scenario": "Swagger-declared validation: invalid offset",
+      "result": "PASS",
+      "status": 400
+    },
+    {
+      "scenario": "Swagger-declared validation: invalid category",
+      "result": "PASS",
+      "status": 400
+    }
+  ]
+}

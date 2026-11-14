@@ -52,7 +52,7 @@ class HomePage extends StatelessWidget {
                         key: const ValueKey('loading'),
                         child: ShimmerBone(
                           width: double.infinity,
-                          height: 120.h,
+                          height: 210.h,
                           radius: 16,
                         ),
                       ),

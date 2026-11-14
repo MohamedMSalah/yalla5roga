@@ -85,20 +85,49 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
     PlaceFilters filters, {
     int offset = 0,
     bool forceRefresh = false,
+    Future<void>? cancelled,
   }) async {
-    final result = await cachedRemote(
-      networkInfo: networkInfo,
-      cache: _placesCache,
-      key: 'catalog:${filters.key(offset)}',
-      forceRefresh: forceRefresh,
-      offlineRead: true,
-      fetch: () => remote.queryPlaces(filters, offset),
-    );
+    final key = 'catalog:${filters.key(offset)}';
+    var retired = false;
+    cancelled?.then((_) => retired = true);
+    // Cancellable viewport requests must not share another route's Dio token.
+    final fresh = forceRefresh ? null : _placesCache.get(key);
+    final result = fresh != null
+        ? Right<Failure, List<SuggestedPlace>>(fresh)
+        : cancelled != null
+        ? await guardRemote(
+            networkInfo,
+            () => remote.queryPlaces(filters, offset, cancelled: cancelled),
+            offlineRead: true,
+          )
+        : await cachedRemote(
+            networkInfo: networkInfo,
+            cache: _placesCache,
+            key: key,
+            forceRefresh: forceRefresh,
+            offlineRead: true,
+            fetch: () => remote.queryPlaces(filters, offset),
+          );
+    if (retired) {
+      return const Left(NetworkFailure('Cancelled map query', 'cancelled'));
+    }
     result.fold((_) {}, (places) {
+      _placesCache.set(key, places);
       for (final place in places) {
         _knownPlaces[place.id] = place;
       }
+      while (_knownPlaces.length > 3000) {
+        _knownPlaces.remove(_knownPlaces.keys.first);
+      }
     });
+    if (result.fold(
+      (failure) =>
+          failure is NetworkFailure || (failure.statusCode ?? 0) >= 500,
+      (_) => false,
+    )) {
+      final stale = _placesCache.getStale(key);
+      if (stale != null) return Right(stale);
+    }
     if (result.isLeft() &&
         !await networkInfo.isConnected &&
         _knownPlaces.isNotEmpty) {
@@ -112,6 +141,7 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
 
   final _placesCache = TtlCache<List<SuggestedPlace>>(
     ttl: CachePolicy.discover,
+    maxEntries: 96,
   );
   final _featuredCache = TtlCache<List<SuggestedPlace>>(
     ttl: CachePolicy.discover,

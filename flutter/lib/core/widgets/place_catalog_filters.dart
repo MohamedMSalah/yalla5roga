@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/core/widgets/app_bottom_sheet.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 
 /// Backend labels/IDs remain extensible; unknown icons use the established place icon.
 class PlaceCatalogFilters extends StatelessWidget {
-  const PlaceCatalogFilters({super.key, required this.catalog});
+  const PlaceCatalogFilters({
+    super.key,
+    required this.catalog,
+    this.compact = false,
+  });
   final PlaceCatalogProvider catalog;
+  final bool compact;
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: catalog,
@@ -48,6 +54,46 @@ class PlaceCatalogFilters extends StatelessWidget {
         );
       }
 
+      if (compact) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final items in [catalog.categories, catalog.vibes])
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    if (identical(items, catalog.categories)) ...[
+                      IconButton.filledTonal(
+                        tooltip: context.l10n.mapFilters,
+                        onPressed: () => AppBottomSheet.show<void>(
+                          context: context,
+                          builder: (_) => PlaceCatalogFilters(catalog: catalog),
+                        ),
+                        icon: const Icon(Icons.tune),
+                      ),
+                      IconButton.filledTonal(
+                        tooltip: context.l10n.catalogClearFilters,
+                        onPressed: () => catalog.update(const PlaceFilters()),
+                        icon: const Icon(Icons.filter_alt_off_outlined),
+                      ),
+                    ],
+                    for (final item in items)
+                      Padding(
+                        padding: const EdgeInsetsDirectional.only(end: 6),
+                        child: chip(item, identical(items, catalog.vibes)),
+                      ),
+                  ],
+                ),
+              ),
+            if (catalog.taxonomyFailed)
+              TextButton(
+                onPressed: () => catalog.loadDefinitions(force: true),
+                child: Text(context.l10n.catalogRetryCategories),
+              ),
+          ],
+        );
+      }
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

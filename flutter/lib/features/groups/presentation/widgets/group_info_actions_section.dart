@@ -7,48 +7,29 @@ class GroupInfoActionsSection extends StatelessWidget {
     super.key,
     required this.leaving,
     required this.onLeaveGroup,
-    this.onDeleteGroup,
-    this.deleting = false,
   });
-
-  final VoidCallback? onDeleteGroup;
-  final bool deleting;
   final bool leaving;
   final VoidCallback? onLeaveGroup;
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          l10n.groupActions,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Responsive.fontMd,
-          ),
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        context.l10n.groupActions,
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: Responsive.fontMd,
         ),
-        Responsive.spaceSm.gapH,
-        CustomButton(
-          label: l10n.leaveGroup,
-          icon: Icons.logout_rounded,
-          variant: AppButtonVariant.danger,
-          isLoading: leaving,
-          onPressed: deleting ? null : onLeaveGroup,
-        ),
-        if (onDeleteGroup != null) ...[
-          Responsive.spaceSm.gapH,
-          CustomButton(
-            label: l10n.deleteGroup,
-            icon: Icons.delete_outline,
-            variant: AppButtonVariant.danger,
-            isLoading: deleting,
-            onPressed: leaving || deleting ? null : onDeleteGroup,
-          ),
-        ],
-      ],
-    );
-  }
+      ),
+      Responsive.spaceSm.gapH,
+      CustomButton(
+        label: context.l10n.leaveGroup,
+        icon: Icons.logout_rounded,
+        variant: AppButtonVariant.danger,
+        isLoading: leaving,
+        onPressed: leaving ? null : onLeaveGroup,
+      ),
+    ],
+  );
 }

@@ -104,7 +104,7 @@ flutter/lib/
 | TTL cache helpers | `lib/core/cache/` |
 | API paths | `lib/core/constants/api_constants.dart` |
 | Profile editing | `features/setting/presentation/pages/edit_profile_page.dart`, `change_password_page.dart`, and profile sheets |
-| Shared map infrastructure | `flutter/lib/core/widgets/app_map.dart`, `flutter/lib/core/utils/map_location.dart` |
+| Shared map infrastructure | `flutter/lib/core/widgets/yalla_map_view.dart`, `flutter/lib/core/maps/yalla_map_*.dart`, `flutter/lib/core/utils/map_location.dart` |
 | Outing map selection | `flutter/lib/features/outings/presentation/pages/pick_location_page.dart` and its route-local provider |
 | Nearby map | `features/discover/presentation/pages/discover_page.dart` → Discover provider/repository → `backend/src/services/places/nearby-search-bounds.ts` |
 | Active Votes | `features/outings/presentation/widgets/lists/active_votes_list.dart` → Outings tab |
@@ -368,3 +368,30 @@ Notification rollout compatibility: the existing token registration accepts noti
 ## Saved place cards and filter — 2026-11-14
 
 Added discover/presentation/widgets/save_place_button.dart and saved_places_list.dart. Existing Discover provider/repository/datasource, shared PlaceCard, Discover cards and SavedOutingsPage contain bookmark/filter integration.
+
+
+## MapLibre vector maps — 2026-11-14
+
+- `flutter/lib/core/widgets/yalla_map_view.dart`: shared native renderer, interaction, hit testing, attribution, selection animation and offline control.
+- `flutter/lib/core/maps/yalla_map_{style,controller,camera_manager,markers,clusters,place_selection}.dart`: provider-independent style and map responsibilities.
+- `flutter/lib/core/maps/yalla_map_offline*.dart`: bounded native downloads and conditional local style persistence; web excludes dart:io.
+- DiscoverMapPanel and PickLocationPage adapt their existing providers to the shared widget. PlaceCatalogProvider retains camera state, bounded viewport pagination and cancellation; existing DiscoverRepository/remote datasource/ApiClient retain the networking layers.
+- `flutter/tool/verify_yalla_map_style.dart`, `backend/scripts/maplibre-{style,openapi}-verification.*`: pure style export, official style/data checks and read-only served Swagger HTTP verification.
+- `docs/audit/MAPLIBRE_MAP.md`, `MAPLIBRE_{OPENAPI_RESULTS,STYLE_RESULTS,STYLES}.json`: configuration, limits, evidence and unverified states.
+
+
+## Discover map-first composition — 2026-11-14
+
+- `flutter/lib/features/discover/presentation/providers/discover_map_provider.dart`: Discover selection, location, current-bounds/search policy over existing PlaceCatalogProvider/repository.
+- `flutter/lib/features/discover/presentation/widgets/discover_{map_view,floating_search_bar,filter_chips,place_carousel,place_card,map_controls,selected_place_action}.dart`: seven focused map-first components. The older DiscoverMapPanel adapter remains compatible; DiscoverPage now composes DiscoverMapView directly.
+- `backend/scripts/discover-map-openapi-verification.ts`: read-only served Swagger/OpenAPI verification; `docs/audit/DISCOVER_MAP_{FIRST.md,OPENAPI_RESULTS.json}` records implementation and API evidence.
+
+
+## Home / group leave / Settings checks — 2026-11-14
+
+Existing `HomeNearbySection`, `MainShell`, `AppPermissions`, `SettingsAccountSection`, `SettingsPreferencesSection`, `AppSwitch`, `NotificationsProvider`, `LocalNotificationsService`, `GroupsProvider`, `GroupInfoPage` and `GroupInfoActionsSection` hold the scoped UI/provider changes. Existing group delete use case/repository/interface/datasource thread the caller into its transactional guard. `backend/scripts/home-group-settings-openapi-verification.ts` verifies served OpenAPI-selected HTTP operations in a removed disposable schema; `docs/audit/HOME_GROUP_SETTINGS_{UPDATES.md,OPENAPI_RESULTS.json}` records evidence and limits.
+
+
+## Reviewed Neon / GitHub release verification — 2026-11-14
+
+`backend/scripts/review-neon-release.ts` verifies the known Neon target, complete migration history and checksums, refuses pending SQL, runs Prisma migrate deploy for the already-migrated state, and compares schema/history/application-row fingerprints. `docs/audit/NEON_RELEASE_SYNC_RESULTS.json` records metadata/checksums only; `NEON_GITHUB_RELEASE.md` describes the release scope and validation. No private rows or credentials are included.

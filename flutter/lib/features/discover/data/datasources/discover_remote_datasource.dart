@@ -69,16 +69,28 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
 
   Future<List<SuggestedPlace>> queryPlaces(
     PlaceFilters filters,
-    int offset,
-  ) async {
+    int offset, {
+    Future<void>? cancelled,
+  }) async {
+    final token = CancelToken();
+    var finished = false;
+    cancelled?.then((_) {
+      if (!finished) token.cancel('Superseded map query');
+    });
     try {
       final response = await _client.get<Map<String, dynamic>>(
         ApiConstants.places,
         queryParameters: filters.query(offset: offset),
+        cancelToken: token,
       );
       return apiObjectList(response.data).map(_fromJson).toList();
     } on DioException catch (error) {
+      if (CancelToken.isCancel(error)) {
+        throw const NetworkException('Cancelled map request', 'cancelled');
+      }
       throw _unwrap(error);
+    } finally {
+      finished = true;
     }
   }
 
@@ -190,6 +202,7 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
       ),
       coverImageUrl:
           apiString(json['cover_image_url']) ??
+          apiString(json['image_url']) ??
           apiString(json['coverImageUrl']) ??
           apiString(json['imageUrl']) ??
           '',

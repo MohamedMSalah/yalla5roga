@@ -47,6 +47,7 @@ class GroupsProvider extends ChangeNotifier {
   var _hasLoaded = false;
   String? _errorMessage;
   var _epoch = 0;
+  var _accountEpoch = 0;
   final _openGroups = <String, int>{};
   final _loadedRosters = <String>{};
   Iterable<String> get openGroupIds => _openGroups.keys;
@@ -549,7 +550,11 @@ class GroupsProvider extends ChangeNotifier {
 
     final confirmed = await AppAlert.confirm(
       title: l10n.leaveGroupTitle,
-      message: l10n.leaveGroupMessage,
+      message:
+          findById(groupId)?.isOwner == true &&
+              findById(groupId)?.memberCount == 1
+          ? l10n.leaveSoleOwnerMessage
+          : l10n.leaveGroupMessage,
       confirmText: l10n.leaveGroup,
       cancelText: l10n.cancel,
       destructive: true,
@@ -710,14 +715,51 @@ class GroupsProvider extends ChangeNotifier {
     return ok;
   }
 
-  /// Leaves the group; the backend prevents the last owner from leaving.
+  /// The sole owner leaves through the existing delete API; other members use
+  /// ordinary leave, retaining backend last-owner and historical-outing guards.
   Future<bool> leaveGroup(String groupId) async {
     if (_isLeaving) return false;
     _isLeaving = true;
     _errorMessage = null;
     notifyListeners();
 
-    final result = await repository.leaveGroup(groupId);
+    final epoch = _accountEpoch;
+    final fetched = await repository.getGroup(
+      groupId,
+      forceRefresh: true,
+      allowStale: false,
+    );
+    if (epoch != _accountEpoch) {
+      _isLeaving = false;
+      notifyListeners();
+      return false;
+    }
+    final current = fetched.fold<Group?>((failure) {
+      _errorMessage = AppErrorFeedback.messageOf(failure);
+      AppErrorFeedback.report(
+        failure,
+        kind: AppErrorKind.load,
+        context: 'leaveGroup',
+      );
+      return null;
+    }, (group) => group);
+    if (current == null) {
+      _isLeaving = false;
+      notifyListeners();
+      return false;
+    }
+    final soleOwner =
+        canManage(current) &&
+        current.members.length == 1 &&
+        current.members.single.role == GroupRole.owner;
+    final result = soleOwner
+        ? await repository.deleteGroup(groupId)
+        : await repository.leaveGroup(groupId);
+    if (epoch != _accountEpoch) {
+      _isLeaving = false;
+      notifyListeners();
+      return false;
+    }
     final ok = result.fold(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -764,6 +806,7 @@ class GroupsProvider extends ChangeNotifier {
 
   void clear() {
     _epoch++;
+    _accountEpoch++;
     repository.clearCache();
     _openGroups.clear();
     _loadedRosters.clear();

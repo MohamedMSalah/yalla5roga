@@ -27,6 +27,7 @@ abstract final class AppSizes {
 }
 
 abstract final class AppTypography {
+  static const navigationLabel = 10.0;
   static const caption = 12.0;
   static const body = 14.0;
   static const title = 16.0;

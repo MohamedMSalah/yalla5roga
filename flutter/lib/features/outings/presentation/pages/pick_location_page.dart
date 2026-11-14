@@ -1,13 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/map_location.dart';
-import 'package:yalla_5roga/core/widgets/app_map.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_camera_manager.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_place_selection.dart';
+import 'package:yalla_5roga/core/widgets/yalla_map_view.dart';
 import 'package:yalla_5roga/core/widgets/map_controls.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
@@ -24,7 +26,6 @@ class PickLocationPage extends StatelessWidget {
     this.placeCatalog,
     this.selected = const [],
     this.maxSelections = 1,
-    this.tileProvider,
     this.location = const MapLocation(),
   });
 
@@ -33,7 +34,6 @@ class PickLocationPage extends StatelessWidget {
   final Place? initial;
   final List<Place> selected;
   final int maxSelections;
-  final TileProvider? tileProvider;
   final MapLocation location;
 
   @override
@@ -47,22 +47,20 @@ class PickLocationPage extends StatelessWidget {
       selected: selected,
       maxSelections: maxSelections,
     ),
-    child: _Picker(tileProvider: tileProvider, placeCatalog: placeCatalog),
+    child: _Picker(placeCatalog: placeCatalog),
   );
 }
 
 class _Picker extends StatefulWidget {
-  const _Picker({this.tileProvider, this.placeCatalog});
+  const _Picker({this.placeCatalog});
   final PlaceCatalogProvider? placeCatalog;
-
-  final TileProvider? tileProvider;
 
   @override
   State<_Picker> createState() => _PickerState();
 }
 
 class _PickerState extends State<_Picker> {
-  final _map = GlobalKey<AppMapState>();
+  late final _map = widget.placeCatalog?.mapController ?? YallaMapController();
   final _sheet = DraggableScrollableController();
   final _sheetInset = ValueNotifier<double>(0);
   final _searchFocus = FocusNode();
@@ -100,7 +98,7 @@ class _PickerState extends State<_Picker> {
         _fit();
       } else if (_picker.candidate case final place?
           when place.hasCoordinates) {
-        _map.currentState?.focusSelection(
+        _map.focusSelection(
           LatLng(place.latitude!, place.longitude!),
           zoom: 15,
         );
@@ -110,6 +108,7 @@ class _PickerState extends State<_Picker> {
 
   void _updateInset() {
     _sheetInset.value = _sheet.isAttached ? _sheet.pixels : 0;
+    _map.attributionInset.value = _sheetInset.value;
   }
 
   void _onSearchFocus() {
@@ -129,7 +128,7 @@ class _PickerState extends State<_Picker> {
       for (final place in _picker.selected)
         if (place.hasCoordinates) LatLng(place.latitude!, place.longitude!),
     ];
-    _map.currentState?.fit(
+    _map.fit(
       points,
       padding: EdgeInsets.fromLTRB(40, 100, 40, _height * _collapsed + 80),
     );
@@ -155,7 +154,7 @@ class _PickerState extends State<_Picker> {
   void _pin(LatLng point, {bool focus = false}) {
     if (focus) {
       _collapse();
-      _map.currentState?.focusSelection(point);
+      _map.focusSelection(point);
     }
     unawaited(_picker.pin(point, context.l10n.customPlace));
   }
@@ -165,9 +164,7 @@ class _PickerState extends State<_Picker> {
     _collapse();
     _picker.choose(place);
     if (place.hasCoordinates) {
-      _map.currentState?.focusSelection(
-        LatLng(place.latitude!, place.longitude!),
-      );
+      _map.focusSelection(LatLng(place.latitude!, place.longitude!));
     }
   }
 
@@ -222,13 +219,14 @@ class _PickerState extends State<_Picker> {
     _query.dispose();
     _sheet.dispose();
     _sheetInset.dispose();
+    if (widget.placeCatalog == null) _map.dispose();
+    widget.placeCatalog?.clearBounds();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final picker = _picker;
-    final l10n = context.l10n;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final initial = picker.candidate ?? picker.selected.firstOrNull;
@@ -251,58 +249,33 @@ class _PickerState extends State<_Picker> {
           return Stack(
             fit: StackFit.expand,
             children: [
-              Selector<PickLocationProvider, List<Place>>(
-                selector: (_, picker) => picker.selected,
-                shouldRebuild: (previous, next) => !identical(previous, next),
-                builder: (_, places, _) => AppMap(
-                  key: _map,
+              Consumer<PickLocationProvider>(
+                builder: (_, state, _) => YallaMapView(
+                  controller: _map,
                   center: center,
                   zoom: center == cairoMapCenter ? 12 : 15,
-                  tileProvider: widget.tileProvider,
-                  attributionInset: _sheetInset,
                   selectionBottom: _height * _collapsed,
                   onTap: (point) => _pin(point, focus: true),
-                  onUserMove: picker.startMoving,
+                  onUserMove: () {
+                    widget.placeCatalog?.cameraMoving();
+                    picker.startMoving();
+                  },
                   onUserIdle: _pin,
-                  markers: [
-                    for (final place
-                        in widget.placeCatalog?.places.map(
-                              (p) => p.toOutingPlace(),
-                            ) ??
-                            picker.catalog)
-                      if (place.hasCoordinates &&
-                          !places.any(place.matchesSelection))
-                        Marker(
-                          point: LatLng(place.latitude!, place.longitude!),
-                          width: 48,
-                          height: 48,
-                          child: MapPlaceMarker(
-                            label: place.displayName(l10n.locale.languageCode),
-                            selected: false,
-                            onPressed: () => _choose(place),
-                          ),
-                        ),
-                    for (final (index, place) in places.indexed)
-                      if (place.hasCoordinates)
-                        Marker(
-                          key: ValueKey((
-                            place.id,
-                            place.name,
-                            place.latitude,
-                            place.longitude,
-                            index,
-                          )),
-                          point: LatLng(place.latitude!, place.longitude!),
-                          width: 48,
-                          height: 48,
-                          child: MapPlaceMarker(
-                            label: l10n.mapSelectedPlace(place.name),
-                            selected: true,
-                            number: l10n.n(index + 1),
-                            onPressed: () => _choose(place),
-                          ),
-                        ),
-                  ],
+                  onBoundsChanged: widget.placeCatalog?.setBounds,
+                  categories: widget.placeCatalog?.categories ?? const [],
+                  places:
+                      widget.placeCatalog?.places
+                          .map((p) => p.toOutingPlace())
+                          .toList() ??
+                      picker.catalog,
+                  selection: YallaMapPlaceSelection(
+                    mode: picker.multiple
+                        ? YallaMapSelectionMode.multiple
+                        : YallaMapSelectionMode.single,
+                    focusedId: state.candidate?.id,
+                    selected: state.selected,
+                  ),
+                  onPlaceTap: _choose,
                 ),
               ),
               if (!searching)
@@ -348,8 +321,7 @@ class _PickerState extends State<_Picker> {
                       builder: (context, scrollController) => _Details(
                         scrollController: scrollController,
                         onConfirm: _confirm,
-                        onUseCenter: () =>
-                            _pin(_map.currentState?.selectionPoint ?? center),
+                        onUseCenter: () => _pin(_map.selectionPoint),
                         onAdd: () {
                           if (picker.add()) {
                             _collapse();

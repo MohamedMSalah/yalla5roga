@@ -1,0 +1,251 @@
+{
+  "checkedAt": "2026-11-14T20:43:43.534Z",
+  "mode": "target-checked Prisma migrate deploy; pending migrations prohibited",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "migrations": [
+    {
+      "name": "20261107000000_init_product_scenario",
+      "checksum": "fddda121bbdef394e5f76131171be03a18764c43b0cb81b89eec25b3a89e0dac"
+    },
+    {
+      "name": "20261107010000_outing_member_invite_status",
+      "checksum": "b0b60a09bffe92af4f94e52dfe95e6b640841be996996b0124abeae94c532a7e"
+    },
+    {
+      "name": "20261109000000_harden_constraints_and_indexes",
+      "checksum": "9635f7811badbc7111f7c61db469215d845a62b558188eac07d332881de86282"
+    },
+    {
+      "name": "20261109010000_phone_password_auth",
+      "checksum": "a91d6b1e9fb8dbf12a03ca0ba72755c7a4290a351975e9cbc1350c9b44a64d78"
+    },
+    {
+      "name": "20261109090000_outing_arrivals",
+      "checksum": "2247dba54f270b6e50369b82b61514ed6e8945ae8495b80783ae67da84b13398"
+    },
+    {
+      "name": "20261110130000_harden_database_integrity",
+      "checksum": "ebf626fd7b3d29fc64727f0c19552005928768b83b55a1a017680dc9ac39d98c"
+    },
+    {
+      "name": "20261110140000_remove_obsolete_schema",
+      "checksum": "07eddd83e1eb10521dba2ba727c355f03642fdd8b0579a3a88047bf296a4350b"
+    },
+    {
+      "name": "20261110150000_arrival_verification",
+      "checksum": "d78f3cc6b683bc282907185006dc447e31729c6746eb1b14628fd0e6a6fbf9c8"
+    },
+    {
+      "name": "20261110150100_owner_confirmed_venue",
+      "checksum": "741a18884df18f336eb0fadb3cd3fbd761480a747f52f8a1cbed6f6c6fc56207"
+    },
+    {
+      "name": "20261110150200_gps_arrivals",
+      "checksum": "7453cf8b4ae5604cb742d4e0e508a6d63dd8d955bea2fac1f9716e3179835a21"
+    },
+    {
+      "name": "20261111180000_password_recovery",
+      "checksum": "0972f2cf83d028f3d0f824c0f7bbd312301c17a1cc646e135a3cd0afbaefa8da"
+    },
+    {
+      "name": "20261112120000_media_assets",
+      "checksum": "a4c8d5f8092017e8371a2961c6b0a486769537dc082301761006787acb365faa"
+    },
+    {
+      "name": "20261113180000_multi_location_ballots",
+      "checksum": "da93ca2f1fe862de9c946758b935cce82375acbcf1d987c4c1cc550c7da5ec4b"
+    },
+    {
+      "name": "20261114000000_special_event_occasions",
+      "checksum": "ec52d576b34da83e6cc6e84feead0f5cb57532586388a9504438f9f454a5aef1"
+    },
+    {
+      "name": "20261114010000_voting_deadline_durations",
+      "checksum": "551a9d0a15388f8b453ce58adbc0b8a9f9e55acdfc22faa88f7581dc2c345efb"
+    },
+    {
+      "name": "20261114030000_android_system_notifications",
+      "checksum": "9a5af7f9a8a8a03c2b76f0cccc06ef56ceabd3eb1b33d50429778bc6d259fcfb"
+    },
+    {
+      "name": "20261114040000_places_catalog_sync",
+      "checksum": "4773f3b58c78f2c742c2f2f32b7eeeecc1864b0c96389ca482984cdbdcba6c83"
+    }
+  ],
+  "pendingBefore": [],
+  "schemaBeforeSha256": "2e3d7344096184905e6a625711b13af1708fa0fc4c59f860b10bc11bff030ed4",
+  "applicationTables": [
+    {
+      "table": "chat_messages",
+      "rows": 6,
+      "checksum": "519e6cff53cbcb44d2dc058b7fd327cd"
+    },
+    {
+      "table": "chat_reads",
+      "rows": 3,
+      "checksum": "3604f45dc31bfea96051666cd3d5127e"
+    },
+    {
+      "table": "group_invitations",
+      "rows": 1,
+      "checksum": "bae482d3e89e27baf6df53cb3c42c353"
+    },
+    {
+      "table": "group_members",
+      "rows": 6,
+      "checksum": "4b4e06317a1bcbb7e5e7dcfdc003f8da"
+    },
+    {
+      "table": "groups",
+      "rows": 4,
+      "checksum": "f26d10c95aefa54f7edfd0696519b0bc"
+    },
+    {
+      "table": "media_assets",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "notification_delivery_logs",
+      "rows": 297,
+      "checksum": "9e932d284dc031ad98d1a4ff2d0546be"
+    },
+    {
+      "table": "notification_events",
+      "rows": 297,
+      "checksum": "11e69fc66ed2f227dd6dcdba2fe73c3d"
+    },
+    {
+      "table": "notifications",
+      "rows": 11,
+      "checksum": "ff0c173cad2d610d40c01a55dbce12cd"
+    },
+    {
+      "table": "outing_arrivals",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "outing_attendance",
+      "rows": 6,
+      "checksum": "b8e7073a0a82f5d76acfb3bf230d1af8"
+    },
+    {
+      "table": "outing_drafts",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "outing_guests",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "outing_vote_options",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "outing_votes",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "outings",
+      "rows": 4,
+      "checksum": "9a1ebea9894a1e474d54b576f70d0af7"
+    },
+    {
+      "table": "password_recoveries",
+      "rows": 2,
+      "checksum": "149e880a83bdda4d98bb0b0faa0f0f93"
+    },
+    {
+      "table": "password_recovery_limits",
+      "rows": 5,
+      "checksum": "3369aaee93a5b992ac105bc7d8baf8ad"
+    },
+    {
+      "table": "place_categories",
+      "rows": 36,
+      "checksum": "75c02c707235102fac75a794ca1c1d15"
+    },
+    {
+      "table": "place_hours",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "place_images",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "place_prices",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "place_status_changes",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "place_sync_lock",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "place_sync_runs",
+      "rows": 2,
+      "checksum": "84df7ef08cbc81b0edb21b5e2593cc04"
+    },
+    {
+      "table": "place_vibes",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "places",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "saved_outings",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "saved_places",
+      "rows": 0,
+      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    {
+      "table": "user_fcm_tokens",
+      "rows": 4,
+      "checksum": "fc29c46075e183eb65776fdb3d90773c"
+    },
+    {
+      "table": "users",
+      "rows": 2,
+      "checksum": "80615a414cefef4aaba5fb9b47322207"
+    },
+    {
+      "table": "vibes",
+      "rows": 15,
+      "checksum": "2d4582d7c11d0b401e54e39e3e3e336d"
+    }
+  ],
+  "prismaExitCode": 0,
+  "schemaAfterSha256": "2e3d7344096184905e6a625711b13af1708fa0fc4c59f860b10bc11bff030ed4",
+  "schemaUnchanged": true,
+  "historyUnchanged": true,
+  "applicationRowsUnchanged": true,
+  "pendingAfter": [],
+  "result": "PASS"
+}

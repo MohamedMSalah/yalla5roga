@@ -1,92 +1,47 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter/widgets.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_map.dart';
-import 'package:yalla_5roga/core/widgets/map_controls.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_place_selection.dart';
+import 'package:yalla_5roga/core/widgets/yalla_map_view.dart';
+import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 
 class DiscoverMapPanel extends StatelessWidget {
   const DiscoverMapPanel({
     super.key,
-    required this.mapKey,
+    required this.controller,
+    required this.catalog,
     required this.center,
-    required this.places,
-    required this.query,
-    required this.onSearch,
     required this.onSelect,
-    required this.onLocate,
     this.selectedId,
-    this.tileProvider,
-    this.busy = false,
+    this.focusedPlace,
     this.userLocation,
   });
-  final GlobalKey<AppMapState> mapKey;
+  final YallaMapController controller;
+  final PlaceCatalogProvider catalog;
   final LatLng center;
   final LatLng? userLocation;
-  final List<SuggestedPlace> places;
-  final TextEditingController query;
-  final ValueChanged<String> onSearch;
-  final ValueChanged<SuggestedPlace> onSelect;
-  final VoidCallback onLocate;
   final String? selectedId;
-  final TileProvider? tileProvider;
-  final bool busy;
+  final SuggestedPlace? focusedPlace;
+  final ValueChanged<SuggestedPlace> onSelect;
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(Responsive.radiusMd),
-    child: SizedBox(
-      height: Responsive.isWideLayout ? 460 : 360,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          AppMap(
-            key: mapKey,
-            center: center,
-            zoom: 12,
-            scrollWheelZoom: false,
-            tileProvider: tileProvider,
-            markers: [
-              if (userLocation case final point?)
-                Marker(
-                  point: point,
-                  child: Tooltip(
-                    message: context.l10n.yourLocation,
-                    child: Icon(
-                      Icons.my_location,
-                      color: context.palette.brandStrong,
-                    ),
-                  ),
-                ),
-              for (final place in places)
-                if (place.latitude != null && place.longitude != null)
-                  Marker(
-                    key: ValueKey(place.id),
-                    point: LatLng(place.latitude!, place.longitude!),
-                    width: 48,
-                    height: 48,
-                    alignment: Alignment.bottomCenter,
-                    child: MapPlaceMarker(
-                      label: place.localizedName(context.l10n),
-                      selected: selectedId == place.id,
-                      onPressed: () => onSelect(place),
-                    ),
-                  ),
-            ],
-          ),
-          PositionedDirectional(
-            start: 12,
-            end: 12,
-            top: 12,
-            child: MapSearchBar(controller: query, onChanged: onSearch),
-          ),
-          PositionedDirectional(
-            end: 12,
-            bottom: 40,
-            child: MapCurrentLocationButton(onPressed: onLocate, busy: busy),
-          ),
-        ],
-      ),
+  Widget build(BuildContext context) => YallaMapView(
+    controller: controller,
+    center: center,
+    userLocation: userLocation,
+    selectionBottom: controller.selectionBottom,
+    controlsTop: 200,
+    onUserMove: catalog.cameraMoving,
+    places: catalog.places.map((p) => p.toOutingPlace()).toList(),
+    categories: catalog.categories,
+    selection: YallaMapPlaceSelection(
+      focusedId: selectedId,
+      selected: [if (focusedPlace != null) focusedPlace!.toOutingPlace()],
     ),
+    onBoundsChanged: catalog.setBounds,
+    onPlaceTap: (p) {
+      final place = catalog.places.where((item) => item.id == p.id).firstOrNull;
+      if (place != null) onSelect(place);
+    },
   );
 }

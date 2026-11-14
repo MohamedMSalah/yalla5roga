@@ -137,6 +137,8 @@ class AppConfig {
   final String apiBaseUrl;
   final Duration connectTimeout;
   final Duration receiveTimeout;
+  // Legacy configuration retained for constructor compatibility. Vector rendering
+  // is configured exclusively through core/maps/yalla_map_style.dart.
   final String osmTileUrlTemplate;
   final String? osmDarkTileUrlTemplate;
   final String? osmDarkTileAttribution;

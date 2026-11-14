@@ -282,3 +282,8 @@ The existing places route remains canonical. `catalog.controller` → `CatalogUs
 ## Saved place cards and filter — 2026-11-14
 
 The existing saved-place list datasource includes related place/category/vibe data in one Prisma query, avoiding a request per saved item. Existing saved-place routes, authentication and per-user ownership remain unchanged.
+
+
+## Sole-owner deletion guard — 2026-11-14
+
+DeleteGroupUseCase threads callerUid through the existing group repository to GroupDatasource.delete. Within the existing transaction/group row lock the datasource rechecks caller owner membership and requires exactly one active member, then applies the existing no-outings guard. Concurrent invited membership activation uses the same group lock. No endpoint, schema or migration is added; Swagger documents the additional 409 condition. Notification preference persistence and delivery filtering retain the existing NotificationStateUseCase/repository/resolvePush path.

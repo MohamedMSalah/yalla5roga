@@ -3,9 +3,10 @@
 /// Used to avoid repeat network calls for frequently reused API data
 /// within a session. Disk persistence for auth/saved items stays elsewhere.
 class TtlCache<T> {
-  TtlCache({required this.ttl});
+  TtlCache({required this.ttl, this.maxEntries});
 
   final Duration ttl;
+  final int? maxEntries;
   final Map<String, _CacheEntry<T>> _entries = {};
 
   /// Fresh value when still within [ttl]; otherwise `null`.
@@ -22,6 +23,11 @@ class TtlCache<T> {
   bool isFresh(String key) => get(key) != null;
 
   void set(String key, T value) {
+    _entries.remove(key);
+    if (maxEntries case final limit?
+        when _entries.length >= limit && _entries.isNotEmpty) {
+      _entries.remove(_entries.keys.first);
+    }
     _entries[key] = _CacheEntry(
       value: value,
       expiresAt: DateTime.now().add(ttl),

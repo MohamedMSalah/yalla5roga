@@ -44,6 +44,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
       if (!mounted) return;
       _fcm = context.read<FcmProvider>()..attachShell(context);
       _bootstrapShellData();
+      unawaited(_requestLaunchPermissions());
     });
   }
 
@@ -64,6 +65,25 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void _bootstrapShellData() {
     StartupTrace.mark('home_interactive');
     unawaited(_loadShell());
+  }
+
+  Future<void> _requestLaunchPermissions() async {
+    try {
+      await AppPermissions.promptNotificationsOnLaunch(context.l10n);
+      if (!mounted) return;
+      if (await AppPermissions.isNotificationGranted) {
+        if (!mounted) return;
+        await context.read<FcmProvider>().afterPermissionPrompt();
+      }
+    } catch (error) {
+      debugPrint('[Permissions] Notification request unavailable: $error');
+    }
+    if (!mounted) return;
+    try {
+      await AppPermissions.promptLocationOnLaunch(context.l10n);
+    } catch (error) {
+      debugPrint('[Permissions] Location request unavailable: $error');
+    }
   }
 
   /// Start cache hydration before warming the other tabs.
@@ -88,15 +108,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     if (kDebugMode) {
       debugPrint(RequestDiagnostics.instance.formatSummary());
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      if (await AppPermissions.isNotificationGranted) return;
-      if (!mounted) return;
-      await AppPermissions.promptNotificationsOnLaunch(context.l10n);
-      if (!mounted) return;
-      await context.read<FcmProvider>().afterPermissionPrompt();
-    });
   }
 
   Widget _pageFor(int index, ShellProvider shell) {

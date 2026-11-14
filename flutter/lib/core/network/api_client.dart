@@ -23,6 +23,7 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
+    CancelToken? cancelToken,
   }) async {
     final store = snapshots;
     final key = store?.keyFor(path, queryParameters);
@@ -58,6 +59,7 @@ class ApiClient {
         path,
         queryParameters: queryParameters,
         options: bound,
+        cancelToken: cancelToken,
       );
       if (uid != null &&
           (store?.userId() != uid || store?.generation != generation)) {

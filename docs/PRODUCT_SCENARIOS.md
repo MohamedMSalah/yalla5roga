@@ -344,3 +344,17 @@ Weekly synchronization runs outside Flutter through a persistent external schedu
 ## Saved place cards and filter — 2026-11-14
 
 Place cards expose Save/Unsave bookmarks. My Saved adds a Places filter alongside the existing saved outing and draft views; saved places open their current details and can be unsaved there. Bookmarks persist in the existing account-owned Neon saved_places relation.
+
+
+## Discover map-first experience — owner-approved 2026-11-14
+
+The existing Discover tab is entirely an interactive custom MapLibre map behind floating bilingual database search, multi-category/vibe filters, nearby place cards and the unchanged bottom navigation. Pins and the snapping horizontal carousel represent active database places and share one selection. Pin/card/result selection focuses and highlights the same place; swiping to a centered card synchronizes selection. Only the explicit Create Outing Here action opens the existing preselected-place wizard. Group selection and all creation/review/publication decisions remain in that flow; selecting a place never publishes. There is no separate map route or vertically draggable Discover results sheet. Manual exploration remains available without location permission, and cached places/images remain usable offline.
+
+
+## Home, startup permissions, group leave and Settings — owner-approved 2026-11-14
+
+Home nearby cards show a random sample of actual active nearby database places; the Find places near me button is removed. Startup requests notification access, then foreground location access. Denial allows browsing, with real catalog cards under Places to explore when no nearby result is available. Samples remain stable through ordinary rebuilds.
+
+Group Info has no Delete Group button. Confirmed Leave refreshes the roster and calls the existing delete-group API when the current owner is the only active member. Other members use the existing leave API; a last owner with other members cannot leave. Backend deletion atomically requires sole ownership and no outings, preserving the existing historical-outing protection. Pending invitations are not active members.
+
+Settings removes the separate Change Photo and Account Information rows. Edit Profile/avatar editing remains. Notifications saves the existing per-account pushEnabled preference, with immediate pending feedback, failure rollback and OS permission handling for enabling. Dark mode shows a moon; light mode shows a sun. Turning off push does not delete notification history or disable inbox synchronization.

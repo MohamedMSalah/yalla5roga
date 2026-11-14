@@ -16,11 +16,47 @@ import 'package:yalla_5roga/features/outings/presentation/providers/saved_outing
 
 import 'package:yalla_5roga/features/notifications/presentation/providers/notifications_provider.dart';
 
+import 'package:yalla_5roga/core/utils/app_permissions.dart';
+import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
+
 import '../widgets/settings_section.dart';
 import '../widgets/settings_tile.dart';
 
-class SettingsPreferencesSection extends StatelessWidget {
+class SettingsPreferencesSection extends StatefulWidget {
   const SettingsPreferencesSection({super.key});
+  @override
+  State<SettingsPreferencesSection> createState() =>
+      _SettingsPreferencesSectionState();
+}
+
+class _SettingsPreferencesSectionState
+    extends State<SettingsPreferencesSection> {
+  bool _changingNotifications = false;
+
+  Future<void> _setNotifications(bool value) async {
+    if (_changingNotifications) return;
+    setState(() => _changingNotifications = true);
+    final l10n = context.l10n;
+    try {
+      if (value) {
+        await AppPermissions.promptNotificationAccess(l10n);
+        if (!mounted) return;
+        if (!await AppPermissions.isNotificationGranted) {
+          AppSnackBar.show(l10n.notificationAccessBody);
+          return;
+        }
+        if (!mounted) return;
+        await context.read<FcmProvider>().afterPermissionPrompt();
+      }
+      if (mounted)
+        await context.read<NotificationsProvider>().setPushEnabled(value);
+    } catch (_) {
+      AppSnackBar.show(l10n.tryAgain);
+    } finally {
+      if (mounted) setState(() => _changingNotifications = false);
+    }
+  }
+
   Widget _buildInvitationsBadge(BuildContext context) {
     final invitations = context.watch<InvitationsProvider>();
     final count = invitations.pendingCount;
@@ -71,8 +107,8 @@ class SettingsPreferencesSection extends StatelessWidget {
         ),
         SettingsTile(
           icon: theme.isDark
-              ? Icons.wb_sunny_outlined
-              : Icons.dark_mode_outlined,
+              ? Icons.dark_mode_outlined
+              : Icons.wb_sunny_outlined,
           title: l10n.darkTheme,
           subtitle: l10n.useDarkColors,
           background: context.palette.brandSoft,
@@ -94,7 +130,11 @@ class SettingsPreferencesSection extends StatelessWidget {
           foreground: AppColors.rose500,
           trailing: AppSwitch(
             value: context.watch<NotificationsProvider>().pushEnabled,
-            onChanged: context.read<NotificationsProvider>().setPushEnabled,
+            onChanged:
+                _changingNotifications ||
+                    context.watch<NotificationsProvider>().isSavingPreferences
+                ? null
+                : _setNotifications,
           ),
         ),
         SettingsTile(

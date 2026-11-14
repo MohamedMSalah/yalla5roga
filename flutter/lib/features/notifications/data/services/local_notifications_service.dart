@@ -77,6 +77,8 @@ class LocalNotificationsService {
   bool get isInitialized => _initialized;
   static String _prefix(String uid) =>
       'system_display.${base64Url.encode(utf8.encode(uid))}.';
+  static String _pushEnabledKey(String uid) =>
+      'system_push_enabled.${base64Url.encode(utf8.encode(uid))}';
   static int systemId(PushNotificationPayload p) =>
       int.parse(
         sha256
@@ -268,6 +270,10 @@ class LocalNotificationsService {
       return;
     }
     final update = control == 'chat_updated';
+    if (await _store.getBool(_pushEnabledKey(uid)) == false) {
+      await _cancel(incoming);
+      return;
+    }
     var payload = incoming;
     final notificationId = incoming.notificationId;
     if (notificationId == null) return;
@@ -344,6 +350,7 @@ class LocalNotificationsService {
   Future<void> _render(PushNotificationPayload p, {bool silent = false}) async {
     final uid = p.recipientUserId;
     if (uid == null || currentUserId?.call() != uid) return;
+    if (await _store.getBool(_pushEnabledKey(uid)) == false) return;
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&
         await _plugin
@@ -422,7 +429,10 @@ class LocalNotificationsService {
     );
     if (chat) await _updateChatSummary(p);
     // Recheck after asynchronous native display so an account switch cannot leak it.
-    if (currentUserId?.call() != uid) await _cancel(p);
+    if (currentUserId?.call() != uid ||
+        await _store.getBool(_pushEnabledKey(uid)) == false) {
+      await _cancel(p);
+    }
   }
 
   Future<void> _cancel(PushNotificationPayload p) async {
@@ -574,6 +584,10 @@ class LocalNotificationsService {
     final uid = currentUserId?.call();
     if (!_initialized || uid == null) return;
     await _store.setInt('${_prefix(uid)}unread', unreadCount);
+    await _store.setBool(
+      _pushEnabledKey(uid),
+      preferences['pushEnabled'] != false,
+    );
     final byId = {for (final item in items) item.id: item};
     final active = (await _plugin.getActiveNotifications())
         .map((n) => n.id)
@@ -620,6 +634,7 @@ class LocalNotificationsService {
   }
 
   Future<void> clearAccount(String uid) async {
+    await _store.remove(_pushEnabledKey(uid));
     await _cancelWhere(uid, (_) => true);
     for (final key in await _store.getKeys()) {
       if (key.startsWith(_prefix(uid))) await _store.remove(key);

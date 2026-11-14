@@ -1,10 +1,15 @@
 import 'dart:async';
-import 'dart:convert';
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 
 import 'package:dartz/dartz.dart' show Either, Right;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
+import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -69,15 +74,47 @@ class _Denied extends MapLocation {
   }) async => (point: null, issue: MapLocationIssue.denied);
 }
 
-class _Tiles extends TileProvider {
-  static final _pixel = MemoryImage(
-    base64Decode(
-      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGMAAQAABQABDQottAAAAABJRU5ErkJggg==',
-    ),
+// Native rendering is represented by its platform boundary, never by raster tiles.
+class _MapPlatform extends ml.MapLibrePlatform {
+  bool created = false;
+  @override
+  Widget buildView(
+    Map<String, dynamic> params,
+    ml.OnPlatformViewCreatedCallback onCreated,
+    Set<Factory<OneSequenceGestureRecognizer>>? gestures,
+  ) {
+    if (!created) {
+      created = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        onCreated(1);
+        scheduleMicrotask(() => onMapStyleLoadedPlatform(null));
+      });
+    }
+    return const SizedBox.expand();
+  }
+
+  @override
+  Future<void> initPlatform(int id) async {}
+  @override
+  Future<ml.CameraPosition?> updateMapOptions(
+    Map<String, dynamic> update,
+  ) async => null;
+  @override
+  Future<bool?> animateCamera(
+    ml.CameraUpdate update, {
+    Duration? duration,
+  }) async => true;
+  @override
+  Future<bool?> moveCamera(ml.CameraUpdate update) async => true;
+  @override
+  Future<ml.LatLngBounds> getVisibleRegion() async => ml.LatLngBounds(
+    southwest: const ml.LatLng(29.9, 30.9),
+    northeast: const ml.LatLng(30.1, 31.1),
   );
   @override
-  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) =>
-      _pixel;
+  Future<ml.LatLng> toLatLng(math.Point point) async => const ml.LatLng(30, 31);
+  @override
+  dynamic noSuchMethod(Invocation invocation) => Future<void>.value();
 }
 
 class _NotificationsRepository implements NotificationsRepository {
@@ -96,6 +133,21 @@ class _DiscoverRepository implements DiscoverRepository {
     coverImageUrl: '',
   );
 
+  @override
+  Stream<void> get catalogChanges => const Stream.empty();
+  @override
+  Future<Either<Failure, List<CatalogDefinition>>> getDefinitions(
+    String kind, {
+    bool forceRefresh = false,
+  }) async => const Right([]);
+  @override
+  Future<Either<Failure, List<SuggestedPlace>>> queryPlaces(
+    PlaceFilters filters, {
+    int offset = 0,
+    bool forceRefresh = false,
+    Future<void>? cancelled,
+  }) async =>
+      Right(offset == 0 && filters.matches(cafe.toOutingPlace()) ? [cafe] : []);
   @override
   Future<Either<Failure, List<SuggestedPlace>>> getPlaces({
     OutingVibe? vibe,
@@ -128,6 +180,11 @@ LocationLookup _result(String name) => LocationLookup(
 );
 
 void main() {
+  setUp(() {
+    final original = ml.MapLibrePlatform.createInstance;
+    ml.MapLibrePlatform.createInstance = _MapPlatform.new;
+    addTearDown(() => ml.MapLibrePlatform.createInstance = original);
+  });
   testWidgets('debounces input and cancels stale search and reverse requests', (
     tester,
   ) async {
@@ -223,7 +280,6 @@ void main() {
                       MaterialPageRoute(
                         builder: (_) => PickLocationPage(
                           catalog: const [_cafe],
-                          tileProvider: _Tiles(),
                           location: const _Denied(),
                         ),
                       ),
@@ -239,7 +295,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Open picker'));
       await tester.pumpAndSettle();
-      expect(find.byType(AppMap), findsOneWidget);
+      expect(find.byType(YallaMapView), findsOneWidget);
       await tester.tap(find.byTooltip(_l10n.yourLocation));
       await tester.pumpAndSettle();
       expect(find.text(_l10n.locationPermissionDenied), findsOneWidget);
@@ -262,14 +318,16 @@ void main() {
   testWidgets(
     'map waits for the pointer to lift before resolving camera center',
     (tester) async {
+      final controller = YallaMapController();
+      addTearDown(controller.dispose);
       final idle = <LatLng>[];
       var movements = 0;
       await tester.pumpWidget(
         _app(
           Scaffold(
-            body: AppMap(
+            body: YallaMapView(
+              controller: controller,
               center: cairoMapCenter,
-              tileProvider: _Tiles(),
               onUserMove: () => movements++,
               onUserIdle: idle.add,
             ),
@@ -279,11 +337,17 @@ void main() {
       await tester.pumpAndSettle();
       final gesture = await tester.startGesture(const Offset(300, 180));
       await gesture.moveBy(const Offset(80, 0));
+      tester.widget<ml.MapLibreMap>(find.byType(ml.MapLibreMap)).onCameraMove!(
+        const ml.CameraPosition(target: ml.LatLng(30, 31), zoom: 12),
+      );
       await gesture.moveBy(const Offset(60, 0));
       await tester.pump(const Duration(milliseconds: 500));
       expect(movements, 1);
       expect(idle, isEmpty);
       await gesture.up();
+      tester
+          .widget<ml.MapLibreMap>(find.byType(ml.MapLibreMap))
+          .onCameraIdle!();
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 350));
       expect(idle, hasLength(1));
@@ -309,26 +373,19 @@ void main() {
                 NotificationsProvider(repository: _NotificationsRepository()),
           ),
         ],
-        child: _app(
-          Scaffold(
-            body: DiscoverPage(
-              tileProvider: _Tiles(),
-              location: const _Denied(),
-            ),
-          ),
-        ),
+        child: _app(Scaffold(body: DiscoverPage(location: const _Denied()))),
       ),
     );
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
-    expect(find.byType(AppMap), findsOneWidget);
+    expect(find.byType(YallaMapView), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Unknown');
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Cairo Cafe'), findsNothing);
+    expect(find.text('Cairo Cafe'), findsNothing);
     await tester.enterText(find.byType(TextField), 'Cairo');
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byTooltip('Cairo Cafe'));
-    await tester.tap(find.byTooltip('Cairo Cafe'));
+    await tester.ensureVisible(find.text('Cairo Cafe').first);
+    await tester.tap(find.text('Cairo Cafe').first);
     await tester.pumpAndSettle();
     expect(find.text(_l10n.createOutingAt('Cairo Cafe')), findsOneWidget);
   });

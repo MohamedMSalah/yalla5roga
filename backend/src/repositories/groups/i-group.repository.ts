@@ -14,7 +14,7 @@ export interface IGroupRepository {
   findByUserId(userId: string): Promise<Group[]>;
   create(data: CreateGroupInput): Promise<Group>;
   update(id: string, data: UpdateGroupInput): Promise<Group>;
-  delete(id: string): Promise<Group>;
+  delete(id: string, callerUid: string): Promise<Group>;
   addMember(data: AddGroupMemberInput): Promise<GroupMember>;
   addInvitedMember(
     groupId: string,

@@ -1,18 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/widgets.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
 
 class PlaceCatalogProvider extends ChangeNotifier {
-  PlaceCatalogProvider(this.repository) {
+  PlaceCatalogProvider(this.repository, {this.searchAcrossBounds = false}) {
     _changes = repository.catalogChanges.listen((_) {
       loadDefinitions(force: true);
       update(filters);
     });
   }
   final DiscoverRepository repository;
+  final bool searchAcrossBounds;
+  final mapController = YallaMapController();
   final searchController = TextEditingController();
   PlaceFilters filters = const PlaceFilters();
   List<CatalogDefinition> categories = const [], vibes = const [];
@@ -24,6 +27,39 @@ class PlaceCatalogProvider extends ChangeNotifier {
   int _revision = 0;
   bool _disposed = false;
   Timer? _debounce;
+  Completer<void>? _request;
+  int _nextOffset = 0;
+  String? _viewport;
+  bool _viewportNeedsLoad = false;
+  void cameraMoving() {
+    if (!loading && _debounce?.isActive != true) return;
+    _viewportNeedsLoad = true;
+    cancelPending();
+    notifyListeners();
+  }
+
+  void cancelPending() {
+    _revision++;
+    _request?.complete();
+    _request = null;
+    _debounce?.cancel();
+    loading = false;
+  }
+
+  void setBounds(String value) {
+    if (_viewport == value && filters.bounds == value && !_viewportNeedsLoad) {
+      return;
+    }
+    _viewport = value;
+    update(filters.copyWith(bounds: value), debounce: true);
+  }
+
+  void clearBounds() {
+    cancelPending();
+    _viewport = null;
+    update(filters.copyWith(clearBounds: true));
+  }
+
   late final StreamSubscription<void> _changes;
   Future<void>? _definitions;
   Future<void> loadDefinitions({bool force = false}) =>
@@ -46,6 +82,12 @@ class PlaceCatalogProvider extends ChangeNotifier {
   Future<void> update(PlaceFilters value, {bool debounce = false}) async {
     if (_disposed) return;
     filters = value;
+    // Clearing chips must not silently discard the map's geographic constraint.
+    if (searchAcrossBounds && value.search.trim().isNotEmpty) {
+      filters = value.copyWith(clearBounds: true, clearLocation: true);
+    } else if (_viewport != null && value.bounds == null) {
+      filters = value.copyWith(bounds: _viewport);
+    }
     if (searchController.text != value.search) {
       searchController.value = TextEditingValue(
         text: value.search,
@@ -53,9 +95,10 @@ class PlaceCatalogProvider extends ChangeNotifier {
       );
     }
     _debounce?.cancel();
-    _revision++;
+    cancelPending();
     // Hide non-matching old markers immediately while the new request is pending.
     places = places.where((p) => filters.matches(p.toOutingPlace())).toList();
+    loading = debounce;
     notifyListeners();
     if (debounce) {
       _debounce = Timer(const Duration(milliseconds: 350), () => load());
@@ -67,25 +110,41 @@ class PlaceCatalogProvider extends ChangeNotifier {
   Future<void> load({bool more = false, bool force = false}) async {
     if (_disposed) return;
     if (more && (loading || !hasMore)) return;
+    cancelPending();
     final revision = ++_revision;
-    final offset = more ? places.length : 0;
+    final request = _request = Completer<void>();
+    var offset = more ? _nextOffset : 0;
+    final requestedFilters = filters;
     loading = true;
+    _viewportNeedsLoad = false;
     error = null;
     notifyListeners();
-    final result = await repository.queryPlaces(
-      filters,
-      offset: offset,
-      forceRefresh: force,
-    );
-    if (_disposed || revision != _revision) return;
-    result.fold((_) => error = 'catalog_load_failed', (items) {
-      final all = {
-        for (final p in more ? places : <SuggestedPlace>[]) p.id: p,
-        for (final p in items) p.id: p,
-      };
-      places = all.values.toList();
-      hasMore = items.length == 50;
-    });
+    // Paginate a viewport progressively; cap each burst to keep panning responsive.
+    for (var page = 0; page < (filters.bounds == null ? 1 : 10); page++) {
+      final result = await repository.queryPlaces(
+        requestedFilters,
+        offset: offset,
+        forceRefresh: force,
+        cancelled: request.future,
+      );
+      if (_disposed || revision != _revision) return;
+      var count = 0;
+      result.fold((_) => error = 'catalog_load_failed', (items) {
+        count = items.length;
+        places = {
+          for (final p in (more || page > 0) ? places : <SuggestedPlace>[])
+            p.id: p,
+          for (final p in items)
+            if (requestedFilters.matches(p.toOutingPlace())) p.id: p,
+        }.values.toList();
+        offset += count;
+        _nextOffset = offset;
+        hasMore = count == 50;
+      });
+      notifyListeners();
+      if (error != null || !hasMore) break;
+    }
+    _request = null;
     loading = false;
     notifyListeners();
   }
@@ -93,9 +152,11 @@ class PlaceCatalogProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    cancelPending();
     _changes.cancel();
     _debounce?.cancel();
     searchController.dispose();
+    mapController.dispose();
     super.dispose();
   }
 }

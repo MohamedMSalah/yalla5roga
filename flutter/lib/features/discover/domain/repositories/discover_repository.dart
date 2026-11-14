@@ -22,6 +22,7 @@ abstract class DiscoverRepository {
     PlaceFilters filters, {
     int offset = 0,
     bool forceRefresh = false,
+    Future<void>? cancelled,
   });
   Future<Either<Failure, List<SuggestedPlace>>> getNearbyPlaces({
     required double latitude,

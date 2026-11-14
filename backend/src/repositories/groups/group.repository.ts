@@ -33,8 +33,8 @@ export class GroupRepository implements IGroupRepository {
     return this.datasource.update(id, data);
   }
 
-  delete(id: string): Promise<Group> {
-    return this.datasource.delete(id);
+  delete(id: string, callerUid: string): Promise<Group> {
+    return this.datasource.delete(id, callerUid);
   }
 
   addMember(data: AddGroupMemberInput): Promise<GroupMember> {

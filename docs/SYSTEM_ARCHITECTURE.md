@@ -269,3 +269,23 @@ flowchart LR
 ```
 
 NOTIFY is a public catalog invalidation signal, not a second domain datastore/replay system; clients repair gaps with persisted catalog revision reads. Other existing process-local Socket.IO replay limitations remain. [Operating guide](audit/PLACES_MANAGEMENT.md).
+
+
+## Vector map rendering — 2026-11-14
+
+MapLibre is the free/open-source Flutter map engine. Free OpenFreeMap OpenMapTiles vector tiles/glyphs are the default basemap; production may supply self-hosted TileJSON/glyph/style/attribution URLs. This external geographic rendering service has no application-place authority. Real active places still flow Neon → existing Express/Prisma places API → Dio datasource → DiscoverRepository → PlaceCatalogProvider → shared YallaMapView. No new backend API, database or mandatory paid provider exists. Explicit bounded offline packs use the native map database; existing place snapshots/image caches remain separate.
+
+```mermaid
+flowchart LR
+  Tiles[Free or self-hosted vector tiles and glyphs] --> Map[YallaMapView / MapLibre]
+  Neon[(Neon places)] --> API[Existing Express / Prisma API]
+  API --> Data[Dio datasource / repository]
+  Data --> State[PlaceCatalogProvider]
+  State --> Map
+  Map --> Discover[Discover cards and focus]
+  Map --> Picker[Outing picker explicit confirmation]
+  Map --> Offline[Bounded native offline region]
+```
+
+
+Discover map-first refinement (2026-11-14) adds a route-scoped DiscoverMapProvider extending PlaceCatalogProvider, retaining Provider → repository → datasource → Dio → existing catalog API → Neon. One mounted map/controller and one selectedPlaceId drive native pins and the horizontal carousel. The shared camera supports top/bottom floating chrome; native utility controls accept bottom positioning. No new service, socket, polling, backend endpoint or database schema was introduced. Existing architecture diagrams remain valid.

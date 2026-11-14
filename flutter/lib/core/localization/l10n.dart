@@ -8,6 +8,10 @@ class L10n {
   const L10n(this.locale);
 
   final Locale locale;
+  String get mapFilters => _t('Map filters', 'فلاتر الخريطة');
+  String get mapSaveOffline => _t('Save this area offline', 'احفظ المنطقة بدون إنترنت');
+  String get mapOfflineSaved => _t('Area saved offline (up to zoom 14)', 'تم حفظ المنطقة بدون إنترنت (حتى تكبير ١٤)');
+  String get mapOfflineFailed => _t('Could not save this area. Zoom in and retry.', 'تعذر حفظ المنطقة. قرّب الخريطة وحاول تاني.');
   String get savePlace=>_t('Save place','حفظ المكان');
   String get unsavePlace=>_t('Unsave place','إلغاء حفظ المكان');
   String get savedPlacesFilter=>_t('Places','الأماكن');
@@ -748,6 +752,7 @@ class L10n {
     'Browse places with vibes, prices, and hours',
     'تصفح أماكن بأجواء وأسعار ومواعيد',
   );
+  String get placesToExplore => _t('Places to explore', 'أماكن تكتشفها');
   String get nearbyPlaces => _t('Nearby places', 'أماكن قريبة');
   String get featuredPlaces => _t('Featured places', 'أماكن مميزة');
   String get allPlaces => _t('All places', 'كل الأماكن');
@@ -859,6 +864,9 @@ class L10n {
   String get useThisIdea => _t('Use this idea', 'استخدم الفكرة');
   String get planThisOuting => _t('Plan this outing', 'خطط الخروجة');
   String get allVibes => _t('All vibes', 'كل الأجواء');
+  String get discoverAllPlaces => _t('All', 'الكل');
+  String get discoverCreateOutingHere => _t('Create Outing Here', 'اعمل خروجة هنا');
+  String get discoverPlaceDetails => _t('Place details', 'تفاصيل المكان');
   String outingAtPlace(String place, String time) =>
       digits(_t('$place · $time', '$place · $time'));
 
@@ -1039,6 +1047,10 @@ class L10n {
   );
   String get leaveGroup => _t('Leave Group', 'مغادرة المجموعة');
   String get leaveGroupTitle => _t('Leave Group?', 'مغادرة المجموعة؟');
+  String get leaveSoleOwnerMessage => _t(
+    'You are the only member. Leaving will delete this group. Groups with outings cannot be deleted.',
+    'إنت العضو الوحيد. خروجك هيمسح الجروب. الجروب اللي فيه خروجات ماينفعش يتمسح.',
+  );
   String get leaveGroupMessage => _t(
     'Are you sure you want to leave this group?',
     'هل أنت متأكد أنك تريد مغادرة هذه المجموعة؟',

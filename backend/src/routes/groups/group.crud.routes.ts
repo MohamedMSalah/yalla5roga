@@ -140,7 +140,9 @@ import {
  *     summary: Delete a group
  *     description: >
  *       Deletes the group with the given UUID. Allowed only for members with
- *       `role = owner`. Other authenticated users receive 403.
+ *       `role = owner` when that owner is the sole active member and the group
+ *       has no outings. Used when that owner chooses Leave Group.
+ *       Other authenticated users receive 403.
  *     operationId: deleteGroup
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -162,7 +164,7 @@ import {
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *       "409":
- *         description: The group still has outings
+ *         description: The group has other active members or still has outings
  *         content:
  *           application/json:
  *             schema:
