@@ -1,0 +1,180 @@
+{
+  "checkedAt": "2026-11-13T23:48:54.221Z",
+  "mode": "HTTP/OpenAPI; real disposable PostgreSQL schema; controlled Firebase verifier; no workers",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "Swagger UI serves existing create/deadline contract",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOutingDraft",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingDrafts",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "All hour/day presets, canonical UTC, strict before-start validation and seven-day draft persistence",
+      "result": "PASS"
+    }
+  ]
+}

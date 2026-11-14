@@ -624,8 +624,8 @@ export class OutingController {
   };
 }
 
-function attendanceSummary(rows: { user_id: string; status: "going" | "maybe" | "not_going" }[], userId: string) {
-  const summary = { going: 0, maybe: 0, not_going: 0 };
+function attendanceSummary(rows: { user_id: string; status: "going" | "maybe" | "not_going" | "no_response" }[], userId: string) {
+  const summary = { going: 0, maybe: 0, not_going: 0, no_response: 0 };
   for (const row of rows) summary[row.status]++;
-  return { summary, my_response: rows.find((row) => row.user_id === userId)?.status ?? null };
+  return { summary, my_response: rows.find((row) => row.user_id === userId)?.status ?? "no_response" };
 }

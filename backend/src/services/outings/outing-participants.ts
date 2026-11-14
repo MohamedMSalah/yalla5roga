@@ -54,3 +54,13 @@ export async function assertOutingParticipant(
 export async function listParticipantIds(outing: Outing): Promise<string[]> {
   return listEligibleVoterIds(outing);
 }
+
+/** Phone-free profiles for the current accepted participant roster. */
+export async function listOutingParticipantProfiles(outing: Outing) {
+  const ids = await listEligibleVoterIds(outing);
+  return prisma.users.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, image_url: true },
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+  });
+}

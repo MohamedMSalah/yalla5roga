@@ -1,6 +1,11 @@
 import 'dart:convert';
 
+import 'package:yalla_5roga/core/localization/l10n.dart';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
 import 'package:yalla_5roga/features/notifications/domain/entities/push_notification_payload.dart';
@@ -25,6 +30,13 @@ class LocalNotificationsService {
       FlutterLocalNotificationsPlugin();
   final Set<String> _shownMessageIds = <String>{};
   var _initialized = false;
+  SharedPreferences? _preferences;
+  L10n get _l10n =>
+      L10n(Locale(_preferences?.getString(AppConstants.localeKey) ?? 'ar'));
+  static const chatCategory = 'outing_chat';
+  static const _nativeActions = MethodChannel(
+    'yalla5roga/chat_notification_actions',
+  );
   LocalNotificationTapCallback? onNotificationTap;
 
   bool get isInitialized => _initialized;
@@ -32,17 +44,54 @@ class LocalNotificationsService {
   Future<void> initialize({LocalNotificationTapCallback? onTap}) async {
     if (_initialized) return;
     onNotificationTap = onTap;
+    _preferences = await SharedPreferences.getInstance();
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      _nativeActions.setMethodCallHandler((call) async {
+        if (call.method == 'chatAction' && call.arguments is Map) {
+          onNotificationTap?.call(
+            PushNotificationPayload.fromData(
+              Map<String, dynamic>.from(call.arguments as Map),
+            ),
+          );
+        }
+      });
+    }
 
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const darwin = DarwinInitializationSettings(
+    final darwin = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
       requestSoundPermission: false,
+      notificationCategories: [
+        DarwinNotificationCategory(
+          chatCategory,
+          actions: [
+            DarwinNotificationAction.text(
+              NotificationActionIds.reply,
+              _l10n.reply,
+              buttonTitle: _l10n.sendMessage,
+              placeholder: _l10n.writeMessage,
+              options: {
+                DarwinNotificationActionOption.foreground,
+                DarwinNotificationActionOption.authenticationRequired,
+              },
+            ),
+            DarwinNotificationAction.plain(
+              NotificationActionIds.markRead,
+              _l10n.markAsRead,
+              options: {
+                DarwinNotificationActionOption.foreground,
+                DarwinNotificationActionOption.authenticationRequired,
+              },
+            ),
+          ],
+        ),
+      ],
     );
 
     try {
       final ok = await _plugin.initialize(
-        settings: const InitializationSettings(android: android, iOS: darwin),
+        settings: InitializationSettings(android: android, iOS: darwin),
         onDidReceiveNotificationResponse: _onNotificationResponse,
       );
       if (ok == false) {
@@ -69,11 +118,7 @@ class LocalNotificationsService {
             .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin
             >()
-            ?.requestPermissions(
-              alert: true,
-              badge: true,
-              sound: true,
-            );
+            ?.requestPermissions(alert: true, badge: true, sound: true);
       } catch (error) {
         debugPrint('[LocalNotifications] iOS permissions failed: $error');
       }
@@ -88,25 +133,25 @@ class LocalNotificationsService {
   List<AndroidNotificationAction> _buildAndroidActions(String type) {
     return switch (type) {
       'group_invite' || 'invitation' => [
-          const AndroidNotificationAction(
-            NotificationActionIds.accept,
-            'Accept',
-          ),
-          const AndroidNotificationAction(
-            NotificationActionIds.decline,
-            'Decline',
-          ),
-        ],
+        const AndroidNotificationAction(NotificationActionIds.accept, 'Accept'),
+        const AndroidNotificationAction(
+          NotificationActionIds.decline,
+          'Decline',
+        ),
+      ],
       'chat' || 'chat_message' => [
-          const AndroidNotificationAction(
-            NotificationActionIds.reply,
-            'Reply',
-          ),
-          const AndroidNotificationAction(
-            NotificationActionIds.markRead,
-            'Mark as Read',
-          ),
-        ],
+        AndroidNotificationAction(
+          NotificationActionIds.reply,
+          _l10n.reply,
+          showsUserInterface: true,
+          inputs: [AndroidNotificationActionInput(label: _l10n.writeMessage)],
+        ),
+        AndroidNotificationAction(
+          NotificationActionIds.markRead,
+          _l10n.markAsRead,
+          showsUserInterface: true,
+        ),
+      ],
       _ => [],
     };
   }
@@ -146,7 +191,11 @@ class LocalNotificationsService {
             icon: '@mipmap/ic_launcher',
             actions: androidActions,
           ),
-          iOS: const DarwinNotificationDetails(
+          iOS: DarwinNotificationDetails(
+            categoryIdentifier:
+                payload.destination == NotificationDestination.chat
+                ? chatCategory
+                : null,
             presentAlert: true,
             presentBadge: true,
             presentSound: true,
@@ -161,6 +210,12 @@ class LocalNotificationsService {
 
   Future<PushNotificationPayload?> takeInitialMessage() async {
     if (!_initialized) return null;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      final action = await _nativeActions.invokeMapMethod<String, dynamic>(
+        'takeInitialAction',
+      );
+      if (action != null) return PushNotificationPayload.fromData(action);
+    }
     final details = await _plugin.getNotificationAppLaunchDetails();
     if (details?.didNotificationLaunchApp != true) return null;
     return _decodeFromResponse(details!.notificationResponse!);

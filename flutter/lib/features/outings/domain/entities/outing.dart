@@ -22,6 +22,7 @@ class Outing {
     this.status = OutingStatus.draft,
     this.votePlaces = const [],
     this.voteDeadlineHours,
+    this.voteEndsAt,
     this.suggestedBy,
     this.scheduledAt,
     this.endsAt,
@@ -53,6 +54,7 @@ class Outing {
 
   /// Hours the creator set for the vote countdown.
   final int? voteDeadlineHours;
+  final DateTime? voteEndsAt;
 
   /// Display name of who suggested the places (group suggest flow).
   final String? suggestedBy;
@@ -111,6 +113,7 @@ class Outing {
     if (status == OutingStatus.cancelled || status == OutingStatus.past) {
       return true;
     }
+    if (chatClosesAt?.isAfter(DateTime.now()) == false) return true;
     // Chat is available from creation (draft/voting/confirmed).
     if (status == OutingStatus.draft ||
         status == OutingStatus.voting ||
@@ -153,6 +156,7 @@ class Outing {
     OutingStatus? status,
     List<Place>? votePlaces,
     int? voteDeadlineHours,
+    DateTime? voteEndsAt,
     String? suggestedBy,
     DateTime? scheduledAt,
     String? createdById,
@@ -175,6 +179,7 @@ class Outing {
       status: status ?? this.status,
       votePlaces: votePlaces ?? this.votePlaces,
       voteDeadlineHours: voteDeadlineHours ?? this.voteDeadlineHours,
+      voteEndsAt: voteEndsAt ?? this.voteEndsAt,
       suggestedBy: suggestedBy ?? this.suggestedBy,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       endsAt: endsAt,

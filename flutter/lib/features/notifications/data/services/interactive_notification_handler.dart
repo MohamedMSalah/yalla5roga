@@ -40,7 +40,10 @@ class InteractiveNotificationHandler {
         currentUserId: currentUserId,
         currentUserName: currentUserName,
       ),
-      NotificationActionType.markRead => _markChatRead(payload.outingId),
+      NotificationActionType.markRead => _markChatRead(
+        payload.outingId,
+        currentUserId,
+      ),
     };
   }
 
@@ -88,8 +91,14 @@ class InteractiveNotificationHandler {
     }
 
     try {
-      // Use timestamp-based client message ID for retry deduplication.
-      final clientMessageId = 'notif-${DateTime.now().millisecondsSinceEpoch}';
+      // The outbox UUID keeps a repeated native action idempotent.
+      final clientMessageId = payload.pushId;
+      if (clientMessageId == null ||
+          !RegExp(
+            r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+          ).hasMatch(clientMessageId)) {
+        return false;
+      }
       await _client.post<Map<String, dynamic>>(
         ApiConstants.outingChatMessages(outingId),
         data: {'text': replyText.trim(), 'clientMessageId': clientMessageId},
@@ -99,11 +108,11 @@ class InteractiveNotificationHandler {
       return true;
     } on DioException catch (error) {
       debugPrint('[InteractiveNotification] Reply failed: $error');
-      return _isSuccessStatus(error);
+      return false;
     }
   }
 
-  Future<bool> _markChatRead(String? outingId) async {
+  Future<bool> _markChatRead(String? outingId, String currentUserId) async {
     if (outingId == null) {
       debugPrint('[InteractiveNotification] Missing outingId for markRead');
       return false;
@@ -111,22 +120,13 @@ class InteractiveNotificationHandler {
     try {
       await _client.patch<Map<String, dynamic>>(
         ApiConstants.outingChatRead(outingId),
+        options: Options(extra: {expectedUserIdKey: currentUserId}),
       );
       debugPrint('[InteractiveNotification] Chat marked read: $outingId');
       return true;
     } on DioException catch (error) {
       debugPrint('[InteractiveNotification] Mark read failed: $error');
-      return _isSuccessStatus(error);
+      return false;
     }
-  }
-
-  /// Determines if a failed request should be considered a success
-  /// (e.g., for idempotent operations that already completed).
-  bool _isSuccessStatus(DioException error) {
-    // Idempotent operations may return 200 even after the action was already done,
-    // or 404 if the resource was already removed/dealt with.
-    // For accept/decline on an already-accepted/declined invitation, the API returns 200.
-    final status = error.response?.statusCode;
-    return status == 200 || status == 404;
   }
 }

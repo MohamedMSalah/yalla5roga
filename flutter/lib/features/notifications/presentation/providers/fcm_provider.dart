@@ -98,7 +98,11 @@ class FcmProvider extends ChangeNotifier {
     // For interactive actions, we allow reprocessing even if "handled"
     // because the action may have failed (e.g., network error).
     // The action handler will be called and we track success/failure separately.
-    if (id != null && !payload.isInteractiveAction && _handledPushes.contains(id)) return;
+    if (id != null &&
+        !payload.isInteractiveAction &&
+        _handledPushes.contains(id)) {
+      return;
+    }
     _pendingTap = payload;
     unawaited(_flushPendingNavigation());
   }
@@ -117,6 +121,10 @@ class FcmProvider extends ChangeNotifier {
     _pendingTap = null;
 
     if (pending == null) return;
+    if (pending.recipientUserId != null &&
+        pending.recipientUserId != shell.read<AuthProvider>().user?.id) {
+      return;
+    }
 
     final id = pending.deduplicationId;
 
@@ -173,6 +181,16 @@ class FcmProvider extends ChangeNotifier {
     );
 
     if (success == true) {
+      if (!shell.mounted || shell.read<AuthProvider>().user?.id != userId) {
+        return;
+      }
+      final notificationId = payload.notificationId;
+      if (notificationId != null) {
+        await shell.read<NotificationsProvider>().markRead(notificationId);
+      }
+      if (!shell.mounted || shell.read<AuthProvider>().user?.id != userId) {
+        return;
+      }
       // Action succeeded - mark as handled and show feedback.
       if (id != null) {
         _handledPushes.add(id);
@@ -192,7 +210,10 @@ class FcmProvider extends ChangeNotifier {
     // If already handled (retry after failure), we already showed feedback - do nothing more.
   }
 
-  void _showActionFeedback(BuildContext shell, NotificationActionType actionType) {
+  void _showActionFeedback(
+    BuildContext shell,
+    NotificationActionType actionType,
+  ) {
     // For interactive actions, feedback is shown in the target screen.
     // Mark Read has no user-visible feedback needed.
     // For now, we rely on the navigation target to show appropriate feedback.

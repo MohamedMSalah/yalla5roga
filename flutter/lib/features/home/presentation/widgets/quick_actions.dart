@@ -4,6 +4,7 @@ import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/create_group_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
+import 'package:yalla_5roga/features/outings/presentation/pages/special_event_page.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -36,9 +37,7 @@ class QuickActions extends StatelessWidget {
                   child: _SecondaryAction(
                     icon: Icons.celebration_outlined,
                     label: l10n.specialEvent,
-                    onPressed: () => Get.to(
-                      () => const CreateOutingPage(specialEvent: true),
-                    ),
+                    onPressed: () => Get.to(() => const SpecialEventPage()),
                   ),
                 ),
                 SizedBox(

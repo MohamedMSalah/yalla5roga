@@ -83,9 +83,11 @@ FCM sends a visible notification plus string data. The data carries `type`, `pus
 
 | Event | Destination |
 |-------|-------------|
-| `group_created`, `group_updated`, `group_invite` | Group Details, subject to membership |
-| `member_joined`, `member_left` | Members section in Group Info |
-| `outing_created`, `outing_updated`, `outing_reminder`, `outing_invite`, `outing_confirmed`, `outing_cancelled` | Outing Details |
+| `group_created`, `group_updated` | Group Details, subject to membership |
+| `group_invite`, generic group invitation | Invitations |
+| `outing_invite`, generic outing invitation | Invitations with specific authorized outing card → existing Outing Details decisions |
+| `member_joined`, `member_left` | Group Details |
+| `outing_created`, `outing_updated`, `outing_reminder`, `outing_confirmed`, `outing_cancelled` | Outing Details |
 | `chat_message` | Outing Chat with its regular history and message styling |
 | `place_vote`, candidate changes and vote resolution | Place Voting section in Outing Details |
 | `attendance_vote`, `attendance_changed` | Attendance section in Outing Details |
@@ -155,3 +157,16 @@ Creator cancellation uses `notifyOutingParticipants` with the supported `outing_
 The inbox always pages newest-first by created_at and unique ID, default 20/max 100. Opaque cursors are ownership checked and database-native cursor traversal preserves database timestamp precision. The data array stays compatible, next_cursor remains an alias, and pagination.nextCursor is canonical metadata. Flutter follows pages for its existing complete feed and unread count. eventType documentation uses supported Prisma notification events plus existing inbox routing aliases; no new event enum or chat media endpoint was added.
 
 Outing invitations and group invitations are routed separately, including legacy generic invitation payloads carrying an outing ID. Explicit notification actions use the appropriate existing endpoints and check the returned persisted decision before reporting success; opening a notification never accepts it.
+
+## Phase 4 special-event occasions — 2026-11-14
+
+Birthday, Wedding, Celebration and Other share the existing special-event invitation payload (title/time/venue/calendar/app links). Optional group association does not disable opted-in phone invitations or app-member invitations. Existing notification participant resolution includes current group members and invited app members without adding a new transport or wire event. Phone normalization/deduplication, creator-scoped request-key retries and transactional WhatsApp outbox/manual-link fallback remain. Verification runs without delivery workers; physical WhatsApp/FCM delivery is not claimed.
+
+
+## Phase 5 inbox and native actions — 2026-11-14
+
+The inbox uses All/Unread choice chips, unread count, shared NotificationCard with localized event-category title, body, avatar/event icon, relative timestamp and unread surface/dot. Provider errors have explicit retry; cached items can remain visible. Existing producers and event aliases are preserved; destination support does not create missing producers.
+
+Android local foreground chat notifications use RemoteInput Reply and Mark as read with `showsUserInterface: true` and the existing authenticated handler. The action receiver is declared. **Android OS-rendered background/terminated FCM notifications retain ordinary delivery and taps but do not include these local action buttons.** No data-only delivery replacement was introduced. iOS registers `outing_chat` text-input/read actions with foreground/authentication-required options; local responses use the plugin, remote APNs responses use the AppDelegate channel and cold-start pending-action handoff. APNs chat pushes include the matching category. These actions open the app to use the current Firebase session; silent background API execution is not promised.
+
+Recipient checks run before interactive actions; chat requests pin the expected user. Reply reuses the outbox push UUID as clientMessageId; a failed/404 response is not reported as success. Successful native actions update the inbox read row. Native labels use saved English/Arabic locale; iOS categories register at initialization. Platform setup follows the installed flutter_local_notifications 22.3.1 APIs: https://pub.dev/packages/flutter_local_notifications and https://pub.dev/documentation/flutter_local_notifications/latest/flutter_local_notifications/AndroidNotificationAction-class.html . No Android/iOS action, native iOS compilation or physical FCM delivery was exercised in this task.

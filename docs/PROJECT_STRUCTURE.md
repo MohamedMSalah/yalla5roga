@@ -269,3 +269,52 @@ Outing feature verification uses `backend/scripts/backend-full-integration.ts`. 
 - `backend/scripts/phase3-openapi-{contracts,verification}.ts`: Swagger/HTTP checks; verification uses disposable schemas only.
 - `backend/scripts/phase3-database-{backup,readback}.ts`: private logical backup, rollback-only restore/migration rehearsal and read-only postdeployment checks.
 - `docs/audit/PHASE_3_*.{md,json}`: implementation, API, backup and deployment evidence. Private backup rows remain ignored under `backend/.database-backups/`.
+
+## Phase 4 Discover / Special Event additions — 2026-11-14
+
+- `flutter/lib/core/maps/{location_repository,location_search_provider}.dart`: shared geocoding contract and cancellable geographic search. Existing outing repository path re-exports the contract.
+- `flutter/lib/core/widgets/{map_controls,vibe_picker}.dart`: shared map search, markers, preview/selection cards, current-location and vibe controls. Outing's old VibePicker path remains a compatibility export.
+- `flutter/lib/features/discover/presentation/widgets/{discover_map_panel,discover_results}.dart`: feature map and result composition; DiscoverPage retains discovery actions, filters and nearby state.
+- `flutter/lib/features/outings/presentation/pages/special_event_page.dart` and `widgets/special_event_fields.dart`: dedicated event entry and occasion/audience controls over the shared creation wizard.
+- `backend/prisma/migrations/20261114000000_special_event_occasions/migration.sql`: additive occasion enum and optional-group special-event constraint.
+- `backend/scripts/phase4-openapi-verification.ts`: served Swagger/OpenAPI HTTP verification in an automatically removed disposable schema.
+- `docs/audit/PHASE_4_UI_UX.md` and `PHASE_4_OPENAPI_RESULTS.json`: implementation and verification evidence.
+
+
+## Voting deadline selector — 2026-11-14
+
+- flutter/lib/features/outings/domain/entities/voting_deadline.dart: shared client duration/instant policy.
+- flutter/lib/features/outings/presentation/widgets/voting_deadline_selector.dart: feature-local Hours/Days selector.
+- Existing CreateOutingProvider, create/review widgets, Outing entity/datasource and post-create EventPage: state, request-time timestamp and canonical confirmation.
+- backend/src/services/outings/voting-deadline.ts: shared create deadline validation/resolution.
+- backend/prisma/migrations/20261114010000_voting_deadline_durations/migration.sql: existing field/check range expansion.
+- backend/scripts/voting-deadline-{openapi-verification,database}.ts: disposable-schema HTTP coverage and backed-up scoped deployment.
+- flutter/test/voting_deadline_test.dart: focused policy/provider/request tests; no widget tests.
+- docs/audit/VOTING_DEADLINE_*.{md,json}: implementation, API and deployment evidence.
+
+
+## RSVP and countdown updates — 2026-11-14
+
+- Existing attendance use case, controller and outing-participants service: full accepted roster and read-only no_response defaults.
+- Existing Flutter outing datasource/RSVP widgets: profile-backed roster and account-scoped default persistence.
+- flutter/lib/features/outings/domain/entities/vote_countdown.dart: pure remaining-time arithmetic.
+- flutter/lib/features/outings/presentation/widgets/vote_countdown_text.dart: extracted 1-second, lifecycle-aware countdown, re-exported by outing_vote_widget.dart for compatibility.
+- Existing core OutingCard: optional footer for inline countdown placement.
+- flutter/test/rsvp_countdown_test.dart and backend/scripts/rsvp-countdown-openapi-verification.ts: headless logic/cache tests and disposable-schema API checks.
+- docs/audit/RSVP_COUNTDOWN_*.{md,json}: scope and verification evidence.
+
+
+## Phase 5 chat / notifications — 2026-11-14
+
+- `flutter/lib/features/chat/presentation/widgets/{message_bubble,chat_date_separator}.dart`; existing composer/picker expose MessageComposer/MentionSuggestions names with compatibility aliases.
+- `flutter/lib/core/widgets/{connection_indicator,notification_card}.dart`: shared rendering/callback components.
+- `flutter/lib/features/invitations/presentation/widgets/outing_invitation_target.dart`: specific outing invitation entry, reached by the existing notification navigator.
+- `flutter/ios/Runner/AppDelegate.swift`: APNs chat-action/cold-start bridge; existing notification service and handler process responses.
+- `backend/src/usecases/chat/mutate-message.usecase.ts`: owner-authorized message edit/tombstone deletion through existing repository/datasource.
+- `backend/scripts/phase5-openapi-verification.ts`, `docs/audit/PHASE_5_OPENAPI_RESULTS.json`, `docs/audit/PHASE_5_UI_UX.md`: HTTP-only verification and task evidence.
+
+
+## GitHub / Neon synchronization — 2026-11-14
+
+- `backend/scripts/neon-sync-deploy.ts`: target/checksum audit; explicit `--apply` backs up all public rows, rehearses keys/indexes/FKs and exact reviewed pending migrations in a rolled-back schema with an isolated occasion enum, then uses Prisma migrate deploy and verifies rows/history. Only the reviewed special-event/deadline migrations are permitted.
+- `docs/audit/NEON_GITHUB_SYNC_{READBACK,DEPLOYMENT}.json`: public deployment metadata; private row backups remain ignored under `backend/.database-backups/`.

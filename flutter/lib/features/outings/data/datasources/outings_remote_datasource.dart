@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:yalla_5roga/features/outings/domain/entities/voting_deadline.dart';
+
 import 'package:dio/dio.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
@@ -63,10 +65,15 @@ abstract class OutingsDataSource {
 }
 
 class OutingsRemoteDataSource implements OutingsDataSource {
-  OutingsRemoteDataSource(this._client, {RequestDeduper? deduper})
-    : _deduper = deduper ?? RequestDeduper();
+  OutingsRemoteDataSource(
+    this._client, {
+    RequestDeduper? deduper,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now,
+       _deduper = deduper ?? RequestDeduper();
 
   final ApiClient _client;
+  final DateTime Function() _now;
   final RequestDeduper _deduper;
   int _generation = 0;
 
@@ -79,6 +86,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
 
   /// Last successful snapshot for single-outing merges.
   OutingSnapshot? _lastSnapshot;
+  final _attendanceMembers = <String, List<GroupMember>>{};
   final _attendanceRows =
       <String, Map<String, ({AttendanceStatus status, DateTime at})>>{};
 
@@ -126,7 +134,14 @@ class OutingsRemoteDataSource implements OutingsDataSource {
             {
               'outing_id': outingId,
               'user_id': row.key,
-              'status': attendanceStatusToApi(row.value.name),
+              'status': row.value == AttendanceStatus.unset
+                  ? 'no_response'
+                  : attendanceStatusToApi(row.value.name),
+              if ((_attendanceMembers[outingId] ?? const <GroupMember>[])
+                      .where((m) => m.id == row.key)
+                      .firstOrNull
+                  case final member?)
+                'users': {'name': member.name, 'image_url': member.avatar},
               if (_attendanceRows[outingId]?[row.key] case final version?)
                 'updated_at': version.at.toUtc().toIso8601String(),
             },
@@ -147,7 +162,8 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   String specialEventImage(OutingOccasion occasion) => '';
 
   @override
-  List<GroupMember> membersForOuting(Outing outing) => const [];
+  List<GroupMember> membersForOuting(Outing outing) =>
+      List.unmodifiable(_attendanceMembers[outing.id] ?? const []);
 
   @override
   void clearCache() {
@@ -156,6 +172,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     _lifecycleHints.clear();
     _lastSnapshot = null;
     _attendanceRows.clear();
+    _attendanceMembers.clear();
     _deduper.clear();
   }
 
@@ -165,6 +182,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
       await _client.delete<Map<String, dynamic>>(ApiConstants.outing(outingId));
       _optionsByOuting.remove(outingId);
       _lifecycleHints.remove(outingId);
+      _attendanceMembers.remove(outingId);
       final snapshot = _lastSnapshot;
       if (snapshot != null) _store(snapshot.withoutOuting(outingId));
     } on DioException catch (error) {
@@ -426,8 +444,21 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   Future<OutingCreation> add(Outing outing, {String? creatorId}) async {
     try {
       final imageUrl = remoteImageUrlOrNull(outing.image);
-      // Backend requires a voting deadline on every create.
+      // Runs after cover upload, immediately before POST: wizard time does not
+      // consume the selected duration. The backend response remains canonical.
       final deadlineHours = outing.voteDeadlineHours ?? 3;
+      final submittedAt = _now();
+      final deadline = VotingDeadlinePolicy.endsAt(submittedAt, deadlineHours);
+      final problem = VotingDeadlinePolicy.validate(
+        now: submittedAt,
+        hours: deadlineHours,
+        scheduledAt: outing.scheduledAt,
+      );
+      if (problem != null) {
+        throw const ServerException(
+          'Voting deadline must be in the future and before the outing starts',
+        );
+      }
       final body = <String, dynamic>{
         'title': outing.title,
         'image_url': ?imageUrl,
@@ -452,6 +483,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
               },
           ],
         'vote_deadline_hours': deadlineHours,
+        'vote_ends_at': deadline.toUtc().toIso8601String(),
         if (outing.scheduledAt != null)
           'scheduled_at': outing.scheduledAt!.toUtc().toIso8601String(),
         if (outing.location != null) ...{
@@ -635,6 +667,11 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     required AttendanceStatus status,
   }) async {
     try {
+      if (status == AttendanceStatus.unset) {
+        throw const ServerException(
+          'No response is the default, not a submitted RSVP',
+        );
+      }
       // Backend binds attendance to the Bearer token user; memberId is ignored.
       final response = await _client.put<Map<String, dynamic>>(
         ApiConstants.outingAttendance(outingId),
@@ -817,6 +854,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
       if (error.response?.statusCode == 403 ||
           error.response?.statusCode == 404) {
         _attendanceRows.remove(outingId);
+        _attendanceMembers.remove(outingId);
         final base = _lastSnapshot;
         if (base != null) {
           _lastSnapshot = OutingSnapshot(
@@ -836,6 +874,23 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     List<Map<String, dynamic>> rows,
     String outingId,
   ) {
+    final previousMembers = {
+      for (final member
+          in _attendanceMembers[outingId] ?? const <GroupMember>[])
+        member.id: member,
+    };
+    _attendanceMembers[outingId] = [
+      for (final row in rows)
+        if (apiString(row['user_id']) case final id?)
+          if (row['users'] case final Map profile)
+            GroupMember(
+              id: id,
+              name: apiString(profile['name']) ?? '',
+              avatar: apiString(profile['image_url']) ?? '',
+            )
+          else
+            ?previousMembers[id],
+    ];
     final result = <String, AttendanceStatus>{};
     for (final row in rows) {
       final userId = apiString(row['user_id']) ?? '';
@@ -972,6 +1027,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
       suggestedBy:
           apiString(json['suggested_by_user_id']) ??
           apiString(json['suggestedBy']),
+      voteEndsAt: DateTime.tryParse(apiString(json['vote_ends_at']) ?? ''),
       endsAt: DateTime.tryParse(apiString(json['ends_at']) ?? ''),
       scheduledAt: DateTime.tryParse(
         apiString(json['scheduled_at']) ?? apiString(json['scheduledAt']) ?? '',

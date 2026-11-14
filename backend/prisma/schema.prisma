@@ -161,7 +161,7 @@ model outings {
   create_request_key              String?               @db.VarChar(80)
   created_by                      String                @db.VarChar(128)
   status                          outing_status         @default(draft)
-  /// Discriminator: group outing (requires group_id) vs special event (birthday/wedding).
+  /// Discriminator: group outing (requires group_id) vs special event (optional group; birthday/wedding/celebration/other).
   type                            outing_type           @default(group)
   occasion                        outing_occasion       @default(none)
   scheduled_at                    DateTime?             @db.Timestamptz(6)
@@ -438,6 +438,8 @@ enum outing_occasion {
   none
   birthday
   wedding
+  celebration
+  other
 }
 
 enum outing_type {

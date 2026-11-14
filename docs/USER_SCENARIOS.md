@@ -76,7 +76,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 - **Actions:** Enter title, schedule and an optional cover photo. In step 2, pick a single location or tap **Add places for voting** to select 2–5 places from the list, the map, or both. Set the deadline in Information, check it on Review, then submit.
 - **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going; `image_url` optional http(s) or `media://<uuid>`; vote options posted when multi-place.
 - **DB:** `outings`, `outing_attendance`, optional `outing_vote_options`.  
-- **Flutter:** Shared `CreateOutingPage` for create + suggest; always sends `vote_deadline_hours`; uploads a picked local cover first and sends the stable `media://` reference.
+- **Flutter:** Shared `CreateOutingPage` for create + suggest; sends selected `vote_deadline_hours` plus an absolute `vote_ends_at` calculated immediately before POST; uploads a picked local cover first and sends the stable `media://` reference.
 - **Status:** Implemented (API/tests); Flutter sends deadline fields  
 
 **Create Outing UI:** The form starts with a full-width optional photo cover, followed by the outing name and rounded category choices. The progress header and footer guide users through location and review. Group and outing screens use a local illustration when the cover photo is absent. Birthday and wedding events have distinct default covers.
@@ -89,7 +89,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 
 ### OUT-02 Create Special Event
 
-- Same as OUT-01 without `group_id`; occasion birthday/wedding; `type=special_event`.  
+- Dedicated Special Event entry reuses the three-step wizard. Choose Birthday, Wedding, Celebration or Other, optional group, cover/title, future date/time, fixed location, then Review and confirm. Selected groups require accepted creator membership; independent events keep the existing guest invitation flow. `type=special_event` for every occasion, with or without a group.
 - **Status:** Implemented  
 
 ### OUT-03 Validation failures
@@ -214,7 +214,7 @@ Inviting a registered or unregistered phone creates a pending invitation. Verifi
 ### CHAT-05 Offline history and queued sends — Implemented; automated cache/queue tests, device verification pending
 
 Previously loaded chat remains visible offline. Sending shows pending after durable local save; foreground reconnection retries the same UUID. Closed-chat or membership rejection produces a failed message. Canonical REST/socket delivery replaces the pending item without duplicates. Availability is bounded by cache retention.
-### CHAT-06 Unauthorized / cancelled — 403 — Implemented  
+### CHAT-06 Unauthorized participant — 403; cancelled/past/two-hour-closed mutation — 409 — Implemented
 ### CHAT-07 Realtime Socket.IO — Implemented (REST write + socket delivery; probe verified)  
 ### CHAT-08 New message push — fan-out path Implemented; device delivery NOT RUN  
 
@@ -257,7 +257,7 @@ With a matching Firebase session, cached profile, groups/outings, previously ope
 | NOT-06 | Chat message | send | participants | Implemented path |
 | NOT-07 | Open a push or inbox item | foreground, background, cold start, inbox | recipient | Destination routing implemented. Full live device matrix not verified. |
 
-Tapping a notification opens its group, outing, regular outing chat, or relevant members, place voting, or attendance section after sign-in. The item is marked read. Back returns to the preceding page. If the destination was deleted or access changed, the app explains the issue on the current page. See [the destination and producer matrix](NOTIFICATIONS.md#push-and-inbox-destinations).
+Tapping a notification opens its Group Details, Invitations, outing, regular outing chat, or relevant place voting/attendance section after sign-in. The item is marked read. Back returns to the preceding page. If the destination was deleted or access changed, the app explains the issue on the current page. See [the destination and producer matrix](NOTIFICATIONS.md#push-and-inbox-destinations).
 
 Failure: outbox retry → dead; invalid tokens deleted.
 
@@ -357,7 +357,7 @@ Actual Attendance shows Arrived and Not yet verified for current participants. O
 
 ## CHAT-09 Mentions and connection status — 2026-11-11
 
-Typing `@` opens the existing searchable member picker, including multiword names. Selection inserts a name in the composer and records its stable ID/range. Editing the token drops its mention identity. Sending stores canonical stable-ID mention tokens; history, pagination, socket delivery, and queued offline sends use the same text. Bubbles highlight mentions and show sender names above every message, including “Name (You)”. Mention notifications open the regular outing chat without a separate notification message card and never notify the sender or duplicate per recipient.
+Typing `@` opens the existing searchable member picker, including multiword names. Selection inserts a name in the composer and records its stable ID/range. Editing the token drops its mention identity. Sending stores canonical stable-ID mention tokens; history, pagination, socket delivery, and queued offline sends use the same text. Bubbles highlight mentions and identify each sender group, including “Name (You)”, while adjacent messages from that sender remain grouped. Mention notifications open the regular outing chat without a separate notification message card and never notify the sender or duplicate per recipient.
 
 Only the chat screen displays connection status, derived from network/Socket.IO state and an acknowledged room join. Background domain refresh is automatic and silent; cache content survives outages. Cached shell startup precedes one-time account synchronization and online group revalidation. Runtime English/Arabic, light/dark, narrow/wide, Socket.IO delivery, offline recovery, and push navigation remain unverified here because Flutter launch/UI/widget/integration testing was prohibited.
 
@@ -418,3 +418,27 @@ Static verification and runtime limits are recorded in [the Phase 2 report](audi
 - **History:** Existing scheduled-start/terminal classification is retained. Details remain readable. Completed chat displays history and the server rejects new sends; a confirmed outing that has merely started retains its existing chat and check-in windows.
 
 Validation is through Dart formatting/static analysis and backend HTTP selected by Swagger/OpenAPI operation IDs. No app, emulator, device, widget/integration tests or UI automation is launched in this task.
+
+## Phase 4 Discover and Special Events — 2026-11-14
+
+- Discover opens the shared Cairo fallback map when foreground permission is unavailable and gives localized permission/settings guidance. Manual name/area filtering and geocoding search remain available. Selecting a geographic search result loads the existing nearby API around that location without presenting it as the user's physical position.
+- Horizontal All/Food/Activities/Outdoor/Movies filters apply to pins and image cards. Selecting a pin or card focuses the existing animated camera and reveals an image/area/price preview, place details and Create Outing action. Card selection brings the map back into view. Offline, loading, no-results and retry states reuse foundation components.
+- The outing map picker reuses map chrome and cards while retaining route-local naming, geocoding attribution, single/multiple selections, ordering, limits and Back-to-discard behavior. Search categories filter catalog hits; manual geographic hits are not assigned invented categories.
+- Home's dedicated Special Event entry uses the same wizard and media pipeline, four localized event types, optional group, guests, date/time, fixed location, review/edit links and loading/success navigation. Independent events retain the existing guest requirement; a selected group can supply the event audience. Existing guest selections are retained when changing group. No Flutter/device/emulator/UI tests or visual sign-off were performed by owner instruction.
+
+
+### OUT-01c Voting Deadline selector — 2026-11-14
+
+Information → Voting Deadline → Hours/Days segmented control → select one preset. Chips that would end at/after the selected outing start are disabled. A local-time summary and inline error explain the selection. Date/time changes and the provider clock revalidate the current choice without discarding it. Continue/Create are disabled for invalid deadlines; shorter durations or a later schedule recover the flow. Back/Edit retain the selection. Review shows the estimated end time; a note makes clear that the full duration starts on submission. The datasource recomputes after media upload, validates again, posts an absolute UTC instant, and the existing post-create detail route displays the actual server-returned timestamp. Five/seven-day durations survive server draft save/read using the existing field.
+
+
+### ATT-07 Default No response and live deadline — 2026-11-14
+
+Before submitting Going/Maybe/Not Going, a member sees No response in their RSVP section and in Who’s going. The roster includes creator/current group members/accepted outing members with names and avatars from the authorized attendance read. It excludes pending invitees and counts unanswered participants separately. Submitted responses persist normally; selecting places leaves the RSVP untouched. Offline roster snapshots retain unanswered labels and profiles. Active-vote cards and detail voting cards show a seconds-based countdown inside the card; expiry or server closure shows Voting ended. Timers stop while hidden/backgrounded and refresh against wall time on resume.
+
+
+## Phase 5 chat and notification journeys — 2026-11-14
+
+Open an outing chat to read grouped sender/avatar bubbles with date separators and local timestamps. Type text or choose an @member suggestion. Durable local save shows Pending; server rejection shows Failed and Retry keeps the same UUID. Long-press an own persisted message to open Edit/Delete while chat is open. Edit is enabled only during the first minute after sending; at expiration the edit composer cancels with localized feedback. Delete remains available while chat is open. Other members’ messages expose no mutation actions. Edit preserves stable mention IDs; Delete leaves a readable deleted-message label. At two hours after scheduled start, or on completed/cancelled status, the composer becomes a subtle read-only explanation and mutation/retry controls disappear. History/pagination remain participant-authorized. Connection status is local to chat: Connected/Reconnecting/Offline. Inserts/near-bottom scrolling respect reduced motion and do not pull readers away from older messages.
+
+Notifications offers All/Unread, unread count, read surfaces, event titles/icons, empty/loading/error states and retry. Taps mark the inbox entry read and navigate through authenticated resource reads. Group and membership events open Group Details. Group invitations open Invitations; outing invitations open Invitations with their specific outing entry, then View outing opens existing explicit acceptance/decline controls. Outing updates and voting/RSVP/GPS events open relevant Outing Details; messages open that outing's regular chat. Back preserves the prior stack. Native Reply/Mark as read are implemented for local notifications and iOS category responses; Android background OS notifications retain delivery/body taps without these action buttons. No Flutter/device/emulator/UI tests or visual state checks were run for Phase 5.

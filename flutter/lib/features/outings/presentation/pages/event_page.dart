@@ -39,11 +39,13 @@ class EventPage extends StatefulWidget {
     super.key,
     required this.event,
     this.coverHeroTag,
+    this.createdVotingDeadline,
     this.initialSection,
     this.manualWhatsAppUrls = const [],
   });
 
   final Outing event;
+  final DateTime? createdVotingDeadline;
   final OutingDetailsSection? initialSection;
   final List<String> manualWhatsAppUrls;
 
@@ -241,6 +243,13 @@ class _EventPageState extends State<EventPage>
                     ),
                   ),
                   Responsive.spaceMd.gapH,
+                  if (widget.createdVotingDeadline case final deadline?) ...[
+                    Text(
+                      l10n.votingDeadlineSummary(deadline),
+                      style: context.texts.bodyMedium,
+                    ),
+                    Responsive.spaceMd.gapH,
+                  ],
                   if (widget.manualWhatsAppUrls.isNotEmpty) ...[
                     Responsive.spaceLg.gapH,
                     AppCard(

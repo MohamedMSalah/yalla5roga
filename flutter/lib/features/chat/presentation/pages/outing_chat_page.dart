@@ -2,7 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/widgets/connection_indicator.dart';
+import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
+import 'package:yalla_5roga/core/widgets/app_error_state.dart';
+import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -39,6 +42,9 @@ class _OutingChatPageState extends State<OutingChatPage> {
   int? _mentionStart;
   var _ignoreMentionUpdates = false;
   Timer? _closeTimer;
+  ChatMessage? _editing;
+  Timer? _editExpiryTimer;
+  DateTime? _scheduledClose;
   OutingChatProvider? _chat;
   OutingsProvider? _outings;
 
@@ -70,6 +76,7 @@ class _OutingChatPageState extends State<OutingChatPage> {
   void dispose() {
     _outings?.closeOuting(_outingId);
     _closeTimer?.cancel();
+    _editExpiryTimer?.cancel();
     // Fire-and-forget leave; provider outlives this page.
     final chat = _chat;
     if (chat != null) {
@@ -82,10 +89,12 @@ class _OutingChatPageState extends State<OutingChatPage> {
   }
 
   void _scheduleCloseCheck() {
-    _closeTimer?.cancel();
     final outing =
         context.read<OutingsProvider>().findById(_outingId) ?? widget.event;
     final closesAt = outing.chatClosesAt;
+    if (closesAt == _scheduledClose) return;
+    _scheduledClose = closesAt;
+    _closeTimer?.cancel();
     if (closesAt == null) return;
     final delay = closesAt.difference(DateTime.now());
     if (delay.isNegative) return;
@@ -258,7 +267,9 @@ class _OutingChatPageState extends State<OutingChatPage> {
   Future<void> _send() async {
     final draft = _controller.value;
     var text = draft.text;
-    if (text.trim().isEmpty) return;
+    final outing =
+        context.read<OutingsProvider>().findById(_outingId) ?? widget.event;
+    if (outing.isChatClosed || text.trim().isEmpty) return;
     final mentions = [..._selectedMentions]
       ..sort((a, b) => b.start.compareTo(a.start));
     for (final mention in mentions) {
@@ -275,17 +286,96 @@ class _OutingChatPageState extends State<OutingChatPage> {
     text = text.trim();
     final user = context.read<AuthProvider>().user;
     if (user == null) return;
-    final sent = await context.read<OutingChatProvider>().sendMessage(
-      outingId: _outingId,
-      text: text,
-      senderId: user.id,
-      senderName: user.name,
-      avatar: user.imageUrl,
-    );
+    final editing = _editing;
+    if (editing != null && !editing.canEditAt(DateTime.now())) {
+      _cancelEdit();
+      AppSnackBar.showError(context.l10n.messageEditExpired);
+      return;
+    }
+    final sent = editing != null
+        ? await context.read<OutingChatProvider>().mutateMessage(
+            _outingId,
+            editing.id,
+            text: text,
+          )
+        : await context.read<OutingChatProvider>().sendMessage(
+            outingId: _outingId,
+            text: text,
+            senderId: user.id,
+            senderName: user.name,
+            avatar: user.imageUrl,
+          );
     if (!sent || !mounted || _controller.value != draft) return;
+    _editExpiryTimer?.cancel();
+    setState(() => _editing = null);
     _controller.clear();
     _selectedMentions.clear();
     _clearMention();
+  }
+
+  void _cancelEdit() {
+    _editExpiryTimer?.cancel();
+    setState(() => _editing = null);
+    _controller.clear();
+    _selectedMentions.clear();
+    _clearMention();
+  }
+
+  void _startMention() {
+    final text = _controller.text;
+    final selection = _controller.selection;
+    final start = selection.isValid ? selection.start : text.length;
+    final end = selection.isValid ? selection.end : text.length;
+    final prefix = start > 0 && !RegExp(r'\s').hasMatch(text[start - 1])
+        ? ' @'
+        : '@';
+    _controller.value = TextEditingValue(
+      text: text.replaceRange(start, end, prefix),
+      selection: TextSelection.collapsed(offset: start + prefix.length),
+    );
+    _focusNode.requestFocus();
+  }
+
+  void _edit(ChatMessage message) {
+    final userId = context.read<AuthProvider>().user?.id;
+    if (message.senderId != userId || !message.canEditAt(DateTime.now())) {
+      AppSnackBar.showError(context.l10n.messageEditExpired);
+      return;
+    }
+    _editExpiryTimer?.cancel();
+    _editExpiryTimer = Timer(
+      message.editDeadline!.difference(DateTime.now()),
+      () {
+        if (!mounted || _editing?.id != message.id) return;
+        _cancelEdit();
+        AppSnackBar.showError(context.l10n.messageEditExpired);
+      },
+    );
+    _selectedMentions.clear();
+    // Keep the stable IDs while presenting readable mention labels for editing.
+    var text = message.text;
+    final matches = RegExp(r'<@([^|<>]+)\|([^<>]*)>').allMatches(text).toList();
+    for (final match in matches.reversed) {
+      final name = Uri.decodeComponent(match[2]!);
+      text = text.replaceRange(match.start, match.end, '@$name');
+    }
+    _controller.text = text;
+    _selectedMentions.clear();
+    var offset = 0;
+    for (final match in matches) {
+      final name = Uri.decodeComponent(match[2]!);
+      final start = match.start + offset;
+      _selectedMentions.add((
+        start: start,
+        end: start + name.length + 1,
+        id: Uri.decodeComponent(match[1]!),
+        name: name,
+      ));
+      offset += name.length + 1 - (match.end - match.start);
+    }
+    setState(() => _editing = message);
+    _controller.selection = TextSelection.collapsed(offset: text.length);
+    _focusNode.requestFocus();
   }
 
   List<GroupMember> _groupMembers(
@@ -329,6 +419,7 @@ class _OutingChatPageState extends State<OutingChatPage> {
     final chat = context.watch<OutingChatProvider>();
     final outing = _liveOuting(outings);
     final closed = outing.isChatClosed;
+    _scheduleCloseCheck();
     final members = _groupMembers(groups, outings, outing);
     final currentUser = context.watch<AuthProvider>().user;
     final currentUserId = currentUser?.id;
@@ -341,83 +432,85 @@ class _OutingChatPageState extends State<OutingChatPage> {
 
     return Scaffold(
       backgroundColor: context.palette.background,
-      appBar: AppPageBar(title: outing.title, subtitle: l10n.outingChat),
-      body: Column(
-        children: [
-          Padding(
-            padding: Responsive.padding(horizontal: 16, vertical: 4),
-            child: Semantics(
-              liveRegion: true,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.circle,
-                    size: 8,
-                    color: chat.isRoomConnected(_outingId)
-                        ? AppColors.emerald500
-                        : chat.isRoomReconnecting(_outingId)
-                        ? AppColors.amber700
-                        : AppColors.rose600,
-                  ),
-                  6.gapW,
-                  Flexible(
-                    child: Text(
-                      chat.isRoomConnected(_outingId)
-                          ? l10n.chatConnected
-                          : chat.isRoomReconnecting(_outingId)
-                          ? l10n.chatReconnecting
-                          : l10n.chatDisconnected,
-                      style: context.texts.labelSmall,
-                    ),
-                  ),
-                ],
+      appBar: AppPageBar(title: l10n.outingChat, subtitle: outing.title),
+      body: Center(
+        child: SizedBox(
+          width: Responsive.contentMaxWidth,
+          child: Column(
+            children: [
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: ConnectionIndicator(
+                  connected: chat.isRoomConnected(_outingId),
+                  reconnecting: chat.isRoomReconnecting(_outingId),
+                  label: chat.isRoomConnected(_outingId)
+                      ? l10n.chatConnected
+                      : chat.isRoomReconnecting(_outingId)
+                      ? l10n.chatReconnecting
+                      : l10n.chatOffline,
+                ),
               ),
-            ),
+              Expanded(
+                child: chat.isInitialLoadingFor(_outingId)
+                    ? const OutingChatSkeleton()
+                    : messages.isEmpty && chat.errorMessage != null
+                    ? AppErrorState(
+                        message: chat.errorMessage!,
+                        onRetry: () => chat.load(_outingId, forceRefresh: true),
+                      )
+                    : messages.isEmpty
+                    ? AppEmptyState(
+                        icon: Icons.chat_bubble_outline,
+                        message: l10n.noChatMessages,
+                        subtitle: closed
+                            ? l10n.chatClosedHint
+                            : l10n.noChatMessagesHint,
+                      )
+                    : OutingChatMessageList(
+                        messages: messages,
+                        members: members,
+                        onEdit: closed ? null : _edit,
+                        onDelete: closed
+                            ? null
+                            : (message) =>
+                                  chat.mutateMessage(_outingId, message.id),
+                        onRetry: closed ? null : chat.retryMessage,
+                        currentUserId: currentUserId,
+                        currentUserName: currentUser?.name,
+                        loadingOlder: chat.isLoadingOlder(_outingId),
+                        onLoadOlder: chat.hasOlder(_outingId)
+                            ? () => chat.loadOlder(_outingId)
+                            : null,
+                      ),
+              ),
+              if (showMentions)
+                OutingChatMentionPicker(
+                  members: mentionCandidates,
+                  showMentionAll: showMentionAll,
+                  mentionAllLabel: l10n.mentionAllLabel,
+                  mentionAllSubtitle: l10n.mentionAll,
+                  emptyLabel: l10n.noMembersToMention,
+                  title: l10n.mentionSomeone,
+                  onSelected: _insertMention,
+                  onMentionAll: _insertMentionAll,
+                ),
+              OutingChatComposer(
+                closed: closed,
+                controller: _controller,
+                focusNode: _focusNode,
+                hintText: _editing != null
+                    ? l10n.editMessage
+                    : l10n.writeMessage,
+                busy: chat.isSending(_outingId),
+                onMention: closed ? null : _startMention,
+                onCancelEdit: _editing == null ? null : _cancelEdit,
+                chatClosedLabel: l10n.chatClosed,
+                chatClosedHint: l10n.chatCompletionHint,
+                onSend: _send,
+              ),
+            ],
           ),
-          Expanded(
-            child: chat.isInitialLoadingFor(_outingId)
-                ? const OutingChatSkeleton()
-                : messages.isEmpty
-                ? AppEmptyState(
-                    icon: Icons.chat_bubble_outline,
-                    message: l10n.noChatMessages,
-                    subtitle: closed
-                        ? l10n.chatClosedHint
-                        : l10n.noChatMessagesHint,
-                  )
-                : OutingChatMessageList(
-                    messages: messages,
-                    members: members,
-                    currentUserId: currentUserId,
-                    currentUserName: currentUser?.name,
-                    loadingOlder: chat.isLoadingOlder(_outingId),
-                    onLoadOlder: chat.hasOlder(_outingId)
-                        ? () => chat.loadOlder(_outingId)
-                        : null,
-                  ),
-          ),
-          if (showMentions)
-            OutingChatMentionPicker(
-              members: mentionCandidates,
-              showMentionAll: showMentionAll,
-              mentionAllLabel: l10n.mentionAllLabel,
-              mentionAllSubtitle: l10n.mentionAll,
-              emptyLabel: l10n.noMembersToMention,
-              title: l10n.mentionSomeone,
-              onSelected: _insertMention,
-              onMentionAll: _insertMentionAll,
-            ),
-          OutingChatComposer(
-            closed: closed,
-            controller: _controller,
-            focusNode: _focusNode,
-            hintText: l10n.writeMessage,
-            chatClosedLabel: l10n.chatClosed,
-            chatClosedHint: l10n.chatClosedHint,
-            onSend: _send,
-          ),
-        ],
+        ),
       ),
     );
   }

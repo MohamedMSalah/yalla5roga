@@ -35,6 +35,7 @@ class OutingChatProvider extends ChangeNotifier {
   var _loading = <String, bool>{};
   var _loaded = <String, bool>{};
   final _loadingOlder = <String>{};
+  final _liveDuringLoad = <String, List<ChatMessage>>{};
   var _generation = 0;
   var _sending = <String, bool>{};
   var _unread = <String, int>{};
@@ -88,8 +89,9 @@ class OutingChatProvider extends ChangeNotifier {
     if (subscriptions == 1) unawaited(_socket?.joinOuting(outingId));
     final generation = _generation;
     await load(outingId, forceRefresh: forceRefresh, userId: _currentUserId);
-    if (generation != _generation || !_activeOutings.containsKey(outingId))
+    if (generation != _generation || !_activeOutings.containsKey(outingId)) {
       return;
+    }
     await markRead(outingId);
   }
 
@@ -149,6 +151,7 @@ class OutingChatProvider extends ChangeNotifier {
     }
 
     _loading[outingId] = true;
+    _liveDuringLoad[outingId] = [];
     _errorMessage = null;
     notifyListeners();
 
@@ -174,11 +177,17 @@ class OutingChatProvider extends ChangeNotifier {
         }
       },
       (items) {
-        _mergeMessages(outingId, items);
+        if (forceRefresh) {
+          _messages[outingId] = _withMine(items, _currentUserId);
+        } else {
+          _mergeMessages(outingId, items);
+        }
+        _mergeMessages(outingId, _liveDuringLoad[outingId] ?? []);
         _errorMessage = null;
       },
     );
     _loading[outingId] = false;
+    _liveDuringLoad.remove(outingId);
     _loaded[outingId] = true;
     notifyListeners();
   }
@@ -225,13 +234,60 @@ class OutingChatProvider extends ChangeNotifier {
         );
         _errorMessage = null;
         ok = true;
-        if (message.deliveryStatus == MessageDeliveryStatus.pending)
+        if (message.deliveryStatus == MessageDeliveryStatus.pending) {
           onQueued?.call();
+        }
       },
     );
     _sending[outingId] = false;
     notifyListeners();
     return ok;
+  }
+
+  Future<bool> mutateMessage(
+    String outingId,
+    String messageId, {
+    String? text,
+  }) async {
+    if (isSending(outingId)) return false;
+    _sending[outingId] = true;
+    notifyListeners();
+    final generation = _generation;
+    final result = await repository.mutateMessage(
+      outingId,
+      messageId,
+      text: text,
+    );
+    if (generation != _generation) return false;
+    _sending[outingId] = false;
+    notifyListeners();
+    return result.fold(
+      (failure) {
+        AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.send,
+          context: 'mutateOutingChat',
+        );
+        return false;
+      },
+      (message) {
+        _applyLiveMessage(message);
+        return true;
+      },
+    );
+  }
+
+  Future<void> retryMessage(ChatMessage message) async {
+    final generation = _generation;
+    final result = await repository.retryMessage(message);
+    if (generation != _generation) return;
+    result.fold(
+      (failure) => AppErrorFeedback.report(failure, kind: AppErrorKind.send),
+      (pending) {
+        _applyLiveMessage(pending);
+        onQueued?.call();
+      },
+    );
   }
 
   Future<void> markRead(String outingId) async {
@@ -249,6 +305,7 @@ class OutingChatProvider extends ChangeNotifier {
   void clear() {
     _generation++;
     _loadingOlder.clear();
+    _liveDuringLoad.clear();
     _activeOutings.clear();
     _messages = {};
     _loading = {};
@@ -287,6 +344,7 @@ class OutingChatProvider extends ChangeNotifier {
   void _applyLiveMessage(ChatMessage message) {
     final outingId = message.outingId;
     if (outingId == null || !_activeOutings.containsKey(outingId)) return;
+    _liveDuringLoad[outingId]?.add(message);
     final enriched = message.copyWith(
       isMine:
           (_currentUserId != null && message.senderId == _currentUserId) ||
@@ -299,8 +357,9 @@ class OutingChatProvider extends ChangeNotifier {
           item.deliveryStatus == enriched.deliveryStatus &&
           item.text == enriched.text &&
           item.sender == enriched.sender,
-    ))
+    )) {
       return;
+    }
     _messages[outingId] = upsertOutingChatMessage(current, enriched);
     notifyListeners();
   }

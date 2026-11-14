@@ -244,3 +244,18 @@ The existing members route/controller/use case/repository/datasource chain also 
 ## Phase 3 atomic ballots — 2026-11-14
 
 The existing outing voting router/controller now exposes PUT /api/outings/:id/votes through ReplaceBallotUseCase. An outing-row lock serializes full selection replacement with resolution; eligible members, candidate ownership and deadline are checked before writes. Existing datasource POST/DELETE vote writers share the same lock and closure guard. Resolution/tie RNG stays in the existing service; notification/invalidation publication is post-commit. No new transport or database abstraction is introduced. Prisma expands outing_votes uniqueness to include option_id. HTTP-only OpenAPI verification uses disposable schemas and a controlled Firebase verifier; deployment uses the normal Prisma migration history.
+
+
+## Create deadline validation — 2026-11-14
+
+Existing create validation and CreateOutingUseCase share services/outings/voting-deadline.ts. It resolves either an explicit instant or a server-relative duration, rejects nonfuture timestamps and timestamps at/after scheduled_at, and validates duration metadata in 1–168 hours. The use case checks before work and again at persistence, protecting direct callers and elapsed preparation time. Existing create/draft/update duration validators and OpenAPI bounds match the database range. No new controller, endpoint, table or column is added.
+
+
+## Complete RSVP read roster — 2026-11-14
+
+ListAttendanceUseCase merges persisted responses with the existing accepted-participant definition and phone-free profiles from outing-participants.ts. Missing RSVP rows yield a read-only no_response view, leaving GET free of writes. Controller summaries count it explicitly. Existing upsert persistence, creator Going enforcement and post-write realtime events remain unchanged. No new database enum/table/column is required.
+
+
+## Phase 5 chat mutations — 2026-11-14
+
+The existing outing chat router validates PATCH/DELETE message operations. ChatController delegates to MutateMessageUseCase, which checks participant, open window and sender ownership, canonicalizes edited mentions, then persists through ChatRepository/ChatDatasource before using the existing participant-filtered `emitOutingMessage`. Deletion is an empty-text tombstone to preserve retry idempotency and cursors. Editing checks sent_at + 60 seconds in the use case and atomic updateMany predicate; expiration returns MESSAGE_EDIT_WINDOW_EXPIRED. Delete has no edit-age restriction. No schema, Socket.IO room/event or Firebase-token changes. The shared chat access guard now enforces scheduled_at + two hours as well as past/cancelled status. PushChannel adds only the matching APNs chat-action category; worker/token handling and delivery retries remain unchanged.

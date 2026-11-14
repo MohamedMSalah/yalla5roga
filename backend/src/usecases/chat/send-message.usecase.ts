@@ -45,10 +45,12 @@ export class SendMessageUseCase {
       ? await this.chat.findMessageByClientId(input.outing_id, input.sender_id, input.client_message_id)
       : null);
     // Reuse the committed tokens on retries, including after member/name changes.
+    const text = existing ? existing.text : await canonicalizeMentions(input.text, outing);
+    if (!existing) await this.guard(input.outing_id, input.sender_id);
     const message = existing ?? await this.chat.createMessage({
       outing_id: input.outing_id,
       sender_id: input.sender_id,
-      text: await canonicalizeMentions(input.text, outing),
+      text,
       client_message_id: input.client_message_id ?? null,
     });
 

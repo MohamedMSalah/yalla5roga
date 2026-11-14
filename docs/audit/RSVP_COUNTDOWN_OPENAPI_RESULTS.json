@@ -1,0 +1,96 @@
+{
+  "checkedAt": "2026-11-14T00:07:45.765Z",
+  "mode": "HTTP/OpenAPI; disposable PostgreSQL schema; controlled Firebase verifier; no workers or schema deployment",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "replaceOutingBallot",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getVotingState",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptOutingInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Persistent unanswered default, complete phone-free roster, pending exclusion and accepted-member default; RSVP remains independent of location votes",
+      "result": "PASS"
+    }
+  ]
+}

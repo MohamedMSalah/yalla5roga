@@ -1,0 +1,3 @@
+# Preserve the exact deployed bytes of these immutable Prisma migrations.
+backend/prisma/migrations/20261114000000_special_event_occasions/migration.sql -text whitespace=cr-at-eol
+backend/prisma/migrations/20261114010000_voting_deadline_durations/migration.sql -text whitespace=cr-at-eol

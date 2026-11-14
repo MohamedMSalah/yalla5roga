@@ -36,11 +36,7 @@ class OutingOverview extends StatelessWidget {
               textColor: context.palette.brandStrong,
             ),
             if (outing.occasion != OutingOccasion.none)
-              Text(
-                outing.occasion == OutingOccasion.birthday
-                    ? context.l10n.birthday
-                    : context.l10n.wedding,
-              ),
+              Text(outing.occasion.label(context.l10n)),
           ],
         ),
         if (group != null) ...[

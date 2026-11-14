@@ -29,5 +29,12 @@ abstract class OutingChatRepository {
 
   Future<Either<Failure, OutingChatReadResult>> markRead(String outingId);
 
+  Future<Either<Failure, ChatMessage>> mutateMessage(
+    String outingId,
+    String messageId, {
+    String? text,
+  });
+  Future<Either<Failure, ChatMessage>> retryMessage(ChatMessage message);
+
   Future<void> clearCache();
 }

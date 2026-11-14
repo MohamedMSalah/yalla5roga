@@ -69,7 +69,6 @@ class NotificationsList extends StatelessWidget {
                 color: context.palette.textMuted,
                 fontSize: Responsive.fontCaption,
                 fontWeight: FontWeight.w800,
-                letterSpacing: 1.4,
               ),
             ),
           );
@@ -79,6 +78,8 @@ class NotificationsList extends StatelessWidget {
         return Padding(
           padding: EdgeInsets.only(bottom: 10.h),
           child: NotificationCard(
+            title: _title(context, item),
+            icon: _icon(item),
             body: item.body,
             time: l10n.formatRelative(item.createdAt, fallback: item.time),
             unread: item.unread,
@@ -93,6 +94,46 @@ class NotificationsList extends StatelessWidget {
       },
     );
   }
+}
+
+String _title(BuildContext context, NotificationItem item) {
+  final type = '${item.eventType ?? ''} ${item.type ?? ''}';
+  if (type.contains('chat')) return context.l10n.outingChat;
+  if (type.contains('invit')) return context.l10n.invitations;
+  if (type.contains('vote') ||
+      type.contains('voting') ||
+      type.contains('winner')) {
+    return context.l10n.voting;
+  }
+  if (type.contains('arrival') ||
+      type.contains('attendance') ||
+      type.contains('rsvp')) {
+    return context.l10n.attendanceTitle;
+  }
+  if (type.contains('group') || type.contains('member')) {
+    return context.l10n.groupsTitle;
+  }
+  if (item.outingId != null) return context.l10n.outingsTitle;
+  return context.l10n.notifications;
+}
+
+IconData _icon(NotificationItem item) {
+  final type = '${item.eventType ?? ''} ${item.type ?? ''}';
+  if (type.contains('chat')) return Icons.chat_bubble_outline_rounded;
+  if (type.contains('invit')) return Icons.mail_outline_rounded;
+  if (type.contains('vote') ||
+      type.contains('voting') ||
+      type.contains('winner')) {
+    return Icons.how_to_vote_outlined;
+  }
+  if (type.contains('arrival')) return Icons.location_on_outlined;
+  if (type.contains('attendance') || type.contains('rsvp')) {
+    return Icons.event_available_outlined;
+  }
+  if (type.contains('group') || type.contains('member')) {
+    return Icons.group_outlined;
+  }
+  return Icons.event_outlined;
 }
 
 class _NotificationEntry {

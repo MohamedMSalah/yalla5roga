@@ -152,3 +152,12 @@ A dedicated outing-read check permits creator, current group member or pending/a
 ## Phase 2 presentation and history — 2026-11-13
 
 The additive roster invitation history uses the existing active-group-member check. Pending invitees cannot read a group's roster/history before accepting. Group Info exposes invitation creation to active group members, consistent with the existing invite operation; direct member-add is not used by these screens. Name/cover/bio changes, removal/revocation and deletion retain owner-only authorization. The inbox retains accepted/declined history but only pending rows expose decision actions. Verified-phone matching, explicit acceptance and WhatsApp delivery remain backend-owned and unchanged.
+
+## Phase 4 optional special-event groups — 2026-11-14
+
+All four special occasions may carry group_id. POST creation and PATCH group association use the existing assertGroupMember check, backed by actual group_members, never a pending group invitation. Existing creator-only writes and participant read rules remain: creator, current group members, or pending/accepted outing guests for reads; accepted guests/group members for eligible participation. Independent events retain their invitation-based access. Firebase token verification and Socket.IO authorization are unchanged. OpenAPI fixtures cover accepted-member creation, pending-only/outsider denial, group association/removal and independent-event privacy.
+
+
+## Phase 5 chat authorization — 2026-11-14
+
+Editing/deletion require the existing Firebase bearer identity, current chat participation and ownership of the stored sender_id. Cross-outing message IDs return 404, other senders 403, and past/cancelled/two-hour-closed mutations 409. Own-message editing additionally requires the server send timestamp to be less than one minute old, including at persistence; expired edits return 409 MESSAGE_EDIT_WINDOW_EXPIRED. Deletion retains its existing own-sender/open-chat guard without an edit-age restriction. History/read authorization stays participant-scoped. Native actions validate recipient identity before processing; reply/read requests use expectedUserId to prevent account-switch token substitution. iOS actions require foreground authentication; Android local actions open the app. No authorization bypass or global role is introduced.

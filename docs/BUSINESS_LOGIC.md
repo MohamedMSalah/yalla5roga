@@ -38,7 +38,7 @@ Pending invitation ≠ role. Owner auto Going; Owner cannot leave Going.
 
 ## Outing types
 
-**Approved + Implemented:** `group` (requires `group_id`, occasion `none`) and `special_event` (no group; occasion birthday/wedding). Shared voting, attendance, chat, lifecycle.
+**Approved + Implemented:** `group` (requires `group_id`, occasion `none`) and `special_event` (optional group; occasion birthday/wedding/celebration/other; selected group requires accepted creator membership). Shared voting, attendance, chat, lifecycle.
 
 ---
 
@@ -128,7 +128,7 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 
 ## Chat
 
-Sending is open in draft / voting / confirmed. Past and cancelled outings retain participant-authorized, read-only chat history. REST persists; Socket.IO delivers to participants in `outing:{id}` after write (ADR-013).
+Sending, own-message editing and deletion are open in draft / voting / confirmed until two hours after scheduled start. Past and cancelled outings retain participant-authorized, read-only chat history. REST persists; Socket.IO delivers to participants in `outing:{id}` after write (ADR-013).
 
 ---
 
@@ -216,3 +216,18 @@ Verified identity linking is not acceptance. Group roster pending display now in
 ## Phase 3 ballots and presentation — 2026-11-14
 
 The complete ballot uses the existing authenticated participant definition and an outing-row lock. It validates every option against the outing, replaces only the caller’s selections, and invokes existing resolution inside the same transaction if all distinct voters have participated. Duplicate options are rejected. POST idempotently adds one selection; DELETE can remove one or all caller selections. These writers also serialize on the outing and reject expired/closed voting. Existing unique-winner, owner RNG among tied leaders, zero-vote cancellation and creator venue-confirmation policies are unchanged. RSVP and GPS arrival never add/remove votes. UI category, schedule and deadline values remain in the existing route-local create provider between wizard steps; draft deadlines also survive saving without multi-place mode.
+
+
+## Create voting deadline policy — 2026-11-14
+
+The selected duration is 1–168 hours and remains a duration throughout the wizard/draft lifecycle. The posted absolute deadline is calculated at the request boundary, after cover upload, so time spent editing does not shorten it. Every create deadline must be future-dated and, when scheduled_at exists, strictly earlier than that start; equality is invalid. Creation validation and the use-case boundary both enforce this, including direct use-case callers. Legacy relative-only API requests are resolved using server time. Existing deadline jobs, winner/closure/tie-break and vote eligibility are unchanged. The optional integer duration field is metadata; vote_ends_at remains the authoritative closure instant. The API response is authoritative for confirmation, including idempotent retries.
+
+
+## Default RSVP read model — 2026-11-14
+
+Persisted attendance responses remain going/not_going/maybe. No saved response is authoritative no_response; reads project that default from current accepted membership without writing fake votes or attendance rows. GET attendance and PUT’s items include the complete phone-free participant roster. Each unanswered row has status=no_response and updated_at=null; the creator remains Going. Summary counts include no_response and my_response uses that explicit default. No response is read-only, not an additional user-selected RSVP write. This remains stable across sessions, membership acceptance and offline snapshots. Countdown display is local wall-clock arithmetic only and never closes or resolves a vote.
+
+
+## Phase 5 chat mutation policy — 2026-11-14
+
+Participant checks precede chat-closure checks. History and read cursors remain available after closure; send/edit/delete return 409 CHAT_CLOSED. Own-message checks reject other senders with 403; a message outside the outing is 404. Delete clears text while preserving the message UUID/client UUID, sender and timestamp as a tombstone, so retries cannot recreate content. Editing a tombstone is 409 MESSAGE_DELETED. Edit is allowed only before sent_at + 60 seconds; at or after that instant it returns 409 MESSAGE_EDIT_WINDOW_EXPIRED. The write predicate enforces the age again at persistence. Delete remains available to the sender while chat is open, independently of the edit window. Edit validates/canonicalizes mentions but does not create additional mention notifications. No group chat or attendance/voting rule changes.

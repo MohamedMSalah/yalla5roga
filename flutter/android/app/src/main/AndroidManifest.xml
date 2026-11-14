@@ -10,6 +10,7 @@
         android:label="Yalla 5roga"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
         <!-- Default FCM channel when the OS displays a notification while backgrounded. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"

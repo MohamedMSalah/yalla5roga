@@ -99,6 +99,13 @@ class PushNotificationNavigator {
         }
         outings.applyDetailsSnapshot(snapshot);
         final event = outing;
+        if (destination == NotificationDestination.invitation) {
+          Get.to(
+            () => InvitationsPage(invitedOuting: event),
+            routeName: '/notification/invitation/outing/$id',
+          );
+          return;
+        }
         if (destination == NotificationDestination.chat) {
           Get.to(
             () => OutingChatPage(event: event),

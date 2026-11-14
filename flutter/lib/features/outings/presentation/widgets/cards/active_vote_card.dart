@@ -18,7 +18,7 @@ class ActiveVoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final store = context.watch<OutingsProvider>();
-    final endsAt = store.voteEndsAt(outing.id);
+    final endsAt = store.voteEndsAt(outing.id) ?? outing.voteEndsAt;
     final group = context.watch<GroupsProvider>().findById(
       outing.groupId ?? '',
     );
@@ -29,6 +29,12 @@ class ActiveVoteCard extends StatelessWidget {
         children: [
           OutingCard(
             title: outing.title,
+            footer: endsAt == null
+                ? null
+                : VoteCountdownText(
+                    endsAt: endsAt,
+                    isClosed: store.isVoteFinalized(outing.id),
+                  ),
             subtitle: [
               if (group != null) group.name,
               outing.localizedWhen(context.l10n),
@@ -53,10 +59,6 @@ class ActiveVoteCard extends StatelessWidget {
               ),
             ),
           ),
-          if (endsAt != null) ...[
-            Responsive.spaceXs.gapH,
-            VoteCountdownText(endsAt: endsAt),
-          ],
         ],
       ),
     );

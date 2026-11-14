@@ -1,3 +1,4 @@
+import { resolveCreateVotingDeadline } from "../../services/outings/voting-deadline.js";
 import { normalizePhoneNumber } from "../../services/phone/normalize-phone.js";
 import type { IOutingRepository } from "../../repositories/outings/i-outing.repository.js";
 import { OutingRepository } from "../../repositories/outings/outing.repository.js";
@@ -23,27 +24,25 @@ export class CreateOutingUseCase {
 
     const occasion = input.occasion ?? "none";
     const hasGroup = input.group_id != null;
-    if (hasGroup && occasion !== "none") {
-      throw new ValidationError("group outings must use occasion 'none'");
-    }
     if (!hasGroup && occasion === "none") {
       throw new ValidationError(
-        "provide group_id for a group outing, or set occasion to 'birthday' or 'wedding' for a special event",
+        "provide group_id for a group outing, or set a special-event occasion (birthday, wedding, celebration, other)",
       );
     }
 
     assertEndsAfterStart(input.scheduled_at, input.ends_at);
 
-    if (input.vote_ends_at == null && input.vote_deadline_hours == null) {
-      throw new ValidationError(
-        "voting deadline is required: provide vote_ends_at or vote_deadline_hours",
-      );
+    resolveCreateVotingDeadline(input);
+
+    if (occasion !== "none" && (!input.scheduled_at || input.scheduled_at.getTime() <= Date.now() ||
+        !input.location_name?.trim())) {
+      throw new ValidationError("Special events require a future schedule and a fixed named venue");
     }
 
     const hasLocation = Boolean(input.location_place_id || input.location_name);
     const options = input.initial_vote_options;
     if (options) {
-      if (!hasGroup || hasLocation) {
+      if (!hasGroup || occasion !== "none" || hasLocation) {
         throw new ValidationError("Initial options require a group outing in voting without a fixed venue");
       }
       if (options.length < 2 || options.length > 5) {
@@ -68,7 +67,7 @@ export class CreateOutingUseCase {
 
     const phones = [...new Set((input.guest_phones ?? []).map(normalizePhoneNumber))];
     if (phones.length > 0) {
-      if (hasGroup || !input.guest_phones_whatsapp_opt_in || !input.create_request_key) {
+      if (occasion === "none" || !input.guest_phones_whatsapp_opt_in || !input.create_request_key) {
         throw new ValidationError("Phone invitations require a special event, a request key and recipient WhatsApp opt-in");
       }
       if (!input.scheduled_at || input.scheduled_at.getTime() <= Date.now() ||
@@ -84,9 +83,10 @@ export class CreateOutingUseCase {
 
     const outing = await this.outings.create({
       ...input,
+      vote_ends_at: resolveCreateVotingDeadline(input),
       guest_phones: phones,
       occasion,
-      type: hasGroup ? "group" : "special_event",
+      type: occasion === "none" ? "group" : "special_event",
       status,
       image_url: imageUrl ?? "",
     });

@@ -13,6 +13,7 @@ class OutingCard extends StatelessWidget {
     this.onTap,
     this.trailing,
     this.statusLabel,
+    this.footer,
   });
 
   final String title;
@@ -21,6 +22,7 @@ class OutingCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailing;
   final String? statusLabel;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -57,26 +59,32 @@ class OutingCard extends StatelessWidget {
     return AppCard(
       onTap: trailing == null ? onTap : null,
       radius: AppRadii.card,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: trailing == null || onTap == null
-                ? details
-                : GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onTap,
-                    child: details,
-                  ),
+          Row(
+            children: [
+              Expanded(
+                child: trailing == null || onTap == null
+                    ? details
+                    : GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onTap,
+                        child: details,
+                      ),
+              ),
+              if (trailing != null) ...[
+                8.gapW,
+                trailing!,
+              ] else
+                Icon(
+                  context.chevronForward,
+                  color: context.palette.textMuted,
+                  size: 20.w,
+                ),
+            ],
           ),
-          if (trailing != null) ...[
-            8.gapW,
-            trailing!,
-          ] else
-            Icon(
-              context.chevronForward,
-              color: context.palette.textMuted,
-              size: 20.w,
-            ),
+          if (footer != null) ...[Responsive.spaceSm.gapH, footer!],
         ],
       ),
     );

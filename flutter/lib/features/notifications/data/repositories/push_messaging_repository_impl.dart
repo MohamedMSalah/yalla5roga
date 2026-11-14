@@ -9,10 +9,7 @@ import 'package:yalla_5roga/features/notifications/domain/entities/push_notifica
 import 'package:yalla_5roga/features/notifications/domain/repositories/push_messaging_repository.dart';
 
 class PushMessagingRepositoryImpl implements PushMessagingRepository {
-  PushMessagingRepositoryImpl({
-    required this.messaging,
-    this.tokenRemote,
-  });
+  PushMessagingRepositoryImpl({required this.messaging, this.tokenRemote});
 
   final FcmMessagingService messaging;
   final FcmTokenRemoteDataSource? tokenRemote;

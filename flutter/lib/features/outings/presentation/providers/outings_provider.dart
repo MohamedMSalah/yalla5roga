@@ -885,6 +885,7 @@ class OutingsProvider extends ChangeNotifier {
           a[i].createdById != b[i].createdById ||
           a[i].suggestedBy != b[i].suggestedBy ||
           a[i].voteDeadlineHours != b[i].voteDeadlineHours ||
+          a[i].voteEndsAt != b[i].voteEndsAt ||
           !listEquals(a[i].guestIds, b[i].guestIds) ||
           !listEquals(a[i].guestPhones, b[i].guestPhones) ||
           a[i].votePlaces.length != b[i].votePlaces.length) {

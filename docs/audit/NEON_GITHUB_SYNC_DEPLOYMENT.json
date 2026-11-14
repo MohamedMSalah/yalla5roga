@@ -1,0 +1,138 @@
+{
+  "checkedAt": "2026-11-14T09:15:41.747Z",
+  "mode": "deploy",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "appliedBefore": [
+    "20261107000000_init_product_scenario",
+    "20261107010000_outing_member_invite_status",
+    "20261109000000_harden_constraints_and_indexes",
+    "20261109010000_phone_password_auth",
+    "20261109090000_outing_arrivals",
+    "20261110130000_harden_database_integrity",
+    "20261110140000_remove_obsolete_schema",
+    "20261110150000_arrival_verification",
+    "20261110150100_owner_confirmed_venue",
+    "20261110150200_gps_arrivals",
+    "20261111180000_password_recovery",
+    "20261112120000_media_assets",
+    "20261113180000_multi_location_ballots",
+    "20261114010000_voting_deadline_durations"
+  ],
+  "pendingBefore": [
+    "20261114000000_special_event_occasions"
+  ],
+  "privateBackup": ".database-backups/github-sync-2026-11-14T09-15-48.812Z/snapshot.json",
+  "backupSha256": "adf1c8b003f6e64ca9665668d369a1821ac0a410133ee4b2ab6327d180cc03bb",
+  "recoveryRehearsal": "All public tables restored with keys/indexes/FKs, exact pending SQL rehearsed with an isolated occasion enum; all row hashes matched; rolled back",
+  "tableCount": 27,
+  "rowCount": 661,
+  "applicationRowsPreserved": true,
+  "appliedAfter": [
+    {
+      "migration_name": "20261107000000_init_product_scenario",
+      "checksum": "fddda121bbdef394e5f76131171be03a18764c43b0cb81b89eec25b3a89e0dac",
+      "finished_at": "2026-11-06T22:51:36.840Z"
+    },
+    {
+      "migration_name": "20261107010000_outing_member_invite_status",
+      "checksum": "b0b60a09bffe92af4f94e52dfe95e6b640841be996996b0124abeae94c532a7e",
+      "finished_at": "2026-11-06T23:28:34.331Z"
+    },
+    {
+      "migration_name": "20261109000000_harden_constraints_and_indexes",
+      "checksum": "9635f7811badbc7111f7c61db469215d845a62b558188eac07d332881de86282",
+      "finished_at": "2026-11-09T19:53:25.274Z"
+    },
+    {
+      "migration_name": "20261109010000_phone_password_auth",
+      "checksum": "a91d6b1e9fb8dbf12a03ca0ba72755c7a4290a351975e9cbc1350c9b44a64d78",
+      "finished_at": "2026-11-09T19:53:27.594Z"
+    },
+    {
+      "migration_name": "20261109090000_outing_arrivals",
+      "checksum": "2247dba54f270b6e50369b82b61514ed6e8945ae8495b80783ae67da84b13398",
+      "finished_at": "2026-11-09T19:53:30.173Z"
+    },
+    {
+      "migration_name": "20261110130000_harden_database_integrity",
+      "checksum": "ebf626fd7b3d29fc64727f0c19552005928768b83b55a1a017680dc9ac39d98c",
+      "finished_at": "2026-11-10T13:33:29.284Z"
+    },
+    {
+      "migration_name": "20261110140000_remove_obsolete_schema",
+      "checksum": "07eddd83e1eb10521dba2ba727c355f03642fdd8b0579a3a88047bf296a4350b",
+      "finished_at": "2026-11-10T13:43:27.298Z"
+    },
+    {
+      "migration_name": "20261110150000_arrival_verification",
+      "checksum": "d78f3cc6b683bc282907185006dc447e31729c6746eb1b14628fd0e6a6fbf9c8",
+      "finished_at": "2026-11-10T18:41:19.508Z"
+    },
+    {
+      "migration_name": "20261110150100_owner_confirmed_venue",
+      "checksum": "741a18884df18f336eb0fadb3cd3fbd761480a747f52f8a1cbed6f6c6fc56207",
+      "finished_at": "2026-11-10T18:41:21.392Z"
+    },
+    {
+      "migration_name": "20261110150200_gps_arrivals",
+      "checksum": "7453cf8b4ae5604cb742d4e0e508a6d63dd8d955bea2fac1f9716e3179835a21",
+      "finished_at": "2026-11-10T19:10:54.555Z"
+    },
+    {
+      "migration_name": "20261111180000_password_recovery",
+      "checksum": "0972f2cf83d028f3d0f824c0f7bbd312301c17a1cc646e135a3cd0afbaefa8da",
+      "finished_at": "2026-11-11T20:20:52.603Z"
+    },
+    {
+      "migration_name": "20261112120000_media_assets",
+      "checksum": "a4c8d5f8092017e8371a2961c6b0a486769537dc082301761006787acb365faa",
+      "finished_at": "2026-11-12T12:48:50.755Z"
+    },
+    {
+      "migration_name": "20261113180000_multi_location_ballots",
+      "checksum": "da93ca2f1fe862de9c946758b935cce82375acbcf1d987c4c1cc550c7da5ec4b",
+      "finished_at": "2026-11-13T23:27:37.375Z"
+    },
+    {
+      "migration_name": "20261114000000_special_event_occasions",
+      "checksum": "ec52d576b34da83e6cc6e84feead0f5cb57532586388a9504438f9f454a5aef1",
+      "finished_at": "2026-11-14T09:16:28.232Z"
+    },
+    {
+      "migration_name": "20261114010000_voting_deadline_durations",
+      "checksum": "551a9d0a15388f8b453ce58adbc0b8a9f9e55acdfc22faa88f7581dc2c345efb",
+      "finished_at": "2026-11-13T23:50:22.313Z"
+    }
+  ],
+  "pendingAfter": [],
+  "occasionLabels": [
+    "none",
+    "birthday",
+    "wedding",
+    "celebration",
+    "other"
+  ],
+  "constraints": [
+    {
+      "conname": "outing_drafts_vote_deadline_range",
+      "convalidated": true,
+      "definition": "CHECK (((vote_deadline_hours IS NULL) OR ((vote_deadline_hours >= 1) AND (vote_deadline_hours <= 168))))"
+    },
+    {
+      "conname": "outings_type_group_consistency",
+      "convalidated": false,
+      "definition": "CHECK ((((type = 'group'::outing_type) AND (group_id IS NOT NULL) AND (occasion = 'none'::outing_occasion)) OR ((type = 'special_event'::outing_type) AND (occasion <> 'none'::outing_occasion)))) NOT VALID"
+    },
+    {
+      "conname": "outings_vote_deadline_range",
+      "convalidated": true,
+      "definition": "CHECK (((vote_deadline_hours IS NULL) OR ((vote_deadline_hours >= 1) AND (vote_deadline_hours <= 168))))"
+    }
+  ],
+  "result": "PASS"
+}

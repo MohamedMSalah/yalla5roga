@@ -16,8 +16,12 @@ abstract class OutingChatLocalDataSource {
 }
 
 class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
-  OutingChatLocalDataSourceImpl(this._prefs, {String? Function()? userId, String? origin})
-    : _userId = userId, _origin = origin {
+  OutingChatLocalDataSourceImpl(
+    this._prefs, {
+    String? Function()? userId,
+    String? origin,
+  }) : _userId = userId,
+       _origin = origin {
     _uid = _userId?.call();
     _load();
   }
@@ -28,7 +32,9 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
   String? _uid;
   String? get _key => _userId == null
       ? AppConstants.outingChatMessagesKey
-      : _uid == null ? null : '${AppConstants.outingChatMessagesKey}:$_origin:$_uid';
+      : _uid == null
+      ? null
+      : '${AppConstants.outingChatMessagesKey}:$_origin:$_uid';
 
   void _switchAccount() {
     final uid = _userId?.call();
@@ -38,6 +44,7 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
     _uid = uid;
     _load();
   }
+
   static const _maxMessagesPerOuting = 100;
   static const _maxOutings = 20;
   static const _writeDebounce = Duration(milliseconds: 500);
@@ -55,12 +62,11 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
         for (final entry in decoded.entries.take(_maxOutings))
           if (entry.value is List)
             '${entry.key}': [
-              for (final item in (entry.value as List).take(_maxMessagesPerOuting))
+              for (final item in (entry.value as List).take(
+                _maxMessagesPerOuting,
+              ))
                 if (item is Map)
-                  ChatMessageModel.fromJson(
-                    item,
-                    outingId: '${entry.key}',
-                  ),
+                  ChatMessageModel.fromJson(item, outingId: '${entry.key}'),
             ],
       };
     } catch (_) {
@@ -76,7 +82,10 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
       key,
       jsonEncode({
         for (final entry in _byOuting.entries)
-          entry.key: [for (final item in entry.value) if (!item.id.startsWith('local_')) item.toJson()],
+          entry.key: [
+            for (final item in entry.value)
+              if (!item.id.startsWith('local_')) item.toJson(),
+          ],
       }),
     );
   }
@@ -103,7 +112,9 @@ class OutingChatLocalDataSourceImpl implements OutingChatLocalDataSource {
     _switchAccount();
     final retained = messages.length <= _maxMessagesPerOuting
         ? List<ChatMessage>.of(messages)
-        : List<ChatMessage>.of(messages.sublist(messages.length - _maxMessagesPerOuting));
+        : List<ChatMessage>.of(
+            messages.sublist(messages.length - _maxMessagesPerOuting),
+          );
     _byOuting.remove(outingId);
     _byOuting[outingId] = retained;
     while (_byOuting.length > _maxOutings) {

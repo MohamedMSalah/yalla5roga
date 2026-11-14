@@ -1,3 +1,5 @@
+import 'package:yalla_5roga/features/outings/presentation/widgets/vote_countdown_text.dart';
+export 'package:yalla_5roga/features/outings/presentation/widgets/vote_countdown_text.dart';
 import 'package:yalla_5roga/core/widgets/place_card.dart';
 
 import 'dart:math' as math;
@@ -159,7 +161,10 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final selectedIndexes = outings.voteIndexesFor(outing.id);
     final isCreator =
         outing.createdById != null && outing.createdById == userId;
-    final locked = outings.isVoteFinalized(outing.id);
+    final locked =
+        outings.isVoteFinalized(outing.id) ||
+        outing.status != OutingStatus.voting;
+    final endsAt = outings.voteEndsAt(outing.id) ?? outing.voteEndsAt;
     final placesEnabled =
         !locked && !_voting && outings.canSelectPlaces(outing.id, userId);
     final totalMembers = math.max(
@@ -281,9 +286,9 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                     : () => _chooseVenue(options),
               ),
             ],
-            if (outings.voteEndsAt(outing.id) != null) ...[
+            if (endsAt != null) ...[
               12.gapH,
-              VoteCountdownText(endsAt: outings.voteEndsAt(outing.id)!),
+              VoteCountdownText(endsAt: endsAt, isClosed: locked),
             ],
           ],
           if (showTieBreak) ...[
@@ -337,56 +342,6 @@ class OutingVoteOptions extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-/// Live countdown for vote deadlines.
-class VoteCountdownText extends StatefulWidget {
-  const VoteCountdownText({super.key, required this.endsAt, this.style});
-
-  final DateTime endsAt;
-  final TextStyle? style;
-
-  @override
-  State<VoteCountdownText> createState() => _VoteCountdownTextState();
-}
-
-class _VoteCountdownTextState extends State<VoteCountdownText> {
-  final _ticks = Stream<int>.periodic(const Duration(seconds: 30), (i) => i);
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder(
-      stream: _ticks,
-      builder: (context, _) {
-        final remaining = widget.endsAt.difference(DateTime.now());
-        final l10n = context.l10n;
-        final label = remaining.isNegative || remaining == Duration.zero
-            ? l10n.voteEnded
-            : l10n.endsInDuration(
-                remaining.inHours,
-                remaining.inMinutes.remainder(60),
-              );
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.timer_outlined, size: 14.w, color: AppColors.amber700),
-            6.gapW,
-            Flexible(
-              child: Text(
-                label,
-                style:
-                    widget.style ??
-                    TextStyle(
-                      color: AppColors.amber700,
-                      fontSize: 10.sp,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

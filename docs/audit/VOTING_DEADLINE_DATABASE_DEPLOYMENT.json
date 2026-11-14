@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-11-13T23:50:23.285Z",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "migration": {
+    "migration_name": "20261114010000_voting_deadline_durations",
+    "checksum": "551a9d0a15388f8b453ce58adbc0b8a9f9e55acdfc22faa88f7581dc2c345efb",
+    "finished_at": "2026-11-13T23:50:22.313Z"
+  },
+  "privateBackup": ".database-backups/voting-deadline-2026-11-13T23-50-13.993Z/snapshot.json",
+  "recoveryRehearsal": "Restored impacted tables with keys/checks, applied exact migration, verified row checksums, rolled back",
+  "rowsPreserved": true,
+  "rowCounts": {
+    "outings": 4,
+    "outing_drafts": 0
+  },
+  "constraints": [
+    {
+      "conname": "outing_drafts_vote_deadline_range",
+      "convalidated": true,
+      "definition": "CHECK (((vote_deadline_hours IS NULL) OR ((vote_deadline_hours >= 1) AND (vote_deadline_hours <= 168))))"
+    },
+    {
+      "conname": "outings_vote_deadline_range",
+      "convalidated": true,
+      "definition": "CHECK (((vote_deadline_hours IS NULL) OR ((vote_deadline_hours >= 1) AND (vote_deadline_hours <= 168))))"
+    }
+  ],
+  "scope": "Only existing outing/draft duration constraints expanded; pending unrelated migrations excluded",
+  "alreadyApplied": false
+}

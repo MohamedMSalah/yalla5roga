@@ -40,9 +40,19 @@ extension OutingL10n on Outing {
 }
 
 extension OutingCoverArt on OutingOccasion {
+  String label(L10n l10n) => switch (this) {
+    OutingOccasion.none => l10n.createOuting,
+    OutingOccasion.birthday => l10n.birthday,
+    OutingOccasion.wedding => l10n.wedding,
+    OutingOccasion.celebration => l10n.celebration,
+    OutingOccasion.other => l10n.otherOccasion,
+  };
+
   PlanningCoverArt get coverArt => switch (this) {
     OutingOccasion.none => PlanningCoverArt.outing,
     OutingOccasion.birthday => PlanningCoverArt.birthday,
     OutingOccasion.wedding => PlanningCoverArt.wedding,
+    OutingOccasion.celebration ||
+    OutingOccasion.other => PlanningCoverArt.outing,
   };
 }

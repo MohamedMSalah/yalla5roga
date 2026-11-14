@@ -5,8 +5,8 @@ import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 
-class OutingChatMentionPicker extends StatelessWidget {
-  const OutingChatMentionPicker({
+class MentionSuggestions extends StatelessWidget {
+  const MentionSuggestions({
     super.key,
     required this.members,
     required this.showMentionAll,
@@ -138,3 +138,5 @@ class OutingChatMentionPicker extends StatelessWidget {
     );
   }
 }
+
+typedef OutingChatMentionPicker = MentionSuggestions;

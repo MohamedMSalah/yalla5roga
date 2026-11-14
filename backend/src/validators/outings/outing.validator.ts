@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { resolveCreateVotingDeadline } from "../../services/outings/voting-deadline.js";
 import {
   mediaImageUrlSchema,
   optionalMediaImageUrlSchema,
@@ -11,36 +12,28 @@ const outingStatusSchema = z.enum([
   "cancelled",
   "past",
 ]);
-const outingOccasionSchema = z.enum(["none", "birthday", "wedding"]);
+const outingOccasionSchema = z.enum(["none", "birthday", "wedding", "celebration", "other"]);
 const outingVibeSchema = z.enum(["food", "activity", "outdoor", "movie"]);
 const attendanceStatusSchema = z.enum(["going", "not_going", "maybe"]);
 
 /**
  * DB check pattern:
  * - group outing: group_id set and occasion = none
- * - special event: group_id null and occasion in (birthday, wedding)
+ * - special event: optional group_id and non-none occasion
  */
 function assertOutingGroupOccasion(
-  data: { group_id?: string | null; occasion?: "none" | "birthday" | "wedding" },
+  data: { group_id?: string | null; occasion?: "none" | "birthday" | "wedding" | "celebration" | "other" },
   ctx: z.RefinementCtx,
 ) {
   const hasGroup = data.group_id != null;
   const occasion = data.occasion ?? "none";
-
-  if (hasGroup && occasion !== "none") {
-    ctx.addIssue({
-      code: "custom",
-      path: ["occasion"],
-      message: "group outings must use occasion 'none'",
-    });
-  }
 
   if (!hasGroup && occasion === "none") {
     ctx.addIssue({
       code: "custom",
       path: ["group_id"],
       message:
-        "provide group_id for a group outing, or set occasion to 'birthday' or 'wedding' for a special event",
+        "provide group_id for a group outing, or set a special-event occasion (birthday, wedding, celebration, other)",
     });
   }
 }
@@ -79,26 +72,16 @@ export const createOutingBodySchema = z
     location_area: z.string().trim().max(100).optional().nullable(),
     location_latitude: z.number().min(-90).max(90).optional().nullable(),
     location_longitude: z.number().min(-180).max(180).optional().nullable(),
-    vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
+    vote_deadline_hours: z.number().int().min(1).max(168).optional().nullable(),
     vote_ends_at: z.coerce.date().optional().nullable(),
   })
   .superRefine(assertOutingGroupOccasion)
   .superRefine((data, ctx) => {
-    // Product: every outing must have a voting deadline at create time.
-    if (data.vote_ends_at == null && data.vote_deadline_hours == null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["vote_ends_at"],
-        message:
-          "voting deadline is required: provide vote_ends_at or vote_deadline_hours",
-      });
-    }
-    if (data.vote_ends_at != null && data.vote_ends_at.getTime() <= Date.now()) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["vote_ends_at"],
-        message: "vote_ends_at must be in the future",
-      });
+    try {
+      resolveCreateVotingDeadline(data);
+    } catch (error) {
+      ctx.addIssue({ code: "custom", path: ["vote_ends_at"],
+        message: error instanceof Error ? error.message : "Invalid voting deadline" });
     }
   });
 
@@ -115,7 +98,7 @@ export const updateOutingBodySchema = z.object({
   location_area: z.string().trim().max(100).optional().nullable(),
   location_latitude: z.number().min(-90).max(90).optional().nullable(),
   location_longitude: z.number().min(-180).max(180).optional().nullable(),
-  vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
+  vote_deadline_hours: z.number().int().min(1).max(168).optional().nullable(),
   vote_ends_at: z.coerce.date().optional().nullable(),
 });
 
@@ -181,7 +164,7 @@ export const createDraftBodySchema = z.object({
   location_latitude: z.number().min(-90).max(90).optional().nullable(),
   location_longitude: z.number().min(-180).max(180).optional().nullable(),
   let_vote: z.boolean().optional(),
-  vote_deadline_hours: z.number().int().min(1).max(72).optional().nullable(),
+  vote_deadline_hours: z.number().int().min(1).max(168).optional().nullable(),
   guest_ids: z.unknown().optional(),
   selected_places: z.unknown().optional(),
 });

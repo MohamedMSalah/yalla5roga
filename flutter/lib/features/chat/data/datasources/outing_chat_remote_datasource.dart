@@ -108,6 +108,28 @@ class OutingChatRemoteDataSourceImpl implements OutingChatDataSource {
     }
   }
 
+  Future<ChatMessage> mutateMessage(
+    String outingId,
+    String messageId, {
+    String? text,
+  }) async {
+    try {
+      final path = '${ApiConstants.outingChatMessages(outingId)}/$messageId';
+      final response = text == null
+          ? await _client.delete<Map<String, dynamic>>(path)
+          : await _client.patch<Map<String, dynamic>>(
+              path,
+              data: {'text': text},
+            );
+      return ChatMessageModel.fromJson(
+        apiPayload(response.data),
+        outingId: outingId,
+      );
+    } on DioException catch (error) {
+      throw _unwrap(error);
+    }
+  }
+
   AppException _unwrap(DioException error) {
     if (error.error is AppException) return error.error as AppException;
     return ServerException(error.message ?? 'Server error');

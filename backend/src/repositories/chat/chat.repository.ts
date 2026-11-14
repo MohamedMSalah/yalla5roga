@@ -34,4 +34,8 @@ export class ChatRepository implements IChatRepository {
   deleteMessage(id: string): Promise<ChatMessage> {
     return this.datasource.deleteMessage(id);
   }
+
+  updateMessage(id: string, text: string): Promise<ChatMessage> {
+    return this.datasource.updateMessage(id, text);
+  }
 }

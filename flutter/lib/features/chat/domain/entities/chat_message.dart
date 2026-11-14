@@ -29,6 +29,13 @@ class ChatMessage {
   final DateTime? sentAt;
   final MessageDeliveryStatus deliveryStatus;
 
+  DateTime? get editDeadline => sentAt?.add(const Duration(minutes: 1));
+
+  bool canEditAt(DateTime now) =>
+      text.isNotEmpty &&
+      !id.startsWith('local_') &&
+      editDeadline?.isAfter(now) == true;
+
   ChatMessage copyWith({
     String? id,
     String? outingId,

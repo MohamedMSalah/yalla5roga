@@ -28,6 +28,14 @@ export type OutingAttendance = {
   status: AttendanceStatus;
   updated_at: Date;
 };
+/** Read projection: missing persisted RSVP means no_response, never Maybe. */
+export type OutingAttendanceRosterEntry = {
+  outing_id: string;
+  user_id: string;
+  status: AttendanceStatus | "no_response";
+  updated_at: Date | null;
+  users: { name: string; image_url: string | null };
+};
 export type OutingGuest = outing_guests;
 export type OutingVoteOption = outing_vote_options;
 export type OutingVote = outing_votes;

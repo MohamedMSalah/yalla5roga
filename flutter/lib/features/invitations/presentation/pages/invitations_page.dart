@@ -11,9 +11,12 @@ import 'package:yalla_5roga/features/invitations/presentation/widgets/invitation
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
 import 'package:yalla_5roga/features/invitations/domain/entities/group_invitation.dart';
 import 'package:yalla_5roga/features/invitations/presentation/providers/invitations_provider.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/invitations/presentation/widgets/outing_invitation_target.dart';
 
 class InvitationsPage extends StatefulWidget {
-  const InvitationsPage({super.key});
+  const InvitationsPage({super.key, this.invitedOuting});
+  final Outing? invitedOuting;
 
   @override
   State<InvitationsPage> createState() => _InvitationsPageState();
@@ -89,7 +92,13 @@ class _InvitationsPageState extends State<InvitationsPage> {
         child: Center(
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
-            child: _buildBody(l10n, provider),
+            child: Column(
+              children: [
+                if (widget.invitedOuting case final outing?)
+                  OutingInvitationTarget(outing: outing),
+                Expanded(child: _buildBody(l10n, provider)),
+              ],
+            ),
           ),
         ),
       ),

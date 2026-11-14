@@ -66,6 +66,8 @@ Group share links (`yalla5roga://invite` or HTTPS) restore the invitation destin
 
 ## 4. Outing types
 
+**Approved (Phase 4 owner clarification, 2026-11-14):** Special events support `birthday`, `wedding`, `celebration`, and `other`; `group_id` is optional. A selected group requires accepted creator membership and follows existing group participation/authorization. Independent events retain app-member and phone-contact invitations. All four remain `special_event`, never `occasion=none`.
+
 **Approved:** `group` outing and `special_event` share members, voting, attendance, chat, notifications, lifecycle, saved outings where applicable. No separate voting/attendance systems per type unless explicitly required later.
 
 Special-event organizers may send a WhatsApp invitation to phone contacts who agreed to receive it. The invitation gives the event name, local date and time, venue, a Google Calendar link and an optional link to try Yalla 5roga. These guests can attend without an app account. Phone invitations do not grant outing membership.
@@ -168,7 +170,7 @@ Owner auto Going; Owner cannot change away. Members update own status. Independe
 
 ## 12. Chat
 
-**Approved:** Available in draft, voting, confirmed. Completed outings retain readable chat history and must reject new sends. Cancelled sending remains blocked. Owner and Members may send when open. Membership + authZ on backend.
+**Approved:** Available in draft, voting, confirmed. Chat sending, editing and deletion close two hours after `scheduled_at`, or immediately when status is past/cancelled. Completed outings retain readable chat history and must reject mutations. Current participants may delete only their own messages while open, and edit only their own messages during the first minute after the server send time. At 60 seconds editing is closed. Own-message options appear on long press; the text-only composer has Send and @mention controls, with no recording or attachment button. Cancelled sending remains blocked. Owner and Members may send when open. Membership + authZ on backend.
 
 ---
 
@@ -197,7 +199,7 @@ Backend enforces all rows; Flutter visibility is not authorization.
 
 **Approved events:** new invitation; invitation accepted (where applicable); outing details updated; candidate places changed; voting reset; attendance changed (policy); new chat (preferences); voting closed early; deadline reached; unique winner; tie-break winner; confirmed; cancelled.
 
-**Tap destinations:** Group creation and updates open Group Details. Outing creation, updates, and reminders open Outing Details. Chat opens the related outing chat with normal history and message styling. Place votes open Place Voting. Attendance votes open Attendance. Member joins and departures open Group Members. Opening a notification marks its inbox item read, and Back returns to the previous screen. Access follows the destination's existing authorization rules.
+**Tap destinations:** Group creation and updates open Group Details. Outing creation, updates, and reminders open Outing Details. Chat opens the related outing chat with normal history and message styling. Place votes open Place Voting. Attendance votes open Attendance. Member joins and departures open Group Details. Group invitations open Invitations; outing invitations open Invitations with the specific authorized outing card, whose View outing action opens its existing invitation decisions. Opening a notification marks its inbox item read, and Back returns to the previous screen. Access follows the destination's existing authorization rules.
 
 **Infrastructure:** FCM token register/refresh; multi-device; invalid token handling; outbox → worker → real Push sender (Firebase Admin); retries; idempotency; delivery failure logging. Persisted notification rows alone do not prove push delivery.
 
@@ -281,7 +283,7 @@ None that conflict with approved text above. Group-outing eligibility includes m
 
 ## Approved chat and background refresh behavior — 2026-11-11
 
-The owner requests silent background synchronization with no global loading or connection banner. Socket.IO invalidations update affected providers; reconnect/resume reconciles missed changes without polling. Cached content remains visible offline. Chat alone shows Connected after authenticated transport and room-join acknowledgement, Reconnecting during recovery, or Disconnected when unavailable. Every bubble shows the Neon sender name, with localized “(You)” for the current user. Selecting an @mention identifies a current chat participant by stable user ID, highlights the name, and notifies that member once per message; self-mentions never notify the sender. Notification navigation opens the regular outing chat. Message and mention notification taps use normal history and bubble styling, without a separate highlighted or labeled notification message.
+The owner requests silent background synchronization with no global loading or connection banner. Socket.IO invalidations update affected providers; reconnect/resume reconciles missed changes without polling. Cached content remains visible offline. Chat alone shows Connected after authenticated transport and room-join acknowledgement, Reconnecting during recovery, or Offline when unavailable. Each message group shows the Neon sender name and avatar, with localized “(You)” for the current user; consecutive messages from that sender share the compact group treatment. Selecting an @mention identifies a current chat participant by stable user ID, highlights the name, and notifies that member once per message; self-mentions never notify the sender. Notification navigation opens the regular outing chat. Message and mention notification taps use normal history and bubble styling, without a separate highlighted or labeled notification message.
 
 ## Password recovery — owner-approved 2026-11-11
 
@@ -302,3 +304,18 @@ The Flutter foundation uses a Modern Social violet design with complete light/da
 ## Phase 3 outing presentation — 2026-11-14
 
 The Outings tab shows active location ballots and upcoming plans with status, countdowns, New Outing and History actions. History classification still uses scheduled start or terminal status; it does not imply RSVP or arrival eligibility. Creation uses Information (cover/title/category/group/schedule/deadline), Locations (existing map picker and removable selections), and Review (summary and edit links). Group Details preselects its group. A single venue is displayed without a competition; multiple candidates support a submitted multi-selection ballot. Actual GPS arrival stays separate from Going/Maybe/Not Going. No winner or tie-break decision moves to Flutter.
+
+
+## Voting deadline selection — owner-approved 2026-11-14
+
+Create Outing Information offers Hours (1, 2, 3, 6, 12, 24) and Days (1, 2, 3, 5, 7), with one duration selected. Show the estimated local end date/time, disable choices that cannot finish before the outing starts, and block progression/submission while invalid. Preserve the duration between steps and in saved drafts. Review shows the estimate; the submitted duration starts at the actual request boundary after cover upload. Send the existing absolute vote_ends_at in UTC ISO-8601, with existing vote_deadline_hours metadata. Backend creation requires a future deadline strictly before scheduled_at when a start is supplied. The existing 1–72-hour metadata/check range expands to 1–168 hours without new columns/endpoints. Post-create confirmation shows the canonical deadline returned by the server.
+
+
+## Unanswered RSVP and live voting time — owner-approved 2026-11-14
+
+The default RSVP for a member who has not replied is **No response** / **لم يرد بعد**. A missing saved RSVP is this default, never Maybe or Not Going. The creator still starts Going. “Who’s going” lists all current accepted participants, including unanswered members; pending invitees are not participants. Location votes do not imply an RSVP and RSVP does not create place votes. The voting card displays live time remaining in days/hours/minutes/seconds and shows Voting ended when the deadline passes or the backend closes voting.
+
+
+## Phase 5 chat and inbox presentation — 2026-11-14
+
+Outing-only chat uses grouped sender bubbles, localized timestamps/date separators, a text-only composer and current-member mention suggestions. Pending sends remain in the existing durable UUID queue; failed sends expose Retry. Completed/cancelled/two-hour-closed chats hide all message mutations. The inbox supports All/Unread, unread count, event titles/icons, read state and explicit loading/empty/error recovery. Reply and Mark as read use authenticated native actions where the platform infrastructure supports them. Android OS-rendered background FCM currently lacks action buttons; ordinary FCM delivery remains. iOS category actions and the native response bridge require later device verification.

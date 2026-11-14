@@ -20,6 +20,54 @@ class L10n {
     'Permanently delete this group? Groups with outings cannot be deleted.',
     'حذف المجموعة نهائيًا؟ لا يمكن حذف مجموعة تحتوي على خروجات.',
   );
+  String get votingDeadlineTitle =>
+      _t('Voting Deadline', 'موعد انتهاء التصويت');
+  String get votingDeadlineHoursMode => _t('Hours', 'ساعات');
+  String get votingDeadlineDaysMode => _t('Days', 'أيام');
+  String get votingDeadlineBeforeOuting => _t(
+    'Voting must end before the outing starts. Choose a shorter duration or a later outing time.',
+    'لازم التصويت ينتهي قبل بداية الخرجة. اختار مدة أقصر أو موعد متأخر للخرجة.',
+  );
+  String get votingDeadlineMustBeFuture => _t(
+    'Choose a voting deadline in the future.',
+    'اختار موعد انتهاء للتصويت في المستقبل.',
+  );
+  String get votingDeadlineDurationInvalid => _t(
+    'Choose a duration between 1 hour and 7 days.',
+    'اختار مدة من ساعة إلى ٧ أيام.',
+  );
+  String get votingDeadlineFromSubmission => _t(
+    'The full duration starts when you submit.',
+    'المدة كاملة بتبدأ وقت إرسال الطلب.',
+  );
+  String votingDurationHours(int hours) => _t(
+    hours == 1 ? '1 hour' : '${n(hours)} hours',
+    hours == 1
+        ? 'ساعة واحدة'
+        : hours == 2
+        ? 'ساعتان'
+        : hours <= 10
+        ? '${n(hours)} ساعات'
+        : '${n(hours)} ساعة',
+  );
+  String votingDurationDays(int days) => _t(
+    days == 1 ? '1 day' : '${n(days)} days',
+    days == 1
+        ? 'يوم واحد'
+        : days == 2
+        ? 'يومان'
+        : '${n(days)} أيام',
+  );
+  String votingDeadlineSummary(DateTime deadline) {
+    final local = deadline.toLocal();
+    final day = digits(DateFormat('EEEE, d MMMM', _dateLocale).format(local));
+    final time = formatTime(local);
+    return _t(
+      'Voting ends on $day at $time',
+      'التصويت ينتهي يوم $day الساعة $time',
+    );
+  }
+
   String get selectPreferredPlaces => _t(
     'Choose all the places you would go to, then confirm your vote.',
     'اختار كل الأماكن اللي تحب تروحها، وبعدين أكّد تصويتك.',
@@ -997,6 +1045,15 @@ class L10n {
     return _t('Ends in ${h}h ${m}m', 'ينتهي خلال $h س $m د');
   }
 
+  String get noResponse => _t('No response', 'لم يرد بعد');
+  String voteCountdown(int days, int hours, int minutes, int seconds) {
+    final h = digits(hours.toString().padLeft(2, '0'));
+    final m = digits(minutes.toString().padLeft(2, '0'));
+    final s = digits(seconds.toString().padLeft(2, '0'));
+    final d = days > 0 ? _t('${n(days)}d ', '${n(days)} ي ') : '';
+    return _t('Ends in $d${h}h ${m}m ${s}s', 'متبقي $d$h س $m د $s ث');
+  }
+
   String get voteEnded => _t('Voting ended', 'انتهى التصويت');
   String get pickFavoritePlace =>
       _t('Pick one or more places', 'اختر مكاناً أو أكثر');
@@ -1164,6 +1221,27 @@ class L10n {
   }
 
   String get chatClosed => _t('Chat is closed', 'المحادثة مغلقة');
+  String get viewOuting => _t('View outing', 'عرض الخروجة');
+  String get reply => _t('Reply', 'رد');
+  String get markAsRead => _t('Mark as read', 'تحديد كمقروء');
+  String get chatOffline => _t('Offline', 'غير متصل');
+  String get deleteMessage => _t('Delete message', 'حذف الرسالة');
+  String get messageDeleted => _t('Message deleted', 'تم حذف الرسالة');
+  String get messageOptions => _t('Message options', 'خيارات الرسالة');
+  String get messageEditWindow => _t(
+    'Edit within one minute of sending.',
+    'يمكن التعديل خلال دقيقة واحدة من الإرسال.',
+  );
+  String get messageEditExpired => _t(
+    'The one-minute editing window has ended.',
+    'انتهت مهلة تعديل الرسالة بعد دقيقة من إرسالها.',
+  );
+  String get editMessage => _t('Edit message', 'تعديل الرسالة');
+  String get chatCompletionHint => _t(
+    'This chat is read-only. Chat closes two hours after the outing starts, or when it is completed or cancelled.',
+    'هذه المحادثة للقراءة فقط. تُغلق بعد ساعتين من بداية الخروجة أو عند اكتمالها أو إلغائها.',
+  );
+  String get sendMessage => _t('Send message', 'إرسال الرسالة');
   String get chatClosedHint => _t(
     'Chat closes 2 hours after the outing starts. You can still read past messages.',
     'تُغلق المحادثة بعد ساعتين من موعد الخروجة. يمكنك قراءة الرسائل السابقة.',
@@ -1232,6 +1310,14 @@ class L10n {
     'اختر المناسبة ثم ادعُ أشخاصاً من مجموعاتك.',
   );
   String get regularOuting => _t('Outing', 'خروجة');
+  String get celebration => _t('Celebration', 'احتفال');
+  String get otherOccasion => _t('Other occasion', 'مناسبة أخرى');
+  String get eventGroupOptional => _t('Group (optional)', 'المجموعة (اختياري)');
+  String get independentEvent =>
+      _t('No group · invite your guests', 'بدون مجموعة · ادعُ ضيوفك');
+  String get futureEventRequired =>
+      _t('Choose a future date and time', 'اختار تاريخ ووقت في المستقبل');
+  String get kilometersShort => _t('km', 'كم');
   String get birthday => _t('Birthday', 'عيد ميلاد');
   String get wedding => _t('Wedding', 'فرح');
   String get eventName => _t('Event name', 'اسم المناسبة');

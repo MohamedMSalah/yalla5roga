@@ -18,6 +18,7 @@ async function loadOutingForUser(outingId: string, uid: string) {
     where: { id: outingId },
     select: {
       status: true,
+      scheduled_at: true,
       created_by: true,
       group_id: true,
       outing_guests: {
@@ -55,7 +56,8 @@ export async function assertChatParticipant(outingId: string, uid: string) {
 /** Participant check plus the "chat is still open" rule used when sending. */
 export async function assertCanChat(outingId: string, uid: string) {
   const outing = await assertChatParticipant(outingId, uid);
-  if (!CHAT_OPEN_STATUSES.has(outing.status)) {
+  if (!CHAT_OPEN_STATUSES.has(outing.status) ||
+      (outing.scheduled_at != null && outing.scheduled_at.getTime() + 2 * 60 * 60 * 1000 <= Date.now())) {
     throw new ConflictError("CHAT_CLOSED");
   }
 }

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
-import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group_member.dart';
 import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
-import 'package:yalla_5roga/features/chat/presentation/widgets/outing_chat_mention_text.dart';
+import 'package:yalla_5roga/features/chat/presentation/widgets/message_bubble.dart';
+import 'package:yalla_5roga/features/chat/presentation/widgets/chat_date_separator.dart';
 
-class OutingChatMessageList extends StatelessWidget {
+class OutingChatMessageList extends StatefulWidget {
   const OutingChatMessageList({
     super.key,
     required this.messages,
@@ -16,179 +16,130 @@ class OutingChatMessageList extends StatelessWidget {
     this.currentUserName,
     this.onLoadOlder,
     this.loadingOlder = false,
+    this.onEdit,
+    this.onDelete,
+    this.onRetry,
   });
-
   final List<ChatMessage> messages;
   final List<GroupMember> members;
   final String? currentUserId;
   final String? currentUserName;
   final VoidCallback? onLoadOlder;
   final bool loadingOlder;
+  final ValueChanged<ChatMessage>? onEdit, onDelete, onRetry;
+  @override
+  State<OutingChatMessageList> createState() => _OutingChatMessageListState();
+}
+
+class _OutingChatMessageListState extends State<OutingChatMessageList> {
+  final _scroll = ScrollController();
+  String? _insertedId;
+  @override
+  void didUpdateWidget(covariant OutingChatMessageList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final last = widget.messages.lastOrNull;
+    if (last != null && last.id != oldWidget.messages.lastOrNull?.id) {
+      _insertedId = last.id;
+      if (_scroll.hasClients &&
+          (_scroll.offset < 100 || last.senderId == widget.currentUserId)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _scroll.hasClients) {
+            _scroll.animateTo(
+              0,
+              duration: AppMotion.of(context, AppMotion.standard),
+              curve: AppMotion.enter,
+            );
+          }
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  bool _sameDay(DateTime? a, DateTime? b) {
+    if (a == null || b == null) return false;
+    final x = a.toLocal(), y = b.toLocal();
+    return x.year == y.year && x.month == y.month && x.day == y.day;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final palette = context.palette;
-
-    final byId = {for (final member in members) member.id: member};
+    final byId = {for (final member in widget.members) member.id: member};
     return ListView.builder(
+      controller: _scroll,
       reverse: true,
       padding: Responsive.pagePadding(),
-      itemCount: messages.length + (onLoadOlder == null ? 0 : 1),
+      itemCount: widget.messages.length + (widget.onLoadOlder == null ? 0 : 1),
       itemBuilder: (context, index) {
-        if (index == messages.length) {
+        if (index == widget.messages.length) {
           return TextButton(
-            onPressed: loadingOlder ? null : onLoadOlder,
-            child: loadingOlder
+            onPressed: widget.loadingOlder ? null : widget.onLoadOlder,
+            child: widget.loadingOlder
                 ? const CircularProgressIndicator.adaptive()
-                : Text(l10n.olderChatMessages),
+                : Text(context.l10n.olderChatMessages),
           );
         }
-        final message = messages[messages.length - 1 - index];
-        final isMine =
-            currentUserId != null && message.senderId == currentUserId;
-        final align =
-            (isMine
-                    ? AlignmentDirectional.centerEnd
-                    : AlignmentDirectional.centerStart)
-                .resolve(Directionality.of(context));
+        final position = widget.messages.length - 1 - index;
+        final message = widget.messages[position];
+        final previous = position > 0 ? widget.messages[position - 1] : null;
+        final sameDay = _sameDay(message.sentAt, previous?.sentAt);
+        final grouped =
+            sameDay &&
+            previous?.senderId == message.senderId &&
+            message.sentAt!.difference(previous!.sentAt!).inMinutes.abs() < 5;
+        final mine =
+            widget.currentUserId != null &&
+            message.senderId == widget.currentUserId;
         final member = byId[message.senderId];
-        final profileName = isMine ? currentUserName?.trim() : null;
-        final name = profileName?.isNotEmpty == true
-            ? profileName!
-            : message.sender.trim().isNotEmpty
+        final name = message.sender.trim().isNotEmpty
             ? message.sender.trim()
+            : mine && widget.currentUserName?.isNotEmpty == true
+            ? widget.currentUserName!
             : member != null
             ? MemberDisplayName.resolve(member)
-            : l10n.chatUnknownSender;
-        final senderName = isMine ? '$name (${l10n.you})' : name;
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: index == messages.length - 1 ? 0 : 10.h,
-          ),
-          child: Align(
-            alignment: align,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (!isMine) ...[
-                  AppNetworkImage.avatar(
-                    url: message.avatar ?? '',
-                    width: 28.w,
-                    height: 28.w,
-                    radius: 999,
-                  ),
-                  8.gapW,
-                ],
-                Flexible(
-                  child: Container(
-                    constraints: BoxConstraints(
-                      maxWidth: (MediaQuery.sizeOf(context).width * 0.72)
-                          .clamp(200.w, 320.w)
-                          .toDouble(),
-                    ),
-                    padding: Responsive.padding(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isMine ? AppColors.brand600 : palette.surface,
-                      borderRadius: BorderRadius.circular(16.r),
-                      boxShadow: isMine
-                          ? null
-                          : [
-                              BoxShadow(
-                                color: palette.shadow,
-                                blurRadius: 10.w,
-                                offset: Offset(0, 4.h),
-                              ),
-                            ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          senderName,
-                          style: context.texts.labelMedium?.copyWith(
-                            color: isMine ? Colors.white : palette.textPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        4.gapH,
-                        OutingChatMentionText(
-                          text: message.text,
-                          members: members,
-                          style: TextStyle(
-                            color: isMine ? Colors.white : palette.textPrimary,
-                            fontSize: Responsive.fontSm,
-                          ),
-                          mentionStyle: TextStyle(
-                            color: isMine ? Colors.white : AppColors.brand600,
-                            fontSize: Responsive.fontSm,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        4.gapH,
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              _formatTime(context, message),
-                              style: TextStyle(
-                                color: isMine
-                                    ? Colors.white70
-                                    : palette.textMuted,
-                                fontSize: Responsive.fontXs,
-                              ),
-                            ),
-                            if (isMine) ...[
-                              4.gapW,
-                              Icon(
-                                _statusIcon(message.deliveryStatus),
-                                size: 14.sp,
-                                color: _statusColor(message.deliveryStatus),
-                                semanticLabel: switch (message.deliveryStatus) {
-                                  MessageDeliveryStatus.pending =>
-                                    context.l10n.chatMessagePending,
-                                  MessageDeliveryStatus.failed =>
-                                    context.l10n.chatMessageFailed,
-                                  _ => null,
-                                },
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+            : context.l10n.chatUnknownSender;
+        final mutable =
+            mine && message.text.isNotEmpty && !message.id.startsWith('local_');
+        final bubble = MessageBubble(
+          message: message,
+          name: mine ? '$name (${context.l10n.you})' : name,
+          mine: mine,
+          grouped: grouped,
+          members: widget.members,
+          onEdit: mutable && widget.onEdit != null
+              ? () => widget.onEdit!(message)
+              : null,
+          onDelete: mutable && widget.onDelete != null
+              ? () => widget.onDelete!(message)
+              : null,
+          onRetry:
+              mine &&
+                  message.deliveryStatus == MessageDeliveryStatus.failed &&
+                  widget.onRetry != null
+              ? () => widget.onRetry!(message)
+              : null,
+        );
+        return Column(
+          key: ValueKey(message.id),
+          children: [
+            if (!sameDay && message.sentAt != null)
+              ChatDateSeparator(date: message.sentAt!),
+            TweenAnimationBuilder<double>(
+              key: ValueKey('insert-${message.id}'),
+              tween: Tween(begin: message.id == _insertedId ? 0 : 1, end: 1),
+              duration: AppMotion.of(context, AppMotion.standard),
+              builder: (context, value, child) =>
+                  Opacity(opacity: value, child: child),
+              child: bubble,
             ),
-          ),
+          ],
         );
       },
     );
   }
-}
-
-String _formatTime(BuildContext context, ChatMessage message) {
-  final l10n = context.l10n;
-  final sentAt = message.sentAt;
-  if (sentAt != null) return l10n.formatTime(sentAt);
-  return l10n.formatClock(message.time);
-}
-
-IconData _statusIcon(MessageDeliveryStatus status) {
-  return switch (status) {
-    MessageDeliveryStatus.pending => Icons.schedule,
-    MessageDeliveryStatus.failed => Icons.error_outline,
-    MessageDeliveryStatus.sent => Icons.check,
-    MessageDeliveryStatus.delivered ||
-    MessageDeliveryStatus.seen => Icons.done_all,
-  };
-}
-
-Color _statusColor(MessageDeliveryStatus status) {
-  return switch (status) {
-    MessageDeliveryStatus.seen => const Color(0xFF90CAF9),
-    _ => Colors.white70,
-  };
 }

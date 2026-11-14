@@ -242,6 +242,15 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
                         ),
                       ),
                       Responsive.spaceMd.gapH,
+                      if (form.specialEvent && !form.groupLocked)
+                        ListTile(
+                          leading: const Icon(Icons.person_outline),
+                          title: Text(l10n.independentEvent),
+                          onTap: () {
+                            form.setGroup(null);
+                            Get.back();
+                          },
+                        ),
                       Flexible(
                         child: ListView.builder(
                           shrinkWrap: true,
@@ -308,6 +317,19 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
   Future<void> _create(BuildContext context, CreateOutingProvider form) async {
     final outings = context.read<OutingsProvider>();
     if (outings.isCreating) return;
+    form.editStep(0);
+    final basicsError = form.validateStep(context.l10n);
+    if (basicsError != null) {
+      AppSnackBar.show(basicsError);
+      return;
+    }
+    form.next(context.l10n);
+    final locationError = form.validateStep(context.l10n);
+    if (locationError != null) {
+      AppSnackBar.show(locationError);
+      return;
+    }
+    form.next(context.l10n);
     if (form.guestPhones.isNotEmpty) {
       final l10n = context.l10n;
       final optedIn = await AppAlert.confirm(
@@ -317,6 +339,12 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
         cancelText: l10n.cancel,
       );
       if (!context.mounted || !optedIn || outings.isCreating) return;
+    }
+    final deadlineError = form.validateVotingDeadlineNow(context.l10n);
+    if (deadlineError != null) {
+      form.refreshDeadlineClock();
+      AppSnackBar.show(deadlineError);
+      return;
     }
     final userId = context.read<AuthProvider>().user?.id;
     final outing = form.buildOuting(createdById: userId);
@@ -335,6 +363,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     Get.off(
       () => EventPage(
         event: created.outing,
+        createdVotingDeadline: created.outing.voteEndsAt,
         manualWhatsAppUrls: created.manualWhatsAppUrls,
       ),
     );
@@ -403,30 +432,34 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
                       padding: Responsive.pagePadding(),
                       children: [
                         CreateOutingStepHeader(form: form),
-                        _StepSwitcher(
-                          step: form.step,
-                          child: switch (form.step) {
-                            0 => CreateOutingBasicsStep(
-                              key: const ValueKey(0),
-                              form: form,
-                              onUploadPhoto: () => _uploadPhoto(context, form),
-                              onInviteGuests: () =>
-                                  _inviteGuests(context, form),
-                              onPickGroup: () => _pickGroup(context, form),
-                              onPickDate: () => _pickDate(context, form),
-                              onPickTime: () => _pickTime(context, form),
-                            ),
-                            1 => CreateOutingLocationStep(
-                              key: const ValueKey(1),
-                              form: form,
-                              onPickCustomLocation: () =>
-                                  _pickCustomLocation(context, form),
-                            ),
-                            _ => CreateOutingReviewStep(
-                              key: const ValueKey(2),
-                              form: form,
-                            ),
-                          },
+                        IgnorePointer(
+                          ignoring: creating,
+                          child: _StepSwitcher(
+                            step: form.step,
+                            child: switch (form.step) {
+                              0 => CreateOutingBasicsStep(
+                                key: const ValueKey(0),
+                                form: form,
+                                onUploadPhoto: () =>
+                                    _uploadPhoto(context, form),
+                                onInviteGuests: () =>
+                                    _inviteGuests(context, form),
+                                onPickGroup: () => _pickGroup(context, form),
+                                onPickDate: () => _pickDate(context, form),
+                                onPickTime: () => _pickTime(context, form),
+                              ),
+                              1 => CreateOutingLocationStep(
+                                key: const ValueKey(1),
+                                form: form,
+                                onPickCustomLocation: () =>
+                                    _pickCustomLocation(context, form),
+                              ),
+                              _ => CreateOutingReviewStep(
+                                key: const ValueKey(2),
+                                form: form,
+                              ),
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -446,7 +479,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
                                 ? Icons.check
                                 : context.chevronForward,
                             isLoading: form.step == 2 && creating,
-                            onPressed: creating
+                            onPressed: creating || !form.isVotingDeadlineValid
                                 ? null
                                 : form.step == 2
                                 ? () => _create(context, form)

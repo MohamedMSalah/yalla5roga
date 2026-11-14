@@ -9,8 +9,17 @@ List<ChatMessage> upsertOutingChatMessage(
   ChatMessage message,
 ) {
   final isServer = !isLocalPendingMessageId(message.id);
-  if (!isServer && items.any((item) =>
-      !isLocalPendingMessageId(item.id) && _sameOptimistic(message, item))) {
+  // Deletion is terminal. A delayed send response/socket echo cannot restore it.
+  if (isServer &&
+      message.text.isNotEmpty &&
+      items.any((item) => item.id == message.id && item.text.isEmpty)) {
+    return items;
+  }
+  if (!isServer &&
+      items.any(
+        (item) =>
+            !isLocalPendingMessageId(item.id) && _sameOptimistic(message, item),
+      )) {
     return items;
   }
   final without = <ChatMessage>[

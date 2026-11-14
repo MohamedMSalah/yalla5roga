@@ -82,19 +82,19 @@ class PushNotificationPayload {
     'tie_break_selected' => NotificationDestination.placeVoting,
     'attendance_vote' ||
     'attendance_changed' => NotificationDestination.attendance,
-    'member_joined' || 'member_left' => NotificationDestination.groupMembers,
+    'member_joined' || 'member_left' => NotificationDestination.group,
     'group' ||
     'group_created' ||
     'group_updated' => NotificationDestination.group,
-    'invitation' when outingId != null => NotificationDestination.outing,
-    'group_invite' || 'invitation' => NotificationDestination.group,
+    'invitation' when outingId != null => NotificationDestination.invitation,
+    'group_invite' || 'invitation' => NotificationDestination.invitation,
     'outing' ||
     'outing_created' ||
     'outing_updated' ||
-    'outing_invite' ||
     'outing_reminder' ||
     'outing_confirmed' ||
     'outing_cancelled' => NotificationDestination.outing,
+    'outing_invite' => NotificationDestination.invitation,
     _ when outingId != null => NotificationDestination.outing,
     _ when groupId != null => NotificationDestination.group,
     _ => NotificationDestination.inbox,

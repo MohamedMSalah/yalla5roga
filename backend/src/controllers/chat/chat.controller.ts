@@ -4,8 +4,19 @@ import { ListMessagesUseCase } from "../../usecases/chat/list-messages.usecase.j
 import { MarkChatReadUseCase } from "../../usecases/chat/mark-chat-read.usecase.js";
 import { SendMessageUseCase } from "../../usecases/chat/send-message.usecase.js";
 import { UnauthorizedError } from "../../utils/errors.js";
+import { MutateMessageUseCase } from "../../usecases/chat/mutate-message.usecase.js";
 
 export class ChatController {
+  mutate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      const message = await new MutateMessageUseCase().execute(
+        req.params.outingId as string, req.params.messageId as string,
+        req.user.uid, req.method === "DELETE" ? null : req.body.text,
+      );
+      res.json({ success: true, data: message });
+    } catch (error) { next(error); }
+  };
   constructor(
     private readonly listMessages = new ListMessagesUseCase(),
     private readonly sendMessage = new SendMessageUseCase(),

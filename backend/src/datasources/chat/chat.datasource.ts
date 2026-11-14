@@ -89,4 +89,16 @@ export class ChatDatasource {
   deleteMessage(id: string): Promise<ChatMessage> {
     return prisma.chat_messages.delete({ where: { id } });
   }
+
+  async updateMessage(id: string, text: string): Promise<ChatMessage> {
+    const changed = await prisma.chat_messages.updateMany({
+      where: { id, ...(text ? { text: { not: "" }, sent_at: { gt: new Date(Date.now() - 60_000) } } : {}) }, data: { text },
+    });
+    if (!changed.count) {
+      const { ConflictError } = await import("../../utils/errors.js");
+      const current = await this.findMessageById(id);
+      throw new ConflictError(current?.text ? "MESSAGE_EDIT_WINDOW_EXPIRED" : "MESSAGE_DELETED");
+    }
+    return (await this.findMessageById(id))!;
+  }
 }

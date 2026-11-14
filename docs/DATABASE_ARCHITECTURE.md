@@ -5,7 +5,7 @@
 | Last verified | 2026-11-13 |
 | Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | Thirteen migrations applied through `20261113180000_multi_location_ballots` on 2026-11-14 (Cairo). Recovery and media migration deployments are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md) and [media report](audit/MEDIA_STORAGE_REPORT.md). |
+| Configured Neon schema | All fifteen repository migrations are applied as of 2026-11-14 (Cairo), including `20261114000000_special_event_occasions` and `20261114010000_voting_deadline_durations`; see [deployment evidence](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json). Recovery and media migration deployments are verified in [recovery report](audit/PASSWORD_RECOVERY_REPORT.md) and [media report](audit/MEDIA_STORAGE_REPORT.md). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -25,7 +25,7 @@ erDiagram
   groups ||--o{ group_invitations : invites
   users |o--o{ group_invitations : claims
   users ||--o{ outings : creates
-  groups ||--o{ outings : owns
+  groups |o--o{ outings : associates
   places ||--o{ outings : location
   outings ||--o{ outing_guests : members
   outings ||--o{ outing_attendance : attendance
@@ -172,7 +172,7 @@ Indexes: owner, cleanup `(status, upload_expires_at)`, and each optional entity 
 6. Confirmed winning location must stay consistent with `winning_option_id`.
 7. Notification outbox + in-app rows use `event_key` for idempotency.
 8. Pending invitations are not eligible voters.
-9. Database constraints enforce outing type/group consistency, an end after a start, vote-deadline range (1–72 hours), and draft clock fields (hour 0–23, minute 0–59). Existing historical rows must be audited before constraints are validated.
+9. Database constraints enforce outing type/group consistency, an end after a start, vote-deadline duration metadata range (1–168 hours), and draft clock fields (hour 0–23, minute 0–59). Existing historical rows must be audited before constraints are validated.
 10. Chat seen state is derived from `chat_reads`; `chat_messages.delivery_status` was removed.
 11. Media binaries are never stored in Neon; only `media_assets` metadata/object keys are persisted.
 12. An entity image field holds either an absolute http(s) URL or a `media://<uuid>` reference — never a signed URL, local path, or binary.
@@ -247,3 +247,22 @@ The owner requested deployment of any pending database changes before committing
 ## Phase 3 migration verification — 2026-11-14
 
 A private logical snapshot and rollback-only recovery rehearsal are recorded in `audit/PHASE_3_DATABASE_BACKUP.json`. Every application table plus Prisma history was restored with matching row checksums and foreign keys before applying the exact vote-key migration to the restored schema. The migration was deployed with Prisma Migrate. `audit/PHASE_3_DATABASE_DEPLOYMENT.json` confirms the applied file checksum, primary key, valid constraints, preserved source vote checksum and absence of disposable schemas. No `db push`, reset or data deletion is used.
+
+## Phase 4 prepared migration — 2026-11-14
+
+`20261114000000_special_event_occasions` adds `celebration` and `other` to outing_occasion (also used by drafts). It replaces outings_type_group_consistency with `(type=group AND group_id IS NOT NULL AND occasion=none) OR (type=special_event AND occasion<>none)`. Special-event group_id is optional; existing UUIDs and foreign keys are untouched. The existing NOT VALID historical-row policy remains; new and updated rows are constrained. A 5-second lock timeout bounds migration lock acquisition. The migration is verified against existing Birthday/Wedding fixtures in a disposable schema, **not deployed to the configured application schema by this task**. The ER diagram's optional group relation is corrected above.
+
+
+## Seven-day deadline duration metadata — 2026-11-14
+
+Migration 20261114010000_voting_deadline_durations expands only outings_vote_deadline_range and outing_drafts_vote_deadline_range from 72 to 168 hours. Existing nullable smallint columns, absolute vote_ends_at, IDs and FKs are retained. No new column, table or endpoint is required. Backup/recovery rehearsal and scoped Prisma deployment were verified against the configured Neon target; unrelated pending feature migrations were excluded. VOTING_DEADLINE_DATABASE_DEPLOYMENT.json records checksums, source row preservation and validated live checks. The before-start rule is enforced at backend creation; historical rows are not rewritten.
+
+
+## No-response default semantics — 2026-11-14
+
+No schema migration is required for No response. An absent outing_attendance response is the durable unanswered state, combined with current persisted participation on authorized reads. It is serialized as no_response in the read roster with nullable updated_at, while actual stored responses retain the existing three-value enum. No synthetic response is inserted on a GET or inferred from location votes.
+
+
+## Phase 5 chat deletion representation — 2026-11-14
+
+No database migration. Existing chat_messages.text permits an empty string, used by DELETE as a tombstone. The UUID, outing/sender keys, client-message unique key and sent_at remain, preserving deduplication/read/pagination behavior. PATCH cannot restore a tombstone. Its existing-row update predicate also requires sent_at > application current time minus 60 seconds; no timestamp column or migration is added. API creation still requires nonblank text; Flutter renders empty canonical text as a localized deleted-message label. This is logical content deletion, not physical row removal or erasure of previously delivered notifications/device caches.

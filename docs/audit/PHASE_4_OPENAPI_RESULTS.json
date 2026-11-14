@@ -1,0 +1,529 @@
+{
+  "checkedAt": "2026-11-13T23:50:51.071Z",
+  "mode": "HTTP/OpenAPI only; disposable schema; controlled Firebase verifier; no workers or live migration",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "Served Swagger matches generated OpenAPI",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Additive migration preserves existing birthday and wedding IDs, occasions and venues",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "birthday: independent creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "birthday: group-associated accepted member creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "wedding: independent creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "wedding: group-associated accepted member creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "celebration: independent creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "celebration: group-associated accepted member creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "other: independent creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listCurrentUserOutings",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "other: group-associated accepted member creates and round-trips as special_event",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOutingDraft",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOutingDraft",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingDrafts",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOutingDraft",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOutingDraft",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingDrafts",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOutingDraft",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOutingDraft",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingDrafts",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOutingDraft",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOutingDraft",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingDrafts",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 404,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "updateOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "inviteOutingGuest",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptOutingInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Independent event: deduplicated phone invitations, idempotent retry, app invite acceptance and RSVP",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "inviteOutingGuest",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "getOuting",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "acceptOutingInvitation",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "setOutingAttendance",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Group-associated event: deduplicated phone invitations, idempotent retry, app invite acceptance and RSVP",
+      "result": "PASS"
+    },
+    {
+      "scenario": "createOuting",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Four occasions, optional group membership and privacy, standard outings, validation, guest invitations, idempotency and RSVP",
+      "result": "PASS"
+    }
+  ]
+}

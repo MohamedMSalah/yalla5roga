@@ -71,7 +71,8 @@ import {
  *     description: >
  *       created_by is taken from the authenticated Firebase UID.
  *       Group outings require group_id and active membership (occasion defaults to none).
- *       Special events omit group_id and must set occasion to birthday or wedding.
+ *       Special events use birthday, wedding, celebration or other, with optional group_id.
+ *       A selected group requires active membership. Type is derived from occasion.
  *     operationId: createOuting
  *     requestBody:
  *       $ref: "#/components/requestBodies/CreateOuting"

@@ -3,6 +3,7 @@ import { ChatController } from "../../controllers/chat/chat.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   outingIdParamsSchema,
+  messageParamsSchema, editMessageBodySchema,
   chatHistoryQuerySchema,
   sendMessageBodySchema,
 } from "../../validators/chat/chat.validator.js";
@@ -51,7 +52,7 @@ import {
  *     summary: Send an outing message
  *     description: >
  *       The sender is the authenticated Firebase UID and must be the creator, a group member or an outing guest.
- *       Sending is allowed in draft, voting and confirmed states; afterwards 409 CHAT_CLOSED is returned.
+ *       Sending is allowed in draft, voting and confirmed states until scheduled_at plus two hours; afterwards 409 CHAT_CLOSED is returned.
  *       Pass clientMessageId to make retries idempotent. Stable mention tokens in text are validated against current chat participants and use canonical Neon display names. Mention notifications share one message/recipient event key and never notify the sender.
  *     operationId: sendOutingMessage
  *     parameters:
@@ -74,7 +75,7 @@ import {
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "409":
- *         description: The outing is past or cancelled, so the chat is closed (CHAT_CLOSED)
+ *         description: The outing is past, cancelled, or two hours beyond its scheduled start (CHAT_CLOSED)
  *         content:
  *           application/json:
  *             schema:
@@ -110,6 +111,83 @@ import {
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  */
+/**
+ * @openapi
+ * /api/outings/{outingId}/messages/{messageId}:
+ *   patch:
+ *     tags: [Outing Chat]
+ *     summary: Edit your own outing message
+ *     operationId: editOutingMessage
+ *     description: Authenticated current participants may mutate only their own messages while chat is open. Closed chats return 409 CHAT_CLOSED. Deletion retains an empty-text tombstone to preserve retry IDs and history cursors. Editing deleted messages returns 409 MESSAGE_DELETED. Editing is allowed only during the first 60 seconds after sent_at; at or after that instant it returns 409 MESSAGE_EDIT_WINDOW_EXPIRED. Deleting an own message is not subject to this edit-only window. Changes use the existing outing message socket event. Edits do not send new mention notifications.
+ *     parameters:
+ *       - $ref: "#/components/parameters/ChatOutingId"
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [text]
+ *             properties:
+ *               text: { type: string, minLength: 1, maxLength: 2000 }
+ *     responses:
+ *       "200":
+ *         description: Canonical message (empty text for a deleted message)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ChatMessageResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: CHAT_CLOSED, MESSAGE_DELETED or MESSAGE_EDIT_WINDOW_EXPIRED
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ *   delete:
+ *     tags: [Outing Chat]
+ *     summary: Delete your own outing message
+ *     operationId: deleteOutingMessage
+ *     description: Authenticated current participants may mutate only their own messages while chat is open. Closed chats return 409 CHAT_CLOSED. Deletion retains an empty-text tombstone to preserve retry IDs and history cursors. Editing deleted messages returns 409 MESSAGE_DELETED. Editing is allowed only during the first 60 seconds after sent_at; at or after that instant it returns 409 MESSAGE_EDIT_WINDOW_EXPIRED. Deleting an own message is not subject to this edit-only window. Changes use the existing outing message socket event. Edits do not send new mention notifications.
+ *     parameters:
+ *       - $ref: "#/components/parameters/ChatOutingId"
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       "200":
+ *         description: Canonical message (empty text for a deleted message)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ChatMessageResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
+ *       "401":
+ *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
+ *       "404":
+ *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: CHAT_CLOSED, MESSAGE_DELETED or MESSAGE_EDIT_WINDOW_EXPIRED
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/ErrorResponse"
+ */
 const router = Router();
 const controller = new ChatController();
 
@@ -132,5 +210,8 @@ router.patch(
   validate({ params: outingIdParamsSchema }),
   controller.markAsRead,
 );
+
+router.patch("/:outingId/messages/:messageId", validate({ params: messageParamsSchema, body: editMessageBodySchema }), controller.mutate);
+router.delete("/:outingId/messages/:messageId", validate({ params: messageParamsSchema }), controller.mutate);
 
 export default router;

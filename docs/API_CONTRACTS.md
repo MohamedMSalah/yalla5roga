@@ -108,7 +108,7 @@ Flutter: `ApiConstants.invitations`, `ApiConstants.invitationAccept`, `ApiConsta
 | POST | `/api/outings/:id/cancel` | Yes | Cancel | Owner |
 | GET/POST | `/api/outings/drafts` | Yes | List/create drafts | |
 | PATCH/DELETE | `/api/outings/drafts/:id` | Yes | Update/delete draft | owner |
-| GET/PUT | `/api/outings/:id/attendance` | Yes | List or set RSVP | Existing `data` shapes, plus `my_response` and `summary`; PUT also returns current `items`. Identical writes preserve the previous timestamp. |
+| GET/PUT | `/api/outings/:id/attendance` | Yes | List or set RSVP | GET returns the complete accepted roster, including read-only `no_response` defaults and phone-free `users` profiles. PUT keeps its persisted response in `data` and returns the roster in `items`. Summary includes `no_response`; identical writes preserve the previous timestamp. |
 | GET | `/api/outings/:id/arrivals` | Yes | Participant roster and GPS policy | Returns `arrivals`, `unconfirmed`, `total_confirmed`, `open`, `opens_at`, `closes_at`, `radius_meters`, `max_accuracy_meters` and the confirmed `venue` coordinates. Compatibility fields report `automatic_eligible: true` and `can_confirm_arrivals: false`. |
 | PUT | `/api/outings/:id/arrivals/self` | Yes | Verify own GPS arrival | Sends `latitude`, `longitude`, `accuracy` in meters and ISO `captured_at`. Optional `method` accepts `gps` and the older `automatic_gps` spelling. A reported mock fix is rejected. Returns `{ arrived }`. |
 | GET/POST | `/api/outings/:id/guests` | Yes | List / invite | Repeated invites preserve pending or accepted membership and its original timestamp. |
@@ -206,7 +206,7 @@ When `R2_*` credentials are absent the backend uses the in-memory mock adapter a
 | POST | `/api/outings/:outingId/messages` | Yes | Send `{ text, clientMessageId? }` | same |
 | PATCH | `/api/outings/:outingId/read` | Yes | Mark read | `outingChatRead` |
 
-Open for outing statuses draft/voting/confirmed (backend `chat-access`). Cancelled blocked. Same authZ as before the path move (creator or guest).
+History/read access requires the creator, a current group member, or a pending/accepted outing guest. Sending and own-message editing/deletion require draft/voting/confirmed status and close at scheduled start + two hours. Past/cancelled mutations are blocked (409 CHAT_CLOSED).
 
 ### Socket.IO realtime (same origin/port, path `/socket.io`)
 
@@ -301,3 +301,29 @@ No route, request body, invitation decision behavior or Socket.IO event changed.
 ## Phase 3 multi-location ballot contract — 2026-11-14
 
 `replaceOutingBallot` accepts a full `option_ids` array. Empty array clears the caller’s selections; duplicate, invalid or foreign options fail with 400, nonparticipants with 403, missing outing with 404, and closed/expired voting with 409. Success is `{ success: true, data: { votes: Vote[], resolution: VoteResolution | null } }`. State reads return all caller selections and a distinct voter count, separate from the sum of per-option tallies. Existing POST/DELETE routes remain, and all vote writers reject deadline expiry. Existing realtime outing invalidation is emitted after commit; no Socket.IO wire event changes. `breakTie` now explicitly documents its existing 403/404/409 paths.
+
+## Phase 4 special-event contract extension — 2026-11-14
+
+Existing POST/PATCH `/api/outings` and draft schemas now accept `occasion: none|birthday|wedding|celebration|other`. Type remains server-derived: `none` requires a group and means `group`; every other occasion means `special_event` regardless of group_id. For a special event, group_id may be omitted/null or an accepted-member group. A supplied group receives the existing group authorization checks (403 for nonmembers or pending invitations; 404 for a missing group). Creator-only update rules still apply. Group association gives current accepted group members the existing outing access; removing the association removes that route to access.
+
+Creation of any special event requires a future scheduled_at and a fixed location_name; initial_vote_options remain the regular group-outing flow. Image references, idempotency, RSVP, app guest invitations and opted-in phone guests retain their contracts, including for group-associated events. No new outing_type, endpoint, event field or Socket.IO wire event was introduced. Draft and entity enum decoders round-trip the new occasions. Existing map/geocoding HTTP contracts are unchanged. Deploy the additive database migration before the new backend/client; verification does not deploy it to the application schema.
+
+
+## Create voting deadline selection — 2026-11-14
+
+The existing POST /api/outings accepts vote_ends_at as an absolute ISO-8601 instant with an offset/Z and vote_deadline_hours as optional duration metadata, now 1–168 inclusive. At least one is required. Explicit vote_ends_at takes precedence; it must be future-dated and strictly before scheduled_at when that field is supplied. Relative-only clients use server-time resolution and the same checks. Invalid/missing/elapsed/equal-or-after-start deadlines return 400 before persistence. Flutter calculates the absolute timestamp immediately before POST and displays the returned outing.vote_ends_at on success; local summaries use toLocal(). The draft API retains its existing vote_deadline_hours field with range 1–168. No route, field name or response envelope changes.
+
+
+## Unanswered RSVP projection — 2026-11-14
+
+GET /api/outings/:id/attendance data and PUT items use AttendanceRosterEntry: outing_id, user_id, status (going/not_going/maybe/no_response), nullable updated_at, and users { name, image_url }. Missing persisted rows serialize as no_response with no invented update time; the creator stays Going. my_response is explicit and summary includes all four counts. PUT request status still accepts only going/not_going/maybe; no_response is a default/read projection, not a selectable mutation. Existing membership checks gate the roster and exclude pending invitees. No database column/enum migration or endpoint is added.
+
+
+## Phase 5 outing-message mutations — 2026-11-14
+
+| Method | Path | Operation | Contract |
+|--------|------|-----------|----------|
+| PATCH | `/api/outings/{outingId}/messages/{messageId}` | `editOutingMessage` | `{text: string}` trimmed, 1–2000 characters; canonical `ChatMessageResponse` |
+| DELETE | same | `deleteOutingMessage` | 200 `ChatMessageResponse` with empty text tombstone; repeated delete remains 200 while open |
+
+Both use the existing Firebase middleware, participant and own-sender authorization. 400 invalid path/text, 401 unauthenticated, 403 nonparticipant/other sender, 404 wrong outing/message, 409 CHAT_CLOSED, MESSAGE_DELETED or MESSAGE_EDIT_WINDOW_EXPIRED. PATCH requires now < sent_at + 60 seconds; the cutoff is also enforced in the database update predicate. DELETE does not have the edit-age limit. Send/edit/delete close at scheduled start + two hours or status past/cancelled. History and mark-read contracts remain readable. Existing rooms and `outing:message` payloads carry canonical updated rows and tombstones; no transport or required response field changes. No migration is needed. The push sender adds APNs category `outing_chat` to chat notifications; existing FCM routing data and visible notification remain.

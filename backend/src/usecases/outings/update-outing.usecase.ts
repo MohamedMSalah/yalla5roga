@@ -73,12 +73,9 @@ export class UpdateOutingUseCase {
     const occasion =
       data.occasion !== undefined ? data.occasion : existing.occasion;
     const hasGroup = groupId != null;
-    if (hasGroup && occasion !== "none") {
-      throw new ValidationError("group outings must use occasion 'none'");
-    }
     if (!hasGroup && occasion === "none") {
       throw new ValidationError(
-        "provide group_id for a group outing, or set occasion to 'birthday' or 'wedding' for a special event",
+        "provide group_id for a group outing, or set a special-event occasion (birthday, wedding, celebration, other)",
       );
     }
 
@@ -96,7 +93,7 @@ export class UpdateOutingUseCase {
 
     const updated = await this.outings.update(id, {
       ...patch,
-      type: hasGroup ? "group" : "special_event",
+      type: occasion === "none" ? "group" : "special_event",
     });
 
     await notifyOutingParticipants({

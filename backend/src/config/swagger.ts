@@ -103,7 +103,7 @@ const invitationStatusEnum = [
   "expired",
   "revoked",
 ];
-const occasionEnum = ["none", "birthday", "wedding"];
+const occasionEnum = ["none", "birthday", "wedding", "celebration", "other"];
 const outingTypeEnum = ["group", "special_event"];
 const attendanceEnum = ["going", "not_going", "maybe"];
 const roleEnum = ["owner", "member"];
@@ -1013,7 +1013,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           type: "object",
           required: ["title"],
           description:
-            "The server derives the initial status: voting with initial options, confirmed with a fixed venue, otherwise draft. A future vote_ends_at or vote_deadline_hours is required. Group outings require group_id and occasion 'none' (default). Special events omit group_id and must set occasion to 'birthday' or 'wedding'.",
+            "The server derives the initial status: voting with initial options, confirmed with a fixed venue, otherwise draft. A future vote_ends_at or vote_deadline_hours is required. Group outings require group_id and occasion 'none' (default). Special events use birthday, wedding, celebration or other, with optional group_id. A selected group requires accepted membership. Independent special events retain guest invitations. All special events require a future scheduled_at and a fixed location_name. Type is derived from occasion, not group_id.",
           properties: {
             create_request_key: { type: "string", maxLength: 80, description: "Creator-scoped idempotency key. Required for special-event phone invitations and recommended for group voting." },
             initial_vote_options: {
@@ -1043,10 +1043,10 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             vote_deadline_hours: {
               type: "integer",
               minimum: 1,
-              maximum: 72,
+              maximum: 168,
               nullable: true,
             },
-            vote_ends_at: { ...dateTime, nullable: true },
+            vote_ends_at: { ...dateTime, nullable: true, description: "Absolute ISO-8601 instant, future and strictly before scheduled_at when supplied. The wizard computes it at submission time; vote_deadline_hours is optional duration metadata (1–168)." },
           },
         },
         UpdateOutingRequest: {
@@ -1070,7 +1070,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_area: { type: "string", maxLength: 100, nullable: true },
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
-            vote_deadline_hours: { type: "integer", nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
             vote_ends_at: { ...dateTime, nullable: true },
           },
         },
@@ -1092,7 +1092,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_area: { type: "string", nullable: true },
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
-            vote_deadline_hours: { type: "integer", nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
             vote_ends_at: { ...dateTime, nullable: true },
             vote_closed_at: { ...dateTime, nullable: true },
             vote_close_reason: {
@@ -1131,27 +1131,37 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             updated_at: dateTime,
           },
         },
+        AttendanceRosterEntry: {
+          type: "object", required: ["outing_id", "user_id", "status", "updated_at", "users"],
+          properties: {
+            outing_id: uuid, user_id: firebaseUid,
+            status: { type: "string", enum: [...attendanceEnum, "no_response"] },
+            updated_at: { ...dateTime, nullable: true },
+            users: { type: "object", properties: { name: { type: "string" }, image_url: { type: "string", nullable: true } } },
+          },
+        },
         AttendanceSummary: {
           type: "object",
           properties: {
-            my_response: { type: "string", enum: attendanceEnum, nullable: true },
+            my_response: { type: "string", enum: [...attendanceEnum, "no_response"] },
             summary: {
               type: "object",
               properties: {
                 going: { type: "integer" },
                 maybe: { type: "integer" },
                 not_going: { type: "integer" },
+                no_response: { type: "integer" },
               },
             },
           },
         },
         AttendanceResponse: {
           allOf: [itemResponse("Attendance"), ref("AttendanceSummary"), {
-            type: "object", properties: { items: { type: "array", items: ref("Attendance") } },
+            type: "object", properties: { items: { type: "array", items: ref("AttendanceRosterEntry") } },
           }],
         },
         AttendanceListResponse: {
-          allOf: [listResponse("Attendance"), ref("AttendanceSummary")],
+          allOf: [listResponse("AttendanceRosterEntry"), ref("AttendanceSummary")],
         },
         AddGuestRequest: {
           type: "object",
@@ -1364,7 +1374,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
             let_vote: { type: "boolean" },
-            vote_deadline_hours: { type: "integer", nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
             guest_ids: {
               description: "Stored as JSON. Typically an array of user ids.",
             },
@@ -1392,7 +1402,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             location_latitude: { type: "number", nullable: true },
             location_longitude: { type: "number", nullable: true },
             let_vote: { type: "boolean" },
-            vote_deadline_hours: { type: "integer", nullable: true },
+            vote_deadline_hours: { type: "integer", minimum: 1, maximum: 168, nullable: true },
             guest_ids: {},
             selected_places: {},
             updated_at: dateTime,

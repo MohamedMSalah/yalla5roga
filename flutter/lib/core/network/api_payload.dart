@@ -79,6 +79,8 @@ String attendanceStatusFromApi(String? wire) {
       return 'going';
     case 'maybe':
       return 'maybe';
+    case 'no_response':
+      return 'unset';
     default:
       return 'unset';
   }

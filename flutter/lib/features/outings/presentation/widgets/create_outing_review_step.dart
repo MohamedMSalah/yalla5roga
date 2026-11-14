@@ -39,9 +39,7 @@ class CreateOutingReviewStep extends StatelessWidget {
               if (form.occasion != OutingOccasion.none) ...[
                 Responsive.spaceXs.gapH,
                 Text(
-                  form.occasion == OutingOccasion.birthday
-                      ? l10n.birthday
-                      : l10n.wedding,
+                  form.occasion.label(l10n),
                   style: TextStyle(
                     color: AppColors.brand600,
                     fontWeight: FontWeight.w800,
@@ -54,9 +52,15 @@ class CreateOutingReviewStep extends StatelessWidget {
                 form.locationLabel,
                 style: TextStyle(color: context.palette.textMuted),
               ),
-              Text(
-                '${l10n.voteDeadlineHours}: ${l10n.hoursCount(form.voteDeadlineHours)}',
-              ),
+              if (!form.specialEvent)
+                Text(l10n.votingDeadlineSummary(form.previewVotingDeadline)),
+              if (form.votingDeadlineError(l10n) case final error?)
+                Text(
+                  error,
+                  style: context.texts.bodySmall?.copyWith(
+                    color: context.colors.error,
+                  ),
+                ),
               Responsive.spaceSm.gapH,
               if (!form.specialEvent)
                 Text(l10n.vibeLabel(OutingVibe.values[form.vibe].name)),
@@ -111,8 +115,8 @@ class CreateOutingReviewStep extends StatelessWidget {
                 Text(
                   form.guestNames.join(', '),
                   style: const TextStyle(fontWeight: FontWeight.w800),
-                )
-              else if (form.group != null)
+                ),
+              if (form.group != null)
                 Text(
                   form.group!.name,
                   style: const TextStyle(fontWeight: FontWeight.w800),

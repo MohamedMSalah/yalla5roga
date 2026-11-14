@@ -29,7 +29,7 @@ Reduce the friction of “where should we go?” by giving a group:
 |---------|---------|
 | Auth | Phone/password backed by a Neon hash. Firebase supplies signup OTP proof, UID and refreshable API sessions. |
 | Groups | Persistent friend groups; phone invitations with deep links |
-| Outings | Group outings and special events (birthday / wedding) |
+| Outings | Group outings and special events (birthday / wedding / celebration / other, optional group) |
 | Place voting | Owner-managed candidates; one active vote per member; server closure / winner / tie-break |
 | Attendance | Separate from voting |
 | Chat | Hybrid REST persistence + Socket.IO live delivery (ADR-013) |
@@ -87,3 +87,7 @@ flowchart LR
 - [`SYSTEM_DESIGN.md`](SYSTEM_DESIGN.md) — technical execution of workflows
 - [`USER_SCENARIOS.md`](USER_SCENARIOS.md) — user journeys
 - [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md) — where code lives
+
+## Phase 4 scope — 2026-11-14
+
+Discover now shares map controls with outing location selection: searchable OSM map, location action, horizontal categories, image previews and card exploration. Special Events support Birthday, Wedding, Celebration and Other through the established wizard, with optional accepted-member group association or the independent guest flow. The backend/Prisma contract extension and migration are included; application-schema deployment is separate. Provider, Dio, existing caching, flutter_map and the design system are retained.

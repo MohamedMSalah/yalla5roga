@@ -36,18 +36,19 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
   Future<bool> flushSends() async {
     if (!await networkInfo.isConnected) return true;
     return await sendQueue?.flush((pending) async {
-      final outingId = pending.outingId!;
-      final generation = _generation;
-      final saved = await remote.sendMessage(
-        outingId: outingId,
-        text: pending.text,
-        senderId: pending.senderId!,
-        senderName: pending.sender,
-        clientMessageId: pending.clientMessageId!,
-      );
-      if (generation == _generation) await _upsert(outingId, saved);
-      return saved;
-    }) ?? false;
+          final outingId = pending.outingId!;
+          final generation = _generation;
+          final saved = await remote.sendMessage(
+            outingId: outingId,
+            text: pending.text,
+            senderId: pending.senderId!,
+            senderName: pending.sender,
+            clientMessageId: pending.clientMessageId!,
+          );
+          if (generation == _generation) await _upsert(outingId, saved);
+          return saved;
+        }) ??
+        false;
   }
 
   Future<void> persistLiveMessage(ChatMessage message) =>
@@ -97,7 +98,8 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
   List<ChatMessage> cachedMessages(String outingId) {
     return _merge(
       _memory.getStale(outingId) ?? local.getMessages(outingId),
-      sendQueue?.messages.where((item) => item.outingId == outingId).toList() ?? const [],
+      sendQueue?.messages.where((item) => item.outingId == outingId).toList() ??
+          const [],
     );
   }
 
@@ -112,10 +114,7 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     }
 
     return _deduper.run(
-      RequestDeduper.keyFor(
-        method: 'GET',
-        path: 'chat:$outingId',
-      ),
+      RequestDeduper.keyFor(method: 'GET', path: 'chat:$outingId'),
       () async {
         if (!forceRefresh) {
           final fresh = _memory.get(outingId);
@@ -132,7 +131,9 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
         return await result.fold<Future<Either<Failure, List<ChatMessage>>>>(
           (failure) async {
             if (generation != _generation) return const Right([]);
-            if (failure.statusCode == 401 || failure.statusCode == 403 || failure.statusCode == 404) {
+            if (failure.statusCode == 401 ||
+                failure.statusCode == 403 ||
+                failure.statusCode == 404) {
               _memory.invalidate(outingId);
               await local.saveMessages(outingId, []);
               return Left(failure);
@@ -146,8 +147,44 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
           },
           (page) async {
             if (generation != _generation) return const Right([]);
-            _olderCursor.putIfAbsent(outingId, () => page.nextCursor);
-            final merged = _merge(cachedMessages(outingId), page.messages);
+            // Recovery replaces a bounded authoritative window, including edited
+            // messages and tombstones missed while disconnected. Older history
+            // remains available through its normal cursor.
+            final canonical = [...page.messages];
+            var cursor = page.nextCursor;
+            final retain = cachedMessages(outingId)
+                .where((m) => !m.id.startsWith('local_'))
+                .length
+                .clamp(40, 100);
+            if (forceRefresh) {
+              while (cursor != null && canonical.length < retain) {
+                final older = await guardRemote(
+                  networkInfo,
+                  () => remote.getMessages(outingId, before: cursor),
+                  reason: 'reconcileOutingChat',
+                );
+                if (generation != _generation) return const Right([]);
+                final failure = older.fold<Failure?>((f) => f, (_) => null);
+                if (failure != null) return Left(failure);
+                final next = older.getOrElse(
+                  () => (messages: <ChatMessage>[], nextCursor: null),
+                );
+                canonical.insertAll(0, next.messages);
+                if (next.nextCursor == cursor) break;
+                cursor = next.nextCursor;
+              }
+              _olderCursor[outingId] = cursor;
+            } else {
+              _olderCursor.putIfAbsent(outingId, () => cursor);
+            }
+            final queued =
+                sendQueue?.messages
+                    .where((m) => m.outingId == outingId)
+                    .toList() ??
+                <ChatMessage>[];
+            final merged = forceRefresh
+                ? _merge(canonical, queued)
+                : _merge(cachedMessages(outingId), canonical);
             _memory.set(outingId, merged);
             await local.saveMessages(outingId, merged);
             return Right(merged);
@@ -186,7 +223,9 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     );
     final queue = sendQueue;
     if (queue != null) {
-      final queued = pending.copyWith(deliveryStatus: MessageDeliveryStatus.pending);
+      final queued = pending.copyWith(
+        deliveryStatus: MessageDeliveryStatus.pending,
+      );
       try {
         await queue.add(queued);
         return Right(queued);
@@ -241,6 +280,44 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
   }
 
   @override
+  Future<Either<Failure, ChatMessage>> mutateMessage(
+    String outingId,
+    String messageId, {
+    String? text,
+  }) async {
+    final generation = _generation;
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.mutateMessage(outingId, messageId, text: text),
+      reason: 'mutateOutingChat',
+    );
+    if (generation != _generation) return const Left(AuthFailure());
+    return await result.fold((failure) async => Left(failure), (message) async {
+      await _upsert(outingId, message);
+      return Right(message);
+    });
+  }
+
+  @override
+  Future<Either<Failure, ChatMessage>> retryMessage(ChatMessage message) async {
+    final queue = sendQueue;
+    if (queue == null || message.clientMessageId == null) {
+      return const Left(CacheFailure('Pending message unavailable'));
+    }
+    try {
+      final pending = message.copyWith(
+        deliveryStatus: MessageDeliveryStatus.pending,
+      );
+      await queue.add(pending);
+      return Right(pending);
+    } on AppException catch (error) {
+      return Left(ExceptionMapper.toFailure(error));
+    } catch (_) {
+      return const Left(CacheFailure('Could not save the pending message'));
+    }
+  }
+
+  @override
   Future<void> clearCache() async {
     _generation++;
     _olderCursor.clear();
@@ -280,10 +357,20 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
           if (!isLocalPendingMessageId(item.id) && item.clientMessageId != null)
             item.clientMessageId,
       };
-      localMessages = localMessages.where((item) =>
-          !isLocalPendingMessageId(item.id) || !byClientId.contains(item.clientMessageId)).toList();
-      remoteMessages = remoteMessages.where((item) =>
-          !isLocalPendingMessageId(item.id) || !byClientId.contains(item.clientMessageId)).toList();
+      localMessages = localMessages
+          .where(
+            (item) =>
+                !isLocalPendingMessageId(item.id) ||
+                !byClientId.contains(item.clientMessageId),
+          )
+          .toList();
+      remoteMessages = remoteMessages
+          .where(
+            (item) =>
+                !isLocalPendingMessageId(item.id) ||
+                !byClientId.contains(item.clientMessageId),
+          )
+          .toList();
     }
     final byId = <String, ChatMessage>{};
     for (final message in localMessages) {
@@ -292,6 +379,9 @@ class OutingChatRepositoryImpl implements OutingChatRepository {
     }
     for (final message in remoteMessages) {
       if (message.id.isEmpty) continue;
+      if (byId[message.id]?.text.isEmpty == true && message.text.isNotEmpty) {
+        continue;
+      }
       byId[message.id] = message;
     }
     final merged = byId.values.toList()

@@ -1,0 +1,279 @@
+{
+  "checkedAt": "2026-11-14T00:28:13.034Z",
+  "mode": "HTTP/OpenAPI only; disposable schema; controlled Firebase verifier; no workers or live migration",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "Served Swagger matches generated OpenAPI",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 404,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 400,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Own edit succeeds before 60 seconds, fails at 60 seconds without content changes; own deletion still succeeds",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markOutingChatRead",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "deleteOutingMessage",
+      "status": 409,
+      "result": "PASS"
+    },
+    {
+      "scenario": "editOutingMessage",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "sendOutingMessage",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingMessages",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Own-message authorization, tombstone deduplication, canonical mentions, closed history, two-hour cutoff and cursor paging",
+      "result": "PASS"
+    }
+  ]
+}

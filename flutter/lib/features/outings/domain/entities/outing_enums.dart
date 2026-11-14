@@ -1,4 +1,4 @@
-enum OutingOccasion { none, birthday, wedding }
+enum OutingOccasion { none, birthday, wedding, celebration, other }
 
 /// Server-stored outing kind (`outings.type`).
 enum OutingType { group, specialEvent }
@@ -10,5 +10,6 @@ enum OutingStatus { draft, voting, confirmed, cancelled, past }
 enum OutingVibe { food, activity, outdoor, movie }
 
 /// Attendance is independent of place voting.
-/// [unset] is client-only (no attendance row yet) and is never sent to the API.
+/// [unset] represents the read-only no_response default (no RSVP row yet).
+/// It is never submitted as an attendance write.
 enum AttendanceStatus { going, notGoing, maybe, unset }

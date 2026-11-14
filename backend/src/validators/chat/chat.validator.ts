@@ -4,6 +4,9 @@ export const outingIdParamsSchema = z.object({
   outingId: z.uuid(),
 });
 
+export const messageParamsSchema = outingIdParamsSchema.extend({ messageId: z.uuid() });
+export const editMessageBodySchema = z.object({ text: z.string().trim().min(1).max(2000) });
+
 export const chatHistoryQuerySchema = z.object({
   before: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),

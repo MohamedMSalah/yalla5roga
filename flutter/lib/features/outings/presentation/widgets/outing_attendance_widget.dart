@@ -72,7 +72,21 @@ class OutingAttendanceWidget extends StatelessWidget {
             ],
           ),
           if (creator)
-            Text(context.l10n.youreIn, style: context.texts.bodySmall),
+            Text(context.l10n.youreIn, style: context.texts.bodySmall)
+          else if (loaded && mine == AttendanceStatus.unset)
+            Text(context.l10n.noResponse, style: context.texts.bodySmall),
+          if (loaded)
+            Text(
+              context.l10n.attendanceTally(
+                context.l10n.noResponse,
+                store
+                    .attendanceMapFor(outing.id)
+                    .values
+                    .where((value) => value == AttendanceStatus.unset)
+                    .length,
+              ),
+              style: context.texts.bodySmall,
+            ),
           if (loaded) ...[
             Responsive.spaceSm.gapH,
             TextButton(
@@ -124,7 +138,7 @@ class AttendanceDisplay {
       AttendanceStatus.going => '✓ ${l10n.imIn}',
       AttendanceStatus.notGoing => '✕ ${l10n.notIn}',
       AttendanceStatus.maybe => '? ${l10n.maybe}',
-      AttendanceStatus.unset => '? ${l10n.stillNotVoted}',
+      AttendanceStatus.unset => l10n.noResponse,
     };
   }
 }

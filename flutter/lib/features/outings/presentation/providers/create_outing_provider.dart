@@ -1,4 +1,7 @@
+import 'dart:async';
 import 'dart:math';
+
+import 'package:yalla_5roga/features/outings/domain/entities/voting_deadline.dart';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -26,13 +29,18 @@ class CreateOutingProvider extends ChangeNotifier {
     this.draft,
     bool specialEvent = false,
     bool letVote = false,
-  }) : _group = group,
-       _groupLocked = group != null,
+    DateTime Function()? now,
+  }) : _now = now ?? DateTime.now,
+       _group = group,
+       _groupLocked =
+           group != null && !specialEvent && !(draft?.specialEvent ?? false),
        _specialEvent =
            specialEvent ||
            (draft?.specialEvent ?? false) ||
            (saved?.occasion ?? OutingOccasion.none) != OutingOccasion.none,
        _draftId = draft?.id ?? _newDraftId() {
+    _deadlineNow = _now();
+    if (draft == null) _date = _now().add(const Duration(days: 1));
     nameController = TextEditingController(
       text: saved?.title ?? draft?.title ?? '',
     );
@@ -87,6 +95,15 @@ class CreateOutingProvider extends ChangeNotifier {
       }
     }
     _date = clampDate(_date);
+    _deadlineUnit =
+        _voteDeadlineHours % 24 == 0 &&
+            VotingDeadlinePolicy.dayPresets.contains(_voteDeadlineHours ~/ 24)
+        ? VotingDeadlineUnit.days
+        : VotingDeadlineUnit.hours;
+    _deadlineTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => refreshDeadlineClock(),
+    );
   }
 
   static String _newDraftId() {
@@ -98,6 +115,10 @@ class CreateOutingProvider extends ChangeNotifier {
     return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 
+  final DateTime Function() _now;
+  late DateTime _deadlineNow;
+  Timer? _deadlineTimer;
+  VotingDeadlineUnit _deadlineUnit = VotingDeadlineUnit.hours;
   final List<Group> _groups;
   final List<GroupMember> _contacts;
   final List<Place> _catalogPlaces;
@@ -136,6 +157,59 @@ class CreateOutingProvider extends ChangeNotifier {
   bool get letVote => _letVote;
 
   int get voteDeadlineHours => _voteDeadlineHours;
+
+  VotingDeadlineUnit get deadlineUnit => _deadlineUnit;
+  DateTime get scheduledAt =>
+      DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
+  DateTime get previewVotingDeadline =>
+      VotingDeadlinePolicy.endsAt(_deadlineNow, _voteDeadlineHours);
+  bool get isVotingDeadlineValid => _deadlineProblem(_deadlineNow) == null;
+
+  VotingDeadlineProblem? _deadlineProblem(DateTime now, [int? hours]) =>
+      VotingDeadlinePolicy.validate(
+        now: now,
+        hours: hours ?? _voteDeadlineHours,
+        scheduledAt: scheduledAt,
+      );
+
+  bool canSelectDeadlineHours(int hours) =>
+      _deadlineProblem(_deadlineNow, hours) == null;
+
+  String? votingDeadlineError(L10n l10n) =>
+      _deadlineMessage(_deadlineProblem(_deadlineNow), l10n);
+
+  String? validateVotingDeadlineNow(L10n l10n) =>
+      _deadlineMessage(_deadlineProblem(_now()), l10n);
+
+  String? _deadlineMessage(VotingDeadlineProblem? problem, L10n l10n) =>
+      switch (problem) {
+        null => null,
+        VotingDeadlineProblem.unsupportedDuration =>
+          l10n.votingDeadlineDurationInvalid,
+        VotingDeadlineProblem.notFuture => l10n.votingDeadlineMustBeFuture,
+        VotingDeadlineProblem.afterOutingStart =>
+          l10n.votingDeadlineBeforeOuting,
+      };
+
+  void refreshDeadlineClock() {
+    _deadlineNow = _now();
+    notifyListeners();
+  }
+
+  void setDeadlineUnit(VotingDeadlineUnit unit) {
+    if (_deadlineUnit == unit) return;
+    _deadlineUnit = unit;
+    _deadlineNow = _now();
+    final hours = unit == VotingDeadlineUnit.hours
+        ? VotingDeadlinePolicy.hourPresets
+        : [for (final days in VotingDeadlinePolicy.dayPresets) days * 24];
+    if (!hours.contains(_voteDeadlineHours) ||
+        !canSelectDeadlineHours(_voteDeadlineHours)) {
+      _voteDeadlineHours =
+          hours.where(canSelectDeadlineHours).firstOrNull ?? hours.first;
+    }
+    notifyListeners();
+  }
 
   String? get image => _image;
 
@@ -184,12 +258,12 @@ class CreateOutingProvider extends ChangeNotifier {
   bool get multiPlaceMode => !_specialEvent && _letVote;
 
   DateTime get minDate {
-    final now = DateTime.now();
+    final now = _now();
     return DateTime(now.year, now.month, now.day);
   }
 
   DateTime get maxDate {
-    final now = DateTime.now();
+    final now = _now();
     if (_specialEvent) {
       return DateTime(now.year + 1, now.month, now.day);
     }
@@ -325,12 +399,24 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   String? validateStep(L10n l10n) {
+    final deadlineError = validateVotingDeadlineNow(l10n);
+    if (deadlineError != null) return deadlineError;
     if (_step == 0) {
       final nameError = Validators.outingName(nameController.text, l10n);
       if (nameError != null) return nameError;
-      // Cover photo is optional until a remote upload pipeline exists.
+      if (_specialEvent &&
+          !DateTime(
+            _date.year,
+            _date.month,
+            _date.day,
+            _time.hour,
+            _time.minute,
+          ).isAfter(_now())) {
+        return l10n.futureEventRequired;
+      }
+      // Cover photo uses the existing optional upload pipeline.
       if (_specialEvent) {
-        if (_guestIds.isEmpty && _guestPhones.isEmpty) {
+        if (_group == null && _guestIds.isEmpty && _guestPhones.isEmpty) {
           return l10n.guestsRequired;
         }
       } else if (_group == null) {
@@ -418,7 +504,8 @@ class CreateOutingProvider extends ChangeNotifier {
   void toggleLetVote() => setLetVote(!_letVote);
 
   void setVoteDeadlineHours(int hours) {
-    _voteDeadlineHours = hours.clamp(1, 72);
+    _voteDeadlineHours = hours;
+    _deadlineNow = _now();
     notifyListeners();
   }
 
@@ -492,7 +579,7 @@ class CreateOutingProvider extends ChangeNotifier {
     }
   }
 
-  void setGroup(Group value) {
+  void setGroup(Group? value) {
     if (_groupLocked) return;
     _group = value;
     notifyListeners();
@@ -500,11 +587,13 @@ class CreateOutingProvider extends ChangeNotifier {
 
   void setDate(DateTime value) {
     _date = clampDate(value);
+    _deadlineNow = _now();
     notifyListeners();
   }
 
   void setTime(TimeOfDay value) {
     _time = value;
+    _deadlineNow = _now();
     notifyListeners();
   }
 
@@ -606,9 +695,10 @@ class CreateOutingProvider extends ChangeNotifier {
       date: formattedDate,
       time: formattedTime,
       going: _specialEvent
-          ? guests.length + _guestPhones.length
+          ? guests.length + _guestPhones.length + (_group?.memberCount ?? 0)
           : _group!.memberCount,
-      groupId: _specialEvent ? null : _group!.id,
+      groupId: _group?.id,
+      type: _specialEvent ? OutingType.specialEvent : OutingType.group,
       location: voting ? null : selectedLocation,
       occasion: _occasion,
       guestIds: guests,
@@ -629,6 +719,7 @@ class CreateOutingProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _deadlineTimer?.cancel();
     customPlaceController.removeListener(_onCustomPlaceChanged);
     nameController.dispose();
     customPlaceController.dispose();

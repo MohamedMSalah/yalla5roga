@@ -19,9 +19,11 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
     required this.placeId,
     this.coverHeroTag,
     this.coverUrl,
+    this.initialPlace,
   });
 
   final String placeId;
+  final SuggestedPlace? initialPlace;
 
   /// Hero tag of the card cover that opened this page. Only the gallery image
   /// that matches the tapped cover takes part in the flight.
@@ -62,7 +64,7 @@ class DiscoverPlaceDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final palette = context.palette;
-    final place = context.read<DiscoverProvider>().placeById(placeId);
+    final place = initialPlace ?? context.read<DiscoverProvider>().placeById(placeId);
     final laidOut = heroGallery(place: place, tappedCoverUrl: coverUrl);
     final gallery = laidOut.gallery;
     final coverIndex = laidOut.coverIndex;

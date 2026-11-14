@@ -91,7 +91,7 @@ Errors: 401 invalid token/credentials; 409 duplicate email/phone. After auth, de
 | API | `CreateOutingUseCase`, `UpdateOutingUseCase`, `POST/PATCH/DELETE /api/outings` |
 | DB | `outings`, `outing_attendance` (owner Going) |
 
-Group vs special event discriminated by `group_id` / `occasion` / `type`. Deadline mandatory (`vote_ends_at` or `vote_deadline_hours`). Confirmed location edits rejected when winner locked.
+Type is derived from occasion: `none` requires a group and produces `group`; birthday/wedding/celebration/other produce `special_event` with an optional group. A supplied group requires accepted creator membership. Deadline mandatory (`vote_ends_at` or `vote_deadline_hours`). Confirmed location edits rejected when winner locked.
 
 ### Invitations and membership
 
@@ -451,3 +451,26 @@ Group Info/history → existing GroupsProvider/repository → GET group + member
 ## Phase 3 Flutter composition — 2026-11-14
 
 CreateOutingPage retains its route-local ChangeNotifier across Information → Locations → Review and back/edit navigation. Shared AppStepProgress renders localized progress; the existing map picker returns ordered Place values without replacing the form provider. Details composes OutingOverview, OutingAttendanceWidget (RSVP), OutingVoteWidget, OutingArrivalsSection, OutingLocationSection and OutingManagementActions. Widgets call existing providers/services; repositories and Dio remain the only HTTP path. Shared OutingCard and PlaceCard render presentation values. Single venue rendering omits ballot competition controls. AppSyncProvider remains the single Socket.IO/recovery coordinator; terminal history/chat policy and backend arrival authorization do not change.
+
+## Phase 4 workflow extension — 2026-11-14
+
+Discover and the outing picker render the existing AppMap with shared controlled chrome. Discover's area search is cancellable/debounced and uses existing geocoding/nearby repositories; screen-specific discovery and selection mutations remain separate. Permission failure leaves manual search and the shared fallback available. Provider, API caching and backend place bounds remain authoritative.
+
+Special Event -> Information (image/title/occasion/optional group/guests/schedule) -> Location (fixed venue) -> Review -> existing create API. The server derives type from occasion and checks accepted membership whenever a group is supplied. Existing independent guest, outbox, RSVP, chat and realtime flows remain. Migration changes enum/constraint only, without rewriting rows. The existing lifecycle diagram is unchanged; event creation does not move lifecycle authority to Flutter.
+
+
+## Voting deadline selection/submission — 2026-11-14
+
+Information duration selection → provider/domain policy computes local preview and checks against schedule → Review retains duration → existing media upload finishes → datasource captures fresh now, computes UTC absolute deadline and validates → existing POST /outings → shared backend helper revalidates explicit/relative deadline → existing persistence stores vote_ends_at and duration metadata → canonical response timestamp is parsed and shown on the existing confirmation route. No communication/topology change; the existing create/voting diagrams remain applicable. Preview clock refreshes and schedule edits disable invalid Continue/Create actions; REST validation still owns acceptance.
+
+
+## Unanswered RSVP and deadline display — 2026-11-14
+
+Accepted membership + persisted RSVP rows → existing authorized attendance read → complete roster/default no_response → existing Provider and raw offline snapshots → RSVP/Who’s going. A membership invalidation rehydrates new accepted members; default construction does not send a mutation or notification. Deadline/server-closed state → visible route-local timer → local days/hours/minutes/seconds; no polling, closure request or winner calculation is introduced. Existing sequence diagrams retain their topology.
+
+
+## Phase 5 chat window and action flow — 2026-11-14
+
+Chat history authorization is independent of mutation availability. Sending, editing and deletion close at scheduled_at + two hours (independent of the existing six-hour default outing completion job), or immediately on past/cancelled status. The frontend timer reflects that boundary; the backend shared guard enforces it, including native replies and replayed sends. Own-message edit additionally requires now < sent_at + one minute, checked both by the client and backend write predicate. Delete is not age-limited within open chat. REST mutation → authorized persistence → existing outing:message delivery updates bubbles/tombstones. Reconnect replaces a bounded authoritative window, preserving queue/live updates and cursor access to earlier history.
+
+Native Reply/Mark as read → recipient/current-session validation → existing authenticated message/read API → inbox read update. Android local notifications supply text input; iOS local/APNs categories supply it through the plugin/native bridge. Android background FCM remains OS-rendered without chat actions. No new room, transport, database or notification worker exists.

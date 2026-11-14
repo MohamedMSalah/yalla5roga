@@ -23,8 +23,6 @@ class FcmTokenRemoteDataSource {
   }
 
   Future<void> unregister(String token) async {
-    await _api.delete(
-      '${ApiConstants.fcmToken}/${Uri.encodeComponent(token)}',
-    );
+    await _api.delete('${ApiConstants.fcmToken}/${Uri.encodeComponent(token)}');
   }
 }

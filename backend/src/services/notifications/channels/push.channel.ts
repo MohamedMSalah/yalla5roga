@@ -81,6 +81,9 @@ export class PushChannel implements NotificationChannelSender {
     const response = await messaging.sendEachForMulticast({
       tokens: tokens.map((row) => row.token),
       notification: { title, body },
+      ...(["chat", "chat_message"].includes(data.type ?? "") ? {
+        apns: { payload: { aps: { category: "outing_chat" } } },
+      } : {}),
       data,
     });
 

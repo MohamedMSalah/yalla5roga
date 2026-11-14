@@ -8,6 +8,8 @@ import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/map_location.dart';
 import 'package:yalla_5roga/core/widgets/app_map.dart';
+import 'package:yalla_5roga/core/widgets/map_controls.dart';
+import 'package:yalla_5roga/core/widgets/vibe_picker.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
@@ -61,6 +63,7 @@ class _PickerState extends State<_Picker> {
   final _sheetInset = ValueNotifier<double>(0);
   final _searchFocus = FocusNode();
   final _query = TextEditingController();
+  int _filter = -1;
   var _collapsed = .4;
   var _height = 0.0;
 
@@ -249,13 +252,11 @@ class _PickerState extends State<_Picker> {
                           point: LatLng(place.latitude!, place.longitude!),
                           width: 48,
                           height: 48,
-                          child: Semantics(
+                          child: MapPlaceMarker(
+                            label: l10n.mapSelectedPlace(place.name),
                             selected: true,
-                            child: IconButton.filled(
-                              tooltip: l10n.mapSelectedPlace(place.name),
-                              onPressed: () => _choose(place),
-                              icon: Text(l10n.n(index + 1)),
-                            ),
+                            number: l10n.n(index + 1),
+                            onPressed: () => _choose(place),
                           ),
                         ),
                   ],
@@ -335,54 +336,18 @@ class _PickerState extends State<_Picker> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Material(
-                            color: scheme.surface,
-                            elevation: 3,
-                            borderRadius: BorderRadius.circular(16),
-                            child: Row(
-                              children: [
-                                const BackButton(),
-                                Expanded(
-                                  child: TextField(
-                                    controller: _query,
-                                    focusNode: _searchFocus,
-                                    onChanged: picker.search,
-                                    textInputAction: TextInputAction.search,
-                                    decoration: InputDecoration(
-                                      hintText: l10n.mapSearchHint,
-                                      border: InputBorder.none,
-                                      enabledBorder: InputBorder.none,
-                                      focusedBorder: InputBorder.none,
-                                    ),
+                          MapSearchBar(
+                            controller: _query,
+                            focusNode: _searchFocus,
+                            onChanged: picker.search,
+                            leading: const BackButton(),
+                            trailing: Selector<PickLocationProvider, bool>(
+                              selector: (_, picker) => picker.locating,
+                              builder: (_, locating, _) =>
+                                  MapCurrentLocationButton(
+                                    busy: locating,
+                                    onPressed: _locate,
                                   ),
-                                ),
-                                if (searching)
-                                  IconButton(
-                                    tooltip: MaterialLocalizations.of(context)
-                                        .closeButtonTooltip,
-                                    icon: const Icon(Icons.close),
-                                    onPressed: () {
-                                      _query.clear();
-                                      _searchFocus.unfocus();
-                                    },
-                                  )
-                                else
-                                  Selector<PickLocationProvider, bool>(
-                                    selector: (_, picker) => picker.locating,
-                                    builder: (_, locating, _) => IconButton(
-                                      tooltip: l10n.yourLocation,
-                                      onPressed: locating ? null : _locate,
-                                      icon: locating
-                                          ? const SizedBox.square(
-                                              dimension: 20,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            )
-                                          : const Icon(Icons.my_location),
-                                    ),
-                                  ),
-                              ],
                             ),
                           ),
                           if (searching)
@@ -390,6 +355,9 @@ class _PickerState extends State<_Picker> {
                               child: _SearchResults(
                                 onChoose: _choose,
                                 query: _query,
+                                filter: _filter,
+                                onFilter: (value) =>
+                                    setState(() => _filter = value),
                               ),
                             ),
                         ],
@@ -409,7 +377,14 @@ class _PickerState extends State<_Picker> {
 }
 
 class _SearchResults extends StatelessWidget {
-  const _SearchResults({required this.onChoose, required this.query});
+  const _SearchResults({
+    required this.onChoose,
+    required this.query,
+    required this.filter,
+    required this.onFilter,
+  });
+  final int filter;
+  final ValueChanged<int> onFilter;
 
   final ValueChanged<Place> onChoose;
   final TextEditingController query;
@@ -418,7 +393,10 @@ class _SearchResults extends StatelessWidget {
   Widget build(BuildContext context) {
     final picker = context.watch<PickLocationProvider>();
     final l10n = context.l10n;
-    if (query.text.trim().isEmpty) return const SizedBox.shrink();
+
+    final places = (query.text.trim().isEmpty ? picker.catalog : picker.results)
+        .where((p) => filter < 0 || p.id.isEmpty || p.vibe.index == filter)
+        .toList();
     return Card(
       margin: const EdgeInsets.only(top: 8),
       child: ListView(
@@ -426,16 +404,19 @@ class _SearchResults extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 4),
         children: [
           if (picker.searching) const LinearProgressIndicator(),
-          for (final place in picker.results)
+          MapVibeFilters(
+            labels: VibeOption.outingVibes(l10n).map((v) => v.label).toList(),
+            index: filter,
+            onChanged: onFilter,
+          ),
+          for (final place in places)
             ListTile(
               leading: const Icon(Icons.place_outlined),
               title: Text(place.name),
               subtitle: place.area.isEmpty ? null : Text(place.area),
               onTap: () => onChoose(place),
             ),
-          if (!picker.searching &&
-              picker.results.isEmpty &&
-              !picker.searchFailed)
+          if (!picker.searching && places.isEmpty && !picker.searchFailed)
             ListTile(title: Text(l10n.mapNoResults)),
           if (picker.searchFailed)
             ListTile(
@@ -549,11 +530,11 @@ class _Details extends StatelessWidget {
               ),
             )
           else
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.place_outlined),
-              title: Text(candidate.name),
-              subtitle: candidate.area.isEmpty ? null : Text(candidate.area),
+            MapSelectedLocationCard(
+              title: candidate.name,
+              subtitle: candidate.area,
+              imageUrl: candidate.imageUrl,
+              selected: true,
             ),
           if (picker.lookingUp) ...[
             const SizedBox(height: 4),
@@ -618,12 +599,12 @@ class _SelectedPlace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: CircleAvatar(child: Text(l10n.n(index + 1))),
-      title: Text(place.name),
-      subtitle: place.area.isEmpty ? null : Text(place.area),
+    return MapSelectedLocationCard(
+      title: '${l10n.n(index + 1)}. ${place.name}',
+      subtitle: place.area,
+      imageUrl: place.imageUrl,
       onTap: onFocus,
+      selected: true,
       trailing: PopupMenuButton<int>(
         tooltip: l10n.mapEditPlace(place.name),
         onSelected: (value) => value == 0 ? onRemove() : onMove(value),
