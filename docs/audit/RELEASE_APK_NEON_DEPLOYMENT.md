@@ -44,3 +44,20 @@ Private backup: `backend/.database-backups/notifications-2026-11-14T14-19-03.158
 - `docs/DATABASE_ARCHITECTURE.md`: notification schema deployment status, verified target, backup/rehearsal and preservation evidence.
 - `docs/PROJECT_STRUCTURE.md`: deployment utility and audit artifact paths; corrected the earlier notification migration deployment status.
 - This report and the two metadata-only JSON audits record the build fix and deployment results. No architecture or product-flow changes required updates elsewhere. No diagram relationships changed. Historical reports retain their original task-time verification limits; current deployment status is recorded here and in the canonical database document. No new inconsistencies identified.
+
+
+## Places / saved-places release — 2026-11-14
+
+Owner explicitly approved committing the complete 202-file staged application set, including existing notification/auth/UI work, to main. Commit `ce82e4401dbe2934a94624e1c3e2b6ddded3e61d` was verified on GitHub origin/main.
+
+Neon readback passed: no pending migrations; the deployed places migration checksum matches local SQL. No reset or additional schema mutation was required. See PLACES_MIGRATION_READBACK.json.
+
+Release command: `flutter build apk --release --split-per-abi --dart-define-from-file=.env.device`. Build passed in 326.4 seconds. ARM64 signature verification passed using the existing Android Debug certificate. No device installation or device tests ran.
+
+| APK | Bytes | SHA-256 |
+|---|---:|---|
+| app-arm64-v8a-release.apk | 25740485 | 369894739FDF36C8DB57E786FC9202D590599AC4B0620EC6F7A41A3D0BED1613 |
+| app-armeabi-v7a-release.apk | 23689873 | 65A9C866956F0A78495CDC0FD4CCB1A9380169DBA870A3832C498A66D41556A5 |
+| app-x86_64-release.apk | 27289793 | F0E83285CAED758AF28931C2A7099410AE2C0AF7FA593588F267BA41FD33BA4C |
+
+Documentation Updates: this release report and migration readback record current verification; no diagram changes. The earlier documented OSM live-import/source and external scheduler activation requirements remain outstanding. Backend hosting deployment was not verified.
