@@ -1,3 +1,4 @@
+import { publicPlace } from "../../services/places/public-place.js";
 import { z } from "zod";
 import { emitDataChange, outingRealtimeUsers, publishOutingChange,
 } from "../../realtime/data-changes.js";
@@ -514,7 +515,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const data = await this.listSavedPlaces.execute(req.user.uid);
-      res.json({ success: true, data });
+      res.json({ success: true, data: data.map((row) => ({ ...row, places: publicPlace((row as any).places) })) });
     } catch (error) {
       next(error);
     }

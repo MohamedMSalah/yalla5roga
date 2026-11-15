@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:yalla_5roga/features/discover/presentation/widgets/place_branch_picker.dart';
+
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart'
     show PlaceCatalogAttribution;
@@ -129,7 +131,11 @@ class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
     final coverIndex = laidOut.coverIndex;
 
     return Scaffold(
-      appBar: AppPageBar(title: place.localizedName(l10n)),
+      appBar: AppPageBar(
+        title: place.brandName.isEmpty
+            ? place.localizedName(l10n)
+            : place.brandName,
+      ),
       body: Column(
         children: [
           Expanded(
@@ -199,6 +205,24 @@ class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
                     label: l10n.catalogStatus(place.status),
                     color: palette.brandSoft,
                     textColor: palette.brandStrong,
+                  ),
+                if (place.brandId.isNotEmpty) Text(place.branchLabel),
+                if (place.branchCount > 1 && place.brandId.isNotEmpty)
+                  PlaceBranchesButton(
+                    count: place.branchCount,
+                    onPressed: () async {
+                      final branch = await pickPlaceBranch(
+                        context,
+                        place.toOutingPlace(),
+                      );
+                      if (!context.mounted || branch == null) return;
+                      Get.to(
+                        () => DiscoverPlaceDetailsPage(
+                          placeId: branch.id,
+                          initialPlace: branch,
+                        ),
+                      );
+                    },
                   ),
                 if (place.openingHours.isNotEmpty) Text(place.openingHours),
                 if (place.address.isNotEmpty) Text(place.address),

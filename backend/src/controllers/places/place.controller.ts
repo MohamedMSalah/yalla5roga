@@ -52,7 +52,11 @@ export class PlaceController {
       // The route already validated the query (400 on bad input). Express 5
       // re-parses req.query on each access, so coerce here to get numbers.
       const query = nearbyPlacesQuerySchema.parse(req.query);
-      const places = await this.findNearby.execute(query);
+      const { catalogQuerySchema } = await import("../../validators/places/catalog.validator.js");
+      const { CatalogUseCase } = await import("../../usecases/places/catalog.usecase.js");
+      const result = await new CatalogUseCase().list(catalogQuerySchema.parse({ ...req.query,
+        lat: query.lat, lng: query.lng, radiusKm: query.radiusKm ?? 5, limit: query.limit ?? 20, sort: "distance" }));
+      const places = result.places;
       res.json({ success: true, data: places });
     } catch (error) {
       next(error);
@@ -71,7 +75,7 @@ export class PlaceController {
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const place = await this.createPlace.execute(req.body, req.user?.uid);
-      res.status(201).json({ success: true, data: place });
+      res.status(201).json({ success: true, data: publicPlace(place) });
     } catch (error) {
       next(error);
     }
@@ -84,7 +88,7 @@ export class PlaceController {
         req.body,
         req.user?.uid,
       );
-      res.json({ success: true, data: place });
+      res.json({ success: true, data: publicPlace(place) });
     } catch (error) {
       next(error);
     }
@@ -93,7 +97,7 @@ export class PlaceController {
   remove = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const place = await this.deletePlace.execute(req.params.id as string);
-      res.json({ success: true, data: place });
+      res.json({ success: true, data: publicPlace(place) });
     } catch (error) {
       next(error);
     }

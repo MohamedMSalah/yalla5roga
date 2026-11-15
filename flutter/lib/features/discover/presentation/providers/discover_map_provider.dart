@@ -29,6 +29,12 @@ class DiscoverMapProvider extends PlaceCatalogProvider {
   SuggestedPlace? get selectedPlace =>
       places.where((p) => p.id == selectedPlaceId).firstOrNull;
 
+  void revealBranch(SuggestedPlace place) {
+    cancelPending();
+    if (!places.any((p) => p.id == place.id)) places = [...places, place];
+    select(place);
+  }
+
   void select(SuggestedPlace place) {
     if (place.id == selectedPlaceId) return;
     selectedPlaceId = place.id;

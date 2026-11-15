@@ -1,3 +1,4 @@
+import { prepareBranch } from "../../services/places/branch-write.js";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
 import { notifyCatalogChanged } from "../../services/places/catalog-notifications.js";
@@ -24,10 +25,11 @@ const DEFAULT_RADIUS_KM = 5;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
 
+const brandInclude = { brand: { include: { _count: { select: { branches: { where: { is_active: true, status: "active" } } } } } } } as const;
 export class PlaceDatasource {
   findById(id: string): Promise<Place | null> {
     return prisma.places.findUnique({ where: { id },
-      include: { category: true, place_vibes: { include: { vibe: true } }, place_hours: true, place_prices: true, place_images: { orderBy: { sort_order: "asc" } } },
+      include: { brand: { include: { _count: { select: { branches: { where: { is_active: true, status: "active" } } } } } }, category: true, place_vibes: { include: { vibe: true } }, place_hours: true, place_prices: true, place_images: { orderBy: { sort_order: "asc" } } },
     });
   }
 
@@ -93,9 +95,11 @@ export class PlaceDatasource {
   }
 
   create(data: CreatePlaceInput): Promise<Place> {
-    const { vibes, ...fields } = data;
+    const { vibes, ...input } = data;
     return prisma.$transaction(async (tx) => {
-      const result = await tx.places.create({ data: {
+      const { existing, fields } = await prepareBranch(tx, input);
+      if (existing) return tx.places.findUniqueOrThrow({ where: { id: existing.id }, include: brandInclude });
+      const result = await tx.places.create({ include: brandInclude, data: {
           ...fields,
           manually_managed: true,
           place_vibes: vibes
@@ -114,12 +118,13 @@ export class PlaceDatasource {
   }
 
   update(id: string, data: UpdatePlaceInput): Promise<Place> {
-    const { vibes, ...fields } = data;
+    const { vibes, brand: _brand, source: _source, source_type: _sourceType, source_id: _sourceId, ...fields } = data;
     return prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM places WHERE id=${id}::uuid FOR UPDATE`;
       const old = await tx.places.findUniqueOrThrow({ where: { id } });
       if (vibes) await tx.place_vibes.deleteMany({ where: { place_id: id } });
       const result = await tx.places.update({
+      include: brandInclude,
       where: { id },
       data: { ...fields,
           manually_managed: true, updated_at: new Date(),

@@ -5,6 +5,13 @@ import 'package:intl/intl.dart';
 /// Single source for every on-screen string.
 /// Getter names match the copy they return.
 class L10n {
+  String get multipleBranches => _t('Multiple branches', 'فروع متعددة');
+  String get chooseBranch => _t('Choose a branch', 'اختار الفرع');
+  String viewOtherBranches(int count) => _t(
+    'View other branches (${n(count)})',
+    'شوف الفروع التانية (${n(count)})',
+  );
+
   const L10n(this.locale);
 
   final Locale locale;

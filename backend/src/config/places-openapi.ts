@@ -1,3 +1,5 @@
+import { extendPlaceBrandsOpenApi } from "./place-brands-openapi.js";
+
 /** Additive catalog contracts augment the existing Places operations and schemas. */
 export function extendPlacesOpenApi(spec: any) {
   const ref = (s: string) => ({ $ref: `#/components/schemas/${s}` });
@@ -268,4 +270,5 @@ export function extendPlacesOpenApi(spec: any) {
       },
     },
   };
+  extendPlaceBrandsOpenApi(spec);
 }

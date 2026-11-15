@@ -316,3 +316,19 @@ Scheduling tables are not added: imports are manual only at the owner's request.
 ## Release verification — 2026-11-15
 
 The owner-authorized GitHub/Neon release check verified all 19 local migration checksums against the configured Neon project/branch. Both places migrations (free ingestion and unknown price/absence tracking) were already applied. Prisma migrate deploy succeeded with no pending SQL. Schema, migration history and application-row fingerprints were unchanged. Evidence: `audit/NEON_RELEASE_SYNC_RESULTS.json`. This was a no-op deployment verification, not a second application of the migrations.
+
+
+## Multi-branch places — 2026-11-15
+
+Places remain physical branches with stable UUIDs and existing outing/vote, taxonomy, hours, image and price relations. Nullable place_brands association and bilingual aliases identify shared brands. Explicit brand evidence and conservative address/distance matching prevent name-only physical merges; ambiguous matches are logged. Independent places remain supported. Existing source/type/source_id fields provide namespaced external identity, with an additional SQL uniqueness index.
+
+GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
+
+Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+```mermaid
+erDiagram
+  place_brands ||--o{ places : branches
+  place_brands ||--o{ place_brand_aliases : names
+  places ||--o{ outings : selected_branch
+```

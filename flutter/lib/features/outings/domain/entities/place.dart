@@ -18,10 +18,20 @@ class Place {
     this.nameAr = '',
     this.nameEn = '',
     this.address = '',
+    this.brandId = '',
+    this.brandName = '',
+    this.branchName = '',
+    this.branchCount = 0,
   });
 
   /// Stable id when known; otherwise [placeId] derives a slug from [name].
   final String id;
+  final String brandId, brandName, branchName;
+  final int branchCount;
+  String get branchLabel => [
+    branchName,
+    address.isNotEmpty ? address : area,
+  ].where((s) => s.isNotEmpty).toSet().join(' · ');
 
   // Ephemeral geocoder identity. Only the selected snapshot is persisted.
   final String sourceId;
@@ -79,6 +89,10 @@ class Place {
       nameAr: nameAr,
       nameEn: nameEn,
       address: address,
+      brandId: brandId,
+      brandName: brandName,
+      branchName: branchName,
+      branchCount: branchCount,
     );
   }
 
@@ -96,6 +110,10 @@ class Place {
     'name_ar': nameAr,
     'name_en': nameEn,
     'address': address,
+    'brand_id': brandId,
+    'brand_name': brandName,
+    'branch_name': branchName,
+    'branch_count': branchCount,
   };
 
   factory Place.fromJson(Map<String, dynamic> json) {
@@ -107,6 +125,10 @@ class Place {
       nameAr: json['name_ar'] as String? ?? '',
       nameEn: json['name_en'] as String? ?? '',
       address: json['address'] as String? ?? '',
+      brandId: json['brand_id'] as String? ?? '',
+      brandName: json['brand_name'] as String? ?? '',
+      branchName: json['branch_name'] as String? ?? '',
+      branchCount: (json['branch_count'] as num?)?.toInt() ?? 0,
       vibeIds: (json['vibes'] as List? ?? const [])
           .whereType<String>()
           .toList(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/discover/presentation/widgets/place_branch_picker.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
@@ -141,6 +142,17 @@ class _DiscoverPlaceCarouselState extends State<DiscoverPlaceCarousel> {
               vibes: vibes,
               distanceKm: catalog.distanceKm(place),
               selected: catalog.selectedPlaceId == place.id,
+              onBranches: () async {
+                final branch = await pickPlaceBranch(
+                  context,
+                  place.toOutingPlace(),
+                  latitude: catalog.userLocation?.latitude,
+                  longitude: catalog.userLocation?.longitude,
+                );
+                if (context.mounted && branch != null) {
+                  catalog.revealBranch(branch);
+                }
+              },
               onSelect: () => catalog.select(place),
               onDetails: () => widget.onDetails(place),
               onCreate: () => widget.onCreate(place),

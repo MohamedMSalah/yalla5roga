@@ -429,3 +429,12 @@ Notifications/loading/arrival source verification (2026-11-15): existing Notific
 - `docs/audit/PHASE_7_8_FINAL_REPORT.md`, `PHASE_7_*` and `PHASE_8_*`: scope, evidence, move/source hashes, structure results and unverified states. No Prisma files, production assets, secrets or application interfaces were moved by this task.
 
 The dated feature entries above preserve historical context; they are not evidence that removed deployment schedules exist in the current checkout. In particular, the places scheduling alternatives listed in the 2026-11-14 section are absent in the in-progress places-ingestion changes that preceded this audit.
+
+
+## Multi-branch places — 2026-11-15
+
+Places remain physical branches with stable UUIDs and existing outing/vote, taxonomy, hours, image and price relations. Nullable place_brands association and bilingual aliases identify shared brands. Explicit brand evidence and conservative address/distance matching prevent name-only physical merges; ambiguous matches are logged. Independent places remain supported. Existing source/type/source_id fields provide namespaced external identity, with an additional SQL uniqueness index.
+
+GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
+
+Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.

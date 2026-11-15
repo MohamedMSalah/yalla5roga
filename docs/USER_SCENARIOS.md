@@ -511,3 +511,12 @@ Who’s arrived displays Arrival tracking starts at the outing time before sched
 ## Phase 7 presentation refinement — 2026-11-15
 
 Auth/Saved filter tabs retain their selections/navigation and gain keyboard activation, selected semantics, wrapping labels/badges, minimum 48dp targets and reduced motion. Form fields retain visible labels/hints and expose the label to accessibility. Group creation, planning, mention suggestions and account/preferences/support/about accents reuse light/dark semantic colors. The existing date/time selection callbacks are shared by a feature-local schedule renderer. Chat loading alignment follows RTL/LTR; saved-item removal is named for assistive technology. These are source-level refinements; screen-reader output, phone/wide/foldable, English/Arabic, light/dark, keyboard and enlarged-text rendering were NOT RUN under the Phase 7/8 restriction. Invitation, owner/creator, voting, RSVP, GPS, confirmation/deadline and closed-chat rules are unchanged.
+
+
+## Multi-branch places — 2026-11-15
+
+Places remain physical branches with stable UUIDs and existing outing/vote, taxonomy, hours, image and price relations. Nullable place_brands association and bilingual aliases identify shared brands. Explicit brand evidence and conservative address/distance matching prevent name-only physical merges; ambiguous matches are logged. Independent places remain supported. Existing source/type/source_id fields provide namespaced external identity, with an additional SQL uniqueness index.
+
+GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
+
+Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.

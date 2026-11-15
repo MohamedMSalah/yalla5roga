@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/discover/presentation/widgets/place_branch_picker.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -130,8 +131,12 @@ class CreateOutingLocationStep extends StatelessWidget {
           for (final place in form.selectedPlaces)
             ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(place.displayName(l10n.locale.languageCode)),
-              subtitle: Text(place.area),
+              title: Text(
+                place.brandName.isEmpty
+                    ? place.displayName(l10n.locale.languageCode)
+                    : place.brandName,
+              ),
+              subtitle: Text(place.branchLabel),
               trailing: IconButton(
                 tooltip: l10n.removePlace,
                 icon: const Icon(Icons.close),
@@ -203,18 +208,38 @@ class CreateOutingLocationStep extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              place.displayName(l10n.locale.languageCode),
+                              place.brandName.isEmpty
+                                  ? place.displayName(l10n.locale.languageCode)
+                                  : place.brandName,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             Text(
-                              place.area,
+                              place.branchLabel,
                               style: TextStyle(
                                 color: context.palette.textMuted,
                                 fontSize: 10.sp,
                               ),
                             ),
+                            if (place.branchCount > 1 &&
+                                place.brandId.isNotEmpty)
+                              PlaceBranchesButton(
+                                count: place.branchCount,
+                                onPressed: () async {
+                                  final branch = await pickPlaceBranch(
+                                    context,
+                                    place,
+                                    latitude:
+                                        form.placeCatalog?.filters.latitude,
+                                    longitude:
+                                        form.placeCatalog?.filters.longitude,
+                                  );
+                                  if (context.mounted && branch != null) {
+                                    form.togglePlace(branch.toOutingPlace());
+                                  }
+                                },
+                              ),
                           ],
                         ),
                       ),

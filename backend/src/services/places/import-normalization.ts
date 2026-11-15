@@ -88,7 +88,7 @@ export function normalizeSource(source: "osm" | "overture", envelope: any, bound
       address: cleanText(address?.freeform), city: cleanText(address?.locality, 100), district: null,
       area: cleanText(address?.locality, 100) ?? "", phone: raw.phones?.[0] ?? null,
       website: raw.websites?.[0] ?? null, description: "", opening_hours: null, status,
-      source_tags: { taxonomy: raw.taxonomy, basic_category: raw.basic_category, confidence: raw.confidence, operating_status: raw.operating_status ?? null, version: raw.version, sources },
+      source_tags: { taxonomy: raw.taxonomy, basic_category: raw.basic_category, confidence: raw.confidence, operating_status: raw.operating_status ?? null, version: raw.version, sources, brand: raw.brand ?? null },
     };
   }
   if (!data.name || data.name.length < 2 || !normalizedName(data.name)) throw new RecordRejected("invalid_name");
@@ -113,16 +113,17 @@ export function distanceMeters(a: any, b: any): number {
   return 12742017.6 * Math.asin(Math.min(1, Math.sqrt(q)));
 }
 export function duplicateMatch(a: any, b: any, maxDistance = 60): boolean {
-  if (!a.category_id || !b.category_id || !Number.isFinite(b.latitude) || !Number.isFinite(b.longitude) || distanceMeters(a, b) > maxDistance) return false;
+  if (!Number.isFinite(b.latitude) || !Number.isFinite(b.longitude) || distanceMeters(a, b) > maxDistance) return false;
   const equivalent = (category: string) => ({ coffee_shops: "cafes", gaming_centers: "arcades" }[category] ?? category);
-  if (equivalent(a.category_id) !== equivalent(b.category_id)) return false;
+  if (a.category_id && b.category_id && equivalent(a.category_id) !== equivalent(b.category_id)) return false;
   const names = (p: any) => [p.name, p.name_ar, p.name_en].filter(Boolean).map(normalizedName);
   const sameName = names(a).some((n) => names(b).includes(n));
   const samePhone = !!a.phone && a.phone === b.phone;
-  const sameWebsite = !!a.website && !!b.website && a.website.replace(/\/$/, "") === b.website.replace(/\/$/, "");
   const sameAddress = !!a.address && normalizedName(a.address).length >= 8 && normalizedName(a.address) === normalizedName(b.address ?? "");
   const house = (value: string | null) => /(?:^|\s)(\d+[a-z]?)(?:\s|$)/i.exec(normalizedName(value ?? ""))?.[1];
   if (house(a.address) && house(b.address) && house(a.address) !== house(b.address)) return false;
   // Close branches still require independent evidence; coordinates alone never match.
-  return sameName && (samePhone || sameWebsite || sameAddress);
+  // Shared brand phone/website is not evidence that two nearby branches are one.
+  if (a.address && b.address && !sameAddress) return false;
+  return sameName && (sameAddress || (samePhone && distanceMeters(a, b) <= Math.min(maxDistance, 10)));
 }

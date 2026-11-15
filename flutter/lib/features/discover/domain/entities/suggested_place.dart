@@ -71,9 +71,19 @@ class SuggestedPlace {
     this.website = '',
     this.phone = '',
     this.address = '',
+    this.brandId = '',
+    this.brandName = '',
+    this.branchName = '',
+    this.branchCount = 0,
   });
 
   final String id;
+  final String brandId, brandName, branchName;
+  final int branchCount;
+  String get branchLabel => [
+    branchName,
+    address.isNotEmpty ? address : area,
+  ].where((s) => s.isNotEmpty).toSet().join(' · ');
   final String name;
   final String area;
   final OutingVibe vibe;
@@ -124,6 +134,10 @@ class SuggestedPlace {
     nameAr: nameAr,
     nameEn: nameEn,
     address: address,
+    brandId: brandId,
+    brandName: brandName,
+    branchName: branchName,
+    branchCount: branchCount,
   );
 
   /// Display helpers — values come from the API, not local seed maps.

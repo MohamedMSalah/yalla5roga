@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/discover/presentation/widgets/place_branch_picker.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
@@ -16,11 +17,13 @@ class DiscoverPlaceCard extends StatelessWidget {
     required this.onDetails,
     required this.onCreate,
     this.distanceKm,
+    this.onBranches,
   });
   final SuggestedPlace place;
   final String category, vibes;
   final double? distanceKm;
   final bool selected;
+  final VoidCallback? onBranches;
   final VoidCallback onSelect, onDetails, onCreate;
 
   @override
@@ -67,7 +70,9 @@ class DiscoverPlaceCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  place.localizedName(l10n),
+                                  place.brandName.isEmpty
+                                      ? place.localizedName(l10n)
+                                      : place.brandName,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: context.texts.titleSmall,
@@ -76,16 +81,19 @@ class DiscoverPlaceCard extends StatelessWidget {
                                   [
                                     category,
                                     if (distanceKm != null)
-                                      l10n.catalogKm(
-                                        double.parse(
-                                          distanceKm!.toStringAsFixed(1),
-                                        ),
-                                      ),
+                                      l10n.catalogKm(double.parse(distanceKm!.toStringAsFixed(1))),
                                   ].where((v) => v.isNotEmpty).join(' · '),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                   style: context.texts.bodySmall,
                                 ),
+                                if (place.brandId.isNotEmpty)
+                                  Text(
+                                    place.branchLabel,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: context.texts.bodySmall,
+                                  ),
                                 if (vibes.isNotEmpty)
                                   Text(
                                     vibes,
@@ -98,6 +106,11 @@ class DiscoverPlaceCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (place.branchCount > 1 && onBranches != null)
+                        PlaceBranchesButton(
+                          count: place.branchCount,
+                          onPressed: onBranches!,
+                        ),
                       Row(
                         children: [
                           SavePlaceButton(place: place),

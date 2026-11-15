@@ -21,6 +21,7 @@ const coordinate = (min: number, max: number) =>
     .optional();
 const baseCatalogQuerySchema = z
   .object({
+    brand_id: z.uuid().optional(),
     featured: z.enum(["true", "false"]).optional(),
     vibe: z.enum(["food", "activity", "outdoor", "movie"]).optional(),
     categories: ids,

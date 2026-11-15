@@ -20,6 +20,13 @@ const weekdaySchema = z.enum([
 ]);
 
 export const createPlaceBodySchema = z.object({
+  brand_id: z.uuid().nullable().optional(),
+  branch_name: z.string().trim().min(1).max(100).nullable().optional(),
+  brand: z.object({ name: z.string().trim().min(2).max(100), aliases: z.array(z.string().trim().min(2).max(100)).max(20).default([]),
+    identity: z.string().regex(/^wikidata:Q[1-9][0-9]*$/).optional() }).optional(),
+  source: z.literal("manual").optional(),
+  source_type: z.literal("place").optional(),
+  source_id: z.string().trim().min(1).max(128).optional(),
   category_id: z
     .string()
     .regex(/^[a-z0-9_]+$/)
@@ -59,7 +66,7 @@ export const createPlaceBodySchema = z.object({
   featured: z.boolean().optional(),
 });
 
-export const updatePlaceBodySchema = createPlaceBodySchema.partial();
+export const updatePlaceBodySchema = createPlaceBodySchema.omit({ brand: true, source: true, source_type: true, source_id: true }).partial();
 
 export const placeIdParamsSchema = z.object({
   id: z.uuid(),

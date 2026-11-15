@@ -392,7 +392,7 @@ export class OutingDatasource {
 
   listSavedPlacesByUser(userId: string): Promise<SavedPlace[]> {
     return prisma.saved_places.findMany({
-      include:{places:{omit:{source_tags:true,manually_managed:true,missing_sync_count:true},include:{place_vibes:true,category:true}}},
+      include:{places:{omit:{source_tags:true,manually_managed:true,missing_sync_count:true},include:{place_vibes:true,category:true,brand:{include:{_count:{select:{branches:{where:{is_active:true,status:"active"}}}}}}}}},
       where: { user_id: userId },
       orderBy: { saved_at: "desc" },
     });

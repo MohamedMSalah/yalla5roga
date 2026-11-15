@@ -213,7 +213,7 @@ def main():
             path = f"s3://overturemaps-us-west-2/release/{release}/theme=places/type=place/*.parquet"
             bounds = (min(p.bounds[0] for _, p in polygons), min(p.bounds[1] for _, p in polygons),
                       max(p.bounds[2] for _, p in polygons), max(p.bounds[3] for _, p in polygons))
-            cursor = db.execute("""SELECT id,names,basic_category,taxonomy,confidence,addresses,phones,websites,
+            cursor = db.execute("""SELECT id,names,brand,basic_category,taxonomy,confidence,addresses,phones,websites,
                 sources,operating_status,version,ST_X(geometry) AS longitude,ST_Y(geometry) AS latitude
                 FROM read_parquet(?) WHERE bbox.xmin >= ? AND bbox.xmax <= ?
                 AND bbox.ymin >= ? AND bbox.ymax <= ?""", [path, bounds[0], bounds[2], bounds[1], bounds[3]])

@@ -547,3 +547,12 @@ Arrival refresh callbacks and returned data both require scheduled start to have
 ## Phase 7 realtime lifecycle hardening — 2026-11-15
 
 The shared session socket and REST recovery workflow are retained. Transient outing-room joins now stop after five delayed retries (1/2/4/8/16 seconds); desired room intent survives exhaustion for a later explicit recovery/reconnect, and success clears the attempt budget. Leaving the room/disconnecting cancels timers and clears attempts. Definitive authorization rejection still drops room intent. The chat provider reference-counts viewers, ignores repeated zero-count unsubscribe and advances its generation before disposal to reject pending asynchronous completions. Closing a chat page leaves the outing room; it does not disconnect the transport used by other app-wide invalidations. REST remains canonical and closed-chat history remains read-only. Verification is source/static only for sockets; no live Socket.IO exercise occurred in this phase.
+
+
+## Multi-branch places — 2026-11-15
+
+Places remain physical branches with stable UUIDs and existing outing/vote, taxonomy, hours, image and price relations. Nullable place_brands association and bilingual aliases identify shared brands. Explicit brand evidence and conservative address/distance matching prevent name-only physical merges; ambiguous matches are logged. Independent places remain supported. Existing source/type/source_id fields provide namespaced external identity, with an additional SQL uniqueness index.
+
+GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
+
+Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.

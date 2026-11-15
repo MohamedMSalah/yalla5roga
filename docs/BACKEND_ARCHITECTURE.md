@@ -294,3 +294,12 @@ DeleteGroupUseCase threads callerUid through the existing group repository to Gr
 `backend/scripts/phase7-openapi-verification.ts` imports the existing Express app without server/jobs/Socket.IO startup, binds a temporary localhost listener, verifies served Swagger and all documented protected API missing/malformed-token boundaries, and closes resources. Its process overrides DATABASE_URL with an unreachable localhost target and disables development keepalive via NODE_ENV=production. It loads the existing configured auth adapter but supplies no authenticated account fixture. No application data query/write or deployment is needed.
 
 The existing `validate-api-docs.ts` checks every JSON application route against OpenAPI. In mock-media configuration it additionally asserts the exact presence of PUT mock-upload and GET mock-download binary-storage transports before excluding those two from application-contract parity; R2 configuration permits neither exclusion. All other undocumented routes still fail. This corrects the audit tool, not application routing or API behavior.
+
+
+## Multi-branch places — 2026-11-15
+
+Places remain physical branches with stable UUIDs and existing outing/vote, taxonomy, hours, image and price relations. Nullable place_brands association and bilingual aliases identify shared brands. Explicit brand evidence and conservative address/distance matching prevent name-only physical merges; ambiguous matches are logged. Independent places remain supported. Existing source/type/source_id fields provide namespaced external identity, with an additional SQL uniqueness index.
+
+GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
+
+Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.

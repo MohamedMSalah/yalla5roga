@@ -13,11 +13,18 @@ export class CatalogDatasource {
       orderBy: { started_at: "desc" },
     });
   }
+  brand(id: string) {
+    return prisma.place_brands.findUnique({ where: { id }, include: {
+      aliases: { select: { name: true } },
+      _count: { select: { branches: { where: { is_active: true, status: "active" } } } },
+    } });
+  }
   async list(q: CatalogQuery, markers = false) {
     const conditions: Prisma.Sql[] = [
       Prisma.sql`p.is_active=true`,
       Prisma.sql`p.status=${q.status}`,
     ];
+    if (q.brand_id) conditions.push(Prisma.sql`p.brand_id=${q.brand_id}::uuid`);
     if (q.featured === "true") conditions.push(Prisma.sql`p.featured=true`);
     if (q.vibe) conditions.push(Prisma.sql`p.vibe::text=${q.vibe}`);
     if (q.categories.length)
@@ -79,7 +86,10 @@ export class CatalogDatasource {
     const fields = markers ? Prisma.sql`p.id,p.name,p.name_ar,p.name_en,p.latitude,p.longitude,p.category_id,p.updated_at` : Prisma.sql`p.id,p.name,p.name_ar,p.name_en,p.area,p.vibe,p.description,coalesce(nullif(p.cover_image_url,''),(SELECT pi.image_url FROM place_images pi WHERE pi.place_id=p.id ORDER BY pi.sort_order,pi.id LIMIT 1),'') AS cover_image_url,coalesce(nullif(p.cover_image_url,''),(SELECT pi.image_url FROM place_images pi WHERE pi.place_id=p.id ORDER BY pi.sort_order,pi.id LIMIT 1),'') AS image_url,p.price_level,p.price_min,p.price_max,p.currency,p.latitude,p.longitude,p.featured,p.is_active,p.category_id,p.address,p.city,p.district,p.phone,p.website,p.opening_hours,p.source,p.source_id,p.source_type,p.status,p.last_synced_at,p.last_seen_at,p.created_at,p.updated_at`;
     const rows = await prisma.$queryRaw<
       any[]
-    >`SELECT ${fields},to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_updated_at,${distance} AS distance_km,
+    >`SELECT ${fields},p.id AS branch_id,p.branch_name,p.brand_id,
+      (SELECT b.name FROM place_brands b WHERE b.id=p.brand_id) AS brand_name,
+      coalesce((SELECT count(*)::int FROM places branches WHERE branches.brand_id=p.brand_id AND branches.is_active AND branches.status='active'),0) AS branch_count,
+      p.source || ':' || coalesce(p.source_type,'') AS external_source,p.source_id AS external_place_id,to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_updated_at,${distance} AS distance_km,
       coalesce((SELECT jsonb_agg(pv.vibe_id ORDER BY pv.vibe_id) FROM place_vibes pv JOIN vibes v ON v.id=pv.vibe_id WHERE pv.place_id=p.id AND v.is_active),'[]'::jsonb) AS vibes,
       (SELECT to_jsonb(c) FROM place_categories c WHERE c.id=p.category_id) AS category
       FROM places p WHERE ${where} ORDER BY ${order} LIMIT ${q.limit + 1} OFFSET ${q.offset}`;
@@ -99,7 +109,7 @@ export class CatalogDatasource {
     const result = await this.list(q, true);
     return { collection: { type: "FeatureCollection", features: result.places.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude)).map((p) => ({
       type: "Feature", id: p.id, geometry: { type: "Point", coordinates: [p.longitude, p.latitude] },
-      properties: { place_id: p.id, name: p.name, name_ar: p.name_ar, name_en: p.name_en, category: p.category_id, vibes: p.vibes, icon: p.category?.icon ?? "place" },
+      properties: { place_id: p.id, branch_id: p.id, brand_id: p.brand_id, brand_name: p.brand_name, branch_name: p.branch_name, branch_count: p.branch_count, name: p.name, name_ar: p.name_ar, name_en: p.name_en, category: p.category_id, vibes: p.vibes, icon: p.category?.icon ?? "place" },
     })) }, pagination: result.pagination };
   }
   categories() {
@@ -117,7 +127,7 @@ export class CatalogDatasource {
   async version() {
     const [row] = await prisma.$queryRaw<
       { version: Date | null }[]
-    >`SELECT greatest((SELECT max(updated_at) FROM places),(SELECT max(updated_at) FROM place_categories),(SELECT max(updated_at) FROM vibes)) AS version`;
+    >`SELECT greatest((SELECT max(updated_at) FROM places),(SELECT max(updated_at) FROM place_categories),(SELECT max(updated_at) FROM vibes),(SELECT max(updated_at) FROM place_brands)) AS version`;
     return row?.version?.toISOString() ?? "empty";
   }
 }

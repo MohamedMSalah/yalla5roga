@@ -1,3 +1,4 @@
+import { brandEvidence, resolveBrand } from "./brand-resolution.js";
 import { randomUUID } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { Prisma } from "@prisma/client";
@@ -15,15 +16,16 @@ export const emptyCounters = (): Counters => ({ processed: 0, inserted: 0, updat
  * do not enrich/overwrite primary metadata: independently licensed evidence stays separate.
  */
 export async function planBatch(records: ImportRecord[], maxDistance: number, shadow: any[] = []) {
-  if (!records.length) return { writes: [], aliases: [], histories: [], duplicates: 0, skipped: 0, shadow };
+  if (!records.length) return { writes: [], aliases: [], histories: [], reviews: [], duplicates: 0, skipped: 0, shadow };
   const source = records[0]!.data.source;
   const ids = records.map((r) => r.data.source_id);
+  const padding = Math.max(.002, maxDistance / 90000 * 2);
   const [identities, direct, nearby] = await Promise.all([
     prisma.place_source_records.findMany({ where: { source, source_id: { in: ids } }, include: { place: true } }),
     prisma.places.findMany({ where: { source, source_id: { in: ids } } }),
     prisma.places.findMany({ where: {
-      latitude: { gte: Math.min(...records.map((r) => r.data.latitude)) - .002, lte: Math.max(...records.map((r) => r.data.latitude)) + .002 },
-      longitude: { gte: Math.min(...records.map((r) => r.data.longitude)) - .002, lte: Math.max(...records.map((r) => r.data.longitude)) + .002 },
+      latitude: { gte: Math.min(...records.map((r) => r.data.latitude)) - padding, lte: Math.max(...records.map((r) => r.data.latitude)) + padding },
+      longitude: { gte: Math.min(...records.map((r) => r.data.longitude)) - padding, lte: Math.max(...records.map((r) => r.data.longitude)) + padding },
     }, select: { id: true, source: true, source_type: true, source_id: true, name: true, name_ar: true, name_en: true,
       category_id: true, latitude: true, longitude: true, address: true, phone: true, website: true, manually_managed: true, status: true } }),
   ]);
@@ -32,7 +34,7 @@ export async function planBatch(records: ImportRecord[], maxDistance: number, sh
   for (const p of identities) exact.set(identity(p), p.place);
   for (const p of shadow) if (p.source === source) exact.set(identity(p), p);
   const candidates: any[] = [...new Map([...nearby, ...shadow].map((p) => [p.id, p])).values()];
-  const writes: any[] = [], aliases: any[] = [], histories: any[] = [];
+  const writes: any[] = [], aliases: any[] = [], histories: any[] = [], reviews: Diagnostic[] = [];
   let duplicates = 0, skipped = 0;
   const seenBatch = new Set<string>();
   for (const record of records) {
@@ -43,15 +45,19 @@ export async function planBatch(records: ImportRecord[], maxDistance: number, sh
     let old = exact.get(key);
     if (!old) {
       const matches = candidates.filter((candidate) => duplicateMatch(p, candidate, maxDistance));
+      if (matches.length > 1) reviews.push({ level: "warn", code: "ambiguous_branch", source_id: key, details: { candidate_ids: matches.map((m) => m.id) } });
       // Ambiguous matches are reviewed and kept separate, never arbitrarily merged.
       if (matches.length === 1) { old = matches[0]; duplicates++; }
     }
     const id = old?.id ?? randomUUID();
     const protectedRow = old && (old.manually_managed || old.source === "manual" || old.source !== p.source || identity(old) !== key);
-    const unchanged = old && Object.entries(p).every(([k, v]) => isDeepStrictEqual(old[k], v && typeof v === "object" ? JSON.parse(JSON.stringify(v)) : v));
+    const unchanged = old && Object.entries(p).every(([k, v]) =>
+      ["latitude", "longitude"].includes(k) && typeof v === "number" && typeof old[k] === "number"
+        ? Math.abs(old[k] - v) < 1e-10
+        : isDeepStrictEqual(old[k], v && typeof v === "object" ? JSON.parse(JSON.stringify(v)) : v));
     const stale = old && p.source === "overture" && Number((old.source_tags as any)?.version ?? 0) > Number(p.source_tags?.version ?? 0) ||
       old && p.source === "osm" && Number((old.source_tags as any)?.meta?.version ?? 0) > Number(p.source_tags?.meta?.version ?? 0);
-    if (protectedRow || unchanged || stale) skipped++;
+    if (protectedRow || (unchanged && (old.brand_id || !brandEvidence(record.raw))) || stale) skipped++;
     else {
       writes.push({ ...p, id, inferred: record.inferred, raw: record.raw, image: record.image, existed: !!old });
       if (!old || old.status !== p.status) histories.push({ place_id: id, old_status: old?.status ?? "new", new_status: p.status,
@@ -63,16 +69,29 @@ export async function planBatch(records: ImportRecord[], maxDistance: number, sh
     exact.set(key, canonical);
     if (!old) candidates.push(canonical);
   }
-  return { writes, aliases, histories, duplicates, skipped, shadow: candidates };
+  return { writes, aliases, histories, reviews, duplicates, skipped, shadow: candidates };
 }
 
 export async function commitBatch(tx: Prisma.TransactionClient, plan: Awaited<ReturnType<typeof planBatch>>, source: string, release: string, runId: string) {
   const records = plan.writes;
+  if (plan.reviews.length) await tx.place_sync_logs.createMany({ data: plan.reviews.map((r) => ({ ...r, run_id: runId })) });
+  const existing = new Map((await tx.places.findMany({ where: { id: { in: records.filter((r) => r.existed).map((r) => r.id) } }, select: { id: true, brand_id: true, branch_name: true } })).map((p) => [p.id, p]));
+  for (const record of records) {
+    const old = existing.get(record.id);
+    const brand = await resolveBrand(tx, brandEvidence(record.raw), async (code, details) => {
+      await tx.place_sync_logs.create({ data: { run_id: runId, level: "warn", code, source_id: record.source_id, details } });
+    }, [record.name, record.name_ar, record.name_en].filter(Boolean));
+    if (old?.brand_id && brand && old.brand_id !== brand) await tx.place_sync_logs.create({ data: {
+      run_id: runId, level: "warn", code: "branch_brand_conflict", source_id: record.source_id, details: { place_id: record.id, candidate_brand_id: brand },
+    } });
+    record.brand_id = old?.brand_id ?? brand;
+    record.branch_name = old?.branch_name ?? record.raw?.tags?.branch?.slice(0,100) ?? null;
+  }
   if (records.length) {
-    await tx.$executeRaw`INSERT INTO places(id,name,name_ar,name_en,description,category_id,latitude,longitude,address,city,district,area,phone,website,opening_hours,source,source_type,source_id,source_region,source_tags,status,vibe,last_seen_at,last_synced_at)
-      SELECT x.id,x.name,x.name_ar,x.name_en,x.description,x.category_id,x.latitude,x.longitude,x.address,x.city,x.district,x.area,x.phone,x.website,x.opening_hours,x.source,x.source_type,x.source_id,x.source_region,x.source_tags,x.status,x.vibe::outing_vibe,now(),now()
-      FROM jsonb_to_recordset(${JSON.stringify(records)}::jsonb) AS x(id uuid,name text,name_ar text,name_en text,description text,category_id text,latitude float8,longitude float8,address text,city text,district text,area text,phone text,website text,opening_hours text,source text,source_type text,source_id text,source_region text,source_tags jsonb,status text,vibe text)
-      ON CONFLICT(source,source_type,source_id) DO UPDATE SET name=EXCLUDED.name,name_ar=EXCLUDED.name_ar,name_en=EXCLUDED.name_en,description=EXCLUDED.description,category_id=EXCLUDED.category_id,latitude=EXCLUDED.latitude,longitude=EXCLUDED.longitude,address=EXCLUDED.address,city=EXCLUDED.city,district=EXCLUDED.district,area=EXCLUDED.area,phone=EXCLUDED.phone,website=EXCLUDED.website,opening_hours=EXCLUDED.opening_hours,source_tags=EXCLUDED.source_tags,status=EXCLUDED.status,vibe=EXCLUDED.vibe,last_seen_at=now(),last_synced_at=now(),missing_sync_count=0,updated_at=now()
+    await tx.$executeRaw`INSERT INTO places(brand_id,branch_name,id,name,name_ar,name_en,description,category_id,latitude,longitude,address,city,district,area,phone,website,opening_hours,source,source_type,source_id,source_region,source_tags,status,vibe,last_seen_at,last_synced_at)
+      SELECT x.brand_id,x.branch_name,x.id,x.name,x.name_ar,x.name_en,x.description,x.category_id,x.latitude,x.longitude,x.address,x.city,x.district,x.area,x.phone,x.website,x.opening_hours,x.source,x.source_type,x.source_id,x.source_region,x.source_tags,x.status,x.vibe::outing_vibe,now(),now()
+      FROM jsonb_to_recordset(${JSON.stringify(records)}::jsonb) AS x(brand_id uuid,branch_name text,id uuid,name text,name_ar text,name_en text,description text,category_id text,latitude float8,longitude float8,address text,city text,district text,area text,phone text,website text,opening_hours text,source text,source_type text,source_id text,source_region text,source_tags jsonb,status text,vibe text)
+      ON CONFLICT(source,source_type,source_id) DO UPDATE SET brand_id=coalesce(places.brand_id,EXCLUDED.brand_id),branch_name=coalesce(places.branch_name,EXCLUDED.branch_name),name=EXCLUDED.name,name_ar=EXCLUDED.name_ar,name_en=EXCLUDED.name_en,description=EXCLUDED.description,category_id=EXCLUDED.category_id,latitude=EXCLUDED.latitude,longitude=EXCLUDED.longitude,address=EXCLUDED.address,city=EXCLUDED.city,district=EXCLUDED.district,area=EXCLUDED.area,phone=EXCLUDED.phone,website=EXCLUDED.website,opening_hours=EXCLUDED.opening_hours,source_tags=EXCLUDED.source_tags,status=EXCLUDED.status,vibe=EXCLUDED.vibe,last_seen_at=now(),last_synced_at=now(),missing_sync_count=0,updated_at=now()
       WHERE NOT places.manually_managed`;
     // Row locks serialize curator changes. Only imported relations are replaced.
     const writable = (await tx.places.findMany({ where: { id: { in: records.map((r) => r.id) }, manually_managed: false }, select: { id: true } })).map((p) => p.id);
@@ -100,6 +119,8 @@ export async function commitBatch(tx: Prisma.TransactionClient, plan: Awaited<Re
       FROM jsonb_to_recordset(${JSON.stringify(plan.aliases)}::jsonb) AS x(source text,source_type text,source_id text,place_id uuid,region text,license text,attribution text,evidence jsonb)
       ON CONFLICT(source,source_type,source_id) DO UPDATE SET release=EXCLUDED.release,evidence=EXCLUDED.evidence,last_seen_at=now(),missing_count=0`;
     const owned = plan.aliases.filter((a) => !records.some((r) => r.id === a.place_id)).map((a) => a.place_id);
-    if (owned.length) await tx.places.updateMany({ where: { id: { in: owned }, source, manually_managed: false }, data: { last_seen_at: new Date(), last_synced_at: new Date(), missing_sync_count: 0 } });
+    // Observation timestamps do not revise branch content or invalidate sibling caches.
+    if (owned.length) await tx.$executeRaw`UPDATE places SET last_seen_at=now(),last_synced_at=now(),missing_sync_count=0
+      WHERE id IN (${Prisma.join(owned.map((id) => Prisma.sql`${id}::uuid`))}) AND source=${source} AND NOT manually_managed`;
   }
 }

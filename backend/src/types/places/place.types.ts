@@ -17,6 +17,12 @@ export type PlaceImage = place_images;
 export type PlacePrice = place_prices;
 
 export type CreatePlaceInput = {
+  brand_id?: string | null;
+  branch_name?: string | null;
+  brand?: { name: string; aliases: string[]; identity?: string };
+  source?: string;
+  source_type?: string;
+  source_id?: string;
   category_id?: string;
   vibes?: string[];
   name_ar?: string;

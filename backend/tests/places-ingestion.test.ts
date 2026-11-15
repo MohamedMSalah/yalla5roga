@@ -86,5 +86,9 @@ test("bounds aliases and scoped keyset cursor reject changed filters and malform
   assert.equal(catalogQuerySchema.safeParse({ minLat: "29" }).success, false);
 });
 test("public projection excludes internal import and curator state", () => {
-  assert.deepEqual(publicPlace({ id: "p", name: "N", source_tags: { secret: "internal" }, manually_managed: true, missing_sync_count: 2, source_records: [] }), { id: "p", name: "N" });
+  const result = publicPlace({ id: "p", name: "N", source: "manual", source_tags: { secret: "internal" }, manually_managed: true, missing_sync_count: 2, source_records: [] });
+  assert.equal(result.id, "p"); assert.equal(result.name, "N");
+  for (const key of ["source_tags", "manually_managed", "missing_sync_count", "source_records", "brand"]) assert.ok(!(key in result));
+  assert.equal(result.branch_id, "p"); assert.equal(result.brand_id, null);
+  assert.equal(result.external_source, "manual:");
 });

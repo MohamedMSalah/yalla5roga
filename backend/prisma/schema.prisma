@@ -92,6 +92,11 @@ model group_invitations {
 }
 
 model places {
+  brand_id            String?                @db.Uuid
+  branch_name         String?                @db.VarChar(100)
+  normalized_name     String                 @default("") @db.VarChar(200)
+  normalized_address  String                 @default("") @db.VarChar(1000)
+  brand               place_brands?          @relation(fields: [brand_id], references: [id], onDelete: Restrict)
   id                  String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                String                 @db.VarChar(100)
   area                String                 @default("") @db.VarChar(100)
@@ -141,10 +146,36 @@ model places {
 
   @@unique([source, source_type, source_id], map: "places_source_identity_key")
   @@index([vibe], map: "idx_places_vibe")
+  @@index([brand_id, status], map: "idx_places_brand_status")
+  @@index([normalized_name], map: "idx_places_normalized_name")
   @@index([latitude, longitude], map: "idx_places_lat_lng")
   @@index([status, category_id], map: "idx_places_status_category")
   @@index([category_id], map: "idx_places_category")
   @@index([source_region, source], map: "idx_places_region_source")
+}
+
+model place_brands {
+  id              String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String @db.VarChar(100)
+  normalized_name String @db.VarChar(200)
+  identity_key    String? @unique @db.VarChar(160)
+  description     String? @db.VarChar(1000)
+  logo_url        String? @db.VarChar(2048)
+  website         String? @db.VarChar(2048)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  branches        places[]
+  aliases         place_brand_aliases[]
+  @@index([normalized_name], map: "idx_place_brands_normalized_name")
+}
+
+model place_brand_aliases {
+  brand_id        String @db.Uuid
+  normalized_name String @db.VarChar(200)
+  name            String @db.VarChar(100)
+  brand           place_brands @relation(fields: [brand_id], references: [id], onDelete: Restrict)
+  @@id([brand_id, normalized_name])
+  @@index([normalized_name], map: "idx_place_brand_alias_lookup")
 }
 
 model place_categories {

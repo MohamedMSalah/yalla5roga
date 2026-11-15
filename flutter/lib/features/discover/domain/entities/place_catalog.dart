@@ -29,6 +29,7 @@ class PlaceFilters {
     this.categories = const {},
     this.vibes = const {},
     this.search = '',
+    this.brandId,
     this.latitude,
     this.longitude,
     this.radiusKm = 10,
@@ -36,6 +37,7 @@ class PlaceFilters {
   });
   final Set<String> categories, vibes;
   final String search;
+  final String? brandId;
   final double? latitude, longitude;
   final double radiusKm;
 
@@ -45,6 +47,7 @@ class PlaceFilters {
     'limit': 50,
     'offset': offset,
     'status': 'active',
+    if (brandId != null) 'brand_id': brandId,
     if (bounds != null) 'bbox': bounds,
     if (categories.isNotEmpty)
       'categories': (categories.toList()..sort()).join(','),
@@ -53,12 +56,13 @@ class PlaceFilters {
     if (latitude != null && longitude != null) ...{
       'lat': latitude,
       'lng': longitude,
-      'radiusKm': radiusKm,
+      if (brandId == null) 'radiusKm': radiusKm,
       'sort': 'distance',
     },
   };
   String key(int offset) => jsonEncode(query(offset: offset));
   PlaceFilters copyWith({
+    String? brandId,
     Set<String>? categories,
     Set<String>? vibes,
     String? search,
@@ -69,6 +73,7 @@ class PlaceFilters {
     String? bounds,
     bool clearBounds = false,
   }) => PlaceFilters(
+    brandId: brandId ?? this.brandId,
     categories: categories ?? this.categories,
     vibes: vibes ?? this.vibes,
     search: search ?? this.search,
@@ -78,7 +83,8 @@ class PlaceFilters {
     bounds: clearBounds ? null : bounds ?? this.bounds,
   );
   bool matches(Place place) {
-    if (place.status != 'active' ||
+    if ((brandId != null && brandId != place.brandId) ||
+        place.status != 'active' ||
         (categories.isNotEmpty && !categories.contains(place.categoryId)) ||
         (vibes.isNotEmpty && !place.vibeIds.any(vibes.contains))) {
       return false;
@@ -98,7 +104,7 @@ class PlaceFilters {
         return false;
       }
     }
-    if (latitude != null && longitude != null) {
+    if (brandId == null && latitude != null && longitude != null) {
       if (!place.hasCoordinates) return false;
       const rad = math.pi / 180;
       final a =
