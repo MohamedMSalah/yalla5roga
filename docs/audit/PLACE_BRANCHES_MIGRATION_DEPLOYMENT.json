@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-11-15T16:40:58.100Z",
+  "mode": "deploy",
+  "migration": "20261115000000_place_brands",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [
+    "20261115000000_place_brands"
+  ],
+  "privateBackup": ".database-backups/places-ingestion-2026-11-15T16-41-49.840Z/snapshot.json",
+  "backupSha256": "3a3f1cd7adf6af370fb63b2e11d859ddc45ae577edfebd676ccd9776eb4fdebe",
+  "rehearsal": "PASS: all public rows restored with keys/indexes/FKs; exact migration rehearsed using an isolated enum and rolled back",
+  "tableCount": 35,
+  "rowCount": 200403,
+  "existingRowsPreserved": true,
+  "changedTables": [],
+  "pendingAfter": [],
+  "appliedMigration": {
+    "migration_name": "20261115000000_place_brands",
+    "checksum": "772ae225099296bc6cfbea456e270d8cd3b226cd3546bb3941f5ef5fff06d693"
+  },
+  "columns": [
+    {
+      "column_name": "brand_id"
+    },
+    {
+      "column_name": "branch_name"
+    },
+    {
+      "column_name": "normalized_name"
+    },
+    {
+      "column_name": "normalized_address"
+    }
+  ],
+  "taxonomy": {
+    "categories": 44,
+    "vibes": 23
+  },
+  "result": "PASS"
+}
