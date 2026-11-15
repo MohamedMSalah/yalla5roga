@@ -1,170 +1,264 @@
-# Yalla 5roga — Agent Instructions
+# Yalla 5roga — Canonical Agent Instructions
 
-Every AI coding task for this repository **must** follow this workflow.
+This is the single source of project rules. Read it before every repository task.
+Product authority remains [docs/PRODUCT_SCENARIOS.md](docs/PRODUCT_SCENARIOS.md).
 
-## 1. Entry point (always)
+## Project Overview
 
-1. Read this file (`AGENTS.md`).
-2. Identify which architectural layers the task touches.
-3. Read **only** the relevant documentation (selective strategy below).
-4. Use [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) to locate implementation files.
-5. Inspect **only** those source files (expand only when dependencies require it).
-6. Do **not** invent product rules — [`docs/PRODUCT_SCENARIOS.md`](docs/PRODUCT_SCENARIOS.md) is the product authority.
-7. Verify docs against source when they conflict; update docs in the **same task**.
-8. Never silently introduce a new architectural pattern that conflicts with documented conventions (`docs/ARCHITECTURE_DECISIONS.md`).
-9. Never claim something is implemented without verifying code.
-10. Run relevant tests after implementation.
-11. Keep documentation synchronized with the codebase (mandatory).
+Yalla 5roga plans group outings and special events in Egypt: invitations,
+multi-place voting, independent RSVP and GPS arrival, outing chat, discovery,
+bookmarks, drafts and notifications. Application data belongs in Neon, never
+Firebase. Verify implemented behavior in source before claiming it works.
 
-## 2. Canonical documentation
+- Application: `flutter/`, package `yalla_5roga`, entry `lib/main.dart` →
+  `AppDependencies.create()` → `lib/app.dart`.
+- API: `backend/`, entry `src/server.ts` → `src/app.ts`.
+- Canonical docs: `docs/*.md`; evidence: `docs/audit/`; historical deep dives:
+  `docs/system-design/`; tool setup: `docs/development/`.
+- Locate code through [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md).
 
-| Doc | Purpose |
-|-----|---------|
-| [`docs/PRODUCT_SCENARIOS.md`](docs/PRODUCT_SCENARIOS.md) | Approved product behavior |
-| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Product + stack overview |
-| [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md) | Components and communication |
-| [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.md) | Technical workflow design |
-| [`docs/USER_SCENARIOS.md`](docs/USER_SCENARIOS.md) | User journeys + coverage matrix |
-| [`docs/FLUTTER_ARCHITECTURE.md`](docs/FLUTTER_ARCHITECTURE.md) | Flutter Clean Architecture |
-| [`docs/BACKEND_ARCHITECTURE.md`](docs/BACKEND_ARCHITECTURE.md) | Express layers |
-| [`docs/DATABASE_ARCHITECTURE.md`](docs/DATABASE_ARCHITECTURE.md) | Prisma / Neon schema |
-| [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md) | HTTP contracts |
-| [`docs/BUSINESS_LOGIC.md`](docs/BUSINESS_LOGIC.md) | Rules vs implementation |
-| [`docs/AUTHENTICATION_AND_AUTHORIZATION.md`](docs/AUTHENTICATION_AND_AUTHORIZATION.md) | AuthN/Z |
-| [`docs/NOTIFICATIONS.md`](docs/NOTIFICATIONS.md) | Outbox, FCM, WhatsApp |
-| [`docs/ARCHITECTURE_DECISIONS.md`](docs/ARCHITECTURE_DECISIONS.md) | ADRs |
-| [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) | Directory map |
-| [`docs/audit/`](docs/audit/) | Compliance audits |
+## Technology Stack
 
-Historical notes: [`docs/system-design/`](docs/system-design/). Prefer canonical `docs/*.md` when they answer the question.
+- Flutter/Dart, Provider/ChangeNotifier, feature-first Clean Architecture,
+  Dio/ApiClient, dartz Either, Equatable, SharedPreferences.
+- Manual DI in AppDependencies/RepositoryFactory; imperative GetX navigation
+  through GetMaterialApp. Do not introduce get_it, another state architecture,
+  generated localization or declarative routing without an approved ADR.
+- Material 3, Inter (English), Cairo (Arabic), manual L10n; light/dark themes.
+- MapLibre (`maplibre_gl`), shared YallaMapView, geolocator and existing
+  geocoding adapters. Do not restore the removed flutter_map renderer.
+- Node.js, TypeScript, Express, Prisma, Neon PostgreSQL; pnpm backend tooling.
+- Firebase Authentication for identity/OTP/custom sessions; FCM through the
+  backend notification outbox/worker. Preserve existing media storage adapters.
 
-### Core triad for orientation
+## Flutter Architecture & Rules
 
-| Question | Document |
-|----------|----------|
-| How is the system designed? | `SYSTEM_DESIGN.md` (+ `SYSTEM_ARCHITECTURE.md`) |
-| How does the user interact? | `USER_SCENARIOS.md` (+ `BUSINESS_LOGIC.md`) |
-| Where is the code? | `PROJECT_STRUCTURE.md` |
+`UI → Provider → domain Repository (Either) → data RemoteDataSource → ApiClient/Dio`.
+Dependencies point `presentation → domain ← data`; reuse existing interfaces.
 
-## 3. Selective reading strategy
+- Pages compose widgets; state, network calls and decisions belong in existing
+  providers/services/repositories. Shared rendering takes data and callbacks.
+- Shared components belong in `lib/core/widgets/`; feature-specific components
+  stay in that feature's `presentation/widgets/`. Extract actual duplication,
+  not speculative frameworks. No production mock/demo data layers.
+- Presentation must not import Dio, http, Firebase or socket_io_client directly.
+  SDK-specific adapters belong in data/core infrastructure.
+- Register new app-wide providers in both AppDependencies and App.
+- Use ApiConstants paths, existing payload helpers and snake_case mapping.
+- Read RSVP/voting from outing-scoped providers; preserve optimistic rollback,
+  server-returned choices and independent GPS arrival.
+- Actual arrival starts at scheduled outing time only while the route is visible
+  and foregrounded, with OS permission and the existing confirmed venue/window/
+  radius/accuracy checks. Unverified people are not arrivals; permission/location
+  failure must remain distinct. Stop route timers/listeners on leaving/background.
+- Saved places/outings use backend APIs; preferences/snapshots are not their sole
+  source of truth. Preserve media:// resolution and account-scoped image caching.
+- Do not show raw exceptions, HTTP codes, tokens or backend stacks in UI; use
+  existing failures, AppErrorFeedback, FailureMessageMapper and L10n.
 
-**Do not read every doc for every task.**
+## Backend Architecture & Rules
 
-| Task type | Read first |
-|-----------|------------|
-| Flutter UI | `USER_SCENARIOS` (journey) + `FLUTTER_ARCHITECTURE` + structure map |
-| Provider / repository | `FLUTTER_ARCHITECTURE` + `API_CONTRACTS` if network involved |
-| Backend API | `BACKEND_ARCHITECTURE` + `API_CONTRACTS` |
-| Database / Prisma | `DATABASE_ARCHITECTURE` + relevant `BUSINESS_LOGIC` |
-| Auth | `AUTHENTICATION_AND_AUTHORIZATION` + backend/Flutter auth sections |
-| Notifications | `NOTIFICATIONS` + related API/backend |
-| Voting | `USER_SCENARIOS`, `SYSTEM_DESIGN`, `BUSINESS_LOGIC`, `DATABASE_ARCHITECTURE` as needed |
-| Invitations | `USER_SCENARIOS`, `AUTHENTICATION_AND_AUTHORIZATION`, API/DB as needed |
-| Attendance | `USER_SCENARIOS`, `BUSINESS_LOGIC`, `SYSTEM_DESIGN` |
-| Outing lifecycle | `SYSTEM_DESIGN`, `BUSINESS_LOGIC`, `USER_SCENARIOS` |
-| System-wide design | `SYSTEM_DESIGN` + `SYSTEM_ARCHITECTURE` |
-| Cross-layer | `SYSTEM_ARCHITECTURE` + each directly affected doc |
+`Route → auth/validation middleware → Controller → UseCase → Repository/Datasource → Prisma`.
 
-Only expand reading when missing information or cross-dependencies require it.
+- Controllers adapt HTTP; use cases/services own business and authorization.
+- Protect routes with authMiddleware unless intentionally public. Validate with
+  existing Zod/validate middleware and use errorMiddleware/envelope conventions.
+- Extend existing endpoints before inventing parallel routes.
+- Use existing transactions/locks for create+owner RSVP, replacing candidates/
+  ballots, voting closure, winner resolution and other atomic workflows.
+- Backend owns deadlines, closure, winner, cryptographic tie-break, cancellation,
+  authorization and notification triggers. Client animation only displays results.
+- Groups support overlapping outings; writes/deduplication are outing-scoped.
+- No group-level chat. Completed/cancelled/two-hour-closed outing chat is read-only;
+  retain authorized history, message ownership and the one-minute edit window.
+- Invitation acceptance/decline is explicit. Verified-phone linking of pending
+  identities must never silently accept invitations or create membership.
+- Group editing is group-owner only; outing editing/cancellation is creator only.
+  Owner is resource-scoped (`created_by`), never a global authorization role.
+- Record arrival for the authenticated eligible participant independently of RSVP;
+  invalidate the current roster after commit. Do not store GPS coordinates in
+  arrival records. WhatsApp requires consent and configured Business credentials;
+  membership never depends on delivery success.
 
-## 4. Stack rules (non-negotiable)
+## Database & Prisma Rules
 
-- **Flutter** + Provider / ChangeNotifier, feature-first Clean Architecture, Dio.
-- **Backend** Node.js + TypeScript + Express + Prisma.
-- **Database** Neon PostgreSQL is the source of truth for application data.
-- **Auth** Firebase Authentication; backend verifies Firebase ID tokens. Do **not** use Firebase as the application database.
-- **Notifications** FCM via backend outbox / worker. No mock/demo data layers in Flutter.
-- Do not introduce a different architectural pattern without an ADR in `ARCHITECTURE_DECISIONS.md`.
+- Schema: `backend/prisma/schema.prisma`; migrations/seeds stay under Prisma.
+  Neon is authoritative; Firebase UID is the corresponding `users.id`.
+- Preserve all existing migrations, IDs, foreign keys, indexes and user data.
+  Prefer additive migrations; no silent reset or destructive production migration.
+- Multiple-place ballots use one row per `(outing_id, user_id, option_id)`;
+  count distinct voters for participation. Do not restore single-choice uniqueness.
+- Winner options must belong to their outing. RSVP (`outing_attendance`) is
+  separate from votes and GPS presence (`outing_arrivals`). Creator remains Going.
+- Preserve deadline/status indexes and current enums; obsolete `upcoming` and
+  `not_voted` are not backend lifecycle/RSVP enum values.
+- No production DB operations for file cleanup. Deployment requires explicit
+  task authorization, target verification and the existing backup/rehearsal flow.
 
-## 5. Documentation update mapping (same task)
+## API Contracts
 
-| Implementation change | Update |
-|-----------------------|--------|
-| Overall system architecture | `SYSTEM_ARCHITECTURE.md` |
-| Technical system design / workflows | `SYSTEM_DESIGN.md` |
-| User journeys / interaction flows | `USER_SCENARIOS.md` |
-| Flutter architecture | `FLUTTER_ARCHITECTURE.md` |
-| Backend architecture | `BACKEND_ARCHITECTURE.md` |
-| Database schema | `DATABASE_ARCHITECTURE.md` |
-| API contracts | `API_CONTRACTS.md` |
-| Business rules | `BUSINESS_LOGIC.md` **and** affected `USER_SCENARIOS.md` sections |
-| Voting / invitation / attendance / lifecycle workflows | `SYSTEM_DESIGN.md`, `BUSINESS_LOGIC.md`, `USER_SCENARIOS.md` (+ DB/API if needed) |
-| Authentication / authorization | `AUTHENTICATION_AND_AUTHORIZATION.md` |
-| Notifications | `NOTIFICATIONS.md` |
-| Architectural decisions | `ARCHITECTURE_DECISIONS.md` |
-| Folders / organization | `PROJECT_STRUCTURE.md` |
-| Product scope | `PROJECT_OVERVIEW.md` / `PRODUCT_SCENARIOS.md` (owner-approved) |
+- Consult [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md) and existing Swagger
+  definitions; never invent paths or tables. Preserve existing request/response
+  contracts, `/api` prefixes and error envelopes.
+- Chat REST history/send/read lives under `/api/outings/:outingId/…`.
+  REST remains canonical; Socket.IO does not create a second write pipeline.
+- Keep static routes ahead of dynamic ID routes. Update contracts and affected
+  client adapters in the same task when an authorized contract changes.
 
-If multiple areas change, update **all** affected files before finishing. Never postpone docs.
+## Authentication & Authorization
 
-### Final task report must include
+- Firebase verifies identity; Neon owns profile data and bcrypt application
+  passwords. Phone/password login uses existing custom-token sessions; signup
+  and recovery use Firebase phone OTP proof. Preserve account identity.
+- Backend derives UID from verified Firebase tokens for REST and Socket.IO.
+  Client-provided sender, role, UID, room or phone cannot grant authorization.
+- Enforce current resource participation/ownership server-side even when UI hides
+  controls. Pending-only invitees cannot vote/chat as accepted members.
+- Restore only profiles matching the current Firebase account; one deferred
+  users/sync follows cached boot. Ordinary reads/resume must not repeatedly sync
+  accounts or force token refresh. Keep verified-phone proof and account epochs.
+- Logout/account switches clear account-scoped state, pending actions and rooms;
+  asynchronous callbacks from prior identities must not affect the new account.
+- Never persist/log credentials, tokens, hashes, Authorization headers or private
+  user rows in reports. Preserve sanitizers and expectedUserId guards.
 
-**Documentation Updates** — files updated; what changed; diagrams updated?; remaining inconsistencies. If none required, say why.
+## Socket.IO & Real-Time Rules
 
-## 6. Token efficiency
+- One shared session socket on the API host at `/socket.io`; Firebase token in
+  handshake. User/group/outing room audiences are authorized on the server.
+- Group rooms carry domain invalidations, never group chat. Outing chat rooms
+  are reference-counted and left after their last viewer closes.
+- Keep the shared transport available for other active consumers; closing a
+  chat is not a reason to break all application realtime updates.
+- Dispose route-local subscriptions, timers, focus/animation/text controllers;
+  cancel provider listeners on disposal and disconnect on logout/account switch.
+- Keep bounded retries, generation guards, in-flight deduplication, debounce and
+  targeted REST recovery. No unnecessary polling, per-screen sockets or sync loops.
+- Message IDs/client UUIDs dedupe REST/socket/outbox delivery. Reconnect repairs
+  gaps over REST; in-memory replay is not a durable distributed event log.
+- Preserve the current single long-lived Node process topology; multi-instance
+  Socket.IO/Redis changes require an ADR.
 
-- Do not scan the entire repository by default.
-- Do not read all documentation by default.
-- Prefer structure map → targeted files.
-- Prefer correctness over savings when dependencies are unclear.
+## Caching & Offline Rules
 
-## 7. Compliance
+- Reuse existing CachePolicy/TTL/RequestDeduper, OfflineSnapshots, chat caches,
+  ChatSendQueue and AppSyncProvider. Do not add a second cache/connectivity layer.
+- Scope cached data to account and backend origin, retain size/retention bounds,
+  ignore old-generation responses, and evict unauthorized snapshots.
+- Cached views hydrate before authenticated REST revalidation. Foreground sync
+  remains silent globally; chat owns its local connection/pending/failed feedback.
+- Only existing durable chat sends and explicitly documented draft/notification
+  action recovery replay. Do not queue votes, RSVP, GPS, membership, invitations,
+  security, deletes or lifecycle commands as generic offline mutations.
+- Preserve cached images, media refs, offline map limits and failure fallbacks.
 
-Any implementation that conflicts with `docs/PRODUCT_SCENARIOS.md` is a **product compliance issue** until the product owner updates that document.
+## UI/UX & Reusable Widgets
 
-Critical distinctions:
+The existing application and DESIGN.md are the design authority. Polish preserves
+its visual language, product copy and features. No redesign or new dependency
+without explicit approval.
 
-- Place voting ≠ attendance.
-- Firebase Auth ≠ application database.
-- Owner is outing-scoped (`created_by`), not a global role.
-- Backend owns winner / closure / tie-break / cancel / authZ / notification triggers.
+1. Read the journey/Flutter docs, target screen, tokens and its existing controls.
+2. Reuse AppTheme, AppPalette, AppColors, AppMotion, app_tokens, Responsive and
+   core/widgets before adding local colors, dimensions, components or motion.
+3. Preserve English/Arabic through manual L10n, logical directional APIs and
+   Directionality. Use established Arabic-Indic formatters; mirror navigation.
+4. Cover loading, empty, error, offline, keyboard, long text and narrow/wide/
+   foldable layouts using Responsive content limits and safe areas.
+5. Provide semantics for non-text controls, keyboard focus, readable contrast,
+   textScaler resilience and at least 48dp effective touch targets unless an
+   established component explicitly documents an intentional exception.
+6. Keep purposeful hierarchy, concise localized copy and one primary action per
+   task state. Avoid arbitrary gradients, duplicate/nested cards, decorative
+   motion and generic AI visual tropes.
+7. Use existing transitions, honor reduced motion and release animation resources.
+8. Run permitted static checks; visually inspect theme/locale/size/input states
+   only when allowed. Report every unexercised state; never claim visual sign-off
+   from source inspection.
 
-## 8. UI/UX quality workflow (Flutter)
+Use installed Dart/Flutter skills selectively and `$impeccable` for focused
+critique/audit/polish/responsiveness/accessibility/motion; preserve existing design.
+Use Dart MCP diagnostics/symbol lookup when available. Do not apply localization
+or declarative-routing setup skills to this established manual L10n/GetX app.
+For supplied Figma designs, inspect authenticated variables/components first;
+screenshots alone do not establish its design system. Refero informs patterns,
+never copied content or a replacement visual language. Configuration is not proof
+that an MCP connection or hook is authenticated/enabled.
 
-For any Flutter presentation change, treat the existing application as the
-design authority before proposing or writing UI. Do not redesign a screen,
-replace the visual language, or add a dependency without explicit approval.
+## Coding Standards
 
-1. Read the relevant journey in `docs/USER_SCENARIOS.md`, this file, and
-   `docs/FLUTTER_ARCHITECTURE.md`; then inspect the target screen and the
-   reusable widgets/tokens it already uses.
-2. Reuse `AppTheme`, `AppPalette`, `AppColors`, `Responsive`, and
-   `core/widgets/` before creating local colors, spacing, controls, or motion.
-   Preserve Material 3, Inter (English), Cairo (Arabic), light/dark themes,
-   and the current provider/feature-first architecture.
-3. Preserve both English and Arabic behavior. Use `L10n`, logical directional
-   APIs, and `Directionality`; verify RTL ordering, Arabic-Indic numbers where
-   existing formatters require them, and mirrored navigation/animations.
-4. Design task flows for loading, empty, error, offline, keyboard, long-text,
-   and narrow/wide/foldable states. Use `Responsive` and its content-width
-   limits rather than device-specific constants.
-5. Meet mobile usability basics: semantic labels for non-text controls,
-   readable contrast, focus order, `textScaler` resilience, and at least a
-   48dp effective touch target unless an established component documents an
-   intentional exception.
-6. Keep hierarchy purposeful: one primary action per task state, clear
-   heading/body contrast, token-based spacing, and concise localized copy.
-   Avoid generic AI visual tropes, arbitrary gradients, duplicate cards, and
-   decorative motion.
-7. Motion must clarify a state or navigation change, respect platform motion
-   settings where supported, and use the existing transition/animation widgets
-   before adding a new pattern.
-8. Before completion, run the relevant analyzer/tests and visually inspect the
-   target at phone, wide/foldable, light/dark, and English/Arabic states when
-   practical. Report any states that could not be exercised.
+- Follow established feature/file naming, typed errors and layer boundaries.
+- Remove verified dead code/imports and duplicate implementations only after
+  checking usages (including tests, scripts, CI, configuration and documentation).
+- Format modified Dart files; resolve introduced analyzer errors/warnings.
+- Preserve working integrations and public compatibility exports with consumers.
+- Keep scripts in existing root/backend scripts or Flutter tool directories;
+  keep historical evidence separate from canonical architecture documentation.
+- Prefer focused edits over repository-wide formatting or unnecessary renames.
 
-### Agent tools
+## Testing & Verification Restrictions
 
-- Use the installed Flutter/Dart skills selectively. Do not apply the
-  localization or declarative-routing setup skills to this established app:
-  it uses manual `L10n` and imperative GetX navigation by design.
-- Use the Dart MCP server for analyzer diagnostics, package-aware symbol
-  lookup, test execution, and running-app inspection when connected.
-- If a Figma design is provided, authenticate the Figma MCP server and inspect
-  its variables/components before translating a frame. Do not infer a Figma
-  design system from a screenshot alone.
-- Use Refero research only to inform patterns, never to copy product content
-  or replace the app's established design language.
-- Use `$impeccable` for a focused UI critique, audit, polish, responsive,
-  accessibility, or motion task. It must preserve the existing design unless
-  the user has explicitly approved a redesign.
+- Run relevant checks after implementation, subject to the current task's
+  explicit restrictions. Historical task restrictions are not permanent policy.
+- **Phase 7/8 scope:** Flutter static analysis only; no Flutter launch, emulator,
+  physical device, runtime/widget/integration tests or UI automation. Verify
+  affected backend APIs through served Swagger/OpenAPI only. No production DB
+  writes or unnecessary database operations. Do not hot reload for this audit.
+- Use read-only/unauthenticated HTTP checks when no authorized disposable session
+  exists; report authenticated and realtime/device behavior as unverified.
+- Never run deployment/start scripts blindly: `backend` start deploys migrations.
+  Import the Express app for isolated HTTP contract checks without starting jobs.
+- Distinguish source evidence, analyzer output, HTTP results and runtime proof.
+
+## Agent Workflow & Safety Rules
+
+1. Read this file; identify affected layers. Read only relevant docs below.
+2. Locate implementation via PROJECT_STRUCTURE; inspect those sources first,
+   expanding only for dependencies. Do not scan/read everything by default.
+3. Check git status and concurrent ownership before edits; preserve unrelated
+   uncommitted changes. Do not commit, reset or overwrite others' work unasked.
+4. Product rules come from PRODUCT_SCENARIOS; unresolved contradictions are
+   compliance issues until owner-approved. Verify docs against current source.
+5. Never introduce an architecture pattern conflicting with accepted ADRs.
+6. Before deleting/moving, check references and unique content; update consumers
+   in the same task. Do not delete files merely because they look unused.
+7. Preserve env files, secrets, required tool/build configuration, production
+   assets, all migrations/schema/seeds and user data. Inspect exact absolute
+   targets before recursive filesystem operations; prefer nonrecursive cleanup.
+8. Consolidate project rules here. Retain tool-specific loaders/references only
+   when useful for the installed setup; do not duplicate policy in them.
+   Installed skills/subagent workflows are tool packages, not project-rule copies.
+9. Synchronize all directly affected docs in the same task and run permitted
+   verification. Final reports include **Documentation Updates**, files/changes,
+   whether diagrams changed, remaining inconsistencies and verification limits.
+
+### Selective documentation entry points
+
+| Task | Read first |
+|---|---|
+| Flutter UI | USER_SCENARIOS journey + FLUTTER_ARCHITECTURE + PROJECT_STRUCTURE |
+| Provider/repository | FLUTTER_ARCHITECTURE + API_CONTRACTS if networked |
+| Backend API | BACKEND_ARCHITECTURE + API_CONTRACTS |
+| Database/Prisma | DATABASE_ARCHITECTURE + relevant BUSINESS_LOGIC |
+| Auth/invitations | AUTHENTICATION_AND_AUTHORIZATION + USER_SCENARIOS + affected API/DB |
+| Notifications | NOTIFICATIONS + related backend/API |
+| Voting/attendance/lifecycle | USER_SCENARIOS + SYSTEM_DESIGN + BUSINESS_LOGIC; DB as needed |
+| Cross-layer/system-wide | SYSTEM_ARCHITECTURE + SYSTEM_DESIGN + directly affected docs |
+
+### Mandatory same-task documentation mapping
+
+| Change | Update under docs/ |
+|---|---|
+| System components / technical workflows | SYSTEM_ARCHITECTURE / SYSTEM_DESIGN |
+| Journeys / business rules | USER_SCENARIOS / BUSINESS_LOGIC and USER_SCENARIOS |
+| Flutter / backend patterns | FLUTTER_ARCHITECTURE / BACKEND_ARCHITECTURE |
+| Schema / API | DATABASE_ARCHITECTURE / API_CONTRACTS |
+| Auth / notifications | AUTHENTICATION_AND_AUTHORIZATION / NOTIFICATIONS |
+| Architecture decisions / folder layout | ARCHITECTURE_DECISIONS / PROJECT_STRUCTURE |
+| Product scope | PROJECT_OVERVIEW / owner-approved PRODUCT_SCENARIOS |
+
+Voting, invitations, attendance and lifecycle workflow changes also update
+SYSTEM_DESIGN, BUSINESS_LOGIC and USER_SCENARIOS, plus API/DB docs if affected.
+Update Mermaid diagrams when flows/ER relationships change. Label implemented,
+partial, missing and unverified behavior explicitly; historical audits are evidence
+at their recorded revision, not current product authority. Do not postpone docs.

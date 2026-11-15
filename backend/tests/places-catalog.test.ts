@@ -14,20 +14,23 @@ import {
 } from "../src/services/places/osm.js";
 import { catalogQuerySchema } from "../src/validators/places/catalog.validator.js";
 test("taxonomy has stable unique IDs, distinct cafes/retail coffee and complete bilingual labels", () => {
-  assert.equal(categories.length, 36);
-  assert.equal(vibes.length, 15);
-  assert.equal(new Set(categories.map((c) => c[0])).size, 36);
+  assert.equal(new Set(categories.map((c) => c[0])).size, categories.length);
+  assert.equal(new Set(vibes.map((v) => v[0])).size, vibes.length);
+  assert.ok(categories.length >= 44);
+  assert.ok(vibes.length >= 23);
   for (const row of [...categories, ...vibes]) assert.ok(row.every(Boolean));
   assert.equal(classify({ amenity: "cafe" }), "cafes");
   assert.equal(classify({ shop: "coffee" }), "coffee_shops");
 });
 test("vibes require evidence; no inferred romance, work or affordability", () => {
-  assert.deepEqual(mappedVibes("cafes", {}), ["coffee_conversations"]);
+  assert.deepEqual(mappedVibes("cafes", {}), ["coffee_conversations", "chill_relax", "friends_hangout"]);
   assert.deepEqual(mappedVibes("bowling", {}), [
     "fun_games",
     "friends_hangout",
+    "group_activities",
+    "entertainment",
   ]);
-  assert.deepEqual(mappedVibes("escape_rooms", {}), ["fun_games", "adventure"]);
+  assert.deepEqual(mappedVibes("escape_rooms", {}), ["adventure", "fun_games", "group_activities"]);
   assert.ok(mappedVibes("parks", { fee: "no" }).includes("budget_friendly"));
   for (const c of categories)
     for (const vibe of mappedVibes(c[0], {}))

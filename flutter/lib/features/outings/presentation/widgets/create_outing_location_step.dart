@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -89,11 +88,11 @@ class CreateOutingLocationStep extends StatelessWidget {
                       ? Icons.check_circle
                       : Icons.add_location_alt_outlined,
                   background: form.customPlacePinned
-                      ? AppColors.brand600
-                      : AppColors.brand50,
+                      ? context.palette.chipActive
+                      : context.palette.brandSoft,
                   foreground: form.customPlacePinned
-                      ? Colors.white
-                      : AppColors.brand600,
+                      ? context.palette.chipActiveText
+                      : context.palette.brandStrong,
                 ),
                 12.gapW,
                 Expanded(
@@ -118,7 +117,11 @@ class CreateOutingLocationStep extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.map_outlined, color: AppColors.brand600, size: 20.w),
+                Icon(
+                  Icons.map_outlined,
+                  color: context.palette.brandStrong,
+                  size: 20.w,
+                ),
               ],
             ),
           ),
@@ -228,7 +231,7 @@ class CreateOutingLocationStep extends StatelessWidget {
                       else if (selected)
                         Icon(
                           Icons.check_circle,
-                          color: AppColors.brand600,
+                          color: context.palette.brandStrong,
                           size: 20.w,
                         ),
                     ],

@@ -1,0 +1,62 @@
+{
+  "checkedAt": "2026-11-15T11:34:34.594Z",
+  "mode": "Isolated schema; no Flutter/runtime/device tests; application schema untouched",
+  "results": [
+    {
+      "scenario": "All migrations apply in an isolated schema without production writes",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Dry-run validates multiple chunks with zero database writes",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Initial import, bilingual taxonomy, confidence and unknown prices persist",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Repeated source import is idempotent",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Cross-source duplicate aliases preserve canonical metadata; hours/prices and diagnostics persist",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Explicit status changes preserve outings, saved places and voting references",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Manual curator edits survive later releases",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Repeated absence needs three distinct releases; a replay never proves closure",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Interruption is recorded and the exact artifact resumes safely",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Concurrent imports are rejected by the database lease",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Weekly scheduler API and due gate are removed",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Served Swagger catalog query and microsecond-safe cursor pagination",
+      "result": "PASS"
+    },
+    {
+      "scenario": "GeoJSON bounds/category/vibe filters, coordinates, lightweight properties and complete details",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Administrative sync diagnostics remain private",
+      "result": "PASS"
+    }
+  ]
+}

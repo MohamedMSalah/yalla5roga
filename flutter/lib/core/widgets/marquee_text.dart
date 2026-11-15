@@ -61,7 +61,8 @@ class _MarqueeBody extends StatefulWidget {
   State<_MarqueeBody> createState() => _MarqueeBodyState();
 }
 
-class _MarqueeBodyState extends State<_MarqueeBody> with SingleTickerProviderStateMixin {
+class _MarqueeBodyState extends State<_MarqueeBody>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
@@ -72,12 +73,19 @@ class _MarqueeBodyState extends State<_MarqueeBody> with SingleTickerProviderSta
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
   void didUpdateWidget(covariant _MarqueeBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.text != widget.text ||
         oldWidget.style != widget.style ||
         oldWidget.maxWidth != widget.maxWidth ||
-        oldWidget.velocity != widget.velocity) {
+        oldWidget.velocity != widget.velocity ||
+        oldWidget.gap != widget.gap) {
       _sync();
     }
   }
@@ -87,6 +95,7 @@ class _MarqueeBodyState extends State<_MarqueeBody> with SingleTickerProviderSta
       text: TextSpan(text: widget.text, style: widget.style),
       maxLines: 1,
       textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
     )..layout();
   }
 
@@ -143,7 +152,9 @@ class _MarqueeBodyState extends State<_MarqueeBody> with SingleTickerProviderSta
             final offset = _controller.value * (textWidth + widget.gap);
             final rtl = Directionality.of(context) == TextDirection.rtl;
             final dx = rtl ? offset : -offset;
-            final loop = rtl ? -(textWidth + widget.gap) : (textWidth + widget.gap);
+            final loop = rtl
+                ? -(textWidth + widget.gap)
+                : (textWidth + widget.gap);
             return Stack(
               children: [
                 Transform.translate(offset: Offset(dx, 0), child: child),

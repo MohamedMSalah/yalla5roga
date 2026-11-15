@@ -1,0 +1,50 @@
+{
+  "sources": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "13d32ba70af3b92884b54d9b563e5726156e3b779eff04032bb3b2d22f65f14f",
+      "lines": 170
+    },
+    {
+      "path": ".cursor/rules/global.mdc",
+      "sha256": "3f1df0038f21027202240ba69faf76a48df81f7561b9713b625eef1e5a665ec6",
+      "lines": 17
+    },
+    {
+      "path": ".cursor/rules/flutter.mdc",
+      "sha256": "ee39051b722c1656736f6bfa0888e7409d5394054db85ee74fb451aa3e9925fe",
+      "lines": 21
+    },
+    {
+      "path": ".cursor/rules/backend.mdc",
+      "sha256": "7f1aa5af45e7073258028ef0a3f777d94a22aa7592ec28bc382d7a0e08ca3548",
+      "lines": 23
+    },
+    {
+      "path": ".cursor/rules/database.mdc",
+      "sha256": "c3413400c81decdd72bf4f7539cbc4078b186769951bf038feedbbcfef79ae9b",
+      "lines": 14
+    },
+    {
+      "path": ".cursor/rules/documentation.mdc",
+      "sha256": "97f5e4d118381bdf77ca5a81beed4046a1d08cab983facaa5c8fabefe376b8d3",
+      "lines": 40
+    },
+    {
+      "path": ".cursor/rules/ui-ux.mdc",
+      "sha256": "b836d10040330a337cb873881e43ee00bf4e68c40442ad0894f76563af23aed1",
+      "lines": 28
+    },
+    {
+      "path": "flutter/.cursor/rules/project-context.mdc",
+      "sha256": "b79a8e3eb5c89b8df3036d821b02ccbb71c1fe0189d95be9f66f25a8b5b8cadf",
+      "lines": 51
+    }
+  ],
+  "conflicts": [
+    "single-vote uniqueness superseded by composite outing/user/option ballot key",
+    "flutter_map superseded by maplibre_gl",
+    "social/email login description superseded by phone/password and Firebase OTP/custom sessions",
+    "generic runtime verification yields to the task-specific no-runtime restriction"
+  ]
+}

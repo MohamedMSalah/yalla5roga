@@ -19,6 +19,7 @@ export class CatalogUseCase {
   list(query: CatalogQuery) {
     return this.repository.list(query);
   }
+  geojson(query: CatalogQuery) { return this.repository.geojson(query); }
   categories() {
     return this.repository.categories();
   }

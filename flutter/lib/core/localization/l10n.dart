@@ -696,6 +696,10 @@ class L10n {
     'Location verification starts at the scheduled time once the venue is confirmed on the map.',
     'يبدأ التحقق من الحضور في الموعد المحدد بعد تأكيد المكان على الخريطة.',
   );
+  String get arrivalStartsAtOutingTime => _t(
+    'Arrival tracking starts at the outing time.',
+    'متابعة الوصول بتبدأ في معاد الخروجة.',
+  );
   String get whoArrived => _t('Who’s arrived', 'مين وصل');
   String get nobodyArrived => _t('No arrivals yet', 'لم يصل أحد بعد');
   String get automaticArrivalHint => _t(
@@ -1543,7 +1547,7 @@ class L10n {
     return _t('$c unread updates', '$c إشعارات غير مقروءة');
   }
 
-  String get markAllRead => _t('Mark all read', 'تعليم الكل كمقروء');
+  String get markAllRead => _t('mark all as read', 'تحديد الكل كمقروء');
   String get allRead => _t('All read', 'تمت القراءة');
   String get unread => _t('Unread', 'غير المقروءة');
   String get earlier => _t('Earlier', 'سابقاً');

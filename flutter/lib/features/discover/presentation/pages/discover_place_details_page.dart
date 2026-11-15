@@ -136,7 +136,6 @@ class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
             child: ListView(
               padding: Responsive.pagePadding(),
               children: [
-                if (_loading) const LinearProgressIndicator(),
                 if (_failed)
                   TextButton(onPressed: _load, child: Text(l10n.catalogRetry)),
                 SizedBox(
@@ -203,7 +202,8 @@ class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
                   ),
                 if (place.openingHours.isNotEmpty) Text(place.openingHours),
                 if (place.address.isNotEmpty) Text(place.address),
-                if (place.source == 'osm') const PlaceCatalogAttribution(),
+                if (place.source == 'osm' || place.source == 'overture')
+                  const PlaceCatalogAttribution(),
                 if (place.localizedDescription(l10n).trim().isNotEmpty) ...[
                   Responsive.spaceMd.gapH,
                   Text(

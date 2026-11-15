@@ -126,8 +126,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
                                     context.watch<AppSyncProvider?>()?.status ==
                                     SyncStatus.offline,
                               ),
-                              if (catalog.loading || catalog.locating)
-                                const LinearProgressIndicator(minHeight: 2),
                               if (message != null)
                                 Material(
                                   color: context.palette.surface,

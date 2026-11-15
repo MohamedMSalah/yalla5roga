@@ -1,0 +1,460 @@
+{
+  "checkedAt": "2026-11-15T11:53:21.321Z",
+  "mode": "read-only served Swagger/HTTP and Neon readback; no Flutter/device tests",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "schema": "public",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "counts": {
+    "places": [
+      {
+        "_count": 9,
+        "source": "osm",
+        "source_region": "EG-C",
+        "status": "temporarily_closed"
+      },
+      {
+        "_count": 1,
+        "source": "osm",
+        "source_region": "EG-GZ",
+        "status": "permanently_closed"
+      },
+      {
+        "_count": 2912,
+        "source": "overture",
+        "source_region": "EG-GZ",
+        "status": "active"
+      },
+      {
+        "_count": 1685,
+        "source": "osm",
+        "source_region": "EG-C",
+        "status": "active"
+      },
+      {
+        "_count": 914,
+        "source": "osm",
+        "source_region": "EG-GZ",
+        "status": "active"
+      },
+      {
+        "_count": 6096,
+        "source": "overture",
+        "source_region": "EG-C",
+        "status": "active"
+      }
+    ],
+    "tables": {
+      "places": 11617,
+      "place_categories": 44,
+      "vibes": 23,
+      "place_vibes": 22860,
+      "place_images": 0,
+      "place_hours": 546,
+      "place_prices": 11,
+      "place_sync_runs": 6,
+      "place_sync_logs": 150274,
+      "place_status_changes": 2609,
+      "place_source_records": 11659
+    }
+  },
+  "runs": [
+    {
+      "id": "457689ee-88b7-4097-a443-dc56b1f0f48e",
+      "started_at": "2026-11-15T11:27:19.603Z",
+      "completed_at": "2026-11-15T11:42:40.775Z",
+      "status": "success",
+      "imported_count": 9008,
+      "updated_count": 0,
+      "closed_count": 0,
+      "skipped_count": 141712,
+      "failed_count": 0,
+      "error_details": [],
+      "dry_run": false,
+      "complete": true,
+      "coverage": {
+        "city": "all",
+        "limit": null,
+        "sha256": "623600760fa02f0fe2f3a3da624b9e2c8885bb6eca961d027a0efa8bc8377917",
+        "source": "overture",
+        "records": {
+          "EG-C": 106472,
+          "EG-GZ": 44248
+        },
+        "release": "2026-10-21.0",
+        "version": 2,
+        "fetched_at": "2026-11-15T11:22:48Z",
+        "boundary_sha256": "b56216742ca9ebe38c3b98a6e6fae602e2714aa3439484afeabc243b34e0fa2a"
+      },
+      "progress": {
+        "release": "2026-10-21.0",
+        "counters": {
+          "failed": 0,
+          "skipped": 141712,
+          "updated": 0,
+          "inserted": 9008,
+          "processed": 150720,
+          "duplicates": 13
+        },
+        "last_line": 150720,
+        "duplicates": 13
+      },
+      "source": "overture",
+      "processed_count": 150720
+    },
+    {
+      "id": "248ebdf7-d96a-4a92-bc06-7c76c983e925",
+      "started_at": "2026-11-15T11:43:18.078Z",
+      "completed_at": "2026-11-15T11:45:37.005Z",
+      "status": "success",
+      "imported_count": 2609,
+      "updated_count": 0,
+      "closed_count": 0,
+      "skipped_count": 6637,
+      "failed_count": 0,
+      "error_details": [],
+      "dry_run": false,
+      "complete": true,
+      "coverage": {
+        "city": "all",
+        "limit": null,
+        "sha256": "74e386e9317ffceac45f614eb63494fc71eaa6a9394d27e370d29ca36aefba3f",
+        "source": "osm",
+        "records": {
+          "EG-C": 5794,
+          "EG-GZ": 3452
+        },
+        "release": "8c2656d0d4ff0fa1063a000c04772f5e0d6327fda2288fd3910cf5c61014c4ef",
+        "version": 2,
+        "fetched_at": "2026-11-15T11:36:51Z",
+        "boundary_sha256": "b56216742ca9ebe38c3b98a6e6fae602e2714aa3439484afeabc243b34e0fa2a"
+      },
+      "progress": {
+        "release": "8c2656d0d4ff0fa1063a000c04772f5e0d6327fda2288fd3910cf5c61014c4ef",
+        "counters": {
+          "closed": 0,
+          "failed": 0,
+          "skipped": 6637,
+          "updated": 0,
+          "inserted": 2609,
+          "processed": 9246,
+          "duplicates": 29
+        },
+        "last_line": 9246,
+        "duplicates": 29
+      },
+      "source": "osm",
+      "processed_count": 9246
+    },
+    {
+      "id": "39af0770-f060-4c8e-a232-f1fb2c8ae63f",
+      "started_at": "2026-11-15T11:51:15.537Z",
+      "completed_at": "2026-11-15T11:51:27.662Z",
+      "status": "partial",
+      "imported_count": 0,
+      "updated_count": 3,
+      "closed_count": 0,
+      "skipped_count": 997,
+      "failed_count": 0,
+      "error_details": [],
+      "dry_run": false,
+      "complete": false,
+      "coverage": {
+        "city": "all",
+        "limit": 1000,
+        "sha256": "623600760fa02f0fe2f3a3da624b9e2c8885bb6eca961d027a0efa8bc8377917",
+        "source": "overture",
+        "records": {
+          "EG-C": 106472,
+          "EG-GZ": 44248
+        },
+        "release": "2026-10-21.0",
+        "version": 2,
+        "fetched_at": "2026-11-15T11:22:48Z",
+        "boundary_sha256": "b56216742ca9ebe38c3b98a6e6fae602e2714aa3439484afeabc243b34e0fa2a"
+      },
+      "progress": {
+        "release": "2026-10-21.0",
+        "counters": {
+          "closed": 0,
+          "failed": 0,
+          "skipped": 997,
+          "updated": 3,
+          "inserted": 0,
+          "processed": 1000,
+          "duplicates": 0
+        },
+        "last_line": 1000,
+        "duplicates": 0
+      },
+      "source": "overture",
+      "processed_count": 1000
+    },
+    {
+      "id": "d6509e72-c822-4868-a8fa-989b5f7b62be",
+      "started_at": "2026-11-15T11:51:31.054Z",
+      "completed_at": "2026-11-15T11:51:41.657Z",
+      "status": "partial",
+      "imported_count": 0,
+      "updated_count": 0,
+      "closed_count": 0,
+      "skipped_count": 1000,
+      "failed_count": 0,
+      "error_details": [],
+      "dry_run": false,
+      "complete": false,
+      "coverage": {
+        "city": "all",
+        "limit": 1000,
+        "sha256": "74e386e9317ffceac45f614eb63494fc71eaa6a9394d27e370d29ca36aefba3f",
+        "source": "osm",
+        "records": {
+          "EG-C": 5794,
+          "EG-GZ": 3452
+        },
+        "release": "8c2656d0d4ff0fa1063a000c04772f5e0d6327fda2288fd3910cf5c61014c4ef",
+        "version": 2,
+        "fetched_at": "2026-11-15T11:36:51Z",
+        "boundary_sha256": "b56216742ca9ebe38c3b98a6e6fae602e2714aa3439484afeabc243b34e0fa2a"
+      },
+      "progress": {
+        "release": "8c2656d0d4ff0fa1063a000c04772f5e0d6327fda2288fd3910cf5c61014c4ef",
+        "counters": {
+          "closed": 0,
+          "failed": 0,
+          "skipped": 1000,
+          "updated": 0,
+          "inserted": 0,
+          "processed": 1000,
+          "duplicates": 0
+        },
+        "last_line": 1000,
+        "duplicates": 0
+      },
+      "source": "osm",
+      "processed_count": 1000
+    }
+  ],
+  "migrations": [
+    {
+      "migration_name": "20261114050000_places_free_ingestion",
+      "checksum": "4ce0c98196c269d47bcd8eab557c4f4f2ca8aedebd0539d5538ba9b592ee88d8",
+      "finished_at": "2026-11-14T21:15:23.014Z"
+    },
+    {
+      "migration_name": "20261114051000_places_unknown_price_absence",
+      "checksum": "5f42381f5e9db928d9fc1d4f1ad834844d0663c8bea01ca8d830e49704c20f4c",
+      "finished_at": "2026-11-14T21:22:32.155Z"
+    }
+  ],
+  "result": "PASS",
+  "results": [
+    {
+      "scenario": "Served Swagger UI and OpenAPI operations",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Bilingual normalized categories",
+      "result": "PASS",
+      "count": 44
+    },
+    {
+      "scenario": "Bilingual stable vibe definitions",
+      "result": "PASS",
+      "count": 23
+    },
+    {
+      "scenario": "Actual active database places and safe public projection",
+      "result": "PASS",
+      "count": 50
+    },
+    {
+      "scenario": "Existing nearby API with real places and unknown-price compatibility",
+      "result": "PASS",
+      "count": 10
+    },
+    {
+      "scenario": "Map bounds aliases return real in-bounds places",
+      "result": "PASS",
+      "count": 100
+    },
+    {
+      "scenario": "Category and vibe intersection",
+      "result": "PASS",
+      "count": 100
+    },
+    {
+      "scenario": "Real place-name database search",
+      "result": "PASS",
+      "count": 2
+    },
+    {
+      "scenario": "Existing place details with complete ancillary relations",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Lightweight valid GeoJSON coordinates, category icons and vibe properties",
+      "result": "PASS",
+      "count": 100
+    },
+    {
+      "scenario": "Non-empty keyset pagination without repeated IDs: updated",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Non-empty keyset pagination without repeated IDs: name",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Catalog revision endpoint",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Required source license text and upstream notices",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Declared invalid-query 400: {}",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Declared invalid-query 400: {\"minLat\":\"30\"}",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Declared invalid-query 400: {\"bbox\":\"32,31,30,29\"}",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Declared invalid-query 400: {\"limit\":\"101\"}",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Declared invalid-query 400: {\"cursor\":\"invalid\"}",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Sync history remains authenticated/curator-only",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Automatic scheduler route and due gate removed",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Every imported place has a category and lies inside its administrative polygon",
+      "result": "PASS",
+      "count": 11617
+    },
+    {
+      "scenario": "Initial imports and detailed diagnostics persisted for both sources",
+      "result": "PASS"
+    },
+    {
+      "scenario": "No duplicate canonical source identities",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Original outings and recorded vote/bookmark identities preserved",
+      "result": "PASS",
+      "count": 5
+    },
+    {
+      "scenario": "Both deployed migration checksums match reviewed SQL",
+      "result": "PASS"
+    }
+  ],
+  "initial_imports": [
+    {
+      "run_id": "457689ee-88b7-4097-a443-dc56b1f0f48e",
+      "status": "success",
+      "source": "overture",
+      "complete": true,
+      "processed": 150720,
+      "inserted": 9008,
+      "updated": 0,
+      "skipped": 141712,
+      "failed": 0,
+      "duplicates": 13,
+      "diagnostics": {
+        "unmapped_overture_taxonomy": 29454,
+        "low_confidence": 112245,
+        "duplicates_matched": 12
+      }
+    },
+    {
+      "run_id": "248ebdf7-d96a-4a92-bc06-7c76c983e925",
+      "status": "success",
+      "source": "osm",
+      "complete": true,
+      "processed": 9246,
+      "inserted": 2609,
+      "updated": 0,
+      "skipped": 6637,
+      "failed": 0,
+      "duplicates": 29,
+      "closed": 0,
+      "diagnostics": {
+        "invalid_or_unmapped_osm": 6605,
+        "hours_preserved_raw": 252,
+        "duplicates_matched": 10,
+        "private_access": 3
+      }
+    }
+  ],
+  "replay_verification": [
+    {
+      "run_id": "39af0770-f060-4c8e-a232-f1fb2c8ae63f",
+      "status": "partial",
+      "source": "overture",
+      "complete": false,
+      "processed": 1000,
+      "inserted": 0,
+      "updated": 3,
+      "skipped": 997,
+      "failed": 0,
+      "duplicates": 0,
+      "closed": 0,
+      "diagnostics": {
+        "unmapped_overture_taxonomy": 341,
+        "low_confidence": 636
+      }
+    },
+    {
+      "run_id": "d6509e72-c822-4868-a8fa-989b5f7b62be",
+      "status": "partial",
+      "source": "osm",
+      "complete": false,
+      "processed": 1000,
+      "inserted": 0,
+      "updated": 0,
+      "skipped": 1000,
+      "failed": 0,
+      "duplicates": 0,
+      "closed": 0,
+      "diagnostics": {
+        "invalid_or_unmapped_osm": 705,
+        "hours_preserved_raw": 11
+      }
+    }
+  ],
+  "scheduling": {
+    "local_automatic_schedule_removed": true,
+    "remote_workflow_removed": false,
+    "remote_reason": "GitHub integration returned 403 for workflow deletion; owner input requested"
+  },
+  "summary": {
+    "total_places": 11617,
+    "cairo": 7790,
+    "giza": 3827,
+    "active": 11607,
+    "categories": 44,
+    "vibes": 23,
+    "duplicates_skipped": 42,
+    "failed_records": 0,
+    "swagger_checks": 26
+  }
+}

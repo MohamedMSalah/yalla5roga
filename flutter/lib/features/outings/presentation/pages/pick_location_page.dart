@@ -424,7 +424,6 @@ class _SearchResults extends StatelessWidget {
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
         children: [
-          if (picker.searching) const LinearProgressIndicator(),
           if (catalog case final catalog?) ...[
             PlaceCatalogFilters(catalog: catalog),
             CatalogLoadMore(catalog: catalog),
@@ -568,11 +567,7 @@ class _Details extends StatelessWidget {
             ),
           if (picker.lookingUp) ...[
             const SizedBox(height: 4),
-            Semantics(
-              liveRegion: true,
-              label: l10n.lookingUpLocation,
-              child: const LinearProgressIndicator(),
-            ),
+            Semantics(liveRegion: true, child: Text(l10n.lookingUpLocation)),
           ],
           if (picker.lookupFailed) Text(l10n.mapLookupFailed),
           if (picker.duplicate) Text(l10n.mapAlreadySelected),

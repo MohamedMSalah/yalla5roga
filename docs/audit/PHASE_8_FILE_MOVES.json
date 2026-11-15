@@ -1,0 +1,33 @@
+[
+  {
+    "from": "docs/AI_UI_UX_SETUP.md",
+    "to": "docs/development/AI_UI_UX_SETUP.md",
+    "sha256_before_and_after_move": "4ebd4d3e242cfc0bb45e46497dc2c748e2b8d75899e1fcb87c333b379ab89af2"
+  },
+  {
+    "from": "docs/UI_UX_AUDIT_AND_HOME_REDESIGN.md",
+    "to": "docs/audit/UI_UX_AUDIT_AND_HOME_REDESIGN.md",
+    "sha256_before_and_after_move": "eb7ea29e8f38629726a995c8715866c92637d4d986d1bc023afa820f6681fe37"
+  },
+  {
+    "converted_to_reference": "backend/.specify/memory/constitution.md",
+    "original_sha256": "29fc1837b20f493d302203554923322a245123b4be9ed5734d9e1af96cd5ef0b",
+    "reason": "Unfilled upstream template; no project-specific principles existed"
+  },
+  {
+    "removed_empty_directory": ".github/workflows",
+    "reason": "No remaining files; nonrecursive removal only; no tracked content deleted"
+  },
+  {
+    "removed_empty_directory": "backend/deploy",
+    "reason": "No remaining files; nonrecursive removal only; no tracked content deleted"
+  },
+  {
+    "removed_empty_directory": "flutter/lib/features/outings/data/models",
+    "reason": "No remaining files; nonrecursive removal only; no tracked content deleted"
+  },
+  {
+    "removed_own_failed_run_artifact": "docs/audit/PHASE_7_ANALYSIS_BASELINE.txt",
+    "reason": "This task temporary SDK-lock failure; successful before/after analyzer evidence retained"
+  }
+]

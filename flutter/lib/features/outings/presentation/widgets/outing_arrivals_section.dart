@@ -31,6 +31,7 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
   late final StreamSubscription<bool> _connectionSubscription;
   Timer? _verificationTimer;
   Timer? _refreshTimer;
+  Timer? _startTimer;
   OutingArrivalRoster? _roster;
   var _verification = ArrivalVerification.unverified;
   var _routeIsCurrent = false;
@@ -44,6 +45,10 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
   DateTime? _lastAttempt;
 
   bool get _active => mounted && _routeIsCurrent && _foreground;
+  bool get _hasStarted {
+    final start = widget.outing.scheduledAt;
+    return start != null && !DateTime.now().isBefore(start);
+  }
 
   @override
   void initState() {
@@ -72,12 +77,15 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
   @override
   void didUpdateWidget(covariant OutingArrivalsSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.outing.status != oldWidget.outing.status ||
+    if (widget.outing.id != oldWidget.outing.id ||
+        widget.userId != oldWidget.userId ||
+        widget.outing.status != oldWidget.outing.status ||
         widget.outing.scheduledAt != oldWidget.outing.scheduledAt ||
         widget.outing.endsAt != oldWidget.outing.endsAt) {
-      _verificationTimer?.cancel();
-      _generation++;
-      _queueRefresh();
+      _roster = null;
+      _verification = ArrivalVerification.unverified;
+      _failed = false;
+      _onVisibilityChanged();
     }
   }
 
@@ -91,20 +99,33 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
     _generation++;
     _verificationTimer?.cancel();
     _refreshTimer?.cancel();
+    _startTimer?.cancel();
     if (!_active) return;
     _lastAttempt = null;
+    if (!_hasStarted) {
+      final start = widget.outing.scheduledAt;
+      if (start != null && widget.outing.status != OutingStatus.cancelled) {
+        final delay = start.difference(DateTime.now());
+        _startTimer = Timer(delay.isNegative ? Duration.zero : delay, () {
+          if (!_active) return;
+          setState(() {});
+          _onVisibilityChanged();
+        });
+      }
+      return;
+    }
     _queueRefresh();
     unawaited(_service.connect().catchError((Object _) {}));
   }
 
   void _queueRefresh() {
-    if (!_active) return;
+    if (!_active || !_hasStarted) return;
     _refreshTimer?.cancel();
     _refreshTimer = Timer(const Duration(milliseconds: 120), _refresh);
   }
 
   Future<void> _refresh() async {
-    if (!_active) return;
+    if (!_active || !_hasStarted) return;
     if (_loading) {
       _refreshAgain = true;
       return;
@@ -113,7 +134,7 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
     final generation = _generation;
     try {
       final roster = await _service.list(widget.outing.id);
-      if (!_active || generation != _generation) return;
+      if (!_active || !_hasStarted || generation != _generation) return;
       setState(() {
         _roster = roster;
         _failed = false;
@@ -136,6 +157,7 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
   }) {
     _verificationTimer?.cancel();
     if (!_active ||
+        !_hasStarted ||
         widget.outing.status != OutingStatus.confirmed ||
         roster.venue == null ||
         _verification == ArrivalVerification.arrived ||
@@ -165,12 +187,15 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
   }
 
   Future<void> _verify(OutingArrivalRoster roster) async {
-    if (!_active || _checking) return;
+    if (!_active || !_hasStarted || _checking) return;
     final end = roster.closesAt;
     if (end == null) return;
     final generation = _generation;
     bool isActive() =>
-        _active && generation == _generation && DateTime.now().isBefore(end);
+        _active &&
+        _hasStarted &&
+        generation == _generation &&
+        DateTime.now().isBefore(end);
     if (!isActive()) return;
     _lastAttempt = DateTime.now();
     setState(() => _checking = true);
@@ -210,6 +235,7 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
     unawaited(_connectionSubscription.cancel());
     _verificationTimer?.cancel();
     _refreshTimer?.cancel();
+    _startTimer?.cancel();
     super.dispose();
   }
 
@@ -225,18 +251,18 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
           children: [
             SectionHeader(title: l10n.whoArrived),
             Responsive.spaceSm.gapH,
-            if (_failed)
+            if (!_hasStarted)
+              Text(
+                l10n.arrivalStartsAtOutingTime,
+                style: context.texts.bodySmall,
+              )
+            else if (_failed)
               TextButton(
                 onPressed: _refresh,
                 child: Text(l10n.arrivalsLoadFailed),
-              )
-            else if (roster == null)
-              const LinearProgressIndicator(),
-            if (_checking) ...[
-              const LinearProgressIndicator(),
-              Text(l10n.checkingArrival),
-            ],
-            if (!_checking && roster != null) ...[
+              ),
+            if (_hasStarted && _checking) ...[Text(l10n.checkingArrival)],
+            if (_hasStarted && !_checking && roster != null) ...[
               Text(switch (_verification) {
                 ArrivalVerification.arrived => l10n.arrivalVerified,
                 ArrivalVerification.permissionDenied =>
@@ -260,7 +286,7 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
                   label: Text(l10n.tryAgain),
                 ),
             ],
-            if (roster != null) ...[
+            if (_hasStarted && roster != null) ...[
               if (roster.venue != null &&
                   widget.outing.status == OutingStatus.confirmed)
                 Text(l10n.automaticArrivalHint, style: context.texts.bodySmall)

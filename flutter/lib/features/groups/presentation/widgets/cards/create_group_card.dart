@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
@@ -15,15 +14,14 @@ class CreateGroupCard extends StatelessWidget {
 
     return AppCard(
       onTap: onTap,
-      color: AppColors.brand50.withValues(alpha: 0.7),
-      radius: 22,
+      color: context.palette.brandSoft,
       padding: EdgeInsets.all(Responsive.spaceMd),
       child: Row(
         children: [
-          const IconCircle(
+          IconCircle(
             icon: Icons.person_add_alt_1_outlined,
-            background: Colors.white,
-            foreground: AppColors.brand600,
+            background: context.palette.surface,
+            foreground: context.palette.brandStrong,
           ),
           12.gapW,
           Expanded(
@@ -33,19 +31,26 @@ class CreateGroupCard extends StatelessWidget {
                 Text(
                   l10n.startNewCircle,
                   style: TextStyle(
-                    color: AppColors.brand700,
+                    color: context.palette.brandStrong,
                     fontWeight: FontWeight.w800,
                     fontSize: Responsive.fontBody,
                   ),
                 ),
                 Text(
                   l10n.inviteWithLink,
-                  style: TextStyle(color: AppColors.brand500, fontSize: 10.sp),
+                  style: TextStyle(
+                    color: context.palette.brandStrong,
+                    fontSize: 10.sp,
+                  ),
                 ),
               ],
             ),
           ),
-          Icon(Icons.arrow_outward, color: AppColors.brand600, size: 18.w),
+          Icon(
+            context.chevronForward,
+            color: context.palette.brandStrong,
+            size: 18.w,
+          ),
         ],
       ),
     );

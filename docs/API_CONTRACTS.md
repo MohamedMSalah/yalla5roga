@@ -367,3 +367,17 @@ Discover map-first verification: [23 passed read-only Swagger/OpenAPI checks](au
 
 
 Group DELETE clarification (2026-11-14): `deleteGroup` now returns 409 for other active members as well as existing outings. Ownership is rechecked under the group lock; the response envelope and URL are unchanged. `updateGroup` retains its ordinary owner-only editing rule and has no sole-member restriction. Notification settings retain GET/PATCH `/api/notifications/preferences`; strict partial boolean `pushEnabled` writes remain per caller, independent of OS permission. [Scoped HTTP/OpenAPI verification](audit/HOME_GROUP_SETTINGS_OPENAPI_RESULTS.json).
+
+
+Arrival startup / mark-all presentation (2026-11-14): no API contract changes. Flutter delays arrival roster GET and GPS verification PUT until the outing’s scheduled start. The response’s existing open/opens_at/closes_at gate remains authoritative; backend arrival verification continues to reject before-start and after-window proofs. Notifications’ app-bar action uses the existing markAllNotificationsRead operation. [Scoped Swagger/OpenAPI HTTP evidence](audit/NOTIFICATIONS_ARRIVAL_OPENAPI_RESULTS.json).
+
+
+## Current free-source catalog contracts — 2026-11-15
+
+These changes supersede the earlier OSM-only scheduler contract. Existing GET `/api/places` retains its array/envelope and offset pagination, adding all-four `minLat,minLng,maxLat,maxLng` bounds aliases, `category` as an alias for categories, and a filter/sort-bound opaque `cursor`. `pagination.next_cursor` uses stable keyset ordering, retaining PostgreSQL timestamp microseconds. Limits remain 1–100. Mixed incomplete/conflicting bounds and invalid/mismatched cursors return 400. Existing bbox/category/vibe/search/distance filters and public-read/curator-write rules remain.
+
+GET `/api/places/geojson` (`getPlacesGeoJson`) requires geographic bounds and returns `application/geo+json`: a FeatureCollection with Point [longitude,latitude], place_id/name/bilingual names/category/vibe IDs/icon, pagination and attribution. Marker responses exclude details/images and internal sync evidence. GET `/api/places/:id` additionally includes category, place_vibes, place_hours, licensed place_images and available place_prices. Missing price_level is nullable; missing photos use existing fallback behavior. Public catalog/details/saved-place projections exclude source_tags, curator flags, absence counters and administrative logs.
+
+GET `/api/places/licenses` (`getPlacesLicenses`) makes source license text/notices and attribution available; list/GeoJSON responses link it with rel=license. Overture source attribution is additive to OSM. Manual curator POST `/api/places/sync` accepts optional source=overture|osm, city=cairo|giza, dryRun and explicit limit. `/sync/status` reports automatic_sync_enabled=false, manual run history and lease status. The scheduled `/sync/worker` operation, worker secret and dueOnly option are removed. Sync history remains authenticated/curator-only. No automatic places schedule remains in this checkout.
+
+See [real served-Swagger checks and import evidence](audit/PLACES_INGESTION.md). Older zero-place verification statements are historical; use the current results for populated-data checks.

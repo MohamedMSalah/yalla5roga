@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_icon_button.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
@@ -38,22 +37,32 @@ class _AuthPageState extends State<AuthPage> {
         Row(
           children: [
             if (ModalRoute.of(context)?.canPop ?? false)
-              AppIconButton(icon: context.chevronBack, onTap: Get.back)
+              AppIconButton(
+                icon: context.chevronBack,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onTap: Get.back,
+              )
             else
-              SizedBox(width: 40.w),
+              SizedBox(width: 48.w.clamp(48.0, double.infinity)),
             const Spacer(),
-            Icon(Icons.auto_awesome, color: AppColors.brand600, size: 16.w),
+            Icon(
+              Icons.auto_awesome,
+              color: context.palette.brandStrong,
+              size: 16.w,
+            ),
             6.gapW,
-            Text(
-              l10n.appName,
-              style: TextStyle(
-                color: AppColors.brand600,
-                fontWeight: FontWeight.w800,
-                fontSize: Responsive.fontBody,
+            Flexible(
+              child: Text(
+                l10n.appName,
+                style: TextStyle(
+                  color: context.palette.brandStrong,
+                  fontWeight: FontWeight.w800,
+                  fontSize: Responsive.fontBody,
+                ),
               ),
             ),
             const Spacer(),
-            SizedBox(width: 40.w),
+            SizedBox(width: 48.w.clamp(48.0, double.infinity)),
           ],
         ),
         28.gapH,

@@ -59,69 +59,79 @@ class CustomTextField extends StatelessWidget {
         Responsive.spaceSm.gapH,
         _maybeDirectional(
           textDirection,
-          TextFormField(
-            controller: controller,
-            onChanged: onChanged,
-            obscureText: obscureText,
-            keyboardType: keyboardType,
-            validator: validator,
-            inputFormatters: inputFormatters,
-            textInputAction: textInputAction,
-            textDirection: textDirection,
-            autovalidateMode: autovalidateMode,
-            maxLines: obscureText ? 1 : maxLines,
-            minLines: obscureText ? 1 : minLines,
-            style: TextStyle(
-              fontSize: Responsive.fontBody,
-              fontWeight: FontWeight.w600,
-              color: palette.textPrimary,
-            ),
-            decoration: InputDecoration(
-              hintText: hint,
-              hintStyle: TextStyle(
-                color: palette.hint,
-                fontWeight: FontWeight.w500,
+          Semantics(
+            label: label,
+            child: TextFormField(
+              controller: controller,
+              onChanged: onChanged,
+              obscureText: obscureText,
+              keyboardType: keyboardType,
+              validator: validator,
+              inputFormatters: inputFormatters,
+              textInputAction: textInputAction,
+              textDirection: textDirection,
+              autovalidateMode: autovalidateMode,
+              maxLines: obscureText ? 1 : maxLines,
+              minLines: obscureText ? 1 : minLines,
+              style: TextStyle(
                 fontSize: Responsive.fontBody,
+                fontWeight: FontWeight.w600,
+                color: palette.textPrimary,
               ),
-              filled: true,
-              fillColor: palette.inputFill,
-              alignLabelWithHint: (maxLines ?? 1) > 1,
-              prefixIcon:
-                  prefix ??
-                  (prefixIcon == null
-                      ? null
-                      : Icon(prefixIcon, size: 18.w, color: palette.textMuted)),
-              suffixIcon: onToggleObscure == null
-                  ? suffix
-                  : IconButton(
-                      onPressed: onToggleObscure,
-                      tooltip: obscureText
-                          ? context.l10n.showPassword
-                          : context.l10n.hidePassword,
-                      icon: Icon(
-                        obscureText
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                        size: 18.w,
-                        color: palette.textMuted,
+              decoration: InputDecoration(
+                hintText: hint,
+                hintStyle: TextStyle(
+                  color: palette.hint,
+                  fontWeight: FontWeight.w500,
+                  fontSize: Responsive.fontBody,
+                ),
+                filled: true,
+                fillColor: palette.inputFill,
+                alignLabelWithHint: (maxLines ?? 1) > 1,
+                prefixIcon:
+                    prefix ??
+                    (prefixIcon == null
+                        ? null
+                        : Icon(
+                            prefixIcon,
+                            size: 18.w,
+                            color: palette.textMuted,
+                          )),
+                suffixIcon: onToggleObscure == null
+                    ? suffix
+                    : IconButton(
+                        onPressed: onToggleObscure,
+                        tooltip: obscureText
+                            ? context.l10n.showPassword
+                            : context.l10n.hidePassword,
+                        icon: Icon(
+                          obscureText
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          size: 18.w,
+                          color: palette.textMuted,
+                        ),
                       ),
-                    ),
-              contentPadding: Responsive.padding(horizontal: 16, vertical: 14),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(Responsive.radiusMd),
-                borderSide: BorderSide(color: palette.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(Responsive.radiusMd),
-                borderSide: BorderSide(color: palette.brand, width: 1.4.w),
-              ),
-              errorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(Responsive.radiusMd),
-                borderSide: BorderSide(color: palette.danger),
-              ),
-              focusedErrorBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(Responsive.radiusMd),
-                borderSide: BorderSide(color: palette.danger),
+                contentPadding: Responsive.padding(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Responsive.radiusMd),
+                  borderSide: BorderSide(color: palette.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Responsive.radiusMd),
+                  borderSide: BorderSide(color: palette.brand, width: 1.4.w),
+                ),
+                errorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Responsive.radiusMd),
+                  borderSide: BorderSide(color: palette.danger),
+                ),
+                focusedErrorBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(Responsive.radiusMd),
+                  borderSide: BorderSide(color: palette.danger),
+                ),
               ),
             ),
           ),

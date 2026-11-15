@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
@@ -77,10 +76,10 @@ class MentionSuggestions extends StatelessWidget {
                         dense: true,
                         leading: CircleAvatar(
                           radius: 18.r,
-                          backgroundColor: AppColors.brand50,
+                          backgroundColor: palette.brandSoft,
                           child: Icon(
                             Icons.groups_outlined,
-                            color: AppColors.brand600,
+                            color: palette.brandStrong,
                             size: 18.sp,
                           ),
                         ),
@@ -89,7 +88,7 @@ class MentionSuggestions extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: Responsive.fontSm,
-                            color: AppColors.brand600,
+                            color: palette.brandStrong,
                           ),
                         ),
                         subtitle: Text(
@@ -123,7 +122,7 @@ class MentionSuggestions extends StatelessWidget {
                         '@$name',
                         style: TextStyle(
                           fontSize: 11.sp,
-                          color: AppColors.brand600,
+                          color: palette.brandStrong,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

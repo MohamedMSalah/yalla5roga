@@ -7,7 +7,6 @@ import 'package:yalla_5roga/features/outings/presentation/providers/outings_prov
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/app_icon_button.dart';
@@ -150,7 +149,9 @@ class _SavedOutingsPageState extends State<SavedOutingsPage> {
                             trailing: AppIconButton(
                               icon: Icons.delete_outline,
                               size: 48,
-                              foreground: AppColors.rose500,
+                              tooltip: MaterialLocalizations.of(context)
+                                  .deleteButtonTooltip,
+                              foreground: context.palette.danger,
                               onTap: () async {
                                 await store.remove(item);
                                 AppSnackBar.show(

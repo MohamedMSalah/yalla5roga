@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { swaggerSpec } from "../src/config/swagger.js";
 import app from "../src/app.js";
+import { getMediaConfig } from "../src/config/media.js";
 
 type Layer = {
   route?: { path: string; methods: Record<string, boolean> };
@@ -49,6 +50,18 @@ function collectRoutes(stack: Layer[], prefix = ""): string[] {
 }
 
 const registered = collectRoutes(app.router.stack as unknown as Layer[]);
+// These two documented local storage transports stand in for object storage,
+// not JSON application API operations. All other routes must match OpenAPI.
+const localStorageTransports = [
+  "PUT /api/media/mock-upload/{key}",
+  "GET /api/media/mock-download/{key}",
+];
+const expectedTransports = getMediaConfig().provider === "mock" ? localStorageTransports : [];
+assert.deepEqual(
+  registered.filter(key => localStorageTransports.includes(key)).sort(),
+  [...expectedTransports].sort(),
+);
+const applicationRoutes = registered.filter(key => !expectedTransports.includes(key));
 const documented = Object.entries(spec.paths).flatMap(([path, methods]) =>
   Object.entries(methods).map(([method, operation]) => ({
     key: method.toUpperCase() + " " + path, operation,
@@ -75,5 +88,5 @@ function verifyReferences(value: unknown) {
   }
 }
 verifyReferences(spec);
-assert.deepEqual(registered.sort(), documented.map(row => row.key).sort());
-console.log("Express and OpenAPI match for " + registered.length + " operations, with unique IDs and valid local references.");
+assert.deepEqual(applicationRoutes.sort(), documented.map(row => row.key).sort());
+console.log("Express and OpenAPI match for " + applicationRoutes.length + " operations, with unique IDs and valid local references; " + expectedTransports.length + " explicit local storage transports excluded.");

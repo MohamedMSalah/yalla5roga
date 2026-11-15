@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/voting_deadline_selector.dart';
 import 'package:yalla_5roga/core/constants/app_constants.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/outing_schedule_field.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/input_formatters.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
@@ -94,11 +94,11 @@ class CreateOutingBasicsStep extends StatelessWidget {
                 IconCircle(
                   icon: Icons.groups_2_outlined,
                   background: form.group == null
-                      ? AppColors.brand50
-                      : AppColors.brand600,
+                      ? context.palette.brandSoft
+                      : context.palette.chipActive,
                   foreground: form.group == null
-                      ? AppColors.brand600
-                      : Colors.white,
+                      ? context.palette.brandStrong
+                      : context.palette.chipActiveText,
                 ),
                 12.gapW,
                 Expanded(
@@ -131,82 +131,23 @@ class CreateOutingBasicsStep extends StatelessWidget {
         ],
         Responsive.spaceMd.gapH,
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: AppCard(
+              child: OutingScheduleField(
+                label: l10n.date,
+                value: form.shortDate,
+                icon: Icons.calendar_today,
                 onTap: onPickDate,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.date,
-                      style: TextStyle(
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w800,
-                        color: context.palette.textSecondary,
-                      ),
-                    ),
-                    Responsive.spaceSm.gapH,
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today,
-                          size: 16,
-                          color: AppColors.brand600,
-                        ),
-                        Responsive.spaceSm.gapW,
-                        Expanded(
-                          child: Text(
-                            form.shortDate,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12.sp,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ),
             10.gapW,
             Expanded(
-              child: AppCard(
+              child: OutingScheduleField(
+                label: l10n.time,
+                value: form.formattedTime,
+                icon: Icons.schedule,
                 onTap: onPickTime,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.time,
-                      style: TextStyle(
-                        fontSize: 10.sp,
-                        fontWeight: FontWeight.w800,
-                        color: context.palette.textSecondary,
-                      ),
-                    ),
-                    Responsive.spaceSm.gapH,
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.schedule,
-                          size: 16,
-                          color: AppColors.brand600,
-                        ),
-                        Responsive.spaceSm.gapW,
-                        Expanded(
-                          child: Text(
-                            form.formattedTime,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12.sp,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
               ),
             ),
           ],

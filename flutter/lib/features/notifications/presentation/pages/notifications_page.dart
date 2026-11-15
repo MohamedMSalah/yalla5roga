@@ -4,7 +4,6 @@ import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_error_state.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
-import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/filter_chip_row.dart';
 import 'package:yalla_5roga/features/notifications/domain/entities/notification_item.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
@@ -48,6 +47,19 @@ class _NotificationsPageState extends State<NotificationsPage> {
       appBar: AppPageBar(
         title: l10n.notifications,
         subtitle: l10n.unreadUpdates(unreadCount),
+        trailingOnRight: true,
+        trailing: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width * .45,
+          ),
+          child: TextButton(
+            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+            onPressed: unreadCount == 0 || notifications.isUpdating
+                ? null
+                : _markAll,
+            child: Text(l10n.markAllRead, textAlign: TextAlign.center),
+          ),
+        ),
       ),
       body: SafeArea(
         top: false,
@@ -71,16 +83,6 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         ],
                         index: notifications.filter,
                         onChanged: notifications.setFilter,
-                      ),
-                      CustomButton(
-                        label: unreadCount == 0
-                            ? l10n.allRead
-                            : l10n.markAllRead,
-                        size: AppButtonSize.small,
-                        expand: false,
-                        variant: AppButtonVariant.light,
-                        isLoading: notifications.isUpdating,
-                        onPressed: unreadCount == 0 ? null : _markAll,
                       ),
                     ],
                   ),

@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-11-14T20:43:43.534Z",
+  "checkedAt": "2026-11-15T13:06:08.580Z",
   "mode": "target-checked Prisma migrate deploy; pending migrations prohibited",
   "target": {
     "database": "neondb",
@@ -75,35 +75,43 @@
     {
       "name": "20261114040000_places_catalog_sync",
       "checksum": "4773f3b58c78f2c742c2f2f32b7eeeecc1864b0c96389ca482984cdbdcba6c83"
+    },
+    {
+      "name": "20261114050000_places_free_ingestion",
+      "checksum": "4ce0c98196c269d47bcd8eab557c4f4f2ca8aedebd0539d5538ba9b592ee88d8"
+    },
+    {
+      "name": "20261114051000_places_unknown_price_absence",
+      "checksum": "5f42381f5e9db928d9fc1d4f1ad834844d0663c8bea01ca8d830e49704c20f4c"
     }
   ],
   "pendingBefore": [],
-  "schemaBeforeSha256": "2e3d7344096184905e6a625711b13af1708fa0fc4c59f860b10bc11bff030ed4",
+  "schemaBeforeSha256": "44593e30de8a9b84eb6cdd2fd2b4b37493a51805e8c405860728f9194c693550",
   "applicationTables": [
     {
       "table": "chat_messages",
-      "rows": 6,
-      "checksum": "519e6cff53cbcb44d2dc058b7fd327cd"
+      "rows": 10,
+      "checksum": "68de6c5f4b9fb97800f0027c03f54d94"
     },
     {
       "table": "chat_reads",
-      "rows": 3,
-      "checksum": "3604f45dc31bfea96051666cd3d5127e"
+      "rows": 5,
+      "checksum": "055ef2325a9f85478707dcce207726a8"
     },
     {
       "table": "group_invitations",
-      "rows": 1,
-      "checksum": "bae482d3e89e27baf6df53cb3c42c353"
+      "rows": 2,
+      "checksum": "46022b262e747e323f6068bd196fa0ca"
     },
     {
       "table": "group_members",
-      "rows": 6,
-      "checksum": "4b4e06317a1bcbb7e5e7dcfdc003f8da"
+      "rows": 8,
+      "checksum": "f7bba1571d6d299b10b1e376444c317b"
     },
     {
       "table": "groups",
-      "rows": 4,
-      "checksum": "f26d10c95aefa54f7edfd0696519b0bc"
+      "rows": 5,
+      "checksum": "d1e6a5cd94ce036d62bcc1e566b899b1"
     },
     {
       "table": "media_assets",
@@ -112,18 +120,18 @@
     },
     {
       "table": "notification_delivery_logs",
-      "rows": 297,
-      "checksum": "9e932d284dc031ad98d1a4ff2d0546be"
+      "rows": 321,
+      "checksum": "b43546f1dc59aae27edbb159f60357f1"
     },
     {
       "table": "notification_events",
-      "rows": 297,
-      "checksum": "11e69fc66ed2f227dd6dcdba2fe73c3d"
+      "rows": 323,
+      "checksum": "275940e74cd1d39213db727b3601ae93"
     },
     {
       "table": "notifications",
-      "rows": 11,
-      "checksum": "ff0c173cad2d610d40c01a55dbce12cd"
+      "rows": 24,
+      "checksum": "48149cd2779e90cfd711e686d111f08a"
     },
     {
       "table": "outing_arrivals",
@@ -132,8 +140,8 @@
     },
     {
       "table": "outing_attendance",
-      "rows": 6,
-      "checksum": "b8e7073a0a82f5d76acfb3bf230d1af8"
+      "rows": 8,
+      "checksum": "299538a2767a9742c720d803cb30523b"
     },
     {
       "table": "outing_drafts",
@@ -157,8 +165,8 @@
     },
     {
       "table": "outings",
-      "rows": 4,
-      "checksum": "9a1ebea9894a1e474d54b576f70d0af7"
+      "rows": 5,
+      "checksum": "5d6b99b097e60fcbb1ff43a2c0fcb4a6"
     },
     {
       "table": "password_recoveries",
@@ -172,13 +180,13 @@
     },
     {
       "table": "place_categories",
-      "rows": 36,
-      "checksum": "75c02c707235102fac75a794ca1c1d15"
+      "rows": 44,
+      "checksum": "86f54a6133cea8b8bad6d376c77a6a7f"
     },
     {
       "table": "place_hours",
-      "rows": 0,
-      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+      "rows": 546,
+      "checksum": "ec82e90bd9db872977d70f2a3fff54e6"
     },
     {
       "table": "place_images",
@@ -187,13 +195,18 @@
     },
     {
       "table": "place_prices",
-      "rows": 0,
-      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+      "rows": 11,
+      "checksum": "5b8cda4b649920dfa313f999db1c9536"
+    },
+    {
+      "table": "place_source_records",
+      "rows": 11659,
+      "checksum": "ff758b78c6d476ca3cf66a37281aa488"
     },
     {
       "table": "place_status_changes",
-      "rows": 0,
-      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+      "rows": 2609,
+      "checksum": "d78b39a7fbea2b37bb52c172d473da52"
     },
     {
       "table": "place_sync_lock",
@@ -201,19 +214,24 @@
       "checksum": "d41d8cd98f00b204e9800998ecf8427e"
     },
     {
+      "table": "place_sync_logs",
+      "rows": 150274,
+      "checksum": "6ac4ac39bb08f0d128836aa75b483145"
+    },
+    {
       "table": "place_sync_runs",
-      "rows": 2,
-      "checksum": "84df7ef08cbc81b0edb21b5e2593cc04"
+      "rows": 6,
+      "checksum": "895cd32f28eaaa0f3a0fc09a8ca1d95b"
     },
     {
       "table": "place_vibes",
-      "rows": 0,
-      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+      "rows": 22860,
+      "checksum": "36e8e2703a6e399e743091b670d601a3"
     },
     {
       "table": "places",
-      "rows": 0,
-      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+      "rows": 11617,
+      "checksum": "05b3125f70f5039ba83abf22389347de"
     },
     {
       "table": "saved_outings",
@@ -227,22 +245,22 @@
     },
     {
       "table": "user_fcm_tokens",
-      "rows": 4,
-      "checksum": "fc29c46075e183eb65776fdb3d90773c"
+      "rows": 2,
+      "checksum": "44376c4671745d62e5e28c64ecfac14e"
     },
     {
       "table": "users",
       "rows": 2,
-      "checksum": "80615a414cefef4aaba5fb9b47322207"
+      "checksum": "40a0ef1aa2091fd1576817a9520a0206"
     },
     {
       "table": "vibes",
-      "rows": 15,
-      "checksum": "2d4582d7c11d0b401e54e39e3e3e336d"
+      "rows": 23,
+      "checksum": "531ec40be85780313a4700865853bb68"
     }
   ],
   "prismaExitCode": 0,
-  "schemaAfterSha256": "2e3d7344096184905e6a625711b13af1708fa0fc4c59f860b10bc11bff030ed4",
+  "schemaAfterSha256": "44593e30de8a9b84eb6cdd2fd2b4b37493a51805e8c405860728f9194c693550",
   "schemaUnchanged": true,
   "historyUnchanged": true,
   "applicationRowsUnchanged": true,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/app_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
@@ -28,8 +27,8 @@ class SettingsSupportSection extends StatelessWidget {
         SettingsTile(
           icon: Icons.help_outline,
           title: l10n.helpAndFaq,
-          background: AppColors.amber100,
-          foreground: AppColors.amber700,
+          background: context.palette.warningSoft,
+          foreground: context.palette.warning,
           trailing: const SettingsChevron(),
           onTap: () => Get.to(
             () => ProfileInfoPage(

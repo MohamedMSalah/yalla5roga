@@ -1,0 +1,137 @@
+{
+  "checkedAt": "2026-11-14T21:31:49.218Z",
+  "mode": "Served Swagger/OpenAPI HTTP; disposable PostgreSQL schedule fixtures; controlled Firebase identity; no Flutter execution or application-schema changes",
+  "cleanup": "Disposable schema removed",
+  "rows": [
+    {
+      "scenario": "Served Swagger/OpenAPI document",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markAllNotificationsRead",
+      "status": 401,
+      "result": "PASS"
+    },
+    {
+      "scenario": "createGroup",
+      "status": 201,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "markAllNotificationsRead",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listNotifications",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "App-bar action uses existing mark-all API and persists zero unread",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "Before outing: authoritative start/end gate, persisted arrival and participant isolation",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "During outing: authoritative start/end gate, persisted arrival and participant isolation",
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 200,
+      "result": "PASS"
+    },
+    {
+      "scenario": "listOutingArrivals",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "recordOutingArrival",
+      "status": 403,
+      "result": "PASS"
+    },
+    {
+      "scenario": "After outing: authoritative start/end gate, persisted arrival and participant isolation",
+      "result": "PASS"
+    }
+  ]
+}

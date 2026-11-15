@@ -14,6 +14,7 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
     this.trailingIcon,
     this.onTrailingTap,
     this.trailing,
+    this.trailingOnRight = false,
   });
 
   final String? title;
@@ -24,6 +25,7 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
   final IconData? trailingIcon;
   final VoidCallback? onTrailingTap;
   final Widget? trailing;
+  final bool trailingOnRight;
 
   static const _barHeight = 64.0;
 
@@ -46,6 +48,7 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
       child: Padding(
         padding: Responsive.padding(horizontal: 20, top: 8, bottom: 8),
         child: Row(
+          textDirection: trailingOnRight ? TextDirection.ltr : null,
           children: [
             if (showBack)
               AppIconButton(

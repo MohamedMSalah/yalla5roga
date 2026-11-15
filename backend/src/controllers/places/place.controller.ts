@@ -18,6 +18,7 @@ import {
 import { UpdatePlaceUseCase } from "../../usecases/places/update-place.usecase.js";
 import { nearbyPlacesQuerySchema } from "../../validators/places/place.validator.js";
 import { CatalogController } from "./catalog.controller.js";
+import { publicPlace } from "../../services/places/public-place.js";
 
 export class PlaceController {
   constructor(
@@ -61,7 +62,7 @@ export class PlaceController {
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const place = await this.getPlace.execute(req.params.id as string);
-      res.json({ success: true, data: place });
+      res.json({ success: true, data: publicPlace(place) });
     } catch (error) {
       next(error);
     }

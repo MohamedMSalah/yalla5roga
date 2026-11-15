@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 
@@ -49,8 +48,8 @@ class SettingsAccountSection extends StatelessWidget {
           subtitle: user?.createdAt != null
               ? l10n.formatMemberSince(user!.createdAt!)
               : null,
-          background: AppColors.amber100,
-          foreground: AppColors.amber700,
+          background: context.palette.warningSoft,
+          foreground: context.palette.warning,
         ),
         SettingsTile(
           icon: Icons.delete_outline,

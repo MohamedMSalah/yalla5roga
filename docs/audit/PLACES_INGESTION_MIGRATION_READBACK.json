@@ -1,0 +1,189 @@
+{
+  "checkedAt": "2026-11-14T21:19:06.407Z",
+  "migration": "20261114050000_places_free_ingestion",
+  "tables": {
+    "chat_messages": {
+      "before": 6,
+      "after": 10,
+      "originalColumnsMatch": false,
+      "changedColumns": []
+    },
+    "chat_reads": {
+      "before": 3,
+      "after": 5,
+      "originalColumnsMatch": false,
+      "changedColumns": []
+    },
+    "group_invitations": {
+      "before": 2,
+      "after": 2,
+      "originalColumnsMatch": true
+    },
+    "group_members": {
+      "before": 8,
+      "after": 8,
+      "originalColumnsMatch": true
+    },
+    "groups": {
+      "before": 5,
+      "after": 5,
+      "originalColumnsMatch": true
+    },
+    "media_assets": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "notification_delivery_logs": {
+      "before": 304,
+      "after": 321,
+      "originalColumnsMatch": false,
+      "changedColumns": []
+    },
+    "notification_events": {
+      "before": 307,
+      "after": 322,
+      "originalColumnsMatch": false,
+      "changedColumns": [
+        "status",
+        "sent_at",
+        "attempts",
+        "updated_at"
+      ]
+    },
+    "notifications": {
+      "before": 19,
+      "after": 24,
+      "originalColumnsMatch": false,
+      "changedColumns": []
+    },
+    "outing_arrivals": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "outing_attendance": {
+      "before": 7,
+      "after": 8,
+      "originalColumnsMatch": false,
+      "changedColumns": []
+    },
+    "outing_drafts": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "outing_guests": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "outing_vote_options": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "outing_votes": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "outings": {
+      "before": 5,
+      "after": 5,
+      "originalColumnsMatch": true
+    },
+    "password_recoveries": {
+      "before": 2,
+      "after": 2,
+      "originalColumnsMatch": true
+    },
+    "password_recovery_limits": {
+      "before": 5,
+      "after": 5,
+      "originalColumnsMatch": true
+    },
+    "place_categories": {
+      "before": 36,
+      "after": 36,
+      "originalColumnsMatch": true
+    },
+    "place_hours": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "place_images": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "place_prices": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "place_status_changes": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "place_sync_lock": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "place_sync_runs": {
+      "before": 2,
+      "after": 2,
+      "originalColumnsMatch": true
+    },
+    "place_vibes": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "places": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "saved_outings": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "saved_places": {
+      "before": 0,
+      "after": 0,
+      "originalColumnsMatch": true
+    },
+    "user_fcm_tokens": {
+      "before": 2,
+      "after": 2,
+      "originalColumnsMatch": true
+    },
+    "users": {
+      "before": 2,
+      "after": 2,
+      "originalColumnsMatch": true
+    },
+    "vibes": {
+      "before": 15,
+      "after": 15,
+      "originalColumnsMatch": true
+    }
+  },
+  "target": {
+    "database": "neondb",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "migrationHistory": {
+    "migration_name": "20261114050000_places_free_ingestion",
+    "checksum": "4ce0c98196c269d47bcd8eab557c4f4f2ca8aedebd0539d5538ba9b592ee88d8",
+    "finished_at": "2026-11-14T21:15:23.014Z"
+  },
+  "localChecksum": "4ce0c98196c269d47bcd8eab557c4f4f2ca8aedebd0539d5538ba9b592ee88d8",
+  "allOriginalValuesPreserved": false
+}

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 class PhoneVerificationChip extends StatelessWidget {
@@ -15,8 +14,9 @@ class PhoneVerificationChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final background = verified ? AppColors.emerald50 : AppColors.rose50;
-    final foreground = verified ? AppColors.emerald500 : AppColors.rose500;
+    final palette = context.palette;
+    final background = verified ? palette.successSoft : palette.dangerSoft;
+    final foreground = verified ? palette.success : palette.danger;
 
     if (!verified && onVerify != null) {
       return OutlinedButton(

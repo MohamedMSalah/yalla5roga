@@ -1,0 +1,384 @@
+{
+  "mode": "Filesystem/source checks only; no app/tests/services/database operations",
+  "project_files_inventoried_excluding_tool_packages": 1062,
+  "local_source_imports_checked": 2953,
+  "unresolved_imports": [],
+  "instruction_files": [
+    ".cursor/rules/global.mdc",
+    "AGENTS.md"
+  ],
+  "canonical_rule_sections": [
+    "Project Overview",
+    "Technology Stack",
+    "Flutter Architecture & Rules",
+    "Backend Architecture & Rules",
+    "Database & Prisma Rules",
+    "API Contracts",
+    "Authentication & Authorization",
+    "Socket.IO & Real-Time Rules",
+    "Caching & Offline Rules",
+    "UI/UX & Reusable Widgets",
+    "Coding Standards",
+    "Testing & Verification Restrictions",
+    "Agent Workflow & Safety Rules"
+  ],
+  "stale_moved_document_references": [],
+  "byte_identical_document_groups": [],
+  "screens": [
+    {
+      "path": "flutter/lib/features/auth/presentation/pages/auth_page.dart",
+      "lines": 91,
+      "feature_widget_imports": 4,
+      "shared_widget_imports": 1,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/auth/presentation/pages/password_recovery_page.dart",
+      "lines": 260,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 7,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/chat/presentation/pages/outing_chat_page.dart",
+      "lines": 528,
+      "feature_widget_imports": 5,
+      "shared_widget_imports": 5,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/discover/presentation/pages/discover_page.dart",
+      "lines": 262,
+      "feature_widget_imports": 5,
+      "shared_widget_imports": 2,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/discover/presentation/pages/discover_place_details_page.dart",
+      "lines": 322,
+      "feature_widget_imports": 1,
+      "shared_widget_imports": 5,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/groups/presentation/pages/create_group_page.dart",
+      "lines": 195,
+      "feature_widget_imports": 2,
+      "shared_widget_imports": 4,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/groups/presentation/pages/group_details_page.dart",
+      "lines": 120,
+      "feature_widget_imports": 3,
+      "shared_widget_imports": 3,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/groups/presentation/pages/group_history_page.dart",
+      "lines": 88,
+      "feature_widget_imports": 3,
+      "shared_widget_imports": 2,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/groups/presentation/pages/group_info_page.dart",
+      "lines": 160,
+      "feature_widget_imports": 5,
+      "shared_widget_imports": 3,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/groups/presentation/pages/groups_page.dart",
+      "lines": 170,
+      "feature_widget_imports": 2,
+      "shared_widget_imports": 6,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/groups/presentation/pages/pick_device_contacts_page.dart",
+      "lines": 308,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 5,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/home/presentation/pages/home_page.dart",
+      "lines": 72,
+      "feature_widget_imports": 4,
+      "shared_widget_imports": 4,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/invitations/presentation/pages/invitations_page.dart",
+      "lines": 131,
+      "feature_widget_imports": 3,
+      "shared_widget_imports": 2,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/notifications/presentation/pages/notifications_page.dart",
+      "lines": 124,
+      "feature_widget_imports": 2,
+      "shared_widget_imports": 4,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/create_outing_page.dart",
+      "lines": 512,
+      "feature_widget_imports": 4,
+      "shared_widget_imports": 7,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/edit_outing_page.dart",
+      "lines": 37,
+      "feature_widget_imports": 1,
+      "shared_widget_imports": 2,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/event_page.dart",
+      "lines": 407,
+      "feature_widget_imports": 6,
+      "shared_widget_imports": 9,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/invite_guests_page.dart",
+      "lines": 199,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 6,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/outing_history_page.dart",
+      "lines": 58,
+      "feature_widget_imports": 1,
+      "shared_widget_imports": 3,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/outings_page.dart",
+      "lines": 98,
+      "feature_widget_imports": 2,
+      "shared_widget_imports": 6,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/pick_location_page.dart",
+      "lines": 645,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 4,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/saved_outings_page.dart",
+      "lines": 174,
+      "feature_widget_imports": 2,
+      "shared_widget_imports": 7,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/outings/presentation/pages/special_event_page.dart",
+      "lines": 12,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 0,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/setting/presentation/pages/about_developer_page.dart",
+      "lines": 23,
+      "feature_widget_imports": 1,
+      "shared_widget_imports": 1,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/setting/presentation/pages/change_password_page.dart",
+      "lines": 120,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 4,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/setting/presentation/pages/edit_profile_page.dart",
+      "lines": 242,
+      "feature_widget_imports": 5,
+      "shared_widget_imports": 5,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/setting/presentation/pages/profile_info_page.dart",
+      "lines": 74,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 2,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/setting/presentation/pages/settings_page.dart",
+      "lines": 85,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 1,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/shell/presentation/pages/main_shell.dart",
+      "lines": 183,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 2,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    },
+    {
+      "path": "flutter/lib/features/splash/presentation/pages/splash_page.dart",
+      "lines": 106,
+      "feature_widget_imports": 0,
+      "shared_widget_imports": 4,
+      "direct_sdk_imports": [],
+      "review": "Source inventory only; rendered/runtime states NOT RUN"
+    }
+  ],
+  "static_semantic_text_color_pairs": [
+    {
+      "theme": "light",
+      "foreground": "brandStrong",
+      "background": "brandSoft",
+      "ratio": 6.48,
+      "passes_4_5": true
+    },
+    {
+      "theme": "light",
+      "foreground": "brandStrong",
+      "background": "surface",
+      "ratio": 7.1,
+      "passes_4_5": true
+    },
+    {
+      "theme": "light",
+      "foreground": "brandStrong",
+      "background": "background",
+      "ratio": 6.67,
+      "passes_4_5": true
+    },
+    {
+      "theme": "light",
+      "foreground": "success",
+      "background": "successSoft",
+      "ratio": 5.21,
+      "passes_4_5": true
+    },
+    {
+      "theme": "light",
+      "foreground": "danger",
+      "background": "dangerSoft",
+      "ratio": 5.72,
+      "passes_4_5": true
+    },
+    {
+      "theme": "light",
+      "foreground": "warning",
+      "background": "warningSoft",
+      "ratio": 6.84,
+      "passes_4_5": true
+    },
+    {
+      "theme": "light",
+      "foreground": "chipActiveText",
+      "background": "chipActive",
+      "ratio": 5.7,
+      "passes_4_5": true
+    },
+    {
+      "theme": "light",
+      "foreground": "textMuted",
+      "background": "surface",
+      "ratio": 5.34,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "brandStrong",
+      "background": "brandSoft",
+      "ratio": 10.38,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "brandStrong",
+      "background": "surface",
+      "ratio": 12.42,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "brandStrong",
+      "background": "background",
+      "ratio": 13.61,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "success",
+      "background": "successSoft",
+      "ratio": 8.13,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "danger",
+      "background": "dangerSoft",
+      "ratio": 7.58,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "warning",
+      "background": "warningSoft",
+      "ratio": 9.22,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "chipActiveText",
+      "background": "chipActive",
+      "ratio": 14.53,
+      "passes_4_5": true
+    },
+    {
+      "theme": "dark",
+      "foreground": "textMuted",
+      "background": "surface",
+      "ratio": 6.72,
+      "passes_4_5": true
+    }
+  ],
+  "tool_configuration": "Retained Codex/Cursor MCP/hooks, installed skills/subagents, Spec Kit templates/manifests/settings; no Claude/Gemini setup present"
+}

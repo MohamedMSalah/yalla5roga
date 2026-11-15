@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
@@ -41,7 +40,7 @@ class CreateOutingReviewStep extends StatelessWidget {
                 Text(
                   form.occasion.label(l10n),
                   style: TextStyle(
-                    color: AppColors.brand600,
+                    color: context.palette.brandStrong,
                     fontWeight: FontWeight.w800,
                     fontSize: 12.sp,
                   ),
@@ -84,7 +83,7 @@ class CreateOutingReviewStep extends StatelessWidget {
                 Text(
                   l10n.locationPinned,
                   style: TextStyle(
-                    color: AppColors.brand600,
+                    color: context.palette.brandStrong,
                     fontWeight: FontWeight.w800,
                     fontSize: 10.sp,
                   ),
@@ -105,7 +104,7 @@ class CreateOutingReviewStep extends StatelessWidget {
                     ? l10n.chooseGroup
                     : l10n.membersWillBeInvited(form.group!.memberCount),
                 style: TextStyle(
-                  color: AppColors.brand600,
+                  color: context.palette.brandStrong,
                   fontWeight: FontWeight.w800,
                 ),
               ),

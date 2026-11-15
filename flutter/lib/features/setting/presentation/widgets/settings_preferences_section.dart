@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
@@ -64,13 +63,13 @@ class _SettingsPreferencesSectionState
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: AppColors.rose500,
+        color: context.palette.dangerSoft,
         borderRadius: BorderRadius.circular(12.r),
       ),
       child: Text(
         context.l10n.n(count),
         style: TextStyle(
-          color: Colors.white,
+          color: context.palette.danger,
           fontSize: 12.sp,
           fontWeight: FontWeight.bold,
         ),
@@ -93,8 +92,8 @@ class _SettingsPreferencesSectionState
           subtitle: savedOutings.totalCount == 0
               ? l10n.mySavedSubtitle
               : l10n.savedCount(savedOutings.totalCount),
-          background: AppColors.brand50,
-          foreground: AppColors.brand600,
+          background: context.palette.brandSoft,
+          foreground: context.palette.brandStrong,
           trailing: const SettingsChevron(),
           onTap: () => Get.to(() => const SavedOutingsPage()),
         ),
@@ -126,8 +125,8 @@ class _SettingsPreferencesSectionState
           icon: Icons.notifications_active_outlined,
           title: l10n.notifications,
           subtitle: l10n.votesPlansReminders,
-          background: AppColors.rose50,
-          foreground: AppColors.rose500,
+          background: context.palette.dangerSoft,
+          foreground: context.palette.danger,
           trailing: AppSwitch(
             value: context.watch<NotificationsProvider>().pushEnabled,
             onChanged:
@@ -141,8 +140,8 @@ class _SettingsPreferencesSectionState
           icon: Icons.mail_outline,
           title: l10n.invitations,
           subtitle: l10n.invitedBy(context.l10n.appName),
-          background: AppColors.brand50,
-          foreground: AppColors.brand500,
+          background: context.palette.brandSoft,
+          foreground: context.palette.brandStrong,
           trailing: _buildInvitationsBadge(context),
           onTap: () => Get.to(() => const InvitationsPage()),
         ),

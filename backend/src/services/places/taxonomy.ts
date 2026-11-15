@@ -1,3 +1,4 @@
+import { PlaceVibeClassifier } from "./place-vibe-classifier.js";
 /** Stable catalog identifiers; outing_vibe remains a compatibility projection. */
 export const categories = [
   ["restaurants", "Restaurants", "مطاعم", "food_drinks", "restaurant", "food"],
@@ -197,6 +198,14 @@ export const categories = [
     "groups",
     "activity",
   ],
+  ["water_parks", "Water Parks", "ألعاب مائية", "entertainment", "attractions", "activity"],
+  ["tourist_attractions", "Tourist Attractions", "معالم سياحية", "culture", "account_balance", "outdoor"],
+  ["theaters", "Theaters", "مسارح", "culture", "theater_comedy", "activity"],
+  ["football_fields", "Football Fields", "ملاعب كرة قدم", "activities", "sports", "activity"],
+  ["padel_courts", "Padel Courts", "ملاعب بادل", "activities", "sports", "activity"],
+  ["swimming_pools", "Swimming Pools", "حمامات سباحة", "activities", "sports", "activity"],
+  ["kids_entertainment", "Kids Entertainment", "ترفيه الأطفال", "entertainment", "attractions", "activity"],
+  ["family_entertainment", "Family Entertainment", "ترفيه عائلي", "entertainment", "groups", "activity"],
 ] as const;
 
 export const vibes = [
@@ -215,6 +224,14 @@ export const vibes = [
   ["sports_active", "Sports & Active", "رياضة ونشاط", "fitness_center"],
   ["study_work", "Study & Work", "مذاكرة وشغل", "school"],
   ["budget_friendly", "Budget Friendly", "اقتصادي", "savings"],
+  ["entertainment", "Entertainment", "ترفيه", "attractions"],
+  ["relaxing", "Relaxing", "استرخاء", "spa"],
+  ["date_night", "Date Night", "خروجة مسائية", "favorite"],
+  ["kids_friendly", "Kids Friendly", "مناسب للأطفال", "family_restroom"],
+  ["group_activities", "Group Activities", "أنشطة جماعية", "groups"],
+  ["luxury", "Luxury", "فاخر", "favorite"],
+  ["active", "Active", "حركة ونشاط", "fitness_center"],
+  ["photography", "Photography", "تصوير", "landscape"],
 ] as const;
 
 export type Tags = Record<string, string>;
@@ -223,6 +240,10 @@ export function classify(tags: Tags): string | null {
   if (t.sport === "karting") return "karting";
   if (t.sport === "bowling" || t.leisure === "bowling_alley") return "bowling";
   if (t.sport === "billiards") return "billiards";
+  if (t.leisure === "pitch" && t.sport?.split(";").includes("soccer")) return "football_fields";
+  if (t.leisure === "pitch" && t.sport?.split(";").includes("padel")) return "padel_courts";
+  if (t.leisure === "swimming_pool") return "swimming_pools";
+  if (t.leisure === "water_park") return "water_parks";
   if (t.leisure === "escape_game") return "escape_rooms";
   if (t.leisure === "virtual_reality") return "vr_centers";
   if (t.leisure === "trampoline_park") return "trampoline_parks";
@@ -232,7 +253,7 @@ export function classify(tags: Tags): string | null {
   if (t.leisure === "ice_rink") return "ice_skating";
   if (t.leisure === "sports_centre" || t.leisure === "fitness_centre")
     return "sports_centers";
-  if (t.leisure === "indoor_play") return "indoor_activities";
+  if (t.leisure === "indoor_play") return "kids_entertainment";
   if (t.leisure === "adventure_park") return "adventure_activities";
   if (t.shop === "coffee") return "coffee_shops"; // retail coffee, distinct from amenity=cafe
   const mappings: Record<string, Record<string, string>> = {
@@ -242,6 +263,7 @@ export function classify(tags: Tags): string | null {
       cafe: "cafes",
       ice_cream: "ice_cream",
       cinema: "cinemas",
+      theatre: "theaters",
       marketplace: "markets",
       arts_centre: "cultural_centers",
       social_centre: "social_clubs",
@@ -279,50 +301,10 @@ export function classify(tags: Tags): string | null {
     ].includes(t.historic!)
   )
     return "historical_attractions";
-  if (t.tourism === "attraction" && t.indoor === "no")
-    return "outdoor_attractions";
+  if (t.tourism === "attraction") return "tourist_attractions";
   return null;
 }
 
 export function mappedVibes(category: string, tags: Tags): string[] {
-  const result = new Set<string>();
-  const group = categories.find((c) => c[0] === category)?.[3];
-  if (group === "food_drinks")
-    result.add(
-      ["cafes", "coffee_shops"].includes(category)
-        ? "coffee_conversations"
-        : "food_dining",
-    );
-  if (group === "outdoor") result.add("outdoor_nature");
-  if (group === "culture") result.add("culture_exploring");
-  if (group === "shopping") result.add("shopping");
-  if (category === "cinemas") result.add("movies");
-  if (
-    [
-      "bowling",
-      "escape_rooms",
-      "gaming_centers",
-      "arcades",
-      "vr_centers",
-      "trampoline_parks",
-      "billiards",
-      "amusement_parks",
-      "indoor_activities",
-    ].includes(category)
-  )
-    result.add("fun_games");
-  if (
-    ["bowling", "billiards", "social_clubs", "group_activities"].includes(
-      category,
-    )
-  )
-    result.add("friends_hangout");
-  if (["escape_rooms", "karting", "adventure_activities"].includes(category))
-    result.add("adventure");
-  if (["sports_centers", "ice_skating"].includes(category))
-    result.add("sports_active");
-  if (tags.fee === "no" || tags.charge === "0") result.add("budget_friendly");
-  if (tags.coworking === "yes" || tags.amenity === "coworking_space")
-    result.add("study_work");
-  return [...result];
+  return new PlaceVibeClassifier().classify(category, tags).map((v) => v.id);
 }

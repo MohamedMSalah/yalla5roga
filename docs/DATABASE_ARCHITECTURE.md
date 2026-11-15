@@ -5,7 +5,7 @@
 | Last verified | 2026-11-13 |
 | Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | All **17** repository migrations are applied, including special-event occasions, voting duration presets, Android notification metadata and places taxonomy/catalog synchronization. Current target/history/checksum verification and successful Prisma deployment check: [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json). Earlier deployment/backup evidence remains in [prior migration deployment](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json) and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
+| Configured Neon schema | All **19** repository migrations are applied, including special-event occasions, voting duration presets, Android notification metadata and places taxonomy/catalog synchronization. Current target/history/checksum verification and successful Prisma deployment check: [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json). Earlier deployment/backup evidence remains in [prior migration deployment](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json) and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -289,3 +289,30 @@ The deployment script verifies the configured Neon target and migration checksum
 ## Release migration review — 2026-11-14
 
 Current UI/map/Home/Settings/group-leave changes introduce no Prisma schema or migration SQL changes. All 17 local SQL SHA-256 checksums match successful Neon history, with no incomplete migration or pending SQL. The target-checked Prisma migrate deploy command completed with no pending migrations. Before/after schema, migration history and application-row fingerprints are unchanged. No migration was reapplied and no backup/restore was needed for this no-op check. Group deletion remains an application transaction/authorization change, not a schema change. [Review and release notes](audit/NEON_GITHUB_RELEASE.md). No ER diagram change is required.
+
+
+## Free-source ingestion and provenance — 2026-11-15
+
+The deployed migrations `20261114050000_places_free_ingestion` and `20261114051000_places_unknown_price_absence` extend the existing catalog. `places.source_id` is widened to 128 characters and the source check accepts validated Overture place identities alongside manual/OSM identities. Unknown `price_level` is nullable with no fabricated default; existing values remain unchanged. `place_vibes` adds nullable confidence and evidence. Hours, images and prices gain source ownership; images also carry license/attribution/source URL. Manual ancillary rows remain protected.
+
+The audit found `place_sync_logs` absent, so it was added with a restrictive run FK and run/time index. Existing `place_sync_runs` gains source and processed_count. `place_source_records` holds unique (source,source_type,source_id), canonical place FK, separate raw evidence/license/attribution/release/region and seen/absence metadata. last_absence_release prevents counting one release twice, including city-scoped runs. The existing place UUID, all outings/votes/saved-place/media FKs, source uniqueness and coordinate/partial-active indexes are retained. No table reset, truncation or place deletion occurs. No new spatial extension is required for indexed bounded coordinate queries.
+
+```mermaid
+erDiagram
+  places ||--o{ place_source_records : provenance
+  places ||--o{ place_vibes : classified
+  vibes ||--o{ place_vibes : defines
+  place_categories ||--o{ places : categorizes
+  place_sync_runs ||--o{ place_sync_logs : diagnostics
+  places ||--o{ place_status_changes : availability
+  places ||--o{ place_hours : sourced_hours
+  places ||--o{ place_images : licensed_images
+  places ||--o{ place_prices : evidenced_prices
+```
+
+Scheduling tables are not added: imports are manual only at the owner's request. See [schema audit, backup/deployment evidence and real import counts](audit/PLACES_INGESTION.md).
+
+
+## Release verification — 2026-11-15
+
+The owner-authorized GitHub/Neon release check verified all 19 local migration checksums against the configured Neon project/branch. Both places migrations (free ingestion and unknown price/absence tracking) were already applied. Prisma migrate deploy succeeded with no pending SQL. Schema, migration history and application-row fingerprints were unchanged. Evidence: `audit/NEON_RELEASE_SYNC_RESULTS.json`. This was a no-op deployment verification, not a second application of the migrations.

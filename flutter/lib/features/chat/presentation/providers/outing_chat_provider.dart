@@ -37,6 +37,7 @@ class OutingChatProvider extends ChangeNotifier {
   final _loadingOlder = <String>{};
   final _liveDuringLoad = <String, List<ChatMessage>>{};
   var _generation = 0;
+  var _disposed = false;
   var _sending = <String, bool>{};
   var _unread = <String, int>{};
   final _activeOutings = <String, int>{};
@@ -120,6 +121,7 @@ class OutingChatProvider extends ChangeNotifier {
       _activeOutings[outingId] = subscriptions - 1;
       return;
     }
+    if (subscriptions == 0) return;
     _activeOutings.remove(outingId);
     await _socket?.leaveOuting(outingId);
   }
@@ -340,7 +342,15 @@ class OutingChatProvider extends ChangeNotifier {
   }
 
   @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
   void dispose() {
+    _disposed = true;
+    _generation++;
+    _activeOutings.clear();
     _messageSub?.cancel();
     _connectionSub?.cancel();
     _sendSub?.cancel();

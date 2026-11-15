@@ -116,7 +116,6 @@ class _GroupBioCardState extends State<GroupBioCard> {
                       ),
                     ],
                   ),
-                  if (_saving) const LinearProgressIndicator(),
                 ],
               ),
             )

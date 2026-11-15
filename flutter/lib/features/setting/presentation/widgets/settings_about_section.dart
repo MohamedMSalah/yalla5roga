@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 import '../pages/about_developer_page.dart';
@@ -19,8 +18,8 @@ class SettingsAboutSection extends StatelessWidget {
         SettingsTile(
           icon: Icons.info_outline,
           title: l10n.aboutYalla5roga,
-          background: AppColors.brand50,
-          foreground: AppColors.brand600,
+          background: context.palette.brandSoft,
+          foreground: context.palette.brandStrong,
           trailing: const SettingsChevron(),
           onTap: () => Get.to(
             () => ProfileInfoPage(
@@ -71,8 +70,8 @@ class SettingsAboutSection extends StatelessWidget {
           icon: Icons.computer_outlined,
           title: l10n.aboutDeveloper,
           //subtitle: l10n.developerName,
-          background: AppColors.brand50,
-          foreground: AppColors.brand600,
+          background: context.palette.brandSoft,
+          foreground: context.palette.brandStrong,
           trailing: const SettingsChevron(),
           onTap: () => Get.to(() => const AboutDeveloperPage()),
         ),

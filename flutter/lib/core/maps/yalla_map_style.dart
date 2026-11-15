@@ -12,7 +12,7 @@ abstract final class YallaMapStyle {
   );
   static const attribution = String.fromEnvironment(
     'MAP_ATTRIBUTION',
-    defaultValue: 'OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors',
+    defaultValue: 'OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors · Overture Maps Foundation',
   );
   static const attributionUrl = String.fromEnvironment(
     'MAP_ATTRIBUTION_URL',

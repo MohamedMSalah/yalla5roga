@@ -101,3 +101,12 @@ changes. To update Impeccable, review its release and run `npx impeccable
 update`. Re-check this document, verify MCP connection state in the client,
 and re-approve a changed Codex hook. Never put credentials in repository
 configuration or commit them.
+
+
+## Phase 8 canonical policy and compatibility — 2026-11-15
+
+Project rules now live only in [root AGENTS.md](../../AGENTS.md). Six duplicate Cursor rule files were removed and `.cursor/rules/global.mdc` reduced to an always-applied `@AGENTS.md` reference. Open the monorepo root. [Cursor's current rule documentation](https://cursor.com/docs/rules) supports AGENTS.md and `.mdc` file references; a reference asks the agent to read the file, rather than guaranteeing its full contents are inlined. Installed-version rule loading was not UI-tested in this task.
+
+The current Codex task receives root AGENTS.md through the host project context; `.codex/config.toml` and `hooks.json` configure MCP/hooks, not a second project policy. Cursor/Codex skills and Impeccable subagent instructions are retained as installed tool packages. Spec Kit's existing constitution lookup path now contains a link/instruction to read root AGENTS.md rather than an unfilled principles template; all workflow templates/manifests remain.
+
+No `.claude`/CLAUDE.md or Gemini instruction setup exists in this checkout. No compatibility for an uninstalled agent is claimed. If another tool is added, verify its supported import/reference convention and point it to root AGENTS.md without copying policy. The guide's earlier MCP/hook statuses are historical; configuration files alone do not prove connection or activation today.

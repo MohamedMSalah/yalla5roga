@@ -2,8 +2,8 @@
 
 | Metadata | Value |
 |----------|-------|
-| Last verified | 2026-11-12 (Project structure audit & cleanup) |
-| Documentation version | 1.0.1 |
+| Last verified | 2026-11-15 (Phase 7/8 static structure and reference audit) |
+| Documentation version | 1.1.0 |
 | Purpose | Help agents locate files without full-repo scans |
 
 ## Repository root
@@ -13,10 +13,10 @@ yalla5roga/
   AGENTS.md                 # AI entrypoint
   README.md
   skills-lock.json          # Agent skills lockfile
-  docs/                     # Canonical architecture + product docs + audits
+  docs/                     # Canonical docs + audit/ + development/ + system-design/
   .agents/                  # Installed agent skills (Flutter + Impeccable)
   .codex/                   # Codex MCP & hooks configuration
-  .cursor/rules/            # Cursor modular rules
+  .cursor/rules/            # One reference to root AGENTS.md; tool skills/hooks retained
   .vscode/                  # Workspace launch configurations
   scripts/                  # Dev helpers (e.g. physical Android)
   flutter/                  # Mobile app
@@ -131,7 +131,7 @@ flutter/lib/
 | Durable chat sends | `features/chat/data/datasources/chat_send_queue.dart` |
 | Scoped change events | `backend/src/realtime/data-changes.ts` |
 
-Tests: `flutter/test/` (when present). Project-local Cursor notes: `flutter/.cursor/rules/project-context.mdc` (may lag root docs — prefer root `docs/` + `AGENTS.md`).
+Tests: `flutter/test/` (execution depends on task restrictions). Root `AGENTS.md` is the canonical project policy; `.cursor/rules/global.mdc` references it. Open the monorepo root. The former Flutter-local Cursor policy was merged and removed in Phase 8.
 
 ### Physical Android device (local backend)
 
@@ -358,7 +358,7 @@ Notification rollout compatibility: the existing token registration accepts noti
 - `backend/src/{controllers,datasources,repositories,usecases}/places/catalog.*.ts`, `validators/places/catalog.validator.ts`, existing place CRUD and `routes/places/place.catalog.routes.ts`: one extended catalog API.
 - `backend/src/services/places/{taxonomy,osm,places-sync,place-selection,catalog-notifications}.ts`: source rules, import/lease, selection checks and cross-process invalidations.
 - `backend/src/config/places-openapi.ts`, `backend/src/cli/places-sync.ts`: Swagger augmentation and deployable/manual worker.
-- `.github/workflows/places-sync.yml`, `backend/deploy/places-sync.{service,timer}`: persistent external scheduling alternatives.
+- Former `.github/workflows/places-sync.yml` and `backend/deploy/places-sync.{service,timer}`: removed on 2026-11-15; imports are manual only.
 - `backend/scripts/{deploy-places-migration,places-openapi-verification,places-import-verification,places-osm-probe,places-source-health,places-live-readback}.ts`, `backend/tests/places-catalog.test.ts`: target-checked deployment, isolated lifecycle/HTTP checks and source/import evidence.
 - `flutter/lib/features/discover/domain/entities/place_catalog.dart`, `presentation/providers/place_catalog_provider.dart`, `flutter/lib/core/widgets/place_catalog_filters.dart`: shared dynamic definitions, query/offline policy and widgets used by Discover/Create Outing/map picker.
 - Existing canonical Place/SuggestedPlace, datasource/repository, ApiClient snapshots, AppSync, socket client, Discover and create/location views contain the integrations.
@@ -395,3 +395,37 @@ Existing `HomeNearbySection`, `MainShell`, `AppPermissions`, `SettingsAccountSec
 ## Reviewed Neon / GitHub release verification — 2026-11-14
 
 `backend/scripts/review-neon-release.ts` verifies the known Neon target, complete migration history and checksums, refuses pending SQL, runs Prisma migrate deploy for the already-migrated state, and compares schema/history/application-row fingerprints. `docs/audit/NEON_RELEASE_SYNC_RESULTS.json` records metadata/checksums only; `NEON_GITHUB_RELEASE.md` describes the release scope and validation. No private rows or credentials are included.
+
+
+## Arrival start / notification action checks — 2026-11-14
+
+Existing `OutingArrivalsSection` and `OutingArrivalService` implement the scheduled start and GPS window gates. Existing `NotificationsPage`, `AppPageBar` and manual `L10n` place/localize the mark-all action. `backend/scripts/notifications-arrival-openapi-verification.ts` checks before/during/after-window APIs and mark-all persistence through served Swagger/OpenAPI in a removed disposable schema; `docs/audit/NOTIFICATIONS_ARRIVAL_{UPDATES.md,OPENAPI_RESULTS.json}` records scope and limits.
+
+
+Notifications/loading/arrival source verification (2026-11-15): existing NotificationsPage/AppPageBar and OutingArrivalsSection/OutingArrivalService implement the app-bar action, removed indeterminate loading bars and scheduled arrival gate. See docs/audit/NOTIFICATIONS_ARRIVAL_UPDATES.md and NOTIFICATIONS_ARRIVAL_OPENAPI_RESULTS.json for scoped evidence and execution limits.
+
+
+## Official Cairo/Giza ingestion — 2026-11-15
+
+- `backend/scripts/places_sources.py`, `places-requirements.txt`: official Overture/Geofabrik acquisition, administrative clipping and immutable checksummed NDJSON artifacts; ignored working data under `backend/.places-data/`.
+- Existing `src/cli/places-sync.ts` and `services/places/places-sync.ts` expose one manual orchestration path in `bulk-sync.ts`; no automatic schedule remains.
+- `services/places/{import-normalization,import-store,import-ancillary,overture-taxonomy,place-vibe-classifier,catalog-cursor,public-place,data-licenses}.ts`: focused validation, transactional persistence, conservative inference, pagination and public/licensing projections. Existing `osm.ts`, taxonomy and catalog layers are reused.
+- Existing catalog controller/usecase/repository/datasource/routes and OpenAPI augmentation add bounded GeoJSON, cursor/bounds aliases, complete details and license notices.
+- `backend/prisma/migrations/2026111405{0000_places_free_ingestion,1000_places_unknown_price_absence}/`: deployed compatible source/evidence/unknown-price additions. `backend/licenses/`: official redistribution text/notices.
+- `backend/scripts/{deploy-places-ingestion,places-ingestion-readback,places-ingestion-verification}.ts`, `tests/places-ingestion.test.ts`, existing catalog tests: target-checked migration, schema/readback, isolated Prisma/Swagger and pure logic checks.
+- `.github/workflows/places-sync.yml` and `backend/deploy/places-sync.{service,timer}` were removed by owner request. The former `/sync/worker` route and due-only options are removed too.
+- Three Flutter attribution files retain the shared MapLibre/client integration; no new app data path or renderer.
+- `docs/audit/PLACES_INGESTION*.{md,json}`: schema inventory, migration evidence, file inventory, actual import and Swagger results.
+
+
+## Phase 7/8 polish and organization — 2026-11-15
+
+- `AGENTS.md`: consolidated project rules. `.cursor/rules/global.mdc` only references the canonical file. `backend/.specify/memory/constitution.md` preserves the workflow lookup path with a reference; installed skills, templates, hooks, manifests and MCP settings remain tool-owned.
+- `docs/development/AI_UI_UX_SETUP.md`: moved tool setup guide; `docs/audit/UI_UX_AUDIT_AND_HOME_REDESIGN.md`: moved historical source audit. Canonical journey/Flutter links were updated.
+- `flutter/lib/features/outings/presentation/widgets/outing_schedule_field.dart`: feature-local date/time renderer composed by CreateOutingBasicsStep; existing callbacks and schedule rules remain in the wizard/provider.
+- Shared SegmentedTabs, CustomTextField and MarqueeText hold accessibility/text-scaling fixes; existing auth/group/chat/settings/outings adapters use the existing semantic palette.
+- Unreferenced `splash_preview.dart` and group `cards/active_vote_tile.dart` were removed. Current onboarding and GroupOutingsList remain the live implementations. Referenced compatibility exports (`app_map.dart`, existing widget aliases) remain.
+- `scripts/audit-project-structure.py`: read-only source import, screen, canonical-rule and moved-document reference audit. `backend/scripts/phase7-openapi-verification.ts`: Swagger-served HTTP/auth boundary audit with an unreachable DB target. Existing `validate-api-docs.ts` distinguishes the two explicitly documented local storage transports from JSON application API operations.
+- `docs/audit/PHASE_7_8_FINAL_REPORT.md`, `PHASE_7_*` and `PHASE_8_*`: scope, evidence, move/source hashes, structure results and unverified states. No Prisma files, production assets, secrets or application interfaces were moved by this task.
+
+The dated feature entries above preserve historical context; they are not evidence that removed deployment schedules exist in the current checkout. In particular, the places scheduling alternatives listed in the 2026-11-14 section are absent in the in-progress places-ingestion changes that preceded this audit.

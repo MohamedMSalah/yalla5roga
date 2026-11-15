@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-11-14T21:13:33.771Z",
+  "mode": "deploy",
+  "migration": "20261114050000_places_free_ingestion",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [
+    "20261114050000_places_free_ingestion"
+  ],
+  "privateBackup": ".database-backups/places-ingestion-2026-11-14T21-14-03.880Z/snapshot.json",
+  "backupSha256": "7bdfc07bd4dc9af14034a4f11f880ee6ae938a043efc1ce8f3fc00086cc26a25",
+  "rehearsal": "PASS: all public rows restored with keys/indexes/FKs; exact migration rehearsed using an isolated enum and rolled back",
+  "tableCount": 33,
+  "rowCount": 747,
+  "existingRowsPreserved": false,
+  "result": "FAILED",
+  "reason": "Existing application values changed; inspect concurrent writes"
+}

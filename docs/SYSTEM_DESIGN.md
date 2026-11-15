@@ -200,7 +200,10 @@ Trigger: authenticated user accepts. `POST /api/outings/:id/invitations/accept` 
 
 ```mermaid
 flowchart LR
-  Open[Participant opens the active outing] --> GPS[Bounded foreground GPS with device permission]
+  Open[Participant opens the outing] --> Start{Scheduled start reached?}
+  Start -->|No| Wait[Wait locally; no roster or GPS request]
+  Wait -->|Start time or visible resume| Start
+  Start -->|Yes| GPS[Bounded foreground GPS with device permission]
   GPS --> API[Authenticated self verification]
   API --> Policy[Validate membership, confirmed venue, time, accuracy and distance]
   Policy --> DB[Persist first verified GPS arrival]
@@ -208,7 +211,7 @@ flowchart LR
   Socket --> List[Refresh authorized roster]
 ```
 
-The backend serves the check-in radius and closing time. The default radius is 100 m and the default window is 360 minutes, capped by the outing end. The visible outing route schedules a fix on open and resume, then no more than once a minute while foregrounded. It stops when the window closes, the viewer arrives or the route loses visibility. Socket invalidations refresh the roster without triggering extra GPS samples.
+The backend serves the check-in radius and closing time. The default radius is 100 m and the default window is 360 minutes, capped by the outing end. Before scheduled start the visible outing route shows a waiting message and uses one local start timer; it performs no arrival roster read, arrival-driven connection request or GPS/permission check. At start, or on visible resume after start, it loads the roster and schedules eligible verification, then no more than once a minute while foregrounded. It stops when the window closes, the viewer arrives or the route loses visibility. Socket invalidations refresh the roster without triggering extra GPS samples.
 
 ### Notification delivery
 
@@ -508,13 +511,13 @@ sequenceDiagram
 ```
 
 
-## Weekly places synchronization workflow — 2026-11-14
+## Manual places ingestion workflow — 2026-11-15
 
-The persistent external trigger checks hourly; the database permits a due run every seven days from the last complete committed success. A failed API/host/Overpass run remains due and is retried on the next trigger; systemd Persistent additionally catches missed host schedules. A database lease with a UUID fencing token excludes concurrent API/CLI workers; expired leases are reclaimed and abandoned runs logged failed. Each source request renews the lease; the final transaction locks and validates the lease again.
+The owner removed weekly synchronization. There is no cron, systemd timer, GitHub scheduled workflow, scheduler worker endpoint, or seven-day due gate. The explicit CLI/curator action checks the exact Neon target, takes the existing fenced lease and acquires official source artifacts. Overture uses current basic_category and taxonomy.primary/hierarchy/alternates; no legacy categories dependency exists. Geofabrik's full Egypt extract is streamed through pyosmium with a disk-backed node index. Cairo/Giza polygons from administrative relations restrict both sources; a bbox is only an acquisition optimization.
 
-Overpass resolves EG-C/EG-GZ administrative areas and fetches supported tag families plus lifecycle prefixes, sequentially with exponential backoff, rate limits and mirror fallback. Boundary cardinality, final counts, source timestamp and absence of runtime remarks must validate before writes. Normalization retains provided fields/raw tags only. A limited initial validation distributes its cap across the two regions and never enables absence processing. Production/full runs have no cap.
+An immutable checksummed NDJSON artifact and manifest feed bounded batches. Each validates identities, coordinates, bilingual names, contacts, category, source licenses and vibes before transactional upserts. Exact source IDs win. Conservative cross-source matches require names, compatible category, distance and independent phone/site/address evidence. Source evidence stays separate; matching another source never overwrites canonical or manual metadata. Checkpoints commit with each chunk; retry/resume is idempotent. Interruptions/failures retain completed chunks, disable absence processing and record diagnostics. Only distinct complete releases advance repeated absence; the default threshold of three marks unverified for review, never permanent closure. Manual rows and existing outings/votes/saved-place identities remain protected.
 
-After all fetches validate, the worker serializes curator edits on place rows and uses parameterized batched upserts through Prisma, refreshes inferred mappings without deleting manual mappings, writes status evidence and timestamps, and increments missing counters only under full covered success. Three covered consecutive absences yield unverified; never inferred permanent closure. Any data transaction failure rolls back places/status/mappings and marks the run failed separately. A transactional NOTIFY forwards invalidation through each API's existing socket. Revision reads on reconnect/resume recover missed signals without periodic Flutter polling. Outing create/new candidates validate availability in their existing mutation transactions; old references remain untouched. [Operations](audit/PLACES_MANAGEMENT.md).
+Simple weekday schedules are parsed only when exactly representable by the existing place/day schema; split/overnight/holiday expressions and 24/7 remain raw rather than being distorted. Prices require an explicit source amount/free-admission tag; missing price_level is null. Images require verified reusable Commons rights and attribution. Existing covers/manual ancillary data and fallback behavior are preserved. Committed batches retain existing PostgreSQL NOTIFY → Socket.IO catalog invalidation and client revision recovery. [Operating guide and evidence](audit/PLACES_INGESTION.md).
 
 
 ## Vector map viewport and selection workflow — 2026-11-14
@@ -534,3 +537,13 @@ DiscoverMapProvider extends the shared catalog provider without a second API/cac
 The shell's first-frame permission sequence completes notification handling before requesting foreground location, independently of API hydration. FCM permission/token follow-up runs only when notification access is actually granted. Launch permission guards are process-scoped; explicit Settings notification enabling can retry after a skip. A location grant signals mounted Home to perform one deduplicated passive location/nearby load; without permission Home shows catalog exploration cards, without a location CTA.
 
 Confirmed Leave → fresh authorized group/roster GET without stale fallback → sole owner: existing DELETE /groups/:id; otherwise existing self-member DELETE. DELETE locks the group, rechecks caller ownership and active membership count, then preserves the no-outings guard before removal. A concurrent membership addition cannot turn a stale sole-owner selection into deletion of a populated group. Existing committed invalidation/cache/root navigation paths apply. Notification preference saves use optimistic UI with failure rollback and revision protection, then reconcile account-scoped system display; disabled push does not stop inbox synchronization.
+
+
+## Arrival startup and loading presentation — 2026-11-14
+
+Arrival refresh callbacks and returned data both require scheduled start to have arrived and the current route/lifecycle generation to match. A reschedule cancels the old start/verification/refresh timers and clears stale arrival state; hidden/background routes cancel timers and re-evaluate wall time on return. The GPS service separately requires server open=true and opens_at <= now < closes_at before permissions/acquisition/recording, preserving backend authority. Notification mark-all remains the existing authenticated mutation; only its UI placement changes. Indeterminate linear indicators are removed, while actual vote ratios and existing skeleton/button loading states remain.
+
+
+## Phase 7 realtime lifecycle hardening — 2026-11-15
+
+The shared session socket and REST recovery workflow are retained. Transient outing-room joins now stop after five delayed retries (1/2/4/8/16 seconds); desired room intent survives exhaustion for a later explicit recovery/reconnect, and success clears the attempt budget. Leaving the room/disconnecting cancels timers and clears attempts. Definitive authorization rejection still drops room intent. The chat provider reference-counts viewers, ignores repeated zero-count unsubscribe and advances its generation before disposal to reject pending asynchronous completions. Closing a chat page leaves the outing room; it does not disconnect the transport used by other app-wide invalidations. REST remains canonical and closed-chat history remains read-only. Verification is source/static only for sockets; no live Socket.IO exercise occurred in this phase.

@@ -8,6 +8,7 @@ export class CatalogRepository {
   list(q: CatalogQuery) {
     return this.source.list(q);
   }
+  geojson(q: CatalogQuery) { return this.source.geojson(q); }
   categories() {
     return this.source.categories();
   }

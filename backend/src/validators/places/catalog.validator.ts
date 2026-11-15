@@ -19,7 +19,7 @@ const coordinate = (min: number, max: number) =>
       z.number().finite().min(min).max(max),
     )
     .optional();
-export const catalogQuerySchema = z
+const baseCatalogQuerySchema = z
   .object({
     featured: z.enum(["true", "false"]).optional(),
     vibe: z.enum(["food", "activity", "outdoor", "movie"]).optional(),
@@ -36,6 +36,7 @@ export const catalogQuerySchema = z
       .default("active"),
     limit: z.coerce.number().int().min(1).max(100).default(50),
     offset: z.coerce.number().int().min(0).max(1000000).default(0),
+    cursor: z.string().max(2048).optional(),
     lat: coordinate(-90, 90),
     lng: coordinate(-180, 180),
     radiusKm: z.coerce.number().finite().positive().max(100).optional(),
@@ -75,5 +76,24 @@ export const catalogQuerySchema = z
         code: "custom",
         message: "lat and lng required together for nearby/distance",
       });
+    if (q.cursor && q.offset) ctx.addIssue({ code: "custom", message: "cursor and offset cannot be combined" });
   });
+export const catalogQuerySchema = z.preprocess((value, ctx) => {
+  if (!value || typeof value !== "object") return value;
+  const q = { ...(value as Record<string, unknown>) };
+  if (q.category !== undefined) {
+    if (q.categories !== undefined && q.categories !== q.category) {
+      ctx.addIssue({ code: "custom", message: "Conflicting category/categories" }); return z.NEVER;
+    }
+    q.categories = q.category;
+  }
+  const aliases = ["minLng", "minLat", "maxLng", "maxLat"];
+  if (aliases.some((key) => q[key] !== undefined)) {
+    if (!aliases.every((key) => typeof q[key] === "string" || typeof q[key] === "number") || q.bbox !== undefined) {
+      ctx.addIssue({ code: "custom", message: "Supply all four min/max bounds, or bbox" }); return z.NEVER;
+    }
+    q.bbox = aliases.map((key) => q[key]).join(",");
+  }
+  return q;
+}, baseCatalogQuerySchema);
 export type CatalogQuery = z.infer<typeof catalogQuerySchema>;

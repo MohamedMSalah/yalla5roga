@@ -1,5 +1,7 @@
 # UI/UX audit and Home redesign
 
+Historical source audit (2026-11-09); preserved for evidence. Later phase reports and canonical docs describe current behavior. Relocated in Phase 8 without treating old findings as current verification.
+
 ## Scope and method
 
 Source review of Home, shell, outing list/details entry points, quick actions, Groups, Discover, and Notifications, together with the documented journeys and shared controls. This is a heuristic source review, not research with participants or a complete visual audit of every screen. Auth, creation forms, chat, settings, modals, and their edge states still require a screen-by-screen runtime review. Severity estimates describe potential user impact, not measured incidence.

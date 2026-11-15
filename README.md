@@ -6,6 +6,18 @@ Monorepo for the Yalla 5roga backend and Flutter app. The two projects stay in s
 
 - `backend/` — Node.js, TypeScript, Express, and Prisma API
 - `flutter/` — Flutter app
+- `docs/` — canonical product/architecture docs; `audit/` evidence and `development/` setup
+- `scripts/` — repository helpers; backend scripts stay under `backend/scripts/`
+
+Read [AGENTS.md](AGENTS.md) before coding and use the
+[structure map](docs/PROJECT_STRUCTURE.md) to locate files. Open the monorepo root
+in agent tools. Project policy lives only in AGENTS.md; installed skills and tool
+configuration remain in their existing directories.
+
+Read-only organization verification: `python scripts/audit-project-structure.py`.
+From `backend/`, run `node --import tsx scripts/phase7-openapi-verification.ts`
+for served OpenAPI/auth-boundary checks with an unreachable verification DB target.
+See [Phase 7/8 evidence and limits](docs/audit/PHASE_7_8_FINAL_REPORT.md).
 
 ## Commits
 

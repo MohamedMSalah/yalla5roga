@@ -185,3 +185,8 @@ Existing public catalog reads stay public. Manual taxonomy/place metadata writes
 
 
 Sole-owner leave/deletion (2026-11-14): DELETE /api/groups/:id still verifies the Firebase caller and group owner role. The datasource rechecks that role under the group lock and permits deletion only when that caller is the sole active member and the group has no outings. Other members/outsiders cannot delete; the existing self-member removal API still rejects removing the last owner. Client roster inspection is a navigation decision, never authorization proof.
+
+
+## Phase 7 repository cleanup — 2026-11-15
+
+Flutter removes the unreferenced `_fromFirebaseCredential` and `_provisionBackendUser` helpers. Active phone/password/Firebase OTP/custom-token flows remain. Registration awaits its existing session result inside try/catch; password update awaits asynchronous local profile caching inside try/catch so cache exceptions become the existing typed failures. No auth contract, password authority, identity, token verification or resource authorization rule changes. The Phase 7 Swagger HTTP audit verifies missing/malformed-token rejection only; authenticated success and SMS are NOT RUN.

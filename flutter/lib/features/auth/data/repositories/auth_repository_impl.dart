@@ -201,38 +201,6 @@ mixin _AuthFirebaseMixin on AuthRepository {
     await local.cacheUser(merged);
     return merged;
   }
-
-  Future<Either<Failure, User>> _fromFirebaseCredential(
-    Future<fb.UserCredential> Function() action, {
-    String? name,
-    String? fallbackPhone,
-    bool forceRefreshToken = true,
-  }) async {
-    try {
-      final credential = await action();
-      final firebaseUser = credential.user ?? firebaseAuth.currentUser;
-      if (firebaseUser == null) {
-        return const Left(AuthFailure('Authentication failed'));
-      }
-      // Reload so linked email/phone/displayName are fresh.
-      await firebaseUser.reload();
-      final refreshed = firebaseAuth.currentUser ?? firebaseUser;
-      return Right(
-        await _cacheFirebaseUser(
-          refreshed,
-          fallbackPhone: fallbackPhone,
-          name: name,
-          forceRefreshToken: forceRefreshToken,
-        ),
-      );
-    } on AuthException catch (error) {
-      return Left(AuthFailure(error.message, error.code));
-    } on CacheException catch (error) {
-      return Left(CacheFailure(error.message));
-    } catch (_) {
-      return const Left(AuthFailure('Authentication failed'));
-    }
-  }
 }
 
 class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
@@ -335,7 +303,7 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
         verificationId: verificationId,
         smsCode: smsCode,
       );
-      return _emailPasswordSession(
+      return await _emailPasswordSession(
         () => remote.signup(
           name: name,
           password: password,
@@ -411,44 +379,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       );
     } catch (_) {
       return const Left(AuthFailure('Authentication failed'));
-    }
-  }
-
-  /// Creates / upserts the PostgreSQL `users` row. Identity is the verified
-  /// Firebase UID from the Bearer token — never sent as a trusted body field.
-  /// Passwords are never sent; Firebase owns credentials.
-  Future<Either<Failure, User>> _provisionBackendUser(User user) async {
-    if (!await networkInfo.isConnected) {
-      return Right(user);
-    }
-    try {
-      await firebaseAuth.idToken(forceRefresh: true);
-      final model = await remote.syncUser(
-        name: user.name,
-        phone: user.phone.isEmpty ? null : user.phone,
-        imageUrl: user.imageUrl,
-      );
-      final token = await firebaseAuth.idToken() ?? user.token;
-      final uid = firebaseAuth.currentUser?.uid ?? user.id;
-      final merged = await _mergeBackendProfile(
-        UserModel(
-          id: uid,
-          name: model.name.isNotEmpty ? model.name : user.name,
-          phone: model.phone.isNotEmpty ? model.phone : user.phone,
-          token: token,
-          imageUrl: model.imageUrl ?? user.imageUrl,
-          createdAt: model.createdAt ?? user.createdAt,
-          hasPassword: model.hasPassword || user.hasPassword,
-          phoneVerified: user.phoneVerified,
-        ),
-        token: token,
-      );
-      return Right(merged);
-    } on AppException {
-      // Keep the Firebase session; placeholder backends may fail until Node is live.
-      return Right(UserModel.fromEntity(user));
-    } catch (_) {
-      return Right(UserModel.fromEntity(user));
     }
   }
 
@@ -608,8 +538,9 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
               phoneVerificationToken: phoneProof,
             )
           : await remote.updateProfile(name: name, imageUrl: imageUrl);
-      if (firebaseAuth.currentUser?.uid != uid || model.id != uid)
+      if (firebaseAuth.currentUser?.uid != uid || model.id != uid) {
         return const Left(AuthFailure());
+      }
       if (phone != null) {
         firebaseAuth.clearPhoneVerificationToken();
         if (phoneProof != null) {
@@ -666,7 +597,7 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
         newPassword: newPassword,
       );
       final cached = await getCachedUser();
-      return cached.fold(Left.new, (user) async {
+      return await cached.fold(Left.new, (user) async {
         final updated = UserModel.fromEntity(user.copyWith(hasPassword: true));
         await local.cacheUser(updated);
         return Right(updated);

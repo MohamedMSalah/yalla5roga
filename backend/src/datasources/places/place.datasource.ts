@@ -27,7 +27,7 @@ const MAX_LIMIT = 50;
 export class PlaceDatasource {
   findById(id: string): Promise<Place | null> {
     return prisma.places.findUnique({ where: { id },
-      include: { category: true, place_vibes: { include: { vibe: true } } },
+      include: { category: true, place_vibes: { include: { vibe: true } }, place_hours: true, place_prices: true, place_images: { orderBy: { sort_order: "asc" } } },
     });
   }
 
@@ -164,6 +164,7 @@ export class PlaceDatasource {
       },
       create: data,
       update: {
+        source: "manual",
         opens_at: data.opens_at,
         closes_at: data.closes_at,
         is_closed: data.is_closed,

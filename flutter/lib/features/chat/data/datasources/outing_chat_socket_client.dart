@@ -45,6 +45,7 @@ class OutingChatSocketClient {
   final _rejectedRooms = <String>{};
   final _joinRetries = <String, Timer>{};
   final _joinAttempts = <String, int>{};
+  static const _maxJoinRetries = 5;
   final _joining = <String, Future<void>>{};
   final _connectionController = StreamController<bool>.broadcast();
   Completer<void>? _connectCompleter;
@@ -66,7 +67,10 @@ class OutingChatSocketClient {
   bool isRoomConnected(String id) =>
       _networkAvailable && isConnected && _joined.contains(id);
   bool isRoomReconnecting(String id) =>
-      _networkAvailable && isReconnecting && !_rejectedRooms.contains(id);
+      _networkAvailable &&
+      isReconnecting &&
+      !_rejectedRooms.contains(id) &&
+      (_joinAttempts[id] ?? 0) < _maxJoinRetries;
 
   void setNetworkAvailable(bool online) {
     _networkAvailable = online;
@@ -183,7 +187,13 @@ class OutingChatSocketClient {
         }
         _scheduleAuthRetryIfNeeded(error);
       });
-      socket.on('catalog:changed', (_) {if(!_disposed && session==_session)_dataController.add(RealtimeChange(kind:'catalog',session:session));});
+      socket.on('catalog:changed', (_) {
+        if (!_disposed && session == _session) {
+          _dataController.add(
+            RealtimeChange(kind: 'catalog', session: session),
+          );
+        }
+      });
       socket.on('data:changed', (dynamic raw) {
         final data = _asStringKeyedMap(raw);
         final kind = data?['kind'];
@@ -309,6 +319,11 @@ class OutingChatSocketClient {
         ifAbsent: () => 0,
       );
       _joinRetries.remove(outingId)?.cancel();
+      // Keep room intent for resume/reconnect, but stop retrying in a loop.
+      if (attempt >= _maxJoinRetries) {
+        _emitConnection(isConnected);
+        return;
+      }
       _joinRetries[outingId] = Timer(
         Duration(seconds: 1 << attempt.clamp(0, 5)),
         () {

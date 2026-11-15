@@ -287,9 +287,7 @@ class _EventPageState extends State<EventPage>
                       userId: userId,
                     ),
                   if (!outings.hasAttendanceFor(live.id)) ...[
-                    if (_loadingDetails)
-                      const LinearProgressIndicator()
-                    else
+                    if (!_loadingDetails)
                       TextButton(
                         onPressed: _refreshLifecycle,
                         child: Text(l10n.tryAgain),

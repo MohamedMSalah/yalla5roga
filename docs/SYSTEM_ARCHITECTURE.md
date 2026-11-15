@@ -249,16 +249,16 @@ flowchart LR
 ```
 
 
-## OSM catalog boundary — 2026-11-14
+## Free-source catalog boundary — updated 2026-11-15
 
-An external persistent scheduler invokes the standalone places CLI or protected API worker. Overpass is the primary catalog source, queried inside Cairo/Giza OSM administrative areas. PostgreSQL holds the taxonomy, places, source evidence, run history, seven-day due state and fenced lease. A single commit updates imported rows/mappings/statuses; no application/Flutter process must remain open for scheduling.
+The standalone places CLI or authenticated curator API performs explicit manual imports. Overture is primary; Geofabrik Egypt supplies OSM POIs and Cairo/Giza administrative polygons. PostgreSQL holds the existing catalog, separate source provenance, diagnostics, checkpoints and fenced lease. Each validated chunk commits places, relations and checkpoint together. Automatic/weekly scheduling and the scheduler-only endpoint were removed at the owner's request on 2026-11-15.
 
 ```mermaid
 flowchart LR
-  Scheduler[Persistent external hourly check] --> Due[Seven-day Neon due gate and lease]
-  Due --> OSM[Rate-limited Overpass administrative areas]
-  OSM --> Validate[Count/freshness/completeness validation]
-  Validate --> Tx[Atomic batched Prisma transaction]
+  Operator[Explicit manual CLI or curator request] --> Lease[Target verification and fenced lease]
+  Lease --> Sources[Official Overture and Geofabrik extracts]
+  Sources --> Validate[Administrative polygons, quality, licenses and deduplication]
+  Validate --> Tx[Chunked Prisma transaction and checkpoint]
   Tx --> Neon[(Places, taxonomy, evidence and run logs)]
   Tx --> Signal[PostgreSQL NOTIFY after commit]
   Signal --> APIs[Direct LISTEN in each API instance]

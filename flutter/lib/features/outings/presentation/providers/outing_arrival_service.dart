@@ -43,19 +43,31 @@ class OutingArrivalService {
     required bool Function() isActive,
     required bool Function() shouldRequestPermission,
   }) async {
+    bool withinWindow() {
+      final now = DateTime.now();
+      final start = roster.opensAt;
+      final end = roster.closesAt;
+      return isActive() &&
+          roster.open &&
+          start != null &&
+          end != null &&
+          !now.isBefore(start) &&
+          now.isBefore(end);
+    }
+
     final venue = roster.venue;
-    if (!roster.open || venue == null || !isActive()) {
+    if (!roster.open || venue == null || !withinWindow()) {
       return ArrivalVerification.unverified;
     }
 
     final Position position;
     try {
-      if (!await _locationEnabled() || !isActive()) {
+      if (!await _locationEnabled() || !withinWindow()) {
         return ArrivalVerification.unavailable;
       }
       var permission = await _checkPermission();
       if (permission == LocationPermission.denied &&
-          isActive() &&
+          withinWindow() &&
           shouldRequestPermission()) {
         permission = await _requestPermission();
       }
@@ -63,13 +75,13 @@ class OutingArrivalService {
           permission != LocationPermission.whileInUse) {
         return ArrivalVerification.permissionDenied;
       }
-      if (!isActive()) return ArrivalVerification.unverified;
+      if (!withinWindow()) return ArrivalVerification.unverified;
       position = await _getPosition();
     } catch (_) {
       return ArrivalVerification.unavailable;
     }
 
-    if (!isActive()) return ArrivalVerification.unverified;
+    if (!withinWindow()) return ArrivalVerification.unverified;
     if (position.isMocked ||
         !position.accuracy.isFinite ||
         position.accuracy <= 0 ||

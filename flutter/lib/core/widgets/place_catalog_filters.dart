@@ -113,10 +113,6 @@ class PlaceCatalogFilters extends StatelessWidget {
             ),
           if (catalog.categories.isEmpty &&
               !catalog.taxonomyFailed &&
-              !catalog.definitionsLoaded)
-            const LinearProgressIndicator(),
-          if (catalog.categories.isEmpty &&
-              !catalog.taxonomyFailed &&
               catalog.definitionsLoaded)
             Text(context.l10n.catalogNoCategories),
           for (final group in catalog.categories.map((c) => c.group).toSet())
@@ -225,7 +221,6 @@ class CatalogLoadMore extends StatelessWidget {
     animation: catalog,
     builder: (context, _) => Column(
       children: [
-        if (catalog.loading) const LinearProgressIndicator(),
         if (catalog.error != null)
           TextButton(
             onPressed: () => catalog.load(force: true),
@@ -245,14 +240,29 @@ class CatalogLoadMore extends StatelessWidget {
 class PlaceCatalogAttribution extends StatelessWidget {
   const PlaceCatalogAttribution({super.key});
   @override
-  Widget build(BuildContext context) => TextButton(
-    onPressed: () => launchUrl(
-      Uri.parse('https://www.openstreetmap.org/copyright'),
-      mode: LaunchMode.externalApplication,
-    ),
-    child: Text(
-      '© OpenStreetMap contributors · ODbL 1.0',
-      style: context.texts.bodySmall,
-    ),
+  Widget build(BuildContext context) => Wrap(
+    alignment: WrapAlignment.center,
+    children: [
+      TextButton(
+        onPressed: () => launchUrl(
+          Uri.parse('https://www.openstreetmap.org/copyright'),
+          mode: LaunchMode.externalApplication,
+        ),
+        child: Text(
+          '© OpenStreetMap contributors · ODbL 1.0',
+          style: context.texts.bodySmall,
+        ),
+      ),
+      TextButton(
+        onPressed: () => launchUrl(
+          Uri.parse('https://docs.overturemaps.org/attribution/'),
+          mode: LaunchMode.externalApplication,
+        ),
+        child: Text(
+          'Overture Maps Foundation · CDLA Permissive 2.0',
+          style: context.texts.bodySmall,
+        ),
+      ),
+    ],
   );
 }

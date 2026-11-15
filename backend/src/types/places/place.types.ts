@@ -64,7 +64,7 @@ export type NearbyPlace = {
   area: string;
   vibe: OutingVibe;
   cover_image_url: string;
-  price_level: PriceLevel;
+  price_level: PriceLevel | null;
   price_min: string | null;
   price_max: string | null;
   currency: string;

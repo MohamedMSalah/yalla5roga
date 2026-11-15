@@ -41,7 +41,6 @@ class OutingAttendanceWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(context.l10n.attendanceTitle, style: context.texts.titleMedium),
-          if (busy) const LinearProgressIndicator(),
           Responsive.spaceSm.gapH,
           Wrap(
             spacing: Responsive.spaceSm,

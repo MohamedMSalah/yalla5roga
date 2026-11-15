@@ -22,7 +22,7 @@ export function extendPlacesOpenApi(spec: any) {
     name_ar: { type: "string", nullable: true },
     name_en: { type: "string", nullable: true },
     status,
-    source: { type: "string", enum: ["manual", "osm"] },
+    source: { type: "string", enum: ["manual", "osm", "overture"] },
     source_type: { type: "string", nullable: true },
     source_id: { type: "string", nullable: true },
     vibes: { type: "array", items: { type: "string" } },
@@ -37,6 +37,8 @@ export function extendPlacesOpenApi(spec: any) {
     last_seen_at: { type: "string", format: "date-time", nullable: true },
   };
   Object.assign(spec.components.schemas.Place.properties, fields);
+  spec.components.schemas.Place.properties.price_level.nullable = true;
+  spec.components.schemas.NearbyPlace.properties.price_level.nullable = true;
   spec.components.schemas.SavedPlace.properties.places=ref('Place');
   spec.components.schemas.PlaceListResponse.allOf.push({
     type: "object",
@@ -49,6 +51,7 @@ export function extendPlacesOpenApi(spec: any) {
           offset: { type: "integer" },
           has_more: { type: "boolean" },
           next_offset: { type: "integer", nullable: true },
+          next_cursor: { type: "string", nullable: true },
         },
       },
       attribution: { type: "string" },
@@ -91,7 +94,7 @@ export function extendPlacesOpenApi(spec: any) {
       id: { type: "string", format: "uuid" },
       status: {
         type: "string",
-        enum: ["running", "success", "partial", "dry_run", "failed"],
+        enum: ["running", "success", "partial", "dry_run", "failed", "interrupted"],
       },
       started_at: { type: "string", format: "date-time" },
       completed_at: { type: "string", nullable: true, format: "date-time" },
@@ -104,16 +107,18 @@ export function extendPlacesOpenApi(spec: any) {
           "closed_count",
           "skipped_count",
           "failed_count",
+          "processed_count",
         ].map((k) => [k, { type: "integer" }]),
       ),
       error_details: { type: "array", items: { type: "string" } },
       coverage: { type: "object" },
       progress: { type: "object" },
+      source: { type: "string", enum: ["osm", "overture"] },
     },
   };
   const list = spec.paths["/api/places"].get;
   list.description =
-    "Paged active catalog by default. OR within categories/vibes and AND across dimensions. Data stays an array; pagination and OSM attribution are additive envelope fields. Distance is in km. Use offset until pagination.has_more is false.";
+    "Paged active catalog. OR within categories/vibes and AND across dimensions. Bounds use bbox or all four min/max aliases. Use next_cursor with unchanged filters for keyset pagination, or the compatible offset API. Internal source evidence and sync diagnostics are excluded. Attribution covers Overture and OSM.";
   list.parameters = [
     ...(list.parameters ?? []),
     ...Object.entries({
@@ -132,11 +137,38 @@ export function extendPlacesOpenApi(spec: any) {
       sort: { type: "string", enum: ["updated", "name", "distance"] },
       limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
       offset: { type: "integer", minimum: 0, default: 0 },
+      cursor: { type: "string", description: "Opaque next_cursor for the same filters/sort" },
+      category: { type: "string", description: "Alias for categories" },
+      minLat: { type: "number", minimum: -90, maximum: 90 },
+      maxLat: { type: "number", minimum: -90, maximum: 90 },
+      minLng: { type: "number", minimum: -180, maximum: 180 },
+      maxLng: { type: "number", minimum: -180, maximum: 180 },
     }).map(([name, schema]) => ({ in: "query", name, schema })),
   ];
   const unauthorized = { $ref: "#/components/responses/Unauthorized" },
     forbidden = { $ref: "#/components/responses/Forbidden" },
     bad = { $ref: "#/components/responses/BadRequest" };
+  spec.paths["/api/places/geojson"] = { get: {
+    operationId: "getPlacesGeoJson", tags: ["Places"], security: [],
+    summary: "Bounded lightweight MapLibre GeoJSON points",
+    description: "Requires bbox or all min/max bounds. Coordinates are [longitude,latitude]. Same category/vibe/search/cursor filters as the catalog; maximum 100 points per page.",
+    parameters: list.parameters,
+    responses: { "200": { description: "GeoJSON FeatureCollection", content: { "application/geo+json": { schema: {
+      type: "object", required: ["type", "features", "pagination", "attribution"], properties: {
+        type: { type: "string", enum: ["FeatureCollection"] }, attribution: { type: "string" }, pagination: { type: "object" },
+        features: { type: "array", items: { type: "object", required: ["type", "geometry", "properties"], properties: {
+          type: { type: "string", enum: ["Feature"] }, id: { type: "string", format: "uuid" },
+          geometry: { type: "object", required: ["type", "coordinates"], properties: { type: { type: "string", enum: ["Point"] }, coordinates: { type: "array", minItems: 2, maxItems: 2, items: { type: "number" } } } },
+          properties: { type: "object", required: ["place_id", "name", "category", "vibes", "icon"], properties: { place_id: { type: "string" }, name: { type: "string" }, category: { type: "string", nullable: true }, vibes: { type: "array", items: { type: "string" } }, icon: { type: "string" } } },
+        } } },
+      },
+    } } } }, "400": bad, "500": { $ref: "#/components/responses/InternalServerError" } },
+  } };
+  Object.assign(spec.components.schemas.Place.properties, {
+    place_hours: { type: "array", items: ref("PlaceHour") },
+    place_images: { type: "array", items: ref("PlaceImage") },
+    place_prices: { type: "array", items: ref("PlacePrice") },
+  });
   const op = (
     operationId: string,
     summary: string,
@@ -162,6 +194,7 @@ export function extendPlacesOpenApi(spec: any) {
         { type: "array", items: ref("CatalogDefinition") },
       ),
     };
+  spec.paths["/api/places/licenses"] = { get: op("getPlacesLicenses", "Catalog source attribution, upstream notices and complete license text", { type: "object" }) };
   spec.paths["/api/places/version"] = {
     get: op(
       "getPlacesVersion",
@@ -172,7 +205,7 @@ export function extendPlacesOpenApi(spec: any) {
   spec.paths["/api/places/sync/status"] = {
     get: op(
       "getPlacesSyncStatus",
-      "Curator: last success, next due and current run",
+      "Curator: manual import history and current run; automatic sync is disabled",
       { type: "object" },
       true,
     ),
@@ -203,7 +236,7 @@ export function extendPlacesOpenApi(spec: any) {
     post: {
       ...op(
         "syncPlaces",
-        "Curator: synchronize OSM catalog",
+        "Curator: manually synchronize Overture or Geofabrik catalog",
         ref("PlaceSyncRun"),
         true,
       ),
@@ -216,7 +249,8 @@ export function extendPlacesOpenApi(spec: any) {
               additionalProperties: false,
               properties: {
                 dryRun: { type: "boolean" },
-                dueOnly: { type: "boolean" },
+                source: { type: "string", enum: ["overture", "osm"], default: "overture" },
+                city: { type: "string", enum: ["cairo", "giza"] },
                 limit: {
                   type: "integer",
                   minimum: 1,
@@ -231,29 +265,6 @@ export function extendPlacesOpenApi(spec: any) {
       responses: {
         ...op("", "", ref("PlaceSyncRun"), true).responses,
         "409": { description: "Another worker holds the lease" },
-      },
-    },
-  };
-  spec.components.securitySchemes.placesWorker = {
-    type: "http",
-    scheme: "bearer",
-    description:
-      "Dedicated PLACES_SYNC_WORKER_SECRET, at least 32 characters; never distributed to Flutter",
-  };
-  spec.paths["/api/places/sync/worker"] = {
-    post: {
-      ...op(
-        "runDuePlacesSync",
-        "External scheduler: synchronize only when seven days overdue",
-        {},
-        true,
-      ),
-      security: [{ placesWorker: [] }],
-      responses: {
-        "200": response({ type: "object" }),
-        "401": unauthorized,
-        "409": { description: "Already running" },
-        "500": { description: "Sync failed; retry next trigger" },
       },
     },
   };

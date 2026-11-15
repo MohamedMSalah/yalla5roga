@@ -1,0 +1,1291 @@
+{
+  "checkedAt": "2026-11-14T20:54:21.390Z",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "tables": {
+    "places": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "name",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "area",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": "''::character varying",
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "vibe",
+          "data_type": "USER-DEFINED",
+          "is_nullable": "NO",
+          "column_default": "'food'::outing_vibe",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "description",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": "''::character varying",
+          "character_maximum_length": 1000
+        },
+        {
+          "column_name": "cover_image_url",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": "''::character varying",
+          "character_maximum_length": 2048
+        },
+        {
+          "column_name": "price_level",
+          "data_type": "USER-DEFINED",
+          "is_nullable": "NO",
+          "column_default": "'moderate'::price_level",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "price_min",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "price_max",
+          "data_type": "numeric",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "currency",
+          "data_type": "character",
+          "is_nullable": "NO",
+          "column_default": "'EGP'::bpchar",
+          "character_maximum_length": 3
+        },
+        {
+          "column_name": "latitude",
+          "data_type": "double precision",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "longitude",
+          "data_type": "double precision",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "featured",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "is_active",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "CURRENT_TIMESTAMP",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "CURRENT_TIMESTAMP",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "address",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 1000
+        },
+        {
+          "column_name": "category_id",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 64
+        },
+        {
+          "column_name": "city",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "district",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "last_seen_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "last_synced_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "manually_managed",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "missing_sync_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "name_ar",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "name_en",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "opening_hours",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 1000
+        },
+        {
+          "column_name": "phone",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "source",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": "'manual'::character varying",
+          "character_maximum_length": 16
+        },
+        {
+          "column_name": "source_id",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 32
+        },
+        {
+          "column_name": "source_region",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 16
+        },
+        {
+          "column_name": "source_tags",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "source_type",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 16
+        },
+        {
+          "column_name": "status",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": "'active'::character varying",
+          "character_maximum_length": 32
+        },
+        {
+          "column_name": "website",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 2048
+        }
+      ],
+      "count": 0
+    },
+    "place_categories": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 64
+        },
+        {
+          "column_name": "name_en",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "name_ar",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "group_id",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 64
+        },
+        {
+          "column_name": "icon",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 64
+        },
+        {
+          "column_name": "legacy_vibe",
+          "data_type": "USER-DEFINED",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "is_active",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "sort_order",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()",
+          "character_maximum_length": null
+        }
+      ],
+      "count": 36
+    },
+    "vibes": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 64
+        },
+        {
+          "column_name": "name_en",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "name_ar",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 100
+        },
+        {
+          "column_name": "icon",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 64
+        },
+        {
+          "column_name": "is_active",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "true",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "sort_order",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "now()",
+          "character_maximum_length": null
+        }
+      ],
+      "count": 15
+    },
+    "place_vibes": {
+      "columns": [
+        {
+          "column_name": "place_id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "vibe_id",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 64
+        },
+        {
+          "column_name": "source",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": "'manual'::character varying",
+          "character_maximum_length": 16
+        }
+      ],
+      "count": 0
+    },
+    "place_images": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "place_id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "image_url",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 2048
+        },
+        {
+          "column_name": "caption",
+          "data_type": "character varying",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": 200
+        },
+        {
+          "column_name": "sort_order",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        }
+      ],
+      "count": 0
+    },
+    "place_hours": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "place_id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "day",
+          "data_type": "USER-DEFINED",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "opens_at",
+          "data_type": "time without time zone",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "closes_at",
+          "data_type": "time without time zone",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "is_closed",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false",
+          "character_maximum_length": null
+        }
+      ],
+      "count": 0
+    },
+    "place_prices": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "place_id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "label",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 80
+        },
+        {
+          "column_name": "amount",
+          "data_type": "numeric",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "currency",
+          "data_type": "character",
+          "is_nullable": "NO",
+          "column_default": "'EGP'::bpchar",
+          "character_maximum_length": 3
+        }
+      ],
+      "count": 0
+    },
+    "place_sync_runs": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "started_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "CURRENT_TIMESTAMP",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "completed_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "status",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 32
+        },
+        {
+          "column_name": "imported_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "updated_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "closed_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "skipped_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "failed_count",
+          "data_type": "integer",
+          "is_nullable": "NO",
+          "column_default": "0",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "error_details",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'[]'::jsonb",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "dry_run",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "complete",
+          "data_type": "boolean",
+          "is_nullable": "NO",
+          "column_default": "false",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "coverage",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "progress",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": "'{}'::jsonb",
+          "character_maximum_length": null
+        }
+      ],
+      "count": 2
+    },
+    "place_sync_logs": {
+      "columns": [],
+      "count": null
+    },
+    "place_status_changes": {
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": "gen_random_uuid()",
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "place_id",
+          "data_type": "uuid",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "run_id",
+          "data_type": "uuid",
+          "is_nullable": "YES",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "old_status",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 32
+        },
+        {
+          "column_name": "new_status",
+          "data_type": "character varying",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": 32
+        },
+        {
+          "column_name": "evidence",
+          "data_type": "jsonb",
+          "is_nullable": "NO",
+          "column_default": null,
+          "character_maximum_length": null
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone",
+          "is_nullable": "NO",
+          "column_default": "CURRENT_TIMESTAMP",
+          "character_maximum_length": null
+        }
+      ],
+      "count": 0
+    }
+  },
+  "relations": [
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_group_id_not_null",
+      "definition": "NOT NULL group_id"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_icon_not_null",
+      "definition": "NOT NULL icon"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_is_active_not_null",
+      "definition": "NOT NULL is_active"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_legacy_vibe_not_null",
+      "definition": "NOT NULL legacy_vibe"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_name_ar_not_null",
+      "definition": "NOT NULL name_ar"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_name_en_not_null",
+      "definition": "NOT NULL name_en"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_sort_order_not_null",
+      "definition": "NOT NULL sort_order"
+    },
+    {
+      "table_name": "place_categories",
+      "conname": "place_categories_updated_at_not_null",
+      "definition": "NOT NULL updated_at"
+    },
+    {
+      "table_name": "place_hours",
+      "conname": "place_hours_day_not_null",
+      "definition": "NOT NULL day"
+    },
+    {
+      "table_name": "place_hours",
+      "conname": "place_hours_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "place_hours",
+      "conname": "place_hours_is_closed_not_null",
+      "definition": "NOT NULL is_closed"
+    },
+    {
+      "table_name": "place_hours",
+      "conname": "place_hours_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "place_hours",
+      "conname": "place_hours_place_id_fkey",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "place_hours",
+      "conname": "place_hours_place_id_not_null",
+      "definition": "NOT NULL place_id"
+    },
+    {
+      "table_name": "place_images",
+      "conname": "place_images_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "place_images",
+      "conname": "place_images_image_url_not_null",
+      "definition": "NOT NULL image_url"
+    },
+    {
+      "table_name": "place_images",
+      "conname": "place_images_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "place_images",
+      "conname": "place_images_place_id_fkey",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "place_images",
+      "conname": "place_images_place_id_not_null",
+      "definition": "NOT NULL place_id"
+    },
+    {
+      "table_name": "place_images",
+      "conname": "place_images_sort_order_not_null",
+      "definition": "NOT NULL sort_order"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_amount_not_null",
+      "definition": "NOT NULL amount"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_currency_not_null",
+      "definition": "NOT NULL currency"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_label_not_null",
+      "definition": "NOT NULL label"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_nonnegative",
+      "definition": "CHECK ((amount >= (0)::numeric))"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_place_id_fkey",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "place_prices",
+      "conname": "place_prices_place_id_not_null",
+      "definition": "NOT NULL place_id"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_created_at_not_null",
+      "definition": "NOT NULL created_at"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_evidence_not_null",
+      "definition": "NOT NULL evidence"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_new_status_not_null",
+      "definition": "NOT NULL new_status"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_old_status_not_null",
+      "definition": "NOT NULL old_status"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_place_id_fkey",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "place_status_changes",
+      "conname": "place_status_changes_place_id_not_null",
+      "definition": "NOT NULL place_id"
+    },
+    {
+      "table_name": "place_sync_lock",
+      "conname": "place_sync_lock_expires_at_not_null",
+      "definition": "NOT NULL expires_at"
+    },
+    {
+      "table_name": "place_sync_lock",
+      "conname": "place_sync_lock_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "place_sync_lock",
+      "conname": "place_sync_lock_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "place_sync_lock",
+      "conname": "place_sync_lock_token_not_null",
+      "definition": "NOT NULL token"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_closed_count_not_null",
+      "definition": "NOT NULL closed_count"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_complete_not_null",
+      "definition": "NOT NULL complete"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_coverage_not_null",
+      "definition": "NOT NULL coverage"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_dry_run_not_null",
+      "definition": "NOT NULL dry_run"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_error_details_not_null",
+      "definition": "NOT NULL error_details"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_failed_count_not_null",
+      "definition": "NOT NULL failed_count"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_imported_count_not_null",
+      "definition": "NOT NULL imported_count"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_progress_not_null",
+      "definition": "NOT NULL progress"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_skipped_count_not_null",
+      "definition": "NOT NULL skipped_count"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_started_at_not_null",
+      "definition": "NOT NULL started_at"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_status_not_null",
+      "definition": "NOT NULL status"
+    },
+    {
+      "table_name": "place_sync_runs",
+      "conname": "place_sync_runs_updated_count_not_null",
+      "definition": "NOT NULL updated_count"
+    },
+    {
+      "table_name": "place_vibes",
+      "conname": "place_vibes_pkey",
+      "definition": "PRIMARY KEY (place_id, vibe_id)"
+    },
+    {
+      "table_name": "place_vibes",
+      "conname": "place_vibes_place_id_fkey",
+      "definition": "FOREIGN KEY (place_id) REFERENCES places(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "place_vibes",
+      "conname": "place_vibes_place_id_not_null",
+      "definition": "NOT NULL place_id"
+    },
+    {
+      "table_name": "place_vibes",
+      "conname": "place_vibes_source_not_null",
+      "definition": "NOT NULL source"
+    },
+    {
+      "table_name": "place_vibes",
+      "conname": "place_vibes_vibe_id_fkey",
+      "definition": "FOREIGN KEY (vibe_id) REFERENCES vibes(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "place_vibes",
+      "conname": "place_vibes_vibe_id_not_null",
+      "definition": "NOT NULL vibe_id"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_area_not_null",
+      "definition": "NOT NULL area"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_category_id_fkey",
+      "definition": "FOREIGN KEY (category_id) REFERENCES place_categories(id) ON UPDATE CASCADE ON DELETE RESTRICT"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_coordinate_bounds",
+      "definition": "CHECK ((((latitude >= ('-90'::integer)::double precision) AND (latitude <= (90)::double precision)) AND ((longitude >= ('-180'::integer)::double precision) AND (longitude <= (180)::double precision))))"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_cover_image_url_not_null",
+      "definition": "NOT NULL cover_image_url"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_created_at_not_null",
+      "definition": "NOT NULL created_at"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_currency_not_null",
+      "definition": "NOT NULL currency"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_description_not_null",
+      "definition": "NOT NULL description"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_featured_not_null",
+      "definition": "NOT NULL featured"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_is_active_not_null",
+      "definition": "NOT NULL is_active"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_manually_managed_not_null",
+      "definition": "NOT NULL manually_managed"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_missing_check",
+      "definition": "CHECK ((missing_sync_count >= 0))"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_missing_sync_count_not_null",
+      "definition": "NOT NULL missing_sync_count"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_name_not_null",
+      "definition": "NOT NULL name"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_price_bounds",
+      "definition": "CHECK (((price_min >= (0)::numeric) AND (price_max >= (0)::numeric) AND (price_min <= price_max)))"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_price_level_not_null",
+      "definition": "NOT NULL price_level"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_source_check",
+      "definition": "CHECK ((((source)::text = ANY ((ARRAY['manual'::character varying, 'osm'::character varying])::text[])) AND (((source)::text <> 'osm'::text) OR (((source_type)::text = ANY ((ARRAY['node'::character varying, 'way'::character varying, 'relation'::character varying])::text[])) AND (source_id IS NOT NULL) AND (source_region IS NOT NULL)))))"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_source_not_null",
+      "definition": "NOT NULL source"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_source_tags_not_null",
+      "definition": "NOT NULL source_tags"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_status_check",
+      "definition": "CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'temporarily_closed'::character varying, 'permanently_closed'::character varying, 'unverified'::character varying])::text[])))"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_status_not_null",
+      "definition": "NOT NULL status"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_updated_at_not_null",
+      "definition": "NOT NULL updated_at"
+    },
+    {
+      "table_name": "places",
+      "conname": "places_vibe_not_null",
+      "definition": "NOT NULL vibe"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_icon_not_null",
+      "definition": "NOT NULL icon"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_id_not_null",
+      "definition": "NOT NULL id"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_is_active_not_null",
+      "definition": "NOT NULL is_active"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_name_ar_not_null",
+      "definition": "NOT NULL name_ar"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_name_en_not_null",
+      "definition": "NOT NULL name_en"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_sort_order_not_null",
+      "definition": "NOT NULL sort_order"
+    },
+    {
+      "table_name": "vibes",
+      "conname": "vibes_updated_at_not_null",
+      "definition": "NOT NULL updated_at"
+    }
+  ],
+  "indexes": [
+    {
+      "tablename": "place_images",
+      "indexname": "idx_place_images_place",
+      "indexdef": "CREATE INDEX idx_place_images_place ON public.place_images USING btree (place_id, sort_order)"
+    },
+    {
+      "tablename": "place_images",
+      "indexname": "place_images_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_images_pkey ON public.place_images USING btree (id)"
+    },
+    {
+      "tablename": "place_hours",
+      "indexname": "place_hours_place_id_day_key",
+      "indexdef": "CREATE UNIQUE INDEX place_hours_place_id_day_key ON public.place_hours USING btree (place_id, day)"
+    },
+    {
+      "tablename": "place_hours",
+      "indexname": "place_hours_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_hours_pkey ON public.place_hours USING btree (id)"
+    },
+    {
+      "tablename": "place_prices",
+      "indexname": "idx_place_prices_place",
+      "indexdef": "CREATE INDEX idx_place_prices_place ON public.place_prices USING btree (place_id)"
+    },
+    {
+      "tablename": "place_prices",
+      "indexname": "place_prices_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_prices_pkey ON public.place_prices USING btree (id)"
+    },
+    {
+      "tablename": "place_vibes",
+      "indexname": "place_vibes_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_vibes_pkey ON public.place_vibes USING btree (place_id, vibe_id)"
+    },
+    {
+      "tablename": "place_vibes",
+      "indexname": "idx_place_vibes_vibe",
+      "indexdef": "CREATE INDEX idx_place_vibes_vibe ON public.place_vibes USING btree (vibe_id, place_id)"
+    },
+    {
+      "tablename": "place_sync_runs",
+      "indexname": "place_sync_runs_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_sync_runs_pkey ON public.place_sync_runs USING btree (id)"
+    },
+    {
+      "tablename": "place_sync_runs",
+      "indexname": "idx_place_sync_success",
+      "indexdef": "CREATE INDEX idx_place_sync_success ON public.place_sync_runs USING btree (status, completed_at)"
+    },
+    {
+      "tablename": "place_sync_runs",
+      "indexname": "idx_place_sync_started",
+      "indexdef": "CREATE INDEX idx_place_sync_started ON public.place_sync_runs USING btree (started_at)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "idx_places_lat_lng",
+      "indexdef": "CREATE INDEX idx_places_lat_lng ON public.places USING btree (latitude, longitude)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "places_pkey",
+      "indexdef": "CREATE UNIQUE INDEX places_pkey ON public.places USING btree (id)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "idx_places_vibe",
+      "indexdef": "CREATE INDEX idx_places_vibe ON public.places USING btree (vibe)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "idx_places_status_category",
+      "indexdef": "CREATE INDEX idx_places_status_category ON public.places USING btree (status, category_id)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "idx_places_region_source",
+      "indexdef": "CREATE INDEX idx_places_region_source ON public.places USING btree (source_region, source)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "places_source_identity_key",
+      "indexdef": "CREATE UNIQUE INDEX places_source_identity_key ON public.places USING btree (source, source_type, source_id)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "idx_places_category",
+      "indexdef": "CREATE INDEX idx_places_category ON public.places USING btree (category_id)"
+    },
+    {
+      "tablename": "places",
+      "indexname": "idx_places_active_coordinates",
+      "indexdef": "CREATE INDEX idx_places_active_coordinates ON public.places USING btree (latitude, longitude) WHERE (is_active AND ((status)::text = 'active'::text))"
+    },
+    {
+      "tablename": "place_sync_lock",
+      "indexname": "place_sync_lock_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_sync_lock_pkey ON public.place_sync_lock USING btree (id)"
+    },
+    {
+      "tablename": "place_status_changes",
+      "indexname": "place_status_changes_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_status_changes_pkey ON public.place_status_changes USING btree (id)"
+    },
+    {
+      "tablename": "place_status_changes",
+      "indexname": "idx_place_status_history",
+      "indexdef": "CREATE INDEX idx_place_status_history ON public.place_status_changes USING btree (place_id, created_at)"
+    },
+    {
+      "tablename": "place_categories",
+      "indexname": "place_categories_pkey",
+      "indexdef": "CREATE UNIQUE INDEX place_categories_pkey ON public.place_categories USING btree (id)"
+    },
+    {
+      "tablename": "vibes",
+      "indexname": "vibes_pkey",
+      "indexdef": "CREATE UNIQUE INDEX vibes_pkey ON public.vibes USING btree (id)"
+    }
+  ]
+}

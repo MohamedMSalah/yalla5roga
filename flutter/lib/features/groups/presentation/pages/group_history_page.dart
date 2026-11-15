@@ -69,7 +69,6 @@ class _GroupHistoryPageState extends State<GroupHistoryPage> {
                 : ListView(
                     padding: Responsive.pagePadding(),
                     children: [
-                      if (_loading) const LinearProgressIndicator(),
                       Text(group.name, style: context.texts.titleLarge),
                       Responsive.spaceLg.gapH,
                       if (widget.invitations)

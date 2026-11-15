@@ -1,0 +1,45 @@
+{
+  "checkedAt": "2026-11-14T21:20:34.345Z",
+  "mode": "deploy",
+  "migration": "20261114051000_places_unknown_price_absence",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [
+    "20261114051000_places_unknown_price_absence"
+  ],
+  "privateBackup": ".database-backups/places-ingestion-2026-11-14T21-21-23.960Z/snapshot.json",
+  "backupSha256": "21499dd9fd7fd442a3492ee93167969d39aebf68615f2ad9263f9c95ddc78eec",
+  "rehearsal": "PASS: all public rows restored with keys/indexes/FKs; exact migration rehearsed using an isolated enum and rolled back",
+  "tableCount": 35,
+  "rowCount": 793,
+  "existingRowsPreserved": true,
+  "changedTables": [],
+  "pendingAfter": [],
+  "appliedMigration": {
+    "migration_name": "20261114051000_places_unknown_price_absence",
+    "checksum": "5f42381f5e9db928d9fc1d4f1ad834844d0663c8bea01ca8d830e49704c20f4c"
+  },
+  "columns": [
+    {
+      "column_name": "last_synced_at"
+    },
+    {
+      "column_name": "category_id"
+    },
+    {
+      "column_name": "source_id"
+    },
+    {
+      "column_name": "status"
+    }
+  ],
+  "taxonomy": {
+    "categories": 36,
+    "vibes": 15
+  },
+  "result": "PASS"
+}

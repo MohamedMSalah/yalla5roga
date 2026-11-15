@@ -28,7 +28,9 @@ class OutingChatSkeleton extends StatelessWidget {
 
   Widget _bubble({required bool mine, required double width}) {
     return Align(
-      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      alignment: mine
+          ? AlignmentDirectional.centerEnd
+          : AlignmentDirectional.centerStart,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,

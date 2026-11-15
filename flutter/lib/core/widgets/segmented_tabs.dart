@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 
@@ -29,63 +29,96 @@ class SegmentedTabs extends StatelessWidget {
         color: palette.surfaceSoft,
         borderRadius: BorderRadius.circular(14.r),
       ),
-      child: Row(
-        children: [
-          for (var i = 0; i < labels.length; i++)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(i),
-                child: AnimatedContainer(
-                  duration: AppMotion.standard,
-                  curve: AppMotion.settle,
-                  padding: EdgeInsets.symmetric(vertical: 10.h),
-                  decoration: BoxDecoration(
-                    color: i == index ? palette.surface : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10.r),
-                    boxShadow: i == index
-                        ? [
-                            BoxShadow(
-                              color: palette.shadow,
-                              blurRadius: 8.w,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        labels[i],
-                        style: TextStyle(
-                          fontSize: Responsive.fontSm,
-                          fontWeight: FontWeight.w800,
-                          color: i == index ? palette.brandStrong : palette.textMuted,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < labels.length; i++)
+              Expanded(
+                child: Semantics(
+                  button: true,
+                  selected: i == index,
+                  inMutuallyExclusiveGroup: true,
+                  child: AnimatedContainer(
+                    duration: AppMotion.of(context, AppMotion.standard),
+                    curve: AppMotion.settle,
+                    constraints: const BoxConstraints(
+                      minHeight: AppSizes.touchTarget,
+                    ),
+                    decoration: BoxDecoration(
+                      color: i == index ? palette.surface : Colors.transparent,
+                      borderRadius: BorderRadius.circular(10.r),
+                      boxShadow: i == index
+                          ? [
+                              BoxShadow(
+                                color: palette.shadow,
+                                blurRadius: 8.w,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Material(
+                      type: MaterialType.transparency,
+                      child: InkWell(
+                        onTap: () => onChanged(i),
+                        borderRadius: BorderRadius.circular(AppRadii.small.r),
+                        child: Padding(
+                          padding: Responsive.padding(
+                            horizontal: 8,
+                            vertical: 10,
+                          ),
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: Responsive.spaceXs,
+                            runSpacing: Responsive.spaceXs,
+                            children: [
+                              Text(
+                                labels[i],
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: Responsive.fontSm,
+                                  fontWeight: FontWeight.w800,
+                                  color: i == index
+                                      ? palette.brandStrong
+                                      : palette.textMuted,
+                                ),
+                              ),
+                              if (badges[i] != null) ...[
+                                Container(
+                                  padding: Responsive.padding(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: i == index
+                                        ? palette.brandSoft
+                                        : palette.dangerSoft,
+                                    borderRadius: BorderRadius.circular(999.r),
+                                  ),
+                                  child: Text(
+                                    badges[i]!,
+                                    style: TextStyle(
+                                      fontSize: Responsive.fontXs,
+                                      fontWeight: FontWeight.w800,
+                                      color: i == index
+                                          ? palette.brandStrong
+                                          : palette.danger,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
-                      if (badges[i] != null) ...[
-                        Responsive.spaceXs.gapW,
-                        Container(
-                          padding: Responsive.padding(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: i == index ? AppColors.brand100 : AppColors.rose500,
-                            borderRadius: BorderRadius.circular(999.r),
-                          ),
-                          child: Text(
-                            badges[i]!,
-                            style: TextStyle(
-                              fontSize: Responsive.fontXs,
-                              fontWeight: FontWeight.w800,
-                              color: i == index ? AppColors.brand700 : Colors.white,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
 
