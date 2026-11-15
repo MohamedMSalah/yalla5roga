@@ -1317,7 +1317,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         CastVoteRequest: {
           type: "object",
           required: ["option_id"],
-          properties: { option_id: uuid },
+          properties: { option_id: uuid, round_number: { type: "integer", minimum: 1 } },
         },
         Vote: {
           type: "object",
@@ -1326,6 +1326,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             outing_id: uuid,
             user_id: firebaseUid,
             option_id: uuid,
+            round_number: { type: "integer", minimum: 1 },
             created_at: dateTime,
           },
         },
@@ -1337,6 +1338,9 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             outcome: { type: "string", enum: ["confirmed", "tie", "cancelled", "still_open"],
             },
             winningOptionId: uuid,
+            voting_state: { type: "string", enum: ["confirmed"] },
+            resolution_method: { type: "string", nullable: true },
+            confirmed_location: ref("VoteOption"),
             tiedOptionIds: { type: "array", items: uuid },
           },
         },
@@ -1365,6 +1369,11 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           ],
           properties: {
             outing: ref("Outing"),
+            voting_state: { type: "string", enum: ["active", "tie_pending", "revote_active", "confirmed", "cancelled"] },
+            can_resolve_tie: { type: "boolean" },
+            resolution_method: { type: "string", nullable: true },
+            current_round: { type: "object", properties: { id: uuid, round_number: { type: "integer" }, starts_at: dateTime, ends_at: { ...dateTime, nullable: true }, status: { type: "string" } } },
+            confirmed_location: { allOf: [ref("VoteOption")], nullable: true },
             options: { type: "array", items: { allOf: [ref("VoteOption"), {
               type: "object", properties: { vote_count: { type: "integer" } },
             },

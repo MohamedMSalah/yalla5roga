@@ -86,7 +86,7 @@ Dependencies point `presentation → domain ← data`; reuse existing interfaces
   Neon is authoritative; Firebase UID is the corresponding `users.id`.
 - Preserve all existing migrations, IDs, foreign keys, indexes and user data.
   Prefer additive migrations; no silent reset or destructive production migration.
-- Multiple-place ballots use one row per `(outing_id, user_id, option_id)`;
+- Multiple-place ballots use one row per `(outing_id, user_id, option_id, round_number)`;
   count distinct voters for participation. Do not restore single-choice uniqueness.
 - Winner options must belong to their outing. RSVP (`outing_attendance`) is
   separate from votes and GPS presence (`outing_arrivals`). Creator remains Going.

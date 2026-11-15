@@ -214,13 +214,31 @@ class OutingsRepositoryImpl implements OutingsRepository {
   }
 
   @override
-  Future<Either<Failure, TieBreakResult>> breakTie(String outingId) async {
+  Future<Either<Failure, TieBreakResult>> breakTie(
+    String outingId, [
+    int? roundNumber,
+  ]) async {
     final result = await guardRemote(
       networkInfo,
-      () => remote.breakTie(outingId),
+      () => remote.breakTie(outingId, roundNumber),
       reason: 'breakTie',
     );
     result.fold((_) {}, (value) => _storeSnapshot(value.snapshot));
+    return result;
+  }
+
+  @override
+  Future<Either<Failure, OutingSnapshot>> startRevote(
+    String outingId,
+    DateTime deadline,
+    int roundNumber,
+  ) async {
+    final result = await guardRemote(
+      networkInfo,
+      () => remote.startRevote(outingId, deadline, roundNumber),
+      reason: 'startRevote',
+    );
+    result.fold((_) {}, _storeSnapshot);
     return result;
   }
 

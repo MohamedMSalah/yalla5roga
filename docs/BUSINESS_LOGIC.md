@@ -50,7 +50,7 @@ stateDiagram-v2
   draft --> voting: candidates added / voting starts
   draft --> confirmed: create with fixed location path
   voting --> confirmed: unique winner or tie-break
-  voting --> cancelled: zero votes at close OR owner cancel
+  voting --> cancelled: creator cancels
   confirmed --> cancelled: owner cancel
   confirmed --> past: completion job
   note right of voting: vote_closed_at may lock ballots while status stays voting during unresolved tie
@@ -60,12 +60,12 @@ stateDiagram-v2
 |------------|-----------|--------|
 | Create → draft/confirmed/voting | `CreateOutingUseCase` | Implemented (single location → draft/confirmed path; **Add places** on shared create page → voting + options; former suggest sheet removed) |
 | draft → voting | Adding options | Implemented |
-| Early close all voted | `tryCloseIfAllVoted` | Implemented |
+| All members voted | Remain open until backend deadline | Implemented |
 | Deadline close | `close-voting-deadline.job` | Implemented |
 | Unique winner → confirmed | `vote-resolution` | Implemented |
 | Tie → lock votes, await Owner | `markVotingClosedPendingTie` | Implemented |
 | Tie-break → confirmed | `POST …/tie-break` | Implemented |
-| Zero votes → cancelled | resolution | Implemented |
+| Zero votes → tie_pending | creator random/revote | Implemented |
 | Owner cancel | `POST …/cancel` | Implemented |
 | confirmed → past | `complete-outings.job` | Implemented |
 
@@ -87,7 +87,7 @@ Backend is source of truth. Flutter must not finalize winners.
 6. Unique highest wins automatically.
 7. Tie → Owner-triggered backend RNG among **tied leaders only**; Flutter animates server result.
 8. All distinct eligible voters have a nonempty ballot → close immediately after the entire submitted selection is persisted.
-9. Deadline → close; zero votes → cancel; open with zero votes → **do not** cancel.
+9. Deadline → close; zero votes → creator random/revote with all eligible places. Open voting never cancels because of zero votes.
 10. Candidate set change → reset all votes, keep deadline, notify.
 
 **Implemented:** Encoded in `voting.usecase.ts`, `vote-resolution.ts`, validators requiring deadline on create, participant helpers.
@@ -217,7 +217,7 @@ Verified identity linking is not acceptance. Group roster pending display now in
 
 ## Phase 3 ballots and presentation — 2026-11-14
 
-The complete ballot uses the existing authenticated participant definition and an outing-row lock. It validates every option against the outing, replaces only the caller’s selections, and invokes existing resolution inside the same transaction if all distinct voters have participated. Duplicate options are rejected. POST idempotently adds one selection; DELETE can remove one or all caller selections. These writers also serialize on the outing and reject expired/closed voting. Existing unique-winner, owner RNG among tied leaders, zero-vote cancellation and creator venue-confirmation policies are unchanged. RSVP and GPS arrival never add/remove votes. UI category, schedule and deadline values remain in the existing route-local create provider between wizard steps; draft deadlines also survive saving without multi-place mode.
+The complete ballot uses the existing authenticated participant definition and an outing-row lock. It validates every option against the outing, replaces only the caller’s selections, and keeps the round open until its backend deadline. Duplicate options are rejected. POST idempotently adds one selection; DELETE can remove one or all caller selections. These writers also serialize on the outing and reject expired/closed voting. Unique winners confirm at deadline. Tied/zero-vote results await creator random selection or a tied-only revote. Single proposed venues retain explicit confirmation. RSVP and GPS arrival never add/remove votes. UI category, schedule and deadline values remain in the existing route-local create provider between wizard steps; draft deadlines also survive saving without multi-place mode.
 
 
 ## Create voting deadline policy — 2026-11-14
@@ -273,3 +273,10 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Round-based location voting — 2026-11-15
+
+`resolveClosedVoting` freezes valid current-participant votes into relational round-option results at the deadline. Historical ballots remain immutable when a revote starts. The outing row is locked for every ballot, closure, random resolution, revote and ordinary cancellation. `current_voting_round` selects the authoritative round; votes are unique per outing/user/option/round. The round table persists active/tie_pending/closed/confirmed/cancelled; API derives `revote_active` from an active round numbered above one. Group-owner status is irrelevant to creator authorization.
+
+Random and revote serialize on the same row. Random retries in the same confirmed round return the same winner; duplicate/stale revote requests return 409. New clients send `round_number`; omitted round guards mean round 1 for compatibility and cannot mutate later rounds. Vote removal uses the same guard in its query. New-round options must reference that round; manual confirmation cannot bypass a revote. Notification outbox writes commit with transitions and durable per-round keys. GPS/RSVP and chat membership never change.

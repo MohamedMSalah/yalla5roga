@@ -295,6 +295,10 @@ DeleteGroupUseCase threads callerUid through the existing group repository to Gr
 
 The existing `validate-api-docs.ts` checks every JSON application route against OpenAPI. In mock-media configuration it additionally asserts the exact presence of PUT mock-upload and GET mock-download binary-storage transports before excluding those two from application-contract parity; R2 configuration permits neither exclusion. All other undocumented routes still fail. This corrects the audit tool, not application routing or API behavior.
 
+## On-demand client cleanup — 2026-11-15
+
+Chat/group gateways keep only pending join intent per socket/resource. Leave invalidates it synchronously; disconnect clears the intent map. Authorization completion checks connected state and the current intent before joining/acknowledging, preventing a late query from resurrecting a closed room. The installed Socket.IO disconnect implementation leaves all rooms and removes the socket from its namespace/client automatically; no per-client polling or extra worker is introduced. Chat read fan-out returns before the participant query when the outing room has no connected viewers; current participant authorization remains enforced whenever viewers exist. Existing verified-token handshake, audience filtering, REST persistence and single-process topology remain unchanged. [Served Swagger evidence](audit/SOCKET_LIFECYCLE_OPENAPI_RESULTS.json) verifies HTTP compatibility/authentication boundaries only, not these socket races.
+
 
 ## Multi-branch places — 2026-11-15
 
@@ -303,3 +307,8 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Location voting round extension — 2026-11-15
+
+Existing voting routes/controllers/use cases and `OutingDataSource` now scope ballots/results to the authoritative round. `startRevote` joins the existing vote-resolution service; validation uses existing Zod/error middleware. Row locks and database constraints serialize closure, ballots, random/revote and cancellation. Notification producers persist with the state transaction; delivery retries remain in the existing outbox worker. Legacy route names remain supported. See [contract](API_CONTRACTS.md#location-tierevote-contract--2026-11-15) and [HTTP evidence](audit/LOCATION_TIE_OPENAPI_RESULTS.json).

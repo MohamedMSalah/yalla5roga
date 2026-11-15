@@ -156,6 +156,8 @@ export class OutingDatasource {
       where: { id },
       data: { ...data, updated_at: new Date() },
       });
+      if (data.vote_ends_at !== undefined) await tx.outing_voting_rounds.update({ where: { outing_id_round_number: { outing_id: id, round_number: updated.current_voting_round } }, data: { ends_at: updated.vote_ends_at } });
+      if (updated.status === "cancelled" || updated.status === "past") await tx.outing_voting_rounds.updateMany({ where: { outing_id: id, status: { in: ["active", "tie_pending"] } }, data: { status: updated.status === "cancelled" ? "cancelled" : "closed" } });
       await persistOutingTransition(tx, before!, updated);
       return updated;
     });
@@ -262,9 +264,10 @@ export class OutingDatasource {
     });
   }
 
-  listVoteOptions(outingId: string): Promise<OutingVoteOption[]> {
+  async listVoteOptions(outingId: string): Promise<OutingVoteOption[]> {
+    const outing = await prisma.outings.findUniqueOrThrow({ where: { id: outingId } });
     return prisma.outing_vote_options.findMany({
-      where: { outing_id: outingId },
+      where: { outing_id: outingId, round_options: { some: { round_number: outing.current_voting_round } } },
       orderBy: { sort_order: "asc" },
     });
   }
@@ -281,44 +284,52 @@ export class OutingDatasource {
     return prisma.outing_vote_options.delete({ where: { id } });
   }
 
-  listVotes(outingId: string): Promise<OutingVote[]> {
-    return prisma.outing_votes.findMany({ where: { outing_id: outingId } });
+  async listVotes(outingId: string): Promise<OutingVote[]> {
+    const outing = await prisma.outings.findUniqueOrThrow({ where: { id: outingId } });
+    return prisma.outing_votes.findMany({ where: { outing_id: outingId, round_number: outing.current_voting_round } });
   }
 
   /** Idempotently add one selection without removing the rest of the ballot. */
   castVote(data: CastVoteInput): Promise<OutingVote> {
     return prisma.$transaction(async (tx) => {
-      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null;
-        }>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${data.outing_id}::uuid FOR UPDATE`;
+      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null;current_voting_round:number;updated_at:Date;
+        }>>`SELECT status, vote_closed_at, vote_ends_at, current_voting_round, updated_at FROM outings WHERE id = ${data.outing_id}::uuid FOR UPDATE`;
       if (!outing || outing.status !== "voting" || outing.vote_closed_at || !outing.vote_ends_at || outing.vote_ends_at <= new Date()) throw new ConflictError("Voting is closed");
+      if ((data.round_number ?? 1) !== outing.current_voting_round) throw new ConflictError("Voting round changed");
+      const eligible = await tx.outing_voting_round_options.findUnique({ where: { outing_id_round_number_option_id: { outing_id: data.outing_id, round_number: outing.current_voting_round, option_id: data.option_id } } });
+      if (!eligible) throw new ConflictError("Location is not eligible in this round");
+      await tx.outings.update({ where: { id: data.outing_id }, data: { updated_at: new Date(Math.max(Date.now(), outing.updated_at.getTime()+1)) } });
       return tx.outing_votes.upsert({
-      where: { outing_id_user_id_option_id: {
-        outing_id: data.outing_id, user_id: data.user_id, option_id: data.option_id,
+      where: { outing_id_user_id_option_id_round_number: {
+        outing_id: data.outing_id, user_id: data.user_id, option_id: data.option_id, round_number: outing.current_voting_round,
       },
-        }, create: data, update: {},
+        }, create: { ...data, round_number: outing.current_voting_round }, update: {},
       });
     });
   }
 
-  async removeVote(outingId: string, userId: string, optionId?: string,
+  async removeVote(outingId: string, userId: string, optionId?: string, expectedRound?: number,
   ): Promise<OutingVote> {
     return prisma.$transaction(async (tx) => {
-      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null;
-        }>>`SELECT status, vote_closed_at, vote_ends_at FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
+      const [outing] = await tx.$queryRaw<Array<{status:string;vote_closed_at:Date|null;vote_ends_at:Date|null;current_voting_round:number;updated_at:Date;
+        }>>`SELECT status, vote_closed_at, vote_ends_at, current_voting_round, updated_at FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
       if (!outing || outing.status !== "voting" || outing.vote_closed_at || !outing.vote_ends_at || outing.vote_ends_at <= new Date()) throw new ConflictError("Voting is closed");
-      const where = { outing_id: outingId, user_id: userId, ...(optionId ? { option_id: optionId } : {}),
+      if ((expectedRound ?? 1) !== outing.current_voting_round) throw new ConflictError("Voting round changed");
+      const where = { outing_id: outingId, round_number: outing.current_voting_round, user_id: userId, ...(optionId ? { option_id: optionId } : {}),
       };
       const vote = await tx.outing_votes.findFirstOrThrow({ where });
       await tx.outing_votes.deleteMany({ where });
+      await tx.outings.update({ where: { id: outingId }, data: { updated_at: new Date(Math.max(Date.now(), outing.updated_at.getTime()+1)) } });
       return vote;
     });
   }
 
   async clearVotes(outingId: string): Promise<number> {
-    const result = await prisma.outing_votes.deleteMany({
-      where: { outing_id: outingId },
+    return prisma.$transaction(async tx => {
+      const [outing] = await tx.$queryRaw<Outing[]>`SELECT * FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
+      if (!outing || outing.current_voting_round > 1 || outing.vote_closed_at || outing.status !== "voting") throw new ConflictError("Cannot clear closed or historical ballots");
+      return (await tx.outing_votes.deleteMany({ where: { outing_id: outingId, round_number: outing.current_voting_round } })).count;
     });
-    return result.count;
   }
 
   findDraftById(id: string): Promise<OutingDraft | null> {

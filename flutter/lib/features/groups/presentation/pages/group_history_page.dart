@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/realtime_route.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -20,7 +21,11 @@ class GroupHistoryPage extends StatefulWidget {
   State<GroupHistoryPage> createState() => _GroupHistoryPageState();
 }
 
-class _GroupHistoryPageState extends State<GroupHistoryPage> {
+class _GroupHistoryPageState extends State<GroupHistoryPage>
+    with RealtimeRoute<GroupHistoryPage> {
+  @override
+  String get realtimeGroupId => widget.groupId;
+
   late final GroupsProvider _groups;
   bool _loading = true;
   @override

@@ -1,0 +1,107 @@
+{
+  "checkedAt": "2026-11-15T17:17:53.208Z",
+  "engine": "Local PostgreSQL/WASM",
+  "mode": "Served Swagger HTTP, controlled Firebase verifier; no production writes, Flutter or workers",
+  "results": [
+    {
+      "scenario": "All migrations apply in isolated local schema",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Every HTTP operation selected from served Swagger/OpenAPI",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Clear winner automatically confirmed; multiple location selection supported",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Two-way top tie excludes lower location",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Member and noncreator group owner receive 403",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Unauthenticated request rejected",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Revote contains only tied locations, zero new votes and preserved history",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Duplicate revote, eliminated location and stale round rejected",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Members can change and remove round selections",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Repeated tie awaits creator again",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Concurrent and repeated random requests return same persisted eligible winner",
+      "result": "PASS"
+    },
+    {
+      "scenario": "RSVP unchanged across closure, revote and random resolution",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Zero votes retains all candidates for creator intervention",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Three-way tie excludes lower candidate",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Random selection and revote race has one successful transition",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Single venue retains creator confirmation workflow",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Invalid deadline and cancelled outing rejected",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Zero-vote revote keeps all eligible candidates",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Manual venue endpoint cannot bypass a revote",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Legacy stale DELETE cannot remove current revote ballots",
+      "result": "PASS"
+    },
+    {
+      "scenario": "New accepted participant can vote after revote starts",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Votes arriving after deadline are rejected before worker closure",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Completed outing cannot resolve a tie",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Third voting round supported without carrying forward votes",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Retry creates no duplicate notification events",
+      "result": "PASS"
+    }
+  ]
+}

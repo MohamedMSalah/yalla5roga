@@ -26,9 +26,60 @@ class OutingChatSocketClient {
   final OutingChatTokenProvider tokenProvider;
 
   io.Socket? _socket;
+  final _owners = <Object>{};
+  bool _foreground = true;
+  Timer? _authRetry;
+
+  bool get hasDemand => _owners.isNotEmpty || _desiredOutingIds.isNotEmpty;
+  bool get _canConnect =>
+      !_disposed && _foreground && _networkAvailable && hasDemand;
+
+  void retain(Object owner) {
+    if (_disposed) return;
+    _owners.add(owner);
+    unawaited(ensureConnected());
+  }
+
+  void release(Object owner) {
+    _owners.remove(owner);
+    if (!hasDemand) _suspend();
+  }
+
+  /// Suspend the transport without discarding active viewers or replay cursor.
+  void setForeground(bool foreground) {
+    _foreground = foreground;
+    if (!foreground) _suspend();
+  }
+
+  void _suspend() {
+    _session++;
+    _reconciling = null;
+    _connecting = false;
+    _authRetry?.cancel();
+    _authRetry = null;
+    _authRetryScheduled = false;
+    _authAttempts = 0;
+    _forceTokenRefresh = false;
+    for (final timer in _joinRetries.values) {
+      timer.cancel();
+    }
+    _joinRetries.clear();
+    _joinAttempts.clear();
+    _joined.clear();
+    _joining.clear();
+    _joinedGroups.clear();
+    _joiningGroups.clear();
+    _groupJoins.clear();
+    _outingJoins.clear();
+    unawaited(_disposeSocket());
+    _emitConnection(false);
+  }
+
   final _desiredOutingIds = <String>{};
   final _desiredGroupIds = <String>{};
   final _joinedGroups = <String>{};
+  final _groupJoins = <String, Object>{};
+  final _outingJoins = <String, Object>{};
   final _joiningGroups = <String, Future<void>>{};
   final _messageController = StreamController<ChatMessage>.broadcast();
   final _readController =
@@ -63,7 +114,8 @@ class OutingChatSocketClient {
   bool get isConnected => _socket?.connected ?? false;
   bool _unavailable = false;
   bool _networkAvailable = true;
-  bool get isReconnecting => !_unavailable && (_connecting || _socket != null);
+  bool get isReconnecting =>
+      _canConnect && !_unavailable && (_connecting || _socket != null);
   bool isRoomConnected(String id) =>
       _networkAvailable && isConnected && _joined.contains(id);
   bool isRoomReconnecting(String id) =>
@@ -74,6 +126,7 @@ class OutingChatSocketClient {
 
   void setNetworkAvailable(bool online) {
     _networkAvailable = online;
+    if (!online) _suspend();
     _emitConnection(isConnected);
   }
 
@@ -81,7 +134,7 @@ class OutingChatSocketClient {
   Set<String> get joinedOutingIds => Set.unmodifiable(_desiredOutingIds);
 
   Future<void> ensureConnected() async {
-    if (_disposed) return;
+    if (!_canConnect) return;
     if (_socket?.connected == true) return;
     if (_connecting) {
       await (_connectCompleter?.future ?? Future<void>.value());
@@ -100,13 +153,14 @@ class OutingChatSocketClient {
     }
 
     final session = _session;
+    _unavailable = false;
     _connecting = true;
     _emitConnection(false);
     _connectCompleter = Completer<void>();
     try {
       final token = await tokenProvider(forceRefresh: _forceTokenRefresh);
       _forceTokenRefresh = false;
-      if (session != _session) return;
+      if (session != _session || !_canConnect) return;
       if (token == null || token.isEmpty) {
         _scheduleAuthRetryIfNeeded('unauthorized');
         return;
@@ -119,6 +173,7 @@ class OutingChatSocketClient {
             .disableAutoConnect()
             .enableForceNew()
             .enableReconnection()
+            .setReconnectionAttempts(5)
             .setReconnectionDelay(1000)
             .setReconnectionDelayMax(8000)
             // Auth callback runs on every (re)connect â€” never trust client userId.
@@ -142,6 +197,8 @@ class OutingChatSocketClient {
         _unavailable = false;
         debugPrint('[OutingChatSocket] connected');
         _authRetryScheduled = false;
+        _authRetry?.cancel();
+        _authRetry = null;
         _authAttempts = 0;
         _emitConnection(true);
         if (!(_connectCompleter?.isCompleted ?? true)) {
@@ -272,11 +329,17 @@ class OutingChatSocketClient {
   }
 
   Future<void> _join(io.Socket socket, String outingId) async {
+    final intent = Object();
+    _outingJoins[outingId] = intent;
     final connection = socket.id;
     final ack = await _emitWithAck(socket, 'outing:join', {
       'outingId': outingId,
     });
-    if (_socket != socket || socket.id != connection) return;
+    if (_socket != socket ||
+        socket.id != connection ||
+        !identical(_outingJoins[outingId], intent)) {
+      return;
+    }
     if (ack['ok'] == true) {
       if (_desiredOutingIds.contains(outingId)) {
         _joined.add(outingId);
@@ -312,6 +375,7 @@ class OutingChatSocketClient {
     if (error == 'FORBIDDEN' || error == 'UNAUTHORIZED') {
       _desiredOutingIds.remove(outingId);
       _rejectedRooms.add(outingId);
+      if (!hasDemand) _suspend();
     } else if (_desiredOutingIds.contains(outingId)) {
       final attempt = _joinAttempts.update(
         outingId,
@@ -338,14 +402,18 @@ class OutingChatSocketClient {
   }
 
   Future<void> leaveOuting(String outingId) async {
+    _outingJoins.remove(outingId);
+    _joining.remove(outingId);
     _joinRetries.remove(outingId)?.cancel();
     _joinAttempts.remove(outingId);
     _rejectedRooms.remove(outingId);
     _desiredOutingIds.remove(outingId);
     _joined.remove(outingId);
     final socket = _socket;
-    if (socket == null || !socket.connected) return;
-    await _emitWithAck(socket, 'outing:leave', {'outingId': outingId});
+    if (socket != null && socket.connected) {
+      socket.emit('outing:leave', {'outingId': outingId});
+    }
+    if (!hasDemand) _suspend();
   }
 
   /// Re-assert connection + rooms after foreground resume / network regain.
@@ -356,6 +424,9 @@ class OutingChatSocketClient {
   }
 
   Future<void> disconnect() async {
+    _owners.clear();
+    _authRetry?.cancel();
+    _authRetry = null;
     _session++;
     _dataCursor.clear();
     _reconciling = null;
@@ -367,6 +438,8 @@ class OutingChatSocketClient {
     _desiredGroupIds.clear();
     _joinedGroups.clear();
     _joiningGroups.clear();
+    _groupJoins.clear();
+    _outingJoins.clear();
     for (final timer in _joinRetries.values) {
       timer.cancel();
     }
@@ -404,29 +477,42 @@ class OutingChatSocketClient {
     final socket = _socket;
     if (socket == null || !socket.connected) return;
     for (final id in removed) {
+      _groupJoins.remove(id);
+      _joiningGroups.remove(id);
       _joinedGroups.remove(id);
       socket.emit('group:leave', {'groupId': id});
     }
     await Future.wait(
       desired.map(
-        (id) => _joiningGroups
-            .putIfAbsent(id, () async {
-              if (_joinedGroups.contains(id)) return;
-              final connection = socket.id;
-              final ack = await _emitWithAck(socket, 'group:join', {
-                'groupId': id,
-              });
-              if (_socket != socket || socket.id != connection) return;
-              if (ack['ok'] == true && _desiredGroupIds.contains(id)) {
-                _joinedGroups.add(id);
+        (id) => _joiningGroups.putIfAbsent(id, () {
+          final join = _joinGroup(socket, id);
+          unawaited(
+            join.whenComplete(() {
+              if (identical(_joiningGroups[id], join)) {
+                _joiningGroups.remove(id);
               }
-              if (!_desiredGroupIds.contains(id)) {
-                socket.emit('group:leave', {'groupId': id});
-              }
-            })
-            .whenComplete(() => _joiningGroups.remove(id)),
+            }),
+          );
+          return join;
+        }),
       ),
     );
+  }
+
+  Future<void> _joinGroup(io.Socket socket, String id) async {
+    if (_joinedGroups.contains(id)) return;
+    final intent = Object();
+    _groupJoins[id] = intent;
+    final connection = socket.id;
+    final ack = await _emitWithAck(socket, 'group:join', {'groupId': id});
+    if (_socket != socket ||
+        socket.id != connection ||
+        !identical(_groupJoins[id], intent)) {
+      return;
+    }
+    if (ack['ok'] == true && _desiredGroupIds.contains(id)) {
+      _joinedGroups.add(id);
+    }
   }
 
   /// Replay only missed invalidations. False requests a bounded stale-cache fallback.
@@ -469,7 +555,7 @@ class OutingChatSocketClient {
   }
 
   void _scheduleAuthRetryIfNeeded(dynamic error) {
-    if (_disposed || _authRetryScheduled) return;
+    if (!_canConnect || _authRetryScheduled || _authAttempts >= 5) return;
     final text = error.toString().toLowerCase();
     final unauthorized =
         text.contains('unauthorized') ||
@@ -480,15 +566,14 @@ class OutingChatSocketClient {
     final session = _session;
     final seconds = 1 << _authAttempts.clamp(0, 6);
     _authAttempts++;
-    unawaited(() async {
-      await Future<void>.delayed(Duration(seconds: seconds));
-      if (_disposed || session != _session) return;
+    _authRetry = Timer(Duration(seconds: seconds), () async {
+      if (!_canConnect || session != _session) return;
       await _disposeSocket();
       if (_disposed || session != _session) return;
       _authRetryScheduled = false;
       _forceTokenRefresh = true;
       await ensureConnected();
-    }());
+    });
   }
 
   void _onMessage(dynamic raw) {
@@ -551,6 +636,8 @@ class OutingChatSocketClient {
     _connectCompleter = null;
     if (socket == null) return;
     try {
+      socket.io.off('reconnect_failed');
+      socket.io.off('reconnect_attempt');
       socket.clearListeners();
       socket.dispose();
     } catch (error) {

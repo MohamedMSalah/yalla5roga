@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { Router } from "express";
 import { OutingController } from "../../controllers/outings/outing.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
@@ -122,6 +123,7 @@ import {
  *             type: object
  *             required: [option_ids]
  *             properties:
+ *               round_number: { type: integer, minimum: 1, description: Required after the initial round }
  *               option_ids:
  *                 type: array
  *                 maxItems: 5
@@ -207,6 +209,10 @@ import {
  *     operationId: removeMyVotes
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
+ *       - in: query
+ *         name: round_number
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Current voting round; required after round 1
  *     responses:
  *       "200":
  *         description: Removed vote(s)
@@ -236,6 +242,10 @@ import {
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
  *       - $ref: "#/components/parameters/OptionId"
+ *       - in: query
+ *         name: round_number
+ *         schema: { type: integer, minimum: 1 }
+ *         description: Current voting round; required after round 1
  *     responses:
  *       "200":
  *         description: Removed vote
@@ -286,6 +296,14 @@ import {
  *     operationId: breakTie
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               method: { type: string, enum: [random] }
+ *               round_number: { type: integer, minimum: 1, description: Required after the initial round }
  *     responses:
  *       "200":
  *         description: Tie broken
@@ -293,6 +311,8 @@ import {
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/VoteResolutionResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  *       "403":
@@ -349,12 +369,12 @@ router.post(
 );
 router.delete(
   "/:id/votes",
-  validate({ params: outingIdParamsSchema }),
+  validate({ params: outingIdParamsSchema, query: z.object({ round_number: z.coerce.number().int().positive().optional() }) }),
   controller.unvote,
 );
 router.delete(
   "/:id/votes/:optionId",
-  validate({ params: voteParamsSchema }),
+  validate({ params: voteParamsSchema, query: z.object({ round_number: z.coerce.number().int().positive().optional() }) }),
   controller.unvote,
 );
 router.get(
@@ -364,7 +384,7 @@ router.get(
 );
 router.post(
   "/:id/tie-break",
-  validate({ params: outingIdParamsSchema }),
+  validate({ params: outingIdParamsSchema, body: z.object({ method: z.literal("random").optional(), round_number: z.number().int().positive().optional() }).optional() }),
   controller.breakTie,
 );
 
@@ -404,5 +424,39 @@ router.put(
   validate({ params: outingIdParamsSchema, body: castVoteBodySchema }),
   controller.confirmVenue,
 );
+
+/**
+ * @openapi
+ * /api/outings/{id}/voting/revote:
+ *   post:
+ *     tags: [Outing Voting]
+ *     operationId: startOutingRevote
+ *     summary: Creator starts a new round restricted to persisted tied locations
+ *     parameters:
+ *       - $ref: "#/components/parameters/UuidId"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [deadline, round_number]
+ *             properties:
+ *               deadline: { type: string, format: date-time }
+ *               round_number: { type: integer, minimum: 1 }
+ *     responses:
+ *       "200":
+ *         description: Current voting state with new empty round
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: "#/components/schemas/VotingStateResponse"
+ *       "400": { description: Invalid deadline or request }
+ *       "401": { $ref: "#/components/responses/Unauthorized" }
+ *       "403": { $ref: "#/components/responses/Forbidden" }
+ *       "404": { $ref: "#/components/responses/NotFound" }
+ *       "409": { description: Round changed or voting is not tie pending }
+ */
+router.post("/:id/voting/revote", validate({ params: outingIdParamsSchema, body: z.object({ deadline: z.iso.datetime({ offset: true }), round_number: z.number().int().positive() }) }), controller.revote);
 
 export default router;

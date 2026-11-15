@@ -73,6 +73,8 @@ export async function resolvePush(
       )
         return null;
     }
+    if (data.roundNumber && Number(data.roundNumber) !== outing.current_voting_round) return null;
+    if (data.votingState === "tie_pending" && (outing.status !== "voting" || !outing.vote_closed_at)) return null;
     const reminder =
       type.includes("reminder") ||
       type.includes("approaching") ||

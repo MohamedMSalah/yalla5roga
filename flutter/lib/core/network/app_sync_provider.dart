@@ -42,6 +42,10 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _networkSub = network.changes.listen(_networkChanged);
     _socketSub = socket.connectionChanges.listen(_socketChanged);
     _dataSub = socket.dataChanges.listen(_dataChanged);
+    _foreground =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+    socket.setForeground(_foreground);
   }
 
   final SavedOutingsProvider? savedOutings;
@@ -58,6 +62,48 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final InvitationsProvider invitations;
   final Future<void> Function()? onNotificationRecovery;
   final Future<void> Function()? onCatalogRecovery;
+
+  final _realtimeConsumers = <Object, ({String? groupId, String? outingId})>{};
+
+  /// Idempotent ownership per visible route, independent of other consumers.
+  void retainRealtime(
+    Object owner, {
+    String? groupId,
+    String? outingId,
+    bool revalidate = true,
+  }) {
+    if (_disposed || _uid == null || _realtimeConsumers.containsKey(owner)) {
+      return;
+    }
+    _realtimeConsumers[owner] = (groupId: groupId, outingId: outingId);
+    socket.retain(owner);
+    unawaited(socket.syncGroups(_visibleGroupIds));
+    if (revalidate) {
+      if (groupId != null) _groupIds.add(groupId);
+      if (outingId != null) _outingIds.add(outingId);
+      _scheduleSync();
+    }
+  }
+
+  void releaseRealtime(Object owner) {
+    _realtimeConsumers.remove(owner);
+    unawaited(socket.syncGroups(_visibleGroupIds));
+    socket.release(owner);
+  }
+
+  Iterable<String> get _visibleGroupIds => _realtimeConsumers.values
+      .map((scope) => scope.groupId)
+      .whereType<String>();
+  Iterable<String> get _visibleOutingIds => _realtimeConsumers.values
+      .map((scope) => scope.outingId)
+      .whereType<String>();
+
+  /// Lists stay cached between visits; opening a tab revalidates its REST data.
+  void openLists() {
+    if (_disposed || _uid == null) return;
+    _groupsDirty = _outingsDirty = true;
+    _scheduleSync();
+  }
 
   void notificationsChanged({String? groupId, String? outingId}) {
     if (_uid == null || _disposed) return;
@@ -85,6 +131,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   bool _needsSocketCatchUp = true;
   bool _socketConnected = false;
   Future<void>? _recovering;
+  bool _recoveringSession = false;
   bool _groupsDirty = false;
   bool _outingsDirty = false;
   bool _profileDirty = false;
@@ -107,7 +154,9 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (!_online) return SyncStatus.offline;
     if (_working || _sending) return SyncStatus.syncing;
     if (_retry != null || _syncRetry != null) return SyncStatus.waiting;
-    return socket.isConnected ? SyncStatus.idle : SyncStatus.reconnecting;
+    return !socket.hasDemand || socket.isConnected
+        ? SyncStatus.idle
+        : SyncStatus.reconnecting;
   }
 
   Future<void> start() {
@@ -141,6 +190,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _outingIds.clear();
     _activeGroupIds.clear();
     _activeOutingIds.clear();
+    _realtimeConsumers.clear();
     if (previous != null) {
       savedOutings?.clear();
       groups.clear();
@@ -208,35 +258,51 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       _needsSocketCatchUp = true;
       return;
     }
-    unawaited(_recoverData());
+    unawaited(_recoverData(recoverSession: false));
     if (_retry != null) sendsChanged();
   }
 
-  Future<void> _recoverData() {
+  Future<void> _recoverData({bool recoverSession = true}) {
     final generation = _generation;
-    return _recovering ??= _reconcile().whenComplete(() {
-      if (_generation == generation) _recovering = null;
-    });
+    final existing = _recovering;
+    if (existing != null) {
+      if (recoverSession && !_recoveringSession) {
+        return existing.then<void>((_) async {
+          if (_disposed || generation != _generation) return;
+          await _recoverData();
+        });
+      }
+      return existing;
+    }
+    _recoveringSession = recoverSession;
+    return _recovering ??= _reconcile(recoverSession: recoverSession)
+        .whenComplete(() {
+          if (_generation == generation) _recovering = null;
+        });
   }
 
-  Future<void> _reconcile() async {
+  Future<void> _reconcile({required bool recoverSession}) async {
+    if (_disposed || _uid == null || !_foreground || !_online) return;
     final uid = _uid;
     final generation = _generation;
     final chatMayBeStale = _needsSocketCatchUp || !socket.isConnected;
     var replayed = false;
     try {
-      final synchronized = await auth.synchronizeRestoredAccount();
-      if (_disposed || (_uid != uid || generation != _generation)) return;
-      await onNotificationRecovery?.call();
-      await onCatalogRecovery?.call();
-      if (_disposed || (_uid != uid || generation != _generation)) return;
-      _inboxDirty = true;
-      if (synchronized) {
-        _groupsDirty = _outingsDirty = true;
-        // Synchronization returned the canonical profile already.
-        _profileDirty = false;
+      if (recoverSession) {
+        final synchronized = await auth.synchronizeRestoredAccount();
+        if (_disposed || (_uid != uid || generation != _generation)) return;
+        await onNotificationRecovery?.call();
+        await onCatalogRecovery?.call();
+        if (_disposed || (_uid != uid || generation != _generation)) return;
+        _inboxDirty = true;
+        if (synchronized) {
+          _groupsDirty = _outingsDirty = true;
+          // Synchronization returned the canonical profile already.
+          _profileDirty = false;
+        }
+        await savedOutings?.syncDrafts();
       }
-      await savedOutings?.syncDrafts();
+      if (_disposed || generation != _generation || !_foreground) return;
       await socket.ensureConnected();
       if (_disposed || (_uid != uid || generation != _generation)) return;
       replayed = await socket.reconcileData();
@@ -268,11 +334,14 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       if (_foreground) return;
       _foreground = true;
+      socket.setForeground(true);
       unawaited(_resume());
-    } else if (state == AppLifecycleState.paused ||
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached ||
         state == AppLifecycleState.hidden) {
       _foreground = false;
+      socket.setForeground(false);
       _debounce?.cancel();
       _retry?.cancel();
       _retry = null;
@@ -312,7 +381,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (_syncAttempt > 5) _syncAttempt = 0;
     switch (event.kind) {
       case 'catalog':
-        unawaited(onCatalogRecovery?.call()??Future<void>.value());
+        unawaited(onCatalogRecovery?.call() ?? Future<void>.value());
       case 'membership':
         _chatDirty = true;
         _outingsDirty = true;
@@ -415,8 +484,8 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     final profile = _profileDirty;
     final inbox = full || _inboxDirty;
     final chatChanged = full || _chatDirty;
-    final groupIds = {..._groupIds, if (full) ...groups.openGroupIds};
-    final outingIds = {..._outingIds, if (full) ...outings.openOutingIds};
+    final groupIds = {..._groupIds, if (full) ..._visibleGroupIds};
+    final outingIds = {..._outingIds, if (full) ..._visibleOutingIds};
     _groupsDirty = _outingsDirty = _profileDirty = _inboxDirty = _chatDirty =
         false;
     _groupIds.clear();
@@ -455,7 +524,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         ],
       ]);
       if (_disposed || (_uid != uid || generation != _generation)) return;
-      unawaited(socket.syncGroups(groups.groups.map((group) => group.id)));
+      unawaited(socket.syncGroups(_visibleGroupIds));
       if (full && (_uid == uid && generation == _generation)) {
         _lastCatchUp = DateTime.now();
       }
@@ -571,6 +640,10 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void dispose() {
     _disposed = true;
+    for (final owner in _realtimeConsumers.keys.toList()) {
+      socket.release(owner);
+    }
+    _realtimeConsumers.clear();
     auth.removeListener(_accountChanged);
     WidgetsBinding.instance.removeObserver(this);
     _debounce?.cancel();

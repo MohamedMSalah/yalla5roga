@@ -7,9 +7,11 @@ class VoteOption {
     this.votes,
     this.percent, {
     this.area = '',
+    this.imageUrl = '',
   });
 
   final String area;
+  final String imageUrl;
 
   final String placeId;
   final String label;
@@ -28,6 +30,7 @@ class VoteOption {
       votes ?? this.votes,
       percent ?? this.percent,
       area: area,
+      imageUrl: imageUrl,
     );
   }
 
@@ -36,6 +39,8 @@ class VoteOption {
     'label': label,
     'votes': votes,
     'percent': percent,
+    'area': area,
+    'imageUrl': imageUrl,
   };
 
   factory VoteOption.fromJson(Map<String, dynamic> json) {
@@ -44,6 +49,8 @@ class VoteOption {
       json['label'] as String? ?? '',
       json['votes'] as int? ?? 0,
       json['percent'] as int? ?? 0,
+      area: json['area'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String? ?? '',
     );
   }
 }
@@ -58,6 +65,10 @@ class PlaceVote {
     this.eligibleVoterCount = 0,
     this.votedCount = 0,
     this.finalized = false,
+    this.winningOptionId,
+    this.roundNumber = 1,
+    this.votingState = 'active',
+    this.tiedOptionIds = const [],
   });
 
   final String outingId;
@@ -66,6 +77,10 @@ class PlaceVote {
   final List<String> cuserOptionIds;
   final String? suggestedById;
   final bool finalized;
+  final String? winningOptionId;
+  final int roundNumber;
+  final String votingState;
+  final List<String> tiedOptionIds;
   final int eligibleVoterCount;
   final int votedCount;
 
@@ -111,6 +126,10 @@ class PlaceVote {
       eligibleVoterCount: eligibleVoterCount,
       votedCount: votedCount,
       finalized: finalized ?? this.finalized,
+      winningOptionId: winningOptionId,
+      roundNumber: roundNumber,
+      votingState: votingState,
+      tiedOptionIds: tiedOptionIds,
     );
   }
 }

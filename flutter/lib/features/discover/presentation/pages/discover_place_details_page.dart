@@ -7,7 +7,12 @@ import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart'
     show PlaceCatalogAttribution;
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
+import 'package:yalla_5roga/core/theme/app_tokens.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/utils/app_launcher.dart';
+import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
+import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
+import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
@@ -71,6 +76,7 @@ class DiscoverPlaceDetailsPage extends StatefulWidget {
 
 class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
   SuggestedPlace? _place;
+  int _photoIndex = 0;
   bool _loading = true, _failed = false;
   StreamSubscription<void>? _changes;
   @override
@@ -130,217 +136,499 @@ class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
     final gallery = laidOut.gallery;
     final coverIndex = laidOut.coverIndex;
 
-    return Scaffold(
-      appBar: AppPageBar(
-        title: place.brandName.isEmpty
-            ? place.localizedName(l10n)
-            : place.brandName,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: Responsive.pagePadding(),
-              children: [
-                if (_failed)
-                  TextButton(onPressed: _load, child: Text(l10n.catalogRetry)),
-                SizedBox(
-                  height: 210.h,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: gallery.length,
-                    itemBuilder: (context, index) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          right: index == gallery.length - 1
-                              ? 0
-                              : Responsive.spaceSm,
+    final surface = palette.surface;
+    final tabs = TabBar(
+      isScrollable: true,
+      tabAlignment: TabAlignment.center,
+      labelColor: palette.brandStrong,
+      unselectedLabelColor: palette.textSecondary,
+      indicatorColor: palette.brand,
+      indicatorSize: TabBarIndicatorSize.tab,
+      indicatorWeight: 3,
+      tabs: [
+        Tab(text: l10n.placeOverview),
+        Tab(text: l10n.placeBranches),
+        Tab(text: l10n.placeReviews),
+      ],
+    );
+    return DefaultTabController(
+      length: 3,
+      animationDuration: AppMotion.of(context, AppMotion.standard),
+      child: Scaffold(
+        backgroundColor: surface,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+            child: NestedScrollView(
+              headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                SliverAppBar(
+                  pinned: true,
+                  backgroundColor: surface,
+                  surfaceTintColor: Colors.transparent,
+                  expandedHeight: (MediaQuery.sizeOf(context).height * .38)
+                      .clamp(240.0, 400.0),
+                  leading: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xs),
+                    child: Material(
+                      color: surface,
+                      shape: const CircleBorder(),
+                      child: const BackButton(),
+                    ),
+                  ),
+                  flexibleSpace: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final collapsed =
+                          constraints.maxHeight <=
+                          MediaQuery.paddingOf(context).top +
+                              kToolbarHeight +
+                              32;
+                      return FlexibleSpaceBar(
+                        titlePadding: const EdgeInsetsDirectional.only(
+                          start: 72,
+                          end: 24,
+                          bottom: 16,
                         ),
-                        child: AppHero(
-                          tag: index == coverIndex ? widget.coverHeroTag : null,
-                          url: gallery[index].imageUrl,
-                          radius: 18.r,
-                          child: PlaceCoverImage(
-                            url: gallery[index].imageUrl,
-                            vibe: place.vibe,
-                            width: 280.w,
-                            height: 210.h,
-                            fade: false,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                Responsive.spaceMd.gapH,
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        place.localizedName(l10n),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: Responsive.fontLg,
-                        ),
-                      ),
-                    ),
-                    AppBadge(
-                      label: l10n.vibeLabel(place.vibe.name),
-                      color: palette.brandSoft,
-                      textColor: palette.brandStrong,
-                    ),
-                  ],
-                ),
-                Responsive.spaceXs.gapH,
-                Text(
-                  place.localizedSummary(l10n),
-                  style: TextStyle(
-                    color: palette.textMuted,
-                    fontWeight: FontWeight.w700,
-                    fontSize: Responsive.fontSm,
-                  ),
-                ),
-                if (place.status != 'active')
-                  AppBadge(
-                    label: l10n.catalogStatus(place.status),
-                    color: palette.brandSoft,
-                    textColor: palette.brandStrong,
-                  ),
-                if (place.brandId.isNotEmpty) Text(place.branchLabel),
-                if (place.branchCount > 1 && place.brandId.isNotEmpty)
-                  PlaceBranchesButton(
-                    count: place.branchCount,
-                    onPressed: () async {
-                      final branch = await pickPlaceBranch(
-                        context,
-                        place.toOutingPlace(),
-                      );
-                      if (!context.mounted || branch == null) return;
-                      Get.to(
-                        () => DiscoverPlaceDetailsPage(
-                          placeId: branch.id,
-                          initialPlace: branch,
-                        ),
-                      );
-                    },
-                  ),
-                if (place.openingHours.isNotEmpty) Text(place.openingHours),
-                if (place.address.isNotEmpty) Text(place.address),
-                if (place.source == 'osm' || place.source == 'overture')
-                  const PlaceCatalogAttribution(),
-                if (place.localizedDescription(l10n).trim().isNotEmpty) ...[
-                  Responsive.spaceMd.gapH,
-                  Text(
-                    l10n.aboutPlace,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: Responsive.fontMd,
-                    ),
-                  ),
-                  Responsive.spaceXs.gapH,
-                  Text(
-                    place.localizedDescription(l10n),
-                    style: TextStyle(
-                      color: palette.textSecondary,
-                      height: 1.45,
-                      fontSize: Responsive.fontSm,
-                    ),
-                  ),
-                ],
-                if (place.prices.isNotEmpty) ...[
-                  Responsive.spaceLg.gapH,
-                  Text(
-                    l10n.prices,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: Responsive.fontMd,
-                    ),
-                  ),
-                  Responsive.spaceSm.gapH,
-                  for (final price in place.prices) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            l10n.discoverPriceLabel(price.labelKey),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: Responsive.fontSm,
+                        title: collapsed
+                            ? Row(
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.small,
+                                    ),
+                                    child: PlaceCoverImage(
+                                      url: place.coverImageUrl,
+                                      vibe: place.vibe,
+                                      width: 36,
+                                      height: 36,
+                                      fade: false,
+                                    ),
+                                  ),
+                                  const SizedBox(width: AppSpacing.compact),
+                                  Expanded(
+                                    child: Text(
+                                      place.localizedName(l10n),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: context.texts.titleMedium
+                                          ?.copyWith(
+                                            color: palette.textPrimary,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : null,
+                        background: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            PageView.builder(
+                              itemCount: gallery.length,
+                              onPageChanged: (index) =>
+                                  setState(() => _photoIndex = index),
+                              itemBuilder: (context, index) => AppHero(
+                                tag: index == coverIndex
+                                    ? widget.coverHeroTag
+                                    : null,
+                                url: gallery[index].imageUrl,
+                                radius: 0,
+                                child: PlaceCoverImage(
+                                  url: gallery[index].imageUrl,
+                                  vibe: place.vibe,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  fade: false,
+                                ),
+                              ),
                             ),
-                          ),
+                            if (gallery.length > 1)
+                              PositionedDirectional(
+                                end: AppSpacing.md,
+                                bottom: AppSpacing.xxl,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: surface,
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadii.pill,
+                                    ),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    child: Text(
+                                      '${l10n.n((_photoIndex + 1).clamp(1, gallery.length))} / ${l10n.n(gallery.length)}',
+                                      style: context.texts.labelMedium,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                height: AppRadii.sheet,
+                                decoration: BoxDecoration(
+                                  color: surface,
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(AppRadii.sheet),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                      );
+                    },
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(
+                      24,
+                      0,
+                      24,
+                      20,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_failed)
+                          TextButton(
+                            onPressed: _load,
+                            child: Text(l10n.catalogRetry),
+                          ),
                         Text(
-                          l10n.formatPrice(price.amount, price.currency),
-                          style: TextStyle(
-                            color: AppColors.brand600,
+                          place.localizedName(l10n),
+                          style: context.texts.headlineMedium?.copyWith(
                             fontWeight: FontWeight.w800,
-                            fontSize: Responsive.fontSm,
+                            color: palette.textPrimary,
                           ),
                         ),
-                      ],
-                    ),
-                    Responsive.spaceXs.gapH,
-                  ],
-                ],
-                if (place.hours.isNotEmpty) ...[
-                  Responsive.spaceLg.gapH,
-                  Text(
-                    l10n.workingHours,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: Responsive.fontMd,
-                    ),
-                  ),
-                  Responsive.spaceSm.gapH,
-                  for (final hour in place.hours) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            l10n.weekdayLabel(hour.day.name),
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: Responsive.fontSm,
+                        if (place.localizedSummary(l10n).isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            place.localizedSummary(l10n),
+                            style: context.texts.bodyMedium?.copyWith(
+                              color: palette.textSecondary,
                             ),
                           ),
-                        ),
-                        Text(
-                          hour.isClosed
-                              ? l10n.closed
-                              : '${l10n.formatClock(hour.opensAt ?? '')} – ${l10n.formatClock(hour.closesAt ?? '')}',
-                          style: TextStyle(
-                            color: hour.isClosed
-                                ? palette.textMuted
-                                : palette.textSecondary,
-                            fontWeight: FontWeight.w700,
-                            fontSize: Responsive.fontSm,
-                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.md),
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            AppBadge(
+                              label: l10n.vibeLabel(place.vibe.name),
+                              color: palette.brandSoft,
+                              textColor: palette.brandStrong,
+                            ),
+                            if (place.hasKnownPrice)
+                              AppBadge(
+                                label: l10n.priceLevelLabel(
+                                  place.priceLevel.name,
+                                ),
+                                color: palette.brandSoft,
+                                textColor: palette.brandStrong,
+                              ),
+                            if (place.status != 'active')
+                              AppBadge(
+                                label: l10n.catalogStatus(place.status),
+                                color: palette.surfaceMuted,
+                                textColor: palette.textSecondary,
+                              ),
+                          ],
                         ),
                       ],
                     ),
-                    Responsive.spaceXs.gapH,
-                  ],
-                ],
-                Responsive.spaceXl.gapH,
+                  ),
+                ),
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _PlaceTabsHeader(
+                    tabs: tabs,
+                    color: surface,
+                    height:
+                        56 +
+                        (MediaQuery.textScalerOf(context).scale(14) - 14).clamp(
+                          0,
+                          double.infinity,
+                        ),
+                  ),
+                ),
               ],
-            ),
-          ),
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: Responsive.padding(horizontal: 16, top: 8, bottom: 8),
-              child: CustomButton(
-                label: l10n.planOutingHere,
-                icon: Icons.event_available_outlined,
-                onPressed: place.status == 'active'
-                    ? () =>
-                          Get.to(() => CreateOutingPage(suggestedPlace: place))
-                    : null,
+              body: TabBarView(
+                children: [
+                  _PlaceOverview(place: place),
+                  place.brandId.isNotEmpty && place.branchCount > 1
+                      ? PlaceBranchList(
+                          current: place.toOutingPlace(),
+                          onSelected: (branch) => Get.to(
+                            () => DiscoverPlaceDetailsPage(
+                              placeId: branch.id,
+                              initialPlace: branch,
+                            ),
+                          ),
+                        )
+                      : ListView(
+                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          children: [
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const Icon(Icons.storefront_outlined),
+                              title: Text(
+                                place.branchName.isEmpty
+                                    ? place.localizedName(l10n)
+                                    : place.branchName,
+                              ),
+                              subtitle: place.branchLabel.isEmpty
+                                  ? null
+                                  : Text(place.branchLabel),
+                              selected: true,
+                            ),
+                          ],
+                        ),
+                  ListView(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    children: [
+                      AppEmptyState(
+                        icon: Icons.rate_review_outlined,
+                        message: l10n.placeReviewsUnavailable,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
-        ],
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final save = SavePlaceButton(
+                          key: ValueKey(place.id),
+                          place: place,
+                          showLabel: true,
+                        );
+                        final directions = CustomButton(
+                          label: l10n.placeDirections,
+                          icon: Icons.directions_outlined,
+                          onPressed:
+                              (place.latitude != null &&
+                                      place.longitude != null) ||
+                                  place.address.isNotEmpty
+                              ? () async {
+                                  final opened = await AppLauncher.openMaps(
+                                    latitude: place.latitude,
+                                    longitude: place.longitude,
+                                    query: place.address.isEmpty
+                                        ? place.localizedName(l10n)
+                                        : place.address,
+                                  );
+                                  if (!opened && context.mounted) {
+                                    AppSnackBar.showError(
+                                      l10n.couldNotOpenLink,
+                                    );
+                                  }
+                                }
+                              : null,
+                        );
+                        if (constraints.maxWidth < 320 ||
+                            MediaQuery.textScalerOf(context).scale(14) > 20) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              save,
+                              const SizedBox(height: AppSpacing.sm),
+                              directions,
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(child: save),
+                            const SizedBox(width: AppSpacing.compact),
+                            Expanded(child: directions),
+                          ],
+                        );
+                      },
+                    ),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                      ),
+                      onPressed: place.status == 'active'
+                          ? () => Get.to(
+                              () => CreateOutingPage(suggestedPlace: place),
+                            )
+                          : null,
+                      icon: const Icon(Icons.event_available_outlined),
+                      label: Text(l10n.planOutingHere),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
+}
+
+class _PlaceTabsHeader extends SliverPersistentHeaderDelegate {
+  _PlaceTabsHeader({
+    required this.tabs,
+    required this.color,
+    required this.height,
+  });
+  final TabBar tabs;
+  final Color color;
+  final double height;
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => Material(color: color, child: tabs);
+  @override
+  bool shouldRebuild(covariant _PlaceTabsHeader oldDelegate) =>
+      oldDelegate.tabs != tabs ||
+      oldDelegate.color != color ||
+      oldDelegate.height != height;
+}
+
+class _PlaceOverview extends StatelessWidget {
+  const _PlaceOverview({required this.place});
+  final SuggestedPlace place;
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final palette = context.palette;
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      children: [
+        if (place.localizedDescription(l10n).trim().isNotEmpty) ...[
+          Text(
+            place.localizedDescription(l10n),
+            style: context.texts.bodyLarge?.copyWith(
+              height: 1.6,
+              color: palette.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
+        ],
+        if (place.address.isNotEmpty || place.area.isNotEmpty)
+          _PlaceInfoRow(
+            icon: Icons.location_on_outlined,
+            text: place.address.isEmpty
+                ? place.localizedArea(l10n)
+                : place.address,
+          ),
+        if (place.openingHours.isNotEmpty)
+          _PlaceInfoRow(
+            icon: Icons.schedule_outlined,
+            text: place.openingHours,
+          ),
+        if (place.distanceKm != null)
+          _PlaceInfoRow(
+            icon: Icons.near_me_outlined,
+            text: l10n.catalogDistanceLabel(place.distanceKm!),
+          ),
+        if (place.prices.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          Text(
+            l10n.prices,
+            style: context.texts.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final price in place.prices)
+            _PlaceValueRow(
+              label: l10n.discoverPriceLabel(price.labelKey),
+              value: l10n.formatPrice(price.amount, price.currency),
+            ),
+        ],
+        if (place.hours.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.xl),
+          Text(
+            l10n.workingHours,
+            style: context.texts.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          for (final hour in place.hours)
+            _PlaceValueRow(
+              label: l10n.weekdayLabel(hour.day.name),
+              value: hour.isClosed
+                  ? l10n.closed
+                  : '${l10n.formatClock(hour.opensAt ?? '')} – ${l10n.formatClock(hour.closesAt ?? '')}',
+            ),
+        ],
+        if (place.source == 'osm' || place.source == 'overture') ...[
+          const SizedBox(height: AppSpacing.xl),
+          const PlaceCatalogAttribution(),
+        ],
+      ],
+    );
+  }
+}
+
+class _PlaceInfoRow extends StatelessWidget {
+  const _PlaceInfoRow({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: context.palette.textSecondary),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(child: Text(text, style: context.texts.bodyMedium)),
+      ],
+    ),
+  );
+}
+
+class _PlaceValueRow extends StatelessWidget {
+  const _PlaceValueRow({required this.label, required this.value});
+  final String label, value;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+    child: Wrap(
+      alignment: WrapAlignment.spaceBetween,
+      spacing: AppSpacing.md,
+      runSpacing: AppSpacing.xs,
+      children: [
+        Text(label, style: context.texts.bodyMedium),
+        Text(
+          value,
+          style: context.texts.bodyMedium?.copyWith(
+            color: context.palette.brandStrong,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }

@@ -1,0 +1,32 @@
+{
+  "checkedAt": "2026-11-15T17:05:10.288Z",
+  "mode": "deploy",
+  "migration": "20261115010000_location_voting_rounds",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [
+    "20261115010000_location_voting_rounds"
+  ],
+  "privateBackup": ".database-backups/location-tie-2026-11-15T17-06-11.446Z/snapshot.json",
+  "backupSha256": "5c164cba7cff4ad7d2f13167e8a38ff60e5390e0c1a3ec5764c96bdebb97672a",
+  "rehearsal": "PASS: all public rows restored with keys/indexes/FKs; exact migration rehearsed using an isolated enum and rolled back",
+  "tableCount": 37,
+  "rowCount": 200478,
+  "existingRowsPreserved": true,
+  "changedTables": [],
+  "pendingAfter": [],
+  "appliedMigration": {
+    "migration_name": "20261115010000_location_voting_rounds",
+    "checksum": "eab1f556dea5da87f859feef8c8748a750ed769bf0354b3c18b322c625dd45cd"
+  },
+  "backfill": {
+    "outings": 5,
+    "initial_rounds": 5,
+    "orphan_votes": 0
+  },
+  "result": "PASS"
+}

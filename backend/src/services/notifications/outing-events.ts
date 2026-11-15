@@ -48,12 +48,12 @@ export async function persistOutingTransition(
       tx,
     );
   }
-  if (outing.vote_closed_at && !before?.vote_closed_at)
+  if (outing.vote_closed_at && !before?.vote_closed_at && outing.status !== "voting")
     await send(
       "voting_closed",
       `Voting for ${outing.title} has ended.`,
       "vote",
-      "closed",
+      `closed:${outing.current_voting_round}`,
     );
   if (outing.status === "cancelled" && before?.status !== "cancelled") {
     await send(

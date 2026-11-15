@@ -126,6 +126,7 @@ flutter/lib/
 | Auth | `features/auth/presentation/providers/auth_provider.dart` |
 | Deep links | `features/invites/presentation/providers/invite_deep_link_provider.dart` |
 | Outing chat REST | `features/chat/data/datasources/outing_chat_remote_datasource.dart` |
+| Current route realtime ownership | `lib/core/widgets/realtime_route.dart` → existing `AppSyncProvider` → shared socket retain/release |
 | Outing chat Socket.IO | `features/chat/data/datasources/outing_chat_socket_client.dart` |
 | Chat message upsert/dedupe | `features/chat/domain/outing_chat_message_merge.dart` |
 | Durable chat sends | `features/chat/data/datasources/chat_send_queue.dart` |
@@ -438,3 +439,12 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Location voting tie resolution — 2026-11-15
+
+- `backend/prisma/migrations/20261115010000_location_voting_rounds/migration.sql`: additive rounds, eligibility, backfill, guards and initial-round triggers.
+- Existing voting route/controller/usecase/datasource, vote-resolution service, deadline worker, realtime publisher and notification producers contain the backend integration.
+- `backend/scripts/location-tie-openapi-verification.ts`, `deploy-location-tie.ts`: disposable local served HTTP verification and exact-target Neon backup/rehearsal/deployment.
+- `flutter/lib/features/outings/presentation/widgets/{voting_place_list,tie_results_section,revote_bottom_sheet,dice_roll_animation}.dart`: focused existing-widget composition. Existing OutingVoteWidget, OutingLocationSection, Provider/repository/datasource and PlaceVote carry integration.
+- `docs/audit/LOCATION_TIE_RESOLUTION.md`, `LOCATION_TIE_*.json`: implementation, verification limits and deployed migration metadata.

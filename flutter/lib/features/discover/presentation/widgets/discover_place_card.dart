@@ -50,7 +50,7 @@ class DiscoverPlaceCard extends StatelessWidget {
             children: [
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(8),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -60,7 +60,7 @@ class DiscoverPlaceCard extends StatelessWidget {
                           AppNetworkImage(
                             url: place.coverImageUrl,
                             width: 68,
-                            height: 76,
+                            height: 60,
                             radius: Responsive.radiusSm,
                             placeholderIcon: Icons.place_outlined,
                           ),
@@ -81,7 +81,7 @@ class DiscoverPlaceCard extends StatelessWidget {
                                   [
                                     category,
                                     if (distanceKm != null)
-                                      l10n.catalogKm(double.parse(distanceKm!.toStringAsFixed(1))),
+                                      l10n.catalogDistanceLabel(distanceKm!),
                                   ].where((v) => v.isNotEmpty).join(' · '),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
@@ -128,7 +128,7 @@ class DiscoverPlaceCard extends StatelessWidget {
               ),
               if (selected)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                   child: DiscoverSelectedPlaceAction(onPressed: onCreate),
                 ),
             ],

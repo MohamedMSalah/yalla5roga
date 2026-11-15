@@ -64,12 +64,12 @@ From Prisma `notification_event_type`:
 | `outing_updated` | Candidate changes / outing updates | Implemented (vote reset messages) |
 | `attendance_changed` | Member attendance upsert | Implemented (owner notified) |
 | `chat_message` | Send chat | Implemented fan-out path |
-| `voting_closed_early` | All voted close | Via resolution notifications |
+| `voting_closed_early` | Legacy event retained | No new early-closure producer |
 | `voting_deadline_reached` | Deadline job | Via resolution notifications |
 | `winner_selected` | Unique winner | Via resolution |
 | `tie_break_selected` | Tie-break | Via resolution |
 | `outing_confirmed` | Confirm path | Via resolution / notifier |
-| `outing_cancelled` | Zero votes / owner cancel | Via resolution / cancel |
+| `outing_cancelled` | Creator cancellation | Via cancel transition |
 
 Exact recipient sets are coded in `outing-notifier.ts` / resolution helpers — verify there when changing fan-out.
 
@@ -206,4 +206,9 @@ The existing Settings switch saves `pushEnabled` through the existing preference
 After a preference save, the existing system-display reconciliation persists account-keyed push enablement in SharedPreferencesAsync and cancels disabled alerts. Both incoming data-push handling and final native rendering check this key, including offline redacted fallback and in-flight rendering; logout removes it. Silent dismissal controls remain processable. Backend resolvePush still checks canonical Neon preferences before delivery. Inbox/history/realtime catch-up continue with push disabled. OS denial or platform restrictions can still prevent enabled notifications; native delivery is unverified in this task.
 
 
-Notifications presentation refinement (2026-11-14): the existing mark-all mutation is exposed as a right-aligned app-bar text action, English “mark all as read” and localized Arabic, disabled while updating or with zero unread. The former body button is removed. Persistence, per-user authorization, native display reconciliation and All/Unread filtering remain unchanged. No notification trigger or delivery policy changes.
+Notifications presentation refinement (2026-11-14): the existing mark-all mutation is exposed as a trailing done-all app-bar icon with English “mark all as read” and localized Arabic tooltips and a centered notification title, disabled while updating or with zero unread. The former body button is removed. Persistence, per-user authorization, native display reconciliation and All/Unread filtering remain unchanged. No notification trigger or delivery policy changes.
+
+
+## Round-specific voting notifications — 2026-11-15
+
+Tie closure creates one member waiting notification and a creator intervention notification (`action_required` for creator only), both using existing `voting_closed` routing and distinct durable per-round keys. Revote uses `voting_started` with its round key. Final venue retains winner/tie-break and outing-confirmed producers. All carry the outing deep link; voting notifications target its voting section. Retried transitions do not duplicate outbox entries. Push resolution suppresses stale round/tie prompts after newer rounds or confirmation; current membership/preferences still apply. Delivery failure does not undo an already committed transition. Real FCM delivery/native notification taps are unverified.

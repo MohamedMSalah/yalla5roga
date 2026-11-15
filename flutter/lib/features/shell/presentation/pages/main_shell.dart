@@ -35,11 +35,35 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   final Set<int> _builtTabs = {0};
   final Map<int, Widget> _pageCache = {};
   FcmProvider? _fcm;
+  ShellProvider? _shell;
+  int _lastIndex = 0;
+  bool? _routeVisible;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = ModalRoute.isCurrentOf(context) ?? true;
+    if (visible && _routeVisible == false && _lastIndex <= 2) {
+      context.read<AppSyncProvider>().openLists();
+    }
+    _routeVisible = visible;
+  }
+
+  void _tabChanged() {
+    final index = _shell!.index;
+    if (index == _lastIndex) return;
+    _lastIndex = index;
+    if (index == 0 || index == 1 || index == 2) {
+      context.read<AppSyncProvider>().openLists();
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _shell = context.read<ShellProvider>()..addListener(_tabChanged);
+    _lastIndex = _shell!.index;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _fcm = context.read<FcmProvider>()..attachShell(context);
@@ -51,6 +75,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   @override
   void dispose() {
     _fcm?.detachShell(context);
+    _shell?.removeListener(_tabChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

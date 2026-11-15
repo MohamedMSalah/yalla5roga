@@ -112,8 +112,18 @@ export async function publishGroupChange(
 
 export async function publishOutingChange(
   id: string, kind: "outing" | "outings" = "outing", extraUsers: string[] = [],
+  votingEvent: "outing:voting_tie_detected" | "outing:voting_revote_started" | "outing:voting_round_updated" | "outing:location_confirmed" = "outing:voting_round_updated",
 ): Promise<void> {
   const recipients = [...(await outingRealtimeUsers(id)), ...extraUsers];
   emitDataChange({ kind, id }, recipients);
   emitDataChange({ kind: "inbox" }, recipients);
+  if (!getChatIo() || recipients.length === 0) return;
+  const outing = await prisma.outings.findUnique({ where: { id }, select: { current_voting_round: true, vote_closed_at: true, winning_option_id: true, status: true, updated_at: true } });
+  if (outing) {
+    const round = await prisma.outing_voting_rounds.findUnique({ where: { outing_id_round_number: { outing_id: id, round_number: outing.current_voting_round } }, include: { options: { where: { is_tied: true }, select: { option_id: true } } } });
+    const votingState = outing.status === "cancelled" ? "cancelled" : outing.winning_option_id ? "confirmed" : outing.vote_closed_at ? "tie_pending" : outing.current_voting_round > 1 ? "revote_active" : "active";
+    const event = votingEvent;
+    const payload = { outingId: id, roundId: round?.id, roundNumber: outing.current_voting_round, votingState, tiedOptionIds: votingState === "tie_pending" ? round?.options.map(o => o.option_id) ?? [] : [], confirmedOptionId: outing.winning_option_id, updatedAt: outing.updated_at.toISOString() };
+    getChatIo()?.to([...new Set(recipients)].map(userRealtimeRoom)).emit(event, payload);
+  }
 }

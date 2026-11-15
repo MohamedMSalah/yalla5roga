@@ -454,14 +454,78 @@ class OutingsProvider extends ChangeNotifier {
     return true;
   }
 
-  bool isTied(String outingId) {
-    final outing = findById(outingId);
-    if (outing == null) return false;
-    return outing.status == OutingStatus.voting && isVoteFinalized(outingId);
+  bool isTied(String outingId) =>
+      _votesByOuting[outingId]?.votingState == 'tie_pending';
+  int roundNumberFor(String outingId) =>
+      _votesByOuting[outingId]?.roundNumber ?? 1;
+  VoteOption? winningOptionFor(String id) {
+    final vote = _votesByOuting[id];
+    return vote?.options
+        .where((o) => o.placeId == vote.winningOptionId)
+        .firstOrNull;
   }
 
-  Future<String?> breakTieFor(String outingId) async {
-    final result = await repository.breakTie(outingId);
+  List<VoteOption> tiedOptionsFor(String outingId) {
+    final vote = _votesByOuting[outingId];
+    return vote == null
+        ? const []
+        : vote.options
+              .where((o) => vote.tiedOptionIds.contains(o.placeId))
+              .toList();
+  }
+
+  Future<bool> startRevoteFor(
+    String outingId,
+    DateTime deadline,
+    int roundNumber,
+  ) async {
+    if (_managing.contains(outingId)) return false;
+    final epoch = _managementEpoch;
+    _managing.add(outingId);
+    notifyListeners();
+    final result = await repository.startRevote(
+      outingId,
+      deadline,
+      roundNumber,
+    );
+    if (epoch != _managementEpoch) return false;
+    _managing.remove(outingId);
+    var success = result.fold((failure) => false, (snapshot) {
+      _applySnapshot(snapshot);
+      return true;
+    });
+    if (!success) {
+      await refreshLifecycle(outingId: outingId, forceRefresh: true);
+    }
+    if (epoch != _managementEpoch) return false;
+    if (!success && roundNumberFor(outingId) > roundNumber) success = true;
+    if (!success) {
+      result.fold(
+        (failure) => AppErrorFeedback.report(
+          failure,
+          kind: AppErrorKind.send,
+          context: 'startRevote',
+        ),
+        (_) {},
+      );
+    }
+    notifyListeners();
+    return success;
+  }
+
+  Future<String?> breakTieFor(String outingId, [int? roundNumber]) async {
+    final epoch = _managementEpoch;
+    final result = await repository.breakTie(outingId, roundNumber);
+    if (epoch != _managementEpoch) return null;
+    if (result.isLeft()) {
+      await refreshLifecycle(outingId: outingId, forceRefresh: true);
+    }
+    if (epoch != _managementEpoch) return null;
+    if (result.isLeft() && _votesByOuting[outingId]?.winningOptionId != null) {
+      _errorMessage = null;
+      notifyListeners();
+      return null;
+    }
     return result.fold(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -839,6 +903,9 @@ class OutingsProvider extends ChangeNotifier {
       final next = entry.value;
       final previous = _votesByOuting[entry.key];
       if (previous == null ||
+          previous.roundNumber != next.roundNumber ||
+          previous.votingState != next.votingState ||
+          !listEquals(previous.tiedOptionIds, next.tiedOptionIds) ||
           previous.finalized != next.finalized ||
           previous.endsAt != next.endsAt ||
           previous.eligibleVoterCount != next.eligibleVoterCount ||

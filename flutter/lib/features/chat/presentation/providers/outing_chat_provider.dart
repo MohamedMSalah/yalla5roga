@@ -16,10 +16,6 @@ class OutingChatProvider extends ChangeNotifier {
     this.persistLiveMessage,
   }) : _socket = socketClient {
     _sendSub = sendUpdates?.listen(_applyLiveMessage);
-    final socket = _socket;
-    if (socket == null) return;
-    _messageSub = socket.messages.listen(_onSocketMessage);
-    _connectionSub = socket.connectionChanges.listen((_) => notifyListeners());
   }
 
   final OutingChatRepository repository;
@@ -101,6 +97,14 @@ class OutingChatProvider extends ChangeNotifier {
     if (userId != null && userId.isNotEmpty) {
       _currentUserId = userId;
     }
+    if (_disposed) return;
+    final socket = _socket;
+    if (socket != null) {
+      _messageSub ??= socket.messages.listen(_onSocketMessage);
+      _connectionSub ??= socket.connectionChanges.listen(
+        (_) => notifyListeners(),
+      );
+    }
     final subscriptions = _activeOutings.update(
       outingId,
       (n) => n + 1,
@@ -108,7 +112,11 @@ class OutingChatProvider extends ChangeNotifier {
     );
     if (subscriptions == 1) unawaited(_socket?.joinOuting(outingId));
     final generation = _generation;
-    await load(outingId, forceRefresh: forceRefresh, userId: _currentUserId);
+    await load(
+      outingId,
+      forceRefresh: forceRefresh || subscriptions == 1,
+      userId: _currentUserId,
+    );
     if (generation != _generation || !_activeOutings.containsKey(outingId)) {
       return;
     }
@@ -123,6 +131,12 @@ class OutingChatProvider extends ChangeNotifier {
     }
     if (subscriptions == 0) return;
     _activeOutings.remove(outingId);
+    if (_activeOutings.isEmpty) {
+      unawaited(_messageSub?.cancel());
+      unawaited(_connectionSub?.cancel());
+      _messageSub = null;
+      _connectionSub = null;
+    }
     await _socket?.leaveOuting(outingId);
   }
 
@@ -325,6 +339,10 @@ class OutingChatProvider extends ChangeNotifier {
 
   void clear() {
     _generation++;
+    unawaited(_messageSub?.cancel());
+    unawaited(_connectionSub?.cancel());
+    _messageSub = null;
+    _connectionSub = null;
     _loadingOlder.clear();
     _liveDuringLoad.clear();
     _activeOutings.clear();

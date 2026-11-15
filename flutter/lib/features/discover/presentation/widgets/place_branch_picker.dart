@@ -32,22 +32,54 @@ Future<SuggestedPlace?> pickPlaceBranch(
   );
 }
 
+class PlaceBranchList extends StatelessWidget {
+  const PlaceBranchList({
+    super.key,
+    required this.current,
+    required this.onSelected,
+  });
+  final Place current;
+  final ValueChanged<SuggestedPlace> onSelected;
+  @override
+  Widget build(BuildContext context) => ChangeNotifierProvider(
+    create: (_) =>
+        PlaceCatalogProvider(context.read<DiscoverProvider>().repository)
+          ..update(PlaceFilters(brandId: current.brandId)),
+    child: _BranchList(
+      current: current,
+      embedded: true,
+      onSelected: onSelected,
+    ),
+  );
+}
+
 class _BranchList extends StatelessWidget {
-  const _BranchList({required this.current});
+  const _BranchList({
+    required this.current,
+    this.embedded = false,
+    this.onSelected,
+  });
+  final bool embedded;
+  final ValueChanged<SuggestedPlace>? onSelected;
   final Place current;
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<PlaceCatalogProvider>();
     final l10n = context.l10n;
     return SizedBox(
-      height: MediaQuery.sizeOf(context).height * .65,
+      height: embedded ? null : MediaQuery.sizeOf(context).height * .65,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(l10n.chooseBranch, style: context.texts.titleLarge),
-          Text(current.brandName, style: context.texts.titleMedium),
+          if (!embedded) ...[
+            Text(l10n.chooseBranch, style: context.texts.titleLarge),
+            Text(current.brandName, style: context.texts.titleMedium),
+          ],
           Expanded(
             child: ListView.builder(
+              padding: embedded
+                  ? const EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+                  : null,
               itemCount: catalog.places.length + 1,
               itemBuilder: (context, index) {
                 if (index == catalog.places.length) {
@@ -72,20 +104,48 @@ class _BranchList extends StatelessWidget {
                 final branch = catalog.places[index];
                 return ListTile(
                   selected: branch.id == current.id,
+                  minVerticalPadding: embedded ? 20 : 8,
                   title: Text(
-                    branch.branchLabel.isEmpty
-                        ? branch.localizedName(l10n)
-                        : branch.branchLabel,
+                    embedded
+                        ? (branch.branchName.isEmpty
+                              ? branch.localizedName(l10n)
+                              : branch.branchName)
+                        : (branch.branchLabel.isEmpty
+                              ? branch.localizedName(l10n)
+                              : branch.branchLabel),
+                    style: embedded
+                        ? context.texts.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          )
+                        : null,
                   ),
-                  subtitle: branch.distanceKm == null
+                  subtitle: embedded
+                      ? Text(
+                          [
+                            branch.address.isEmpty
+                                ? branch.localizedArea(l10n)
+                                : branch.address,
+                            if (branch.distanceKm != null)
+                              l10n.catalogDistanceLabel(branch.distanceKm!),
+                          ].where((value) => value.isNotEmpty).join(' · '),
+                        )
+                      : branch.distanceKm == null
                       ? null
                       : Text(l10n.catalogDistanceLabel(branch.distanceKm!)),
                   trailing: branch.id == current.id
                       ? const Icon(Icons.check)
-                      : const Icon(Icons.place_outlined),
+                      : Icon(
+                          embedded ? Icons.chevron_right : Icons.place_outlined,
+                        ),
                   onTap: branch.latitude == null || branch.longitude == null
                       ? null
-                      : () => Navigator.of(context).pop(branch),
+                      : () {
+                          if (onSelected != null) {
+                            onSelected!(branch);
+                          } else {
+                            Navigator.of(context).pop(branch);
+                          }
+                        },
                 );
               },
             ),

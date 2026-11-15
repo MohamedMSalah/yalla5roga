@@ -15,16 +15,23 @@ class OutingLocationSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final options = context.watch<OutingsProvider>().optionsFor(outing.id);
+    final winner = context.watch<OutingsProvider>().winningOptionFor(outing.id);
     final location = outing.location;
     if (location == null && options.length != 1) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (winner != null) ...[
+          Text(context.l10n.locationSelected, style: context.texts.titleMedium),
+          Responsive.spaceSm.gapH,
+        ],
         PlaceCard(
           title: location?.name ?? options.single.label,
           subtitle: location?.area ?? options.single.area,
           cover: PlanningCover(
-            url: outing.image,
+            url: winner?.imageUrl.isNotEmpty == true
+                ? winner!.imageUrl
+                : outing.image,
             art: PlanningCoverArt.outing,
             width: double.infinity,
             height: 180.h,

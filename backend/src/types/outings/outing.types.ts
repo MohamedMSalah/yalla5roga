@@ -101,6 +101,7 @@ export type CreateVoteOptionInput = {
 };
 
 export type CastVoteInput = {
+  round_number?: number;
   outing_id: string;
   user_id: string;
   option_id: string;

@@ -118,7 +118,7 @@ Flutter: `ApiConstants.invitations`, `ApiConstants.invitationAccept`, `ApiConsta
 | GET/POST | `/api/outings/:id/vote-options` | Yes | List / add option | Owner add; resets votes |
 | PUT | `/api/outings/:id/vote-options` | Yes | Replace options | resets votes; keeps deadline |
 | DELETE | `/api/outings/:id/vote-options/:optionId` | Yes | Delete option | resets votes |
-| GET/POST | `/api/outings/:id/votes` | Yes | List / add one selection | Idempotent selection; existing early close |
+| GET/POST | `/api/outings/:id/votes` | Yes | List / add one selection | Idempotent current-round selection; deadline closure |
 | PUT | `/api/outings/:id/votes` | Yes | Replace complete ballot | `{ option_ids: UUID[] }`, 0–5 distinct options; atomic replacement then closure evaluation |
 | DELETE | `/api/outings/:id/votes` | Yes | Remove my vote | if open |
 | DELETE | `/api/outings/:id/votes/:optionId` | Yes | Remove my vote for option | |
@@ -382,6 +382,10 @@ GET `/api/places/licenses` (`getPlacesLicenses`) makes source license text/notic
 
 See [real served-Swagger checks and import evidence](audit/PLACES_INGESTION.md). Older zero-place verification statements are historical; use the current results for populated-data checks.
 
+## Socket lifecycle compatibility — 2026-11-15
+
+No REST or Socket.IO wire contract changes. Clients now acquire the shared authenticated transport only for current feature demand and leave/dispose it on final release or suspend it in inactive/background/offline states. Group/chat join authorization remains server-side; leave/disconnect invalidate pending joins. Existing history/send/read/edit/delete and reconciliation contracts remain authoritative. [188 served Swagger/OpenAPI checks](audit/SOCKET_LIFECYCLE_OPENAPI_RESULTS.json) passed across 111 documented operations (93 protected operations, missing/malformed authentication). Authenticated payloads, live messaging and socket lifecycle were NOT RUN; see [scope and evidence](audit/SOCKET_LIFECYCLE.md).
+
 
 ## Multi-branch places — 2026-11-15
 
@@ -390,3 +394,18 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Location tie/revote contract — 2026-11-15
+
+Equivalent existing routes are extended rather than duplicated:
+
+| Method | Route | Behavior |
+|---|---|---|
+| GET | `/api/outings/:id/voting-state` | Existing results plus `voting_state`, `current_round` (ID/number/deadline/status), eligible `options`/counts, `tiedOptionIds`, confirmed venue, `resolution_method`, creator-only `can_resolve_tie` |
+| POST | `/api/outings/:id/tie-break` | `{ method: "random", round_number }`; persisted `outing` and `winningOptionId`; creator only |
+| POST | `/api/outings/:id/voting/revote` | `{ deadline: ISO8601, round_number: positive integer }`; new empty round in the same voting-state envelope |
+
+PUT/POST votes accept `round_number`; DELETE votes accepts the same query parameter. Missing guards mean initial round only. Revote requires the guard. Standard auth/error envelopes apply: 400 invalid deadline/options, 401 missing identity, 403 noncreator/unauthorized participant, 404 missing resource, 409 closed/expired/stale/conflicting operations. Results reads retain the existing authorized read scope. Historical closed counts use persisted snapshots. The database, not the animation, selects and saves the winner.
+
+See [served Swagger HTTP verification](audit/LOCATION_TIE_OPENAPI_RESULTS.json). The verifier controls Firebase token verification and uses real route/controller/service/Prisma behavior against local disposable PostgreSQL/WASM. Production business mutations and live Firebase/FCM were not exercised.

@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-15T17:04:35.300Z",
+  "mode": "read-only",
+  "migration": "20261115010000_location_voting_rounds",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "pendingBefore": [
+    "20261115010000_location_voting_rounds"
+  ],
+  "pendingAfter": [
+    "20261115010000_location_voting_rounds"
+  ],
+  "appliedMigration": null,
+  "backfill": null,
+  "result": "PASS"
+}

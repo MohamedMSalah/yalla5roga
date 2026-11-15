@@ -89,6 +89,8 @@ class ApiConstants {
   static String outingConfirmedVenue(String outingId) =>
       '/api/outings/$outingId/confirmed-venue';
 
+  static String outingRevote(String outingId) =>
+      '/api/outings/$outingId/voting/revote';
   static String outingTieBreak(String outingId) =>
       '/api/outings/$outingId/tie-break';
 

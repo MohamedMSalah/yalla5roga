@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/realtime_route.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/outing_overview.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/outing_location_section.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/outing_attendance_widget.dart';
@@ -58,7 +59,10 @@ class EventPage extends StatefulWidget {
 }
 
 class _EventPageState extends State<EventPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RealtimeRoute<EventPage> {
+  @override
+  String get realtimeOutingId => widget.event.id;
+
   final _coverKey = GlobalKey();
   final _initialSectionKey = GlobalKey();
   final _bookmarkKey = GlobalKey();
@@ -133,7 +137,10 @@ class _EventPageState extends State<EventPage>
       () => outings.refreshLifecycle(outingId: widget.event.id),
     );
     if (mounted && changed) setState(() => _loadingDetails = false);
-    await outings.refreshLifecycle(outingId: widget.event.id);
+    await outings.refreshLifecycle(
+      outingId: widget.event.id,
+      forceRefresh: true,
+    );
     await outings.loadGuests(widget.event.id);
     if (mounted && _loadingDetails) setState(() => _loadingDetails = false);
   }

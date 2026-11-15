@@ -12,6 +12,8 @@ export function registerGroupGateway(
   authorize = (id: string, uid: string) => assertGroupMember(new GroupRepository(), id, uid),
 ): void {
   io.on("connection", (socket) => {
+    const joins = new Map<string, object>();
+    socket.on("disconnect", () => joins.clear());
     for (const action of ["join", "leave"] as const) {
       socket.on(`group:${action}`, async (raw: unknown, ack: unknown) => {
         const respond = (payload: object) => { if (typeof ack === "function") ack(payload); };
@@ -19,16 +21,27 @@ export function registerGroupGateway(
         if (!parsed.success) return respond({ ok: false, error: "INVALID_GROUP_ID" });
         if (!socket.data.uid) return respond({ ok: false, error: "UNAUTHORIZED" });
         const room = groupRealtimeRoom(parsed.data.groupId);
+        const id = parsed.data.groupId;
+        const intent = {};
+        if (action === "join") joins.set(id, intent);
+        else joins.delete(id);
         try {
           if (action === "join") {
             await authorize(parsed.data.groupId, socket.data.uid);
-            if (!socket.connected) return;
+            if (!socket.connected || joins.get(id) !== intent) return;
             await socket.join(room);
+            if (!socket.connected || joins.get(id) !== intent) {
+              if (!joins.has(id)) await socket.leave(room);
+              return;
+            }
+            joins.delete(id);
           } else {
             await socket.leave(room);
           }
           respond({ ok: true, room });
         } catch {
+          if (!socket.connected || (action === "join" && joins.get(id) !== intent)) return;
+          joins.delete(id);
           await socket.leave(room);
           respond({ ok: false, error: "FORBIDDEN" });
         }

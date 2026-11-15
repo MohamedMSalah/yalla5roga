@@ -1,6 +1,15 @@
 import 'package:yalla_5roga/features/outings/presentation/widgets/vote_countdown_text.dart';
 export 'package:yalla_5roga/features/outings/presentation/widgets/vote_countdown_text.dart';
-import 'package:yalla_5roga/core/widgets/place_card.dart';
+
+import 'voting_place_list.dart';
+import 'tie_results_section.dart';
+import 'dice_roll_animation.dart';
+import 'revote_bottom_sheet.dart';
+
+import 'package:yalla_5roga/core/widgets/app_bottom_sheet.dart';
+
+export 'voting_place_list.dart';
+export 'dice_roll_animation.dart';
 
 import 'dart:math' as math;
 
@@ -109,21 +118,29 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     if (!isOwner) return;
 
     setState(() => _breakingTie = true);
-    final winnerId = await outings.breakTieFor(widget.outing.id);
+    final candidates = outings.tiedOptionsFor(widget.outing.id);
+    final round = outings.roundNumberFor(widget.outing.id);
+    final confirmed = await AppAlert.confirm(
+      title: context.l10n.rollTheDice,
+      message: context.l10n.randomLocationPrompt,
+      confirmText: context.l10n.rollTheDice,
+      cancelText: context.l10n.cancel,
+    );
+    if (!mounted) return;
+    if (!confirmed) {
+      setState(() => _breakingTie = false);
+      return;
+    }
+    final winnerId = await outings.breakTieFor(widget.outing.id, round);
     if (!mounted) return;
 
-    if (winnerId == null || winnerId.isEmpty) {
+    if (winnerId == null ||
+        winnerId.isEmpty ||
+        !candidates.any((o) => o.placeId == winnerId)) {
       setState(() => _breakingTie = false);
       // Failure path already reported via AppErrorFeedback.
       return;
     }
-
-    final options = outings.optionsFor(widget.outing.id);
-    final labels = [for (final option in options) option.label];
-    final matched = options.where((o) => o.placeId == winnerId);
-    final winnerLabel = matched.isNotEmpty
-        ? matched.first.label
-        : (labels.isNotEmpty ? labels.first : 'Winner');
 
     await showGeneralDialog<void>(
       context: context,
@@ -131,12 +148,30 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
       barrierLabel: 'tie-break',
       pageBuilder: (context, animation, secondary) {
         return TieBreakRevealDialog(
-          candidates: labels,
-          winnerLabel: winnerLabel,
+          candidates: candidates,
+          winningOptionId: winnerId,
         );
       },
     );
 
+    if (mounted) setState(() => _breakingTie = false);
+  }
+
+  Future<void> _startRevote() async {
+    if (_breakingTie) return;
+    final outings = context.read<OutingsProvider>();
+    final round = outings.roundNumberFor(widget.outing.id);
+    final options = outings.tiedOptionsFor(widget.outing.id);
+    setState(() => _breakingTie = true);
+    await AppBottomSheet.show<void>(
+      context: context,
+      builder: (_) => RevoteBottomSheet(
+        options: options,
+        scheduledAt: widget.outing.scheduledAt,
+        onSubmit: (deadline) =>
+            outings.startRevoteFor(widget.outing.id, deadline, round),
+      ),
+    );
     if (mounted) setState(() => _breakingTie = false);
   }
 
@@ -148,7 +183,8 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final userId = context.watch<AuthProvider>().user?.id;
     final outing = outings.findById(widget.outing.id) ?? widget.outing;
     final options = outings.optionsFor(outing.id);
-    final optionSet = options.map((option) => option.placeId).join(',');
+    final optionSet =
+        '${outings.roundNumberFor(outing.id)}:${options.map((option) => option.placeId).join(',')}';
     if (_optionSet != optionSet) {
       _draftIndexes = null;
       _optionSet = optionSet;
@@ -157,7 +193,9 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final canConfirm =
         (userId != null && outing.createdById == userId) &&
         outing.status == OutingStatus.voting &&
-        showPlaces;
+        showPlaces &&
+        !outings.isTied(outing.id) &&
+        outings.roundNumberFor(outing.id) == 1;
     final selectedIndexes = outings.voteIndexesFor(outing.id);
     final isCreator =
         outing.createdById != null && outing.createdById == userId;
@@ -172,13 +210,31 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
       outings.votedCountFor(outing.id),
     );
     final voted = outings.votedCountFor(outing.id).clamp(0, totalMembers);
-    final showTieBreak = isCreator && outings.isTied(outing.id);
 
-    if (options.length < 2) return const SizedBox.shrink();
+    if (outings.isTied(outing.id)) {
+      return AppCard(
+        child: TieResultsSection(
+          options: outings.tiedOptionsFor(outing.id),
+          round: outings.roundNumberFor(outing.id),
+          isCreator: isCreator,
+          busy: _breakingTie,
+          onRandom: _runTieBreak,
+          onRevote: _startRevote,
+        ),
+      );
+    }
+    if (options.length < 2 || outing.status != OutingStatus.voting) {
+      return const SizedBox.shrink();
+    }
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            l10n.votingRound(outings.roundNumberFor(outing.id)),
+            style: context.texts.titleSmall,
+          ),
+          Responsive.spaceSm.gapH,
           if (widget.showHeader) ...[
             Row(
               children: [
@@ -291,189 +347,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
               VoteCountdownText(endsAt: endsAt, isClosed: locked),
             ],
           ],
-          if (showTieBreak) ...[
-            14.gapH,
-            CustomButton(
-              label: l10n.letYallaDecide,
-              icon: Icons.casino_outlined,
-              size: AppButtonSize.small,
-              onPressed: _breakingTie ? null : _runTieBreak,
-            ),
-          ],
         ],
-      ),
-    );
-  }
-}
-
-/// Selectable place rows used by [OutingVoteWidget].
-class OutingVoteOptions extends StatelessWidget {
-  const OutingVoteOptions({
-    super.key,
-    required this.options,
-    required this.selectedIndexes,
-    required this.onSelected,
-    this.compact = false,
-    this.enabled = true,
-  });
-
-  final List<VoteOption> options;
-  final Set<int> selectedIndexes;
-  final ValueChanged<int> onSelected;
-  final bool compact;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    return Column(
-      children: [
-        for (var i = 0; i < options.length; i++) ...[
-          if (i > 0) Responsive.spaceSm.gapH,
-          PlaceCard.option(
-            title: options[i].label,
-            subtitle: options[i].area,
-            selected: selectedIndexes.contains(i),
-            progress: options[i].percent / 100,
-            trailing: Text(
-              l10n.votesPercent(options[i].votes, options[i].percent),
-            ),
-            onTap: enabled ? () => onSelected(i) : null,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-/// Polished reveal for the server-selected tie-break winner.
-class TieBreakRevealDialog extends StatefulWidget {
-  const TieBreakRevealDialog({
-    super.key,
-    required this.candidates,
-    required this.winnerLabel,
-  });
-
-  final List<String> candidates;
-  final String winnerLabel;
-
-  @override
-  State<TieBreakRevealDialog> createState() => _TieBreakRevealDialogState();
-}
-
-class _TieBreakRevealDialogState extends State<TieBreakRevealDialog>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    )..forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final palette = context.palette;
-    final candidates = widget.candidates.isEmpty
-        ? [widget.winnerLabel]
-        : widget.candidates;
-
-    return Material(
-      color: Colors.black54,
-      child: Center(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, _) {
-            final t = Curves.easeInOutCubic.transform(_controller.value);
-            final index = (_controller.value * 12).floor() % candidates.length;
-            final revealing = _controller.value > 0.72;
-            final label = revealing ? widget.winnerLabel : candidates[index];
-
-            return Container(
-              width: 300.w,
-              padding: EdgeInsets.all(22.w),
-              decoration: BoxDecoration(
-                color: palette.surface,
-                borderRadius: BorderRadius.circular(24.r),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    l10n.letYallaDecide,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18.sp,
-                    ),
-                  ),
-                  16.gapH,
-                  Transform.rotate(
-                    angle: (1 - t) * math.pi * 4,
-                    child: Container(
-                      width: 120.w,
-                      height: 120.w,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.brand200,
-                            AppColors.brand600.withValues(alpha: 0.85),
-                          ],
-                        ),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.all(12.w),
-                        child: Text(
-                          label,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 14.sp,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  18.gapH,
-                  if (revealing)
-                    Text(
-                      l10n.winnerIs(widget.winnerLabel),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14.sp,
-                        color: AppColors.brand600,
-                      ),
-                    )
-                  else
-                    Text(
-                      l10n.pickingWinner,
-                      style: TextStyle(color: palette.textMuted),
-                    ),
-                  16.gapH,
-                  if (_controller.isCompleted)
-                    CustomButton(
-                      label: l10n.done,
-                      size: AppButtonSize.small,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
       ),
     );
   }

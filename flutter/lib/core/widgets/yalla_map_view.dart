@@ -13,7 +13,6 @@ import 'package:yalla_5roga/core/maps/yalla_map_offline.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_place_selection.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_style.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
-import 'package:yalla_5roga/core/utils/app_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
@@ -167,10 +166,12 @@ class _YallaMapViewState extends State<YallaMapView>
             final data = YallaMapMarkers.collection(
               places.where((p) => !highlightedIds.contains(p.id)),
               widget.categories,
+              language: _language,
             );
             final selected = YallaMapMarkers.collection(
               highlighted,
               widget.categories,
+              language: _language,
             );
             final custom = <String, dynamic>{
               'type': 'FeatureCollection',
@@ -208,11 +209,7 @@ class _YallaMapViewState extends State<YallaMapView>
             ], widget.categories);
             if (!mounted || epoch != _epoch) return;
             if (!_installed) {
-              await YallaMapClusters.install(
-                map,
-                data,
-                arabic: _language == 'ar',
-              );
+              await YallaMapClusters.install(map, data);
               await _markers.install(map);
               await map.addGeoJsonSource('yalla-user', {
                 'type': 'FeatureCollection',
@@ -368,7 +365,6 @@ class _YallaMapViewState extends State<YallaMapView>
         [
           YallaMapMarkers.selectedPins,
           YallaMapMarkers.pins,
-          YallaMapClusters.circles,
           YallaMapMarkers.customPoints,
         ],
         null,
@@ -382,23 +378,6 @@ class _YallaMapViewState extends State<YallaMapView>
               index.toInt() < widget.selection.selected.length) {
             widget.onPlaceTap?.call(widget.selection.selected[index.toInt()]);
           }
-          return;
-        }
-        final coordinates = (feature['geometry'] as Map)['coordinates'] as List;
-        if (properties['cluster'] == true ||
-            properties.containsKey('point_count')) {
-          // A cluster tap explores a new viewport, unlike focusing a place.
-          widget.onUserMove?.call();
-          final zoom = ((native.cameraPosition?.zoom ?? 12) + 2)
-              .clamp(0, 18)
-              .toDouble();
-          widget.controller.focus(
-            LatLng(
-              (coordinates[1] as num).toDouble(),
-              (coordinates[0] as num).toDouble(),
-            ),
-            zoom: zoom,
-          );
           return;
         }
         final id = properties['place_id'];
@@ -503,6 +482,10 @@ class _YallaMapViewState extends State<YallaMapView>
           featureTapsTriggersMapClick: true,
           minMaxZoomPreference: const ml.MinMaxZoomPreference(3, 20),
           attributionButtonPosition: ml.AttributionButtonPosition.topRight,
+          attributionButtonMargins: math.Point(
+            12,
+            MediaQuery.paddingOf(context).top + widget.controlsTop + 112,
+          ),
           compassViewPosition: ml.CompassViewPosition.topRight,
           compassViewMargins: math.Point(
             12,
@@ -516,32 +499,6 @@ class _YallaMapViewState extends State<YallaMapView>
       fit: StackFit.expand,
       children: [
         _nativeSurface!,
-        PositionedDirectional(
-          start: 8,
-          end: 8,
-          bottom: 0,
-          child: ValueListenableBuilder<double>(
-            valueListenable: widget.controller.attributionInset,
-            builder: (_, inset, _) => Padding(
-              padding: EdgeInsets.only(bottom: inset),
-              child: Align(
-                alignment: AlignmentDirectional.bottomEnd,
-                child: Material(
-                  color: context.palette.surface,
-                  borderRadius: BorderRadius.circular(8),
-                  child: TextButton(
-                    onPressed: () =>
-                        AppLauncher.open(YallaMapStyle.attributionUrl),
-                    child: Text(
-                      YallaMapStyle.attribution,
-                      style: context.texts.labelSmall,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
         AnimatedBuilder(
           animation: widget.controller,
           builder: (_, _) => widget.controller.failed

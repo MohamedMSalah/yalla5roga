@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/realtime_route.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +23,11 @@ class GroupDetailsPage extends StatefulWidget {
   State<GroupDetailsPage> createState() => _GroupDetailsPageState();
 }
 
-class _GroupDetailsPageState extends State<GroupDetailsPage> {
+class _GroupDetailsPageState extends State<GroupDetailsPage>
+    with RealtimeRoute<GroupDetailsPage> {
+  @override
+  String get realtimeGroupId => widget.groupId;
+
   bool _loading = true;
 
   GroupsProvider? _openGroupProvider;
@@ -45,7 +50,10 @@ class _GroupDetailsPageState extends State<GroupDetailsPage> {
 
   Future<void> _loadGroup() async {
     setState(() => _loading = true);
-    await context.read<GroupsProvider>().ensureGroupLoaded(widget.groupId);
+    await context.read<GroupsProvider>().ensureGroupLoaded(
+      widget.groupId,
+      forceRefresh: true,
+    );
     if (mounted) setState(() => _loading = false);
   }
 

@@ -64,9 +64,10 @@ export async function emitOutingMessage(
 export async function emitOutingRead(outingId: string, read: ChatRead): Promise<void> {
   if (!io) return;
   try {
+    const sockets = await io.in(outingChatRoom(outingId)).fetchSockets();
+    if (sockets.length === 0) return;
     const { outingRealtimeUsers } = await import("./data-changes.js");
     const audience = new Set(await outingRealtimeUsers(outingId));
-    const sockets = await io.in(outingChatRoom(outingId)).fetchSockets();
     for (const socket of sockets) {
       if (audience.has(socket.data.uid)) socket.emit("outing:read", serializeChatRead(read));
       else await socket.leave(outingChatRoom(outingId));

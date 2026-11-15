@@ -13,7 +13,8 @@ class PlaceCard extends StatelessWidget {
     required this.onTap,
     this.compact = false,
     this.trailing,
-  }) : inline = false,
+  }) : leading = null,
+       inline = false,
        selected = false,
        progress = null;
 
@@ -22,6 +23,7 @@ class PlaceCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     this.onTap,
+    this.leading,
     this.selected = false,
     this.progress,
     this.trailing,
@@ -29,6 +31,7 @@ class PlaceCard extends StatelessWidget {
        compact = true,
        cover = const Icon(Icons.place_outlined);
 
+  final Widget? leading;
   final String title;
   final String subtitle;
   final Widget cover;
@@ -64,6 +67,7 @@ class PlaceCard extends StatelessWidget {
                       runSpacing: Responsive.spaceSm,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
+                        ?leading,
                         if (onTap != null)
                           Icon(
                             selected

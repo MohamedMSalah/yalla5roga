@@ -98,7 +98,7 @@ stateDiagram-v2
   [*] --> draft
   draft --> voting
   voting --> confirmed: uniqueWinner_or_tieBreak_or_ownerConfirmation
-  voting --> cancelled: zeroVotes_or_ownerCancel
+  voting --> cancelled: creatorCancel
   confirmed --> past: completionJob
   confirmed --> cancelled: ownerCancel
   cancelled --> [*]
@@ -113,15 +113,15 @@ stateDiagram-v2
 When deadline expires (server authority):
 
 - Close voting; count submitted votes only.
-- Zero votes → cancel outing (+ reason + notify).
+- Zero votes → tie_pending with every current-round candidate; require creator intervention.
 - Unique highest → confirm with winner.
-- Tie → stay unresolved until Owner tie-break.
+- Tie → tie_pending until the outing creator chooses random resolution or revote.
 
-Early close: if **all eligible** members voted before deadline → close immediately and resolve. Do **not** close merely because there are currently zero votes while open.
+Voting remains active until the backend deadline; members may change/remove their multi-location ballot until closure, even when everyone has voted.
 
 Use server time; do not trust device clocks for closure.
 
-**Current implementation:** Deadline job + early-close exist; create validators historically allowed null deadline — compliance requires non-null `vote_ends_at`.
+**Current implementation:** The deadline job closes current-round ballots; creation validates a future `vote_ends_at` before scheduled start.
 
 ---
 
@@ -129,7 +129,7 @@ Use server time; do not trust device clocks for closure.
 
 **Approved:** Owner + accepted Members. Pending invitations and non-members are not eligible. Attendance does not control eligibility.
 
-Same definition for vote APIs, early close, deadline resolution, Flutter UI, and relevant notification recipients.
+Same definition for vote APIs, current-round participation, deadline resolution, Flutter UI, and relevant notification recipients.
 
 **Current implementation:** Owner + outing participants + group members of `outing.group_id`. Pending invitations excluded.
 
@@ -139,12 +139,12 @@ Same definition for vote APIs, early close, deadline resolution, Flutter UI, and
 
 **Approved:**
 
-- **Phase 3 owner-approved change (2026-11-14):** A voter may select multiple proposed locations in one ballot. Each selected option is unique for `(outing_id, user_id, option_id)`; duplicate selections cannot multiply votes.
-- Before close: submit the full selection atomically; allow removing selections. Participation and early closure count distinct eligible voters with a nonempty ballot, not the number of selected options. Evaluate the existing winner/tie/zero-vote rules only after the full ballot is stored.
+- **Phase 3 owner-approved change (2026-11-14):** A voter may select multiple proposed locations in one ballot. Each selected option is unique for `(outing_id, user_id, option_id, round_number)`; duplicate selections cannot multiply votes.
+- Before close: submit the full selection atomically; allow removing selections. Participation counts distinct eligible voters with a nonempty ballot. The backend resolves only at the deadline.
 - After close / confirmed: reject votes and changes.
 - The creator can confirm a proposed option while the outing is still awaiting a venue. The backend closes voting and locks the chosen place. When the vote resolves first, the approved unique-winner, tie-break and zero-vote rules apply.
-- Tie → Owner triggers backend crypto RNG among tied leaders only; idempotent; Flutter animates only.
-- Zero votes at close → cancel.
+- Tie → outing creator chooses backend crypto RNG among persisted tied leaders, or a new round restricted to those leaders. Flutter only reveals a persisted winner.
+- Zero votes at close → creator intervention with every current-round option eligible.
 
 ---
 
@@ -260,8 +260,8 @@ Compliant only when schema, constraints, APIs, authZ, invites/deep links, voting
 | C | Invitation + deep link | Auth restore, accept → Member |
 | D | Voting | Upsert, eligibility, counts |
 | E | Candidate modification | Reset votes, notify, deadline preserved |
-| F | Early voting closure | All voted → confirm |
-| G | Deadline closure | Winner / tie / zero cancel |
+| F | Ballot completion before deadline | All voted → remain open until deadline |
+| G | Deadline closure | Winner / tie / zero-vote creator intervention |
 | H | Tie-breaker | Owner RNG, idempotent |
 | I | Attendance | Independence from votes |
 | J | Chat | Draft/voting/confirmed/cancelled |
@@ -364,6 +364,10 @@ Settings removes the separate Change Photo and Account Information rows. Edit Pr
 
 Notifications exposes the text action “mark all as read” on the right of its app bar, retaining the existing per-user read behavior and All/Unread filters. Indeterminate linear loading bars are removed throughout the Flutter app; actual vote/result progress is data, not loading. Opening outing information before scheduled start must not start Who’s arrived roster/GPS searching. Arrival monitoring begins only at the scheduled outing time while its screen is visible/foregrounded, and retains existing backend eligibility/window/venue/GPS rules. Before start a localized waiting message is shown. RSVP remains separate from physical arrival.
 
+## Owner-approved on-demand realtime policy — 2026-11-15
+
+The owner requests Socket.IO only while an active feature needs realtime. Current chat, group/outing details and arrival viewers share one connection; final release disconnects it, and inactive/background/offline states suspend it regardless of ownership. Resume reconnects only when needed. Lists retain cached data and revalidate on opening. Cached chat appears before missed-history REST recovery; existing messaging, mentions, edits/deletes, read receipts, API integration and offline send queue remain. This refines the earlier silent background refresh wording: silent foreground recovery remains, but the app does not retain a background Socket.IO connection. Static/HTTP verification is recorded in [SOCKET_LIFECYCLE](audit/SOCKET_LIFECYCLE.md); device and live socket behavior remain unverified.
+
 
 ## Multi-branch places — 2026-11-15
 
@@ -372,3 +376,10 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Location tie resolution — owner-approved update, 2026-11-15
+
+This request replaces the older zero-vote cancellation and all-voted early-closure policies. Location voting remains open until its backend deadline. Main outing lifecycle status remains separate from voting state. The authenticated outing creator (`created_by`) alone chooses random selection or revote; group ownership grants no permission. RSVP and GPS arrival are independent and never reset.
+
+For 2+ eligible locations, a unique positive leader confirms automatically. Tied leaders enter `tie_pending`; zero votes also enter `tie_pending`, retaining every current-round candidate. A single proposed venue keeps explicit creator confirmation. Random selection uses backend crypto RNG and a locked transaction; repeat requests return the persisted random winner. Revote creates an empty next round containing only persisted tied candidates, with a future deadline within seven days and strictly before scheduled start. Repeated ties require creator intervention again. Confirmed/cancelled/completed outings cannot reopen.

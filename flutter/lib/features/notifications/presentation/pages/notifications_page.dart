@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
 import 'package:yalla_5roga/core/widgets/app_error_state.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/filter_chip_row.dart';
@@ -44,22 +43,27 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final notifications = context.watch<NotificationsProvider>();
     final unreadCount = notifications.unreadCount;
     return Scaffold(
-      appBar: AppPageBar(
-        title: l10n.notifications,
-        subtitle: l10n.unreadUpdates(unreadCount),
-        trailingOnRight: true,
-        trailing: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: MediaQuery.sizeOf(context).width * .45,
-          ),
-          child: TextButton(
-            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+      appBar: AppBar(
+        centerTitle: true,
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l10n.notifications, style: context.texts.titleMedium),
+            Text(
+              l10n.unreadUpdates(unreadCount),
+              style: context.texts.labelSmall,
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            tooltip: l10n.markAllRead,
             onPressed: unreadCount == 0 || notifications.isUpdating
                 ? null
                 : _markAll,
-            child: Text(l10n.markAllRead, textAlign: TextAlign.center),
+            icon: const Icon(Icons.done_all_rounded),
           ),
-        ),
+        ],
       ),
       body: SafeArea(
         top: false,

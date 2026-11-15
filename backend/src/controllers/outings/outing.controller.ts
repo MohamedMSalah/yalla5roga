@@ -1,3 +1,4 @@
+import { startRevote } from "../../services/outings/vote-resolution.js";
 import { publicPlace } from "../../services/places/public-place.js";
 import { z } from "zod";
 import { emitDataChange, outingRealtimeUsers, publishOutingChange,
@@ -416,6 +417,7 @@ export class OutingController {
         req.params.id as string,
         req.user.uid,
         req.body.option_id,
+        req.body.round_number,
       );
       // Resolution already published the committed lifecycle change.
       if (!data.resolution) await publishOutingChange(req.params.id as string);
@@ -429,7 +431,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      const data = await new ReplaceBallotUseCase().execute(id, req.user.uid, req.body.option_ids,
+      const data = await new ReplaceBallotUseCase().execute(id, req.user.uid, req.body.option_ids, req.body.round_number,
       );
       await publishOutingChange(id);
       res.json({ success: true, data });
@@ -443,6 +445,7 @@ export class OutingController {
         req.params.id as string,
         req.user.uid,
         req.params.optionId as string | undefined,
+        req.query.round_number === undefined ? undefined : Number(req.query.round_number),
       );
       await publishOutingChange(req.params.id as string);
       res.json({ success: true, data });
@@ -457,6 +460,7 @@ export class OutingController {
       const data = await this.tieBreak.execute(
         req.params.id as string,
         req.user.uid,
+        req.body?.round_number,
       );
       res.json({ success: true, data });
     } catch (error) {
@@ -485,7 +489,10 @@ export class OutingController {
       for (const vote of state.votes) counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
       res.json({ success: true, data: {
         ...state,
-        options: state.options.map((option) => ({ ...option, vote_count: counts.get(option.id) ?? 0,
+        outing_id: id,
+        can_resolve_tie: state.isTied && state.outing.created_by === req.user.uid,
+        confirmed_location: state.outing.winning_option_id ? state.options.find(o => o.id === state.outing.winning_option_id) ?? null : null,
+        options: state.options.map((option) => ({ ...option, vote_count: state.isClosed ? option.persisted_vote_count : counts.get(option.id) ?? 0,
           })),
         my_option_ids: state.votes.filter((vote) => vote.user_id === req.user?.uid).map((vote) => vote.option_id),
         voted_count: new Set(state.votes.map((vote) => vote.user_id)).size,
@@ -495,6 +502,14 @@ export class OutingController {
     } catch (error) {
       next(error);
     }
+  };
+
+  revote = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user?.uid) throw new UnauthorizedError();
+      await startRevote(req.params.id as string, req.user.uid, new Date(req.body.deadline), req.body.round_number);
+      await this.getVotingState(req, res, next);
+    } catch (error) { next(error); }
   };
 
   cancel = async (req: Request, res: Response, next: NextFunction) => {

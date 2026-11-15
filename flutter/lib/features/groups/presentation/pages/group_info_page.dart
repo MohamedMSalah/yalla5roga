@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/realtime_route.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/widgets/app_error_state.dart';
 import 'package:yalla_5roga/features/groups/presentation/widgets/group_history_links.dart';
@@ -27,7 +28,11 @@ class GroupInfoPage extends StatefulWidget {
   State<GroupInfoPage> createState() => _GroupInfoPageState();
 }
 
-class _GroupInfoPageState extends State<GroupInfoPage> {
+class _GroupInfoPageState extends State<GroupInfoPage>
+    with RealtimeRoute<GroupInfoPage> {
+  @override
+  String get realtimeGroupId => widget.groupId;
+
   final _membersKey = GlobalKey();
   bool _loading = true;
   GroupsProvider? _openGroupProvider;

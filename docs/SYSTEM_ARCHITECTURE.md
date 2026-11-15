@@ -147,9 +147,9 @@ sequenceDiagram
 
 1. Owner creates outing → `POST /api/outings` → `CreateOutingUseCase` → `outings` + owner `outing_attendance=going`.
 2. Owner adds candidates → `POST|PUT /api/outings/:id/vote-options` → clears votes; may move `draft` → `voting`.
-3. Members vote → `POST /api/outings/:id/votes` → upsert `outing_votes`; `tryCloseIfAllVoted`.
-4. Deadline job or early close → `vote-resolution.ts` → confirmed / tie lock / cancelled.
-5. Tie → Owner `POST /api/outings/:id/tie-break` → crypto RNG among tied leaders only.
+3. Members submit/change their current-round ballot → `PUT /api/outings/:id/votes` → atomic round-scoped selections.
+4. Deadline job → `vote-resolution.ts` → confirmed / tie_pending with persisted round results.
+5. Tie/zero votes → creator chooses `POST /api/outings/:id/tie-break` or `/voting/revote` using persisted candidates.
 
 ## 6. Notification flow
 
@@ -290,6 +290,22 @@ flowchart LR
 
 Discover map-first refinement (2026-11-14) adds a route-scoped DiscoverMapProvider extending PlaceCatalogProvider, retaining Provider → repository → datasource → Dio → existing catalog API → Neon. One mounted map/controller and one selectedPlaceId drive native pins and the horizontal carousel. The shared camera supports top/bottom floating chrome; native utility controls accept bottom positioning. No new service, socket, polling, backend endpoint or database schema was introduced. Existing architecture diagrams remain valid.
 
+## On-demand realtime ownership — 2026-11-15
+
+The shared Socket.IO transport is demand-driven. Account startup, cached list views and REST recovery alone do not acquire it. Current group details/info/history and outing detail routes hold independent owner leases through AppSyncProvider; chat holds reference-counted outing-room demand; the visible started arrival section holds its own lease. Covered/disposed routes release ownership. Only visible group IDs enter group rooms. Final release disposes the transport; other owners keep it available. Inactive/hidden/paused/detached lifecycle and offline connectivity suspend it, cancelling retries/listeners while preserving active intent and the replay cursor. Resume/network recovery reconnect only with demand. Logout clears intent/cursor and retains existing account cache cleanup. FCM remains independent.
+
+```mermaid
+flowchart TD
+  Views[Current group / outing routes, chat viewers, active arrivals] --> Demand[Shared owner / room demand]
+  Demand --> Gate{Foreground, online and demand?}
+  Gate -->|yes| IO[One authenticated Socket.IO transport]
+  Gate -->|no| Stop[Dispose transport and cancel retries]
+  IO --> Recovery[Scoped invalidation replay and active chat REST catch-up]
+  Lists[Home / Groups / Outings visits] --> REST[Cached content then REST revalidation]
+```
+
+This supersedes the earlier always-connected session interpretation. No database or deployment/topology change. Implementation is statically verified; live socket/lifecycle behavior remains unverified. See [verification and file map](audit/SOCKET_LIFECYCLE.md).
+
 
 ## Multi-branch places — 2026-11-15
 
@@ -298,3 +314,8 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Location voting state synchronization — 2026-11-15
+
+The existing single Node process retains the deadline job and notification worker. `vote-resolution.ts` owns locked current-round transitions; no second voting pipeline or scheduler is introduced. Realtime emits `outing:voting_tie_detected`, `outing:voting_revote_started`, `outing:voting_round_updated`, and `outing:location_confirmed` with outing/round IDs, state, relevant IDs and updated timestamp to the existing authenticated participant audience. Existing `data:changed` invalidations remain the Flutter integration and reconnect journal; Flutter does not trust event-supplied winners or apply old-round payloads. REST revalidates the current round. Physical socket/FCM behavior remains unverified; local HTTP and source evidence are distinct.

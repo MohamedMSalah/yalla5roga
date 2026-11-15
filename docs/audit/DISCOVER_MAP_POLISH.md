@@ -1,0 +1,7 @@
+# Discover and notifications polish — 2026-11-15
+
+Implemented: shorter Discover carousel/cards, pointed category-icon map pins, individual places instead of numbered clusters, localized map place names, metre labels below 1 km, centered notification title with trailing mark-all icon, and removal of the duplicate attribution banner while retaining native source attribution. Ordinary pin/name collision placement remains active to bound overlap; selected names remain visible. Explicit custom geographic selections retain their existing numbered annotations and selection list ordering.
+
+Documentation Updates: DESIGN.md, FLUTTER_ARCHITECTURE.md, SYSTEM_DESIGN.md, USER_SCENARIOS.md and NOTIFICATIONS.md. No workflow or ER diagram changes. No API/schema changes, backend operations or database writes.
+
+Verification: targeted Dart MCP analysis reported no errors. CLI analysis identified one existing unbraced callback in the touched Discover page; the now-unused banner-inset callback was removed; final targeted Dart MCP analysis again reported no errors. Formatting completed for all seven modified Dart files; the CLI also reported denied access to its external telemetry-session file. `git diff --check` passed. Runtime, phone/tablet/foldable, light/dark, Arabic/English, large text, keyboard, native attribution display and map gesture/collision behavior were not exercised under the project static-only restriction. No visual sign-off is claimed.

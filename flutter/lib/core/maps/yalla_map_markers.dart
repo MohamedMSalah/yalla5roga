@@ -27,8 +27,9 @@ class YallaMapMarkers {
 
   static Map<String, dynamic> collection(
     Iterable<Place> places,
-    List<CatalogDefinition> categories,
-  ) => {
+    List<CatalogDefinition> categories, {
+    required String language,
+  }) => {
     'type': 'FeatureCollection',
     'features': [
       for (final place in places)
@@ -44,7 +45,7 @@ class YallaMapMarkers {
             },
             'properties': {
               'place_id': place.id,
-              'name': place.name,
+              'name': place.displayName(language),
               'category': place.categoryId,
               'vibes': place.vibeIds,
               'image_url': place.imageUrl,
@@ -83,21 +84,22 @@ class YallaMapMarkers {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder)..scale(2);
       final shape = Path()
-        ..addRRect(
-          RRect.fromRectAndRadius(
-            const Rect.fromLTWH(4, 3, 32, 34),
-            const Radius.circular(12),
-          ),
-        );
+        ..moveTo(20, 46)
+        ..cubicTo(16, 39, 2, 29, 2, 20)
+        ..cubicTo(2, 10, 10, 2, 20, 2)
+        ..cubicTo(30, 2, 38, 10, 38, 20)
+        ..cubicTo(38, 29, 24, 39, 20, 46)
+        ..close();
       canvas.drawShadow(shape, const Color(0x66000000), 2, true);
       canvas.drawPath(shape, Paint()..color = Colors.white);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          const Rect.fromLTWH(6, 5, 28, 30),
-          const Radius.circular(10),
-        ),
-        Paint()..color = color,
+      canvas.drawPath(
+        shape,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
       );
+      canvas.drawCircle(const Offset(20, 20), 14, Paint()..color = color);
       final painter = TextPainter(
         text: TextSpan(
           text: String.fromCharCode(icon.codePoint),
@@ -115,7 +117,7 @@ class YallaMapMarkers {
         Offset((40 - painter.width) / 2, (40 - painter.height) / 2),
       );
       final picture = recorder.endRecording();
-      final image = await picture.toImage(80, 80);
+      final image = await picture.toImage(80, 100);
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       await map.addImage('yalla-$category', bytes!.buffer.asUint8List());
       painter.dispose();
@@ -132,8 +134,19 @@ class YallaMapMarkers {
       const ml.SymbolLayerProperties(
         iconImage: ['get', 'icon'],
         iconSize: .5,
-        iconPadding: 6,
+        iconAnchor: 'bottom',
+        iconPadding: 3,
         iconAllowOverlap: false,
+        textField: ['get', 'name'],
+        textFont: [YallaMapStyle.font],
+        textSize: 12,
+        textAnchor: 'top',
+        textOffset: [0, .4],
+        textMaxWidth: 10,
+        textColor: '#292333',
+        textHaloColor: '#FFFFFF',
+        textHaloWidth: 2,
+        textOptional: true,
         symbolSortKey: ['get', 'sort'],
       ),
       filter: [
@@ -149,9 +162,9 @@ class YallaMapMarkers {
       selectedSource,
       ring,
       const ml.CircleLayerProperties(
-        circleRadius: 25,
+        circleRadius: 7,
         circleColor: '#FFFFFF',
-        circleOpacity: .88,
+        circleOpacity: .7,
         circleStrokeColor: '#7962D1',
         circleStrokeWidth: 3,
       ),
@@ -163,16 +176,19 @@ class YallaMapMarkers {
       const ml.SymbolLayerProperties(
         iconImage: ['get', 'icon'],
         iconSize: .67,
+        iconAnchor: 'bottom',
         iconAllowOverlap: true,
         iconIgnorePlacement: true,
         textField: [
           'coalesce',
-          ['get', 'selection_order'],
+          ['get', 'name'],
           '',
         ],
         textFont: [YallaMapStyle.font],
         textSize: 12,
-        textOffset: [1.4, -1.4],
+        textAnchor: 'top',
+        textOffset: [0, .4],
+        textMaxWidth: 12,
         textColor: '#47357E',
         textHaloColor: '#FFFFFF',
         textHaloWidth: 2,
@@ -231,7 +247,7 @@ class YallaMapMarkers {
     if (_lastSelected != selectedKey) {
       await map.setGeoJsonSource(selectedSource, selected);
       _lastSelected = selectedKey;
-      // Selected records live above clusters and cannot be swallowed by clustering.
+      // Selected records live above ordinary pins and keep their focused styling.
       final ids = (selected['features'] as List)
           .map((f) => f['properties']['place_id'])
           .toList();
@@ -261,7 +277,7 @@ class YallaMapMarkers {
     await map.setLayerProperties(
       ring,
       ml.CircleLayerProperties(
-        circleRadius: 20 + 5 * t,
+        circleRadius: 5 + 2 * t,
         circleStrokeWidth: 1 + 2 * t,
       ),
     );

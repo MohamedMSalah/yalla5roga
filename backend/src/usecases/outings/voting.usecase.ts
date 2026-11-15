@@ -14,7 +14,6 @@ import {
   breakTieRandomly,
   emitResolutionNotifications,
   tryCloseIfAllVoted,
-  resolveClosedVoting,
   type VoteResolutionResult,
 } from "../../services/outings/vote-resolution.js";
 import type {
@@ -48,7 +47,7 @@ async function changeCandidates<T>(
     assertIsOutingCreator(outing, uid);
     assertCanAddVoteOption(outing);
     await assertDeadlineOpen(outing);
-    await tx.outing_votes.deleteMany({ where: { outing_id: outingId } });
+    await tx.outing_votes.deleteMany({ where: { outing_id: outingId, round_number: outing.current_voting_round } });
     const result = await write(tx);
     const updated = await tx.outings.update({
       where: { id: outingId },
@@ -203,6 +202,7 @@ export class CastVoteUseCase {
     outingId: string,
     userId: string,
     optionId: string,
+    expectedRound?: number,
   ): Promise<{ vote: OutingVote; resolution: VoteResolutionResult | null }> {
     if (!optionId) throw new ValidationError("option_id is required");
     const outing = await this.outings.findById(outingId);
@@ -219,6 +219,7 @@ export class CastVoteUseCase {
       outing_id: outingId,
       user_id: userId,
       option_id: optionId,
+      round_number: expectedRound,
     });
 
     const resolution = await tryCloseIfAllVoted(outingId);
@@ -232,30 +233,30 @@ export class CastVoteUseCase {
 
 /** Replace a complete ballot before evaluating early closure. */
 export class ReplaceBallotUseCase {
-  async execute(outingId: string, userId: string, optionIds: string[]) {
+  async execute(outingId: string, userId: string, optionIds: string[], expectedRound?: number) {
     if (!Array.isArray(optionIds) || optionIds.length > 5 || new Set(optionIds).size !== optionIds.length) {
       throw new ValidationError("Select up to five distinct options");
     }
     const result = await prisma.$transaction(async (tx) => {
       const [outing] = await tx.$queryRaw<Outing[]>`SELECT * FROM outings WHERE id = ${outingId}::uuid FOR UPDATE`;
       if (!outing) throw new NotFoundError("Outing");
+      if ((expectedRound ?? 1) !== outing.current_voting_round) throw new ConflictError("Voting round changed");
       assertVotingOpen(outing);
       await assertDeadlineOpen(outing);
       const eligible = await listEligibleVoterIds(outing, tx);
       if (!eligible.includes(userId)) throw new ForbiddenError("Only outing members can vote");
-      const options = await tx.outing_vote_options.findMany({ where: { outing_id: outingId, id: { in: optionIds } },
+      const options = await tx.outing_voting_round_options.findMany({ where: { outing_id: outingId, round_number: outing.current_voting_round, option_id: { in: optionIds } },
       });
       if (options.length !== optionIds.length) throw new ValidationError("Every option must belong to this outing");
-      await tx.outing_votes.deleteMany({ where: { outing_id: outingId, user_id: userId },
+      await tx.outing_votes.deleteMany({ where: { outing_id: outingId, round_number: outing.current_voting_round, user_id: userId },
       });
-      if (optionIds.length) await tx.outing_votes.createMany({ data: optionIds.map((option_id) => ({ outing_id: outingId, user_id: userId, option_id,
+      if (optionIds.length) await tx.outing_votes.createMany({ data: optionIds.map((option_id) => ({ outing_id: outingId, round_number: outing.current_voting_round, user_id: userId, option_id,
           })),
         });
-      const votes = await tx.outing_votes.findMany({ where: { outing_id: outingId },
+      const votes = await tx.outing_votes.findMany({ where: { outing_id: outingId, round_number: outing.current_voting_round },
       });
-      const voters = new Set(votes.map((vote) => vote.user_id));
-      const resolution = eligible.length && eligible.every((id) => voters.has(id))
-        ? await resolveClosedVoting(tx, outing, "all_voted") : null;
+      await tx.outings.update({ where: { id: outingId }, data: { updated_at: new Date(Math.max(Date.now(), outing.updated_at.getTime()+1)) } });
+      const resolution = null;
       return { votes: votes.filter((vote) => vote.user_id === userId), resolution,
       };
     });
@@ -269,13 +270,13 @@ export class RemoveVoteUseCase {
     private readonly outings: IOutingRepository = new OutingRepository(),
   ) {}
 
-  async execute(outingId: string, userId: string, optionId?: string,
+  async execute(outingId: string, userId: string, optionId?: string, expectedRound?: number,
   ): Promise<OutingVote> {
     const outing = await this.outings.findById(outingId);
     if (!outing) throw new NotFoundError("Outing");
     assertVotingOpen(outing);
     await assertEligibleVoter(outing, userId);
-    return this.outings.removeVote(outingId, userId, optionId);
+    return this.outings.removeVote(outingId, userId, optionId, expectedRound);
   }
 }
 
@@ -283,8 +284,9 @@ export class TieBreakUseCase {
   async execute(
     outingId: string,
     callerUid: string,
+    expectedRound?: number,
   ): Promise<VoteResolutionResult> {
-    const result = await breakTieRandomly(outingId, callerUid);
+    const result = await breakTieRandomly(outingId, callerUid, expectedRound);
     await emitResolutionNotifications(result);
     return result;
   }
@@ -295,55 +297,20 @@ export class GetVotingStateUseCase {
     private readonly outings: IOutingRepository = new OutingRepository(),
   ) {}
 
-  async execute(outingId: string): Promise<{
-    outing: Outing;
-    options: OutingVoteOption[];
-    votes: OutingVote[];
-    tiedOptionIds: string[];
-    eligible_voter_count: number;
-    isTied: boolean;
-    isClosed: boolean;
-  }> {
-    const outing = await this.outings.findById(outingId);
-    if (!outing) throw new NotFoundError("Outing");
-    const [options, votes, voters] = await Promise.all([
-      this.outings.listVoteOptions(outingId),
-      this.outings.listVotes(outingId),
-      listEligibleVoterIds(outing),
-    ]);
-
-    const counts = new Map<string, number>();
-    for (const vote of votes) {
-      counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
-    }
-    let max = 0;
-    const leaders: string[] = [];
-    for (const [optionId, count] of counts) {
-      if (count > max) {
-        max = count;
-        leaders.length = 0;
-        leaders.push(optionId);
-      } else if (count === max && count > 0) {
-        leaders.push(optionId);
-      }
-    }
-
-    const isClosed = Boolean(outing.vote_closed_at);
-    const isTied =
-      isClosed &&
-      outing.status === "voting" &&
-      !outing.winning_option_id &&
-      leaders.length > 1;
-
-    return {
-      outing,
-      options,
-      votes,
-      tiedOptionIds: isTied ? leaders : [],
-      eligible_voter_count: voters.length,
-      isTied,
-      isClosed,
-    };
+  async execute(outingId: string) {
+    return prisma.$transaction(async tx => {
+      const [outing] = await tx.$queryRaw<Outing[]>`SELECT * FROM outings WHERE id = ${outingId}::uuid FOR SHARE`;
+      if (!outing) throw new NotFoundError("Outing");
+      const current_round = await tx.outing_voting_rounds.findUniqueOrThrow({ where: { outing_id_round_number: { outing_id: outingId, round_number: outing.current_voting_round } }, include: { options: { include: { option: true } } } });
+      const eligible = await listEligibleVoterIds(outing, tx);
+      const votes = await tx.outing_votes.findMany({ where: { outing_id: outingId, round_number: outing.current_voting_round, user_id: { in: eligible } } });
+      const isTied = outing.status === "voting" && current_round.status === "tie_pending";
+      const voting_state = outing.status === "cancelled" ? "cancelled" : outing.winning_option_id ? "confirmed" : isTied ? "tie_pending" : outing.current_voting_round > 1 ? "revote_active" : "active";
+      return { outing, current_round, voting_state, resolution_method: outing.resolution_method,
+        options: current_round.options.sort((a,b) => a.option.sort_order-b.option.sort_order).map(o => ({ ...o.option, persisted_vote_count: o.vote_count })), votes,
+        tiedOptionIds: isTied ? current_round.options.filter(o => o.is_tied).map(o => o.option_id) : [],
+        eligible_voter_count: eligible.length, isTied, isClosed: Boolean(outing.vote_closed_at) || outing.status !== "voting" };
+    });
   }
 }
 

@@ -50,7 +50,13 @@ abstract class OutingsDataSource {
   Future<OutingSnapshot> selectVote(String outingId, int optionIndex);
   Future<OutingSnapshot> confirmVenue(String outingId, String optionId);
   Future<OutingSnapshot> finalizeVote(String outingId);
-  Future<TieBreakResult> breakTie(String outingId);
+  Future<TieBreakResult> breakTie(String outingId, [int? roundNumber]);
+  Future<OutingSnapshot> startRevote(
+    String outingId,
+    DateTime deadline,
+    int roundNumber,
+  );
+
   Future<OutingSnapshot> clearVotes(String outingId);
   Future<OutingSnapshot> setAttendance({
     required String outingId,
@@ -82,6 +88,8 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   }
 
   /// Cached vote options by outing for index Ã¢â€ â€™ option_id mapping.
+  final _latestVoteStates =
+      <String, ({PlaceVote vote, Outing? outing, DateTime revision})>{};
   final _optionsByOuting = <String, List<Map<String, dynamic>>>{};
 
   /// Last successful snapshot for single-outing merges.
@@ -169,6 +177,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   void clearCache() {
     _generation++;
     _optionsByOuting.clear();
+    _latestVoteStates.clear();
     _lifecycleHints.clear();
     _lastSnapshot = null;
     _attendanceRows.clear();
@@ -320,6 +329,10 @@ class OutingsRemoteDataSource implements OutingsDataSource {
       loadAttendance: true,
     );
     _checkSession(generation);
+    // The vote endpoint returns outing and round under one shared lock.
+    final canonicalVote = _latestVoteStates[outingId];
+    if (piece.vote != null && canonicalVote?.outing != null)
+      outing = canonicalVote!.outing;
     // Merge against the latest snapshot after the requests complete.
     final base = _lastSnapshot;
     final outings = List<Outing>.of(base?.outings ?? const []);
@@ -334,7 +347,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     final votesByOuting = {...?base?.votesByOuting};
     final attendanceByOuting = {...?base?.attendanceByOuting};
     if (piece.vote != null) {
-      votesByOuting[outingId] = piece.vote!;
+      votesByOuting[outingId] = canonicalVote?.vote ?? piece.vote!;
     }
     if (piece.attendance != null) {
       attendanceByOuting[outingId] = piece.attendance!;
@@ -579,6 +592,8 @@ class OutingsRemoteDataSource implements OutingsDataSource {
         ApiConstants.outingVotes(outingId),
         data: {
           'option_ids': [for (final i in indexes) options[i]['id']],
+          'round_number':
+              _lastSnapshot?.votesByOuting[outingId]?.roundNumber ?? 1,
         },
       );
       return await _refreshVote(outingId);
@@ -600,7 +615,11 @@ class OutingsRemoteDataSource implements OutingsDataSource {
       }
       await _client.post<Map<String, dynamic>>(
         ApiConstants.outingVotes(outingId),
-        data: {'option_id': optionId},
+        data: {
+          'option_id': optionId,
+          'round_number':
+              _lastSnapshot?.votesByOuting[outingId]?.roundNumber ?? 1,
+        },
       );
       return await _refreshVote(outingId);
     } on DioException catch (error) {
@@ -628,12 +647,21 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   }
 
   @override
-  Future<TieBreakResult> breakTie(String outingId) async {
+  Future<TieBreakResult> breakTie(String outingId, [int? roundNumber]) async {
+    final generation = _generation;
     try {
       final response = await _client.post<Map<String, dynamic>>(
         ApiConstants.outingTieBreak(outingId),
+        data: {
+          'method': 'random',
+          'round_number':
+              roundNumber ??
+              _lastSnapshot?.votesByOuting[outingId]?.roundNumber ??
+              1,
+        },
       );
       final payload = apiPayload(response.data);
+      _checkSession(generation);
       final winning =
           apiString(payload['winningOptionId']) ??
           apiString(payload['winning_option_id']) ??
@@ -646,12 +674,35 @@ class OutingsRemoteDataSource implements OutingsDataSource {
   }
 
   @override
+  Future<OutingSnapshot> startRevote(
+    String outingId,
+    DateTime deadline,
+    int roundNumber,
+  ) async {
+    final generation = _generation;
+    try {
+      await _client.post<Map<String, dynamic>>(
+        ApiConstants.outingRevote(outingId),
+        data: {
+          'deadline': deadline.toUtc().toIso8601String(),
+          'round_number': roundNumber,
+        },
+      );
+      _checkSession(generation);
+      return await _refreshVote(outingId);
+    } on DioException catch (error) {
+      _checkSession(generation);
+      throw _unwrap(error);
+    }
+  }
+
+  @override
   Future<OutingSnapshot> clearVotes(String outingId) async {
     try {
       final vote = await _loadVotes(outingId);
       for (final optionId in vote.cuserOptionIds) {
         await _client.delete<Map<String, dynamic>>(
-          '${ApiConstants.outingVotes(outingId)}/$optionId',
+          '${ApiConstants.outingVotes(outingId)}/$optionId?round_number=${vote.roundNumber}',
         );
       }
       return await _refreshVote(outingId);
@@ -801,6 +852,15 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     );
     _checkSession(generation);
     final state = apiPayload(response.data);
+    final revision =
+        DateTime.tryParse(
+          apiString((state['outing'] as Map?)?['updated_at']) ?? '',
+        ) ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+    final previous = _latestVoteStates[outingId];
+    if (previous != null && revision.isBefore(previous.revision)) {
+      return (vote: previous.vote, outing: previous.outing);
+    }
     final options = apiObjectList(state['options']);
     _optionsByOuting[outingId] = options;
     final outing = state['outing'];
@@ -816,6 +876,16 @@ class OutingsRemoteDataSource implements OutingsDataSource {
     final vote = PlaceVote(
       outingId: outingId,
       eligibleVoterCount: apiInt(state['eligible_voter_count']),
+      winningOptionId: apiString(
+        (state['outing'] as Map?)?['winning_option_id'],
+      ),
+      roundNumber: apiInt(
+        (state['current_round'] as Map?)?['round_number'] ?? 1,
+      ),
+      votingState: apiString(state['voting_state']) ?? 'active',
+      tiedOptionIds:
+          (state['tiedOptionIds'] as List?)?.whereType<String>().toList() ??
+          const [],
       options: [
         for (final option in options)
           VoteOption(
@@ -826,6 +896,7 @@ class OutingsRemoteDataSource implements OutingsDataSource {
                 ? 0
                 : (apiInt(option['vote_count']) * 100 / total).round(),
             area: apiString(option['area']) ?? '',
+            imageUrl: apiString(option['image_url']) ?? '',
           ),
       ],
       cuserOptionIds: state['my_option_ids'] is List
@@ -835,10 +906,15 @@ class OutingsRemoteDataSource implements OutingsDataSource {
       finalized: hint?.isClosed ?? apiBool(state['isClosed']),
       endsAt: hint?.voteEndsAt,
     );
-    return (
+    final parsedOuting = outing is Map<String, dynamic>
+        ? _outingFromJson(outing)
+        : null;
+    _latestVoteStates[outingId] = (
       vote: vote,
-      outing: outing is Map<String, dynamic> ? _outingFromJson(outing) : null,
+      outing: parsedOuting,
+      revision: revision,
     );
+    return (vote: vote, outing: parsedOuting);
   }
 
   Future<Map<String, AttendanceStatus>> _loadAttendance(String outingId) async {

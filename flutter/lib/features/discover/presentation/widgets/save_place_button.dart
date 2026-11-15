@@ -6,8 +6,13 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 
 class SavePlaceButton extends StatefulWidget {
-  const SavePlaceButton({super.key, required this.place});
+  const SavePlaceButton({
+    super.key,
+    required this.place,
+    this.showLabel = false,
+  });
   final SuggestedPlace place;
+  final bool showLabel;
   @override
   State<SavePlaceButton> createState() => _SavePlaceButtonState();
 }
@@ -25,7 +30,7 @@ class _SavePlaceButtonState extends State<SavePlaceButton> {
   Widget build(BuildContext context) {
     final store = context.watch<DiscoverProvider>();
     final saved = store.isPlaceSaved(widget.place.id);
-    return IconButton(
+    final button = IconButton(
       tooltip: saved ? context.l10n.unsavePlace : context.l10n.savePlace,
       isSelected: saved,
       icon: store.savingPlaceId == widget.place.id
@@ -49,6 +54,17 @@ class _SavePlaceButtonState extends State<SavePlaceButton> {
                 AppSnackBar.showError(error);
               }
             },
+    );
+    if (!widget.showLabel) return button;
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(minimumSize: const Size(48, 52)),
+      onPressed: button.onPressed,
+      icon: store.savingPlaceId == widget.place.id
+          ? button.icon
+          : saved
+          ? button.selectedIcon!
+          : button.icon,
+      label: Text(saved ? context.l10n.unsavePlace : context.l10n.savePlace),
     );
   }
 }

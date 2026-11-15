@@ -165,14 +165,14 @@ Inviting a registered or unregistered phone creates a pending invitation. Verifi
 | VOT-08 | Pending invitee votes | 403 | Implemented |
 | VOT-09 | Owner changes candidates | reset votes; keep deadline; notify | Implemented |
 | VOT-10 | Vote after close | 409 Conflict | Implemented |
-| VOT-11 | All eligible voted | early close + resolve | Implemented |
+| VOT-11 | All eligible voted | remain open until deadline | Implemented |
 | VOT-12 | Deadline reached | job closes | Implemented |
 | VOT-13 | Unique winner | confirmed + winner | Implemented |
 | VOT-14 | Tie | lock ballots; await Owner | Implemented |
 | VOT-15 | Owner tie-break | RNG tied leaders; confirm | Implemented |
 | VOT-16 | Member tie-break | 403 | Implemented |
 | VOT-17 | Flutter animation | display server winner only | Implemented UI; device NOT RUN |
-| VOT-18 | Close with zero votes | cancel | Implemented |
+| VOT-18 | Close with zero votes | tie_pending; all candidates eligible | Implemented |
 | VOT-19 | Open with zero votes | stay open | Implemented |
 
 ---
@@ -196,7 +196,7 @@ Inviting a registered or unregistered phone creates a pending invitation. Verifi
 |----|---------------------|---------|--------|
 | LIFE-01 | draft → voting | Yes via options | Implemented |
 | LIFE-02 | voting → confirmed | Winner paths | Implemented |
-| LIFE-03 | voting → cancelled | Zero votes / owner cancel | Implemented |
+| LIFE-03 | voting → cancelled | Creator cancellation | Implemented |
 | LIFE-04 | Early / deadline close | Server | Implemented |
 | LIFE-05 | Owner cancel | Yes | Implemented |
 | LIFE-06 | Member cancel | No | Implemented |
@@ -287,9 +287,9 @@ flowchart TD
   V --> M[Members vote]
   M --> R{Resolve}
   R -->|unique| W[Confirmed]
-  R -->|tie| T[Owner tie-break]
+  R -->|tie| T[Creator random or revote]
   T --> W
-  R -->|zero at close| X[Cancelled]
+  R -->|zero at close| T
 ```
 
 ```mermaid
@@ -328,10 +328,10 @@ Additional journey diagrams for vote change, candidate reset, attendance, chat, 
 | INV-03 | Outings | Accept invite | `POST /api/outings/:id/invitations/accept` | outing_guests | Member | Partial UI |
 | VOT-05 | Voting | Cast vote | `POST /api/outings/:id/votes` | outing_votes | Upsert | Implemented |
 | VOT-09 | Voting | Replace options | `PUT /api/outings/:id/vote-options` | options, votes | Reset votes | Implemented |
-| VOT-11 | Voting | All voted | (server) | outings | Close early | Implemented |
+| VOT-11 | Voting | All voted | (server) | outings | Wait until deadline | Implemented |
 | VOT-12 | Voting | Deadline | job | outings | Close | Implemented |
 | VOT-15 | Voting | Tie-break | `POST /api/outings/:id/tie-break` | outings | Confirmed | Implemented |
-| VOT-18 | Voting | Zero close | resolution | outings | Cancelled | Implemented |
+| VOT-18 | Voting | Zero close | resolution | outings | Creator intervention | Implemented |
 | ATT-02 | Attendance | Set status | `PUT /api/outings/:id/attendance` | outing_attendance | Updated | Implemented |
 | LIFE-11 | Lifecycle | Creator confirms permanent delete | `DELETE /api/outings/:id` | outings and dependents | Removed from outing lists and Saved | Implemented |
 | LIFE-05 | Lifecycle | Cancel | `POST /api/outings/:id/cancel` | outings | Cancelled | Implemented |
@@ -487,11 +487,11 @@ SAVE-04/05: Discover result/featured/nearby cards now expose shared bookmark con
 
 ## MapLibre Discover and outing selection — 2026-11-14
 
-Discover fills its existing tab behind floating search, horizontally scrolling backend category/vibe chips, map controls, a snapping horizontal place carousel and the unchanged floating navigation. All/Clear Filters remove category/vibe selections while retaining search and geographic context. Map bounds load active Neon pages. Name search in Arabic/English spans the catalog with the same filters; selecting a floating result focuses its pin and carousel card. One Provider selectedPlaceId synchronizes pin/card taps and centered-card swipes. Selection camera movement preserves the result set and avoids scroll/camera loops; deliberate panning or cluster exploration resumes bounds queries. Clearing search uses the current visible bounds. Cards show image, name, category, available distance and vibes, bookmarks and details. The selected card pins an explicit Create Outing Here action outside its scrolling details; it opens the existing wizard with suggestedPlace, leaving group selection, details, scheduling, voting, review and publication explicit. Previously loaded places/images remain available through existing caches. There is no draggable Discover results sheet.
+Discover fills its existing tab behind floating search, horizontally scrolling backend category/vibe chips, map controls, a snapping horizontal place carousel and the unchanged floating navigation. All/Clear Filters remove category/vibe selections while retaining search and geographic context. Map bounds load active Neon pages. Name search in Arabic/English spans the catalog with the same filters; selecting a floating result focuses its pin and carousel card. One Provider selectedPlaceId synchronizes pin/card taps and centered-card swipes. Selection camera movement preserves the result set and avoids scroll/camera loops; deliberate panning resumes bounds queries. Clearing search uses the current visible bounds. Cards show image, name, category, available distance and vibes, bookmarks and details. The selected card pins an explicit Create Outing Here action outside its scrolling details; it opens the existing wizard with suggestedPlace, leaving group selection, details, scheduling, voting, review and publication explicit. Previously loaded places/images remain available through existing caches. There is no draggable Discover results sheet.
 
-Create Outing opens the same YallaMapView in single or multiple mode. Catalog search/filter state and camera position survive returning to the wizard and reopening its picker. Existing selected locations remain indicated above clusters, and multiple locations retain ordered numbers. Choose a database place or use the existing custom-location/geocoder/center-reticle flow; confirm explicitly, add/remove/reorder in multiple mode, or back out without committing. Place voting, RSVP and actual arrival rules do not change.
+Create Outing opens the same YallaMapView in single or multiple mode. Catalog search/filter state and camera position survive returning to the wizard and reopening its picker. Existing selected catalog locations remain highlighted above other pins with localized names; the selection list and explicit custom annotations retain ordering. Choose a database place or use the existing custom-location/geocoder/center-reticle flow; confirm explicitly, add/remove/reorder in multiple mode, or back out without committing. Place voting, RSVP and actual arrival rules do not change.
 
-Both themes/locales use the same centralized vector style with translation fallback, restrained buildings/roads/greenery/Nile, native category pins and progressive clusters. Tapping a cluster zooms toward it. The offline download control on Android/iOS saves a bounded current area; it reports progress/failure and requires a smaller area when limits are exceeded. Web has no native region-download control. Native rendered behavior across phone/wide/foldable, large text, light/dark and Arabic/English is NOT RUN under the owner's no-Flutter/emulator/device-test instruction. The read-only API verification target currently returns zero active catalog places; no fake pins/imports were added.
+Both themes/locales use the same centralized vector style with translation fallback, restrained buildings/roads/greenery/Nile, native pointed category pins with localized place-name labels. Collision placement suppresses overlapping ordinary labels; focused place labels stay visible. The offline download control on Android/iOS saves a bounded current area; it reports progress/failure and requires a smaller area when limits are exceeded. Web has no native region-download control. Native rendered behavior across phone/wide/foldable, large text, light/dark and Arabic/English is NOT RUN under the owner's no-Flutter/emulator/device-test instruction. The read-only API verification target currently returns zero active catalog places; no fake pins/imports were added.
 
 
 ### Startup and Settings preference refinement — 2026-11-14
@@ -503,7 +503,7 @@ The notification switch saves both on/off through the existing Neon-backed prefe
 
 ## Notifications action, loading lines and arrival start — 2026-11-14
 
-Notifications places the text action **mark all as read** on the physical right of its existing app bar in both locales; Arabic text keeps its ambient RTL direction. It uses the existing mark-all API and disables when there are no unread items or a read mutation is pending. The former body button is removed; All/Unread filters remain. The app no longer displays indeterminate linear loading bars; real vote/result proportions, skeletons, button busy states and text feedback retain their meaning.
+Notifications centers its title and shows **mark all as read** as a trailing done-all icon with a localized tooltip in the native app bar; its position follows locale direction. It uses the existing mark-all API and disables when there are no unread items or a read mutation is pending. The former body button is removed; All/Unread filters remain. The app no longer displays indeterminate linear loading bars; real vote/result proportions, skeletons, button busy states and text feedback retain their meaning.
 
 Who’s arrived displays Arrival tracking starts at the outing time before scheduled start, with no roster fetch, arrival-driven connection request, location permission prompt or GPS lookup. A visible foreground page starts automatically at the scheduled instant. Navigating away/backgrounding cancels its timers; resuming or changing the schedule re-evaluates current time. After start, the existing confirmed-venue/server window/radius/accuracy/member checks remain authoritative. RSVP and voting still work independently before the outing.
 
@@ -511,6 +511,12 @@ Who’s arrived displays Arrival tracking starts at the outing time before sched
 ## Phase 7 presentation refinement — 2026-11-15
 
 Auth/Saved filter tabs retain their selections/navigation and gain keyboard activation, selected semantics, wrapping labels/badges, minimum 48dp targets and reduced motion. Form fields retain visible labels/hints and expose the label to accessibility. Group creation, planning, mention suggestions and account/preferences/support/about accents reuse light/dark semantic colors. The existing date/time selection callbacks are shared by a feature-local schedule renderer. Chat loading alignment follows RTL/LTR; saved-item removal is named for assistive technology. These are source-level refinements; screen-reader output, phone/wide/foldable, English/Arabic, light/dark, keyboard and enlarged-text rendering were NOT RUN under the Phase 7/8 restriction. Invitation, owner/creator, voting, RSVP, GPS, confirmation/deadline and closed-chat rules are unchanged.
+
+## On-demand realtime journey — 2026-11-15
+
+Home/Groups/Outings use cached data and revalidate on tab visits or return; they do not keep a socket connected. Current group details/info/history and outing details acquire shared realtime ownership only while current. Chat shows existing cached messages immediately, reconnects/joins when foreground and online, and revalidates missed messages over REST. Covering/closing chat releases its room/listeners; another active consumer keeps the shared transport available. Inactive/background/offline states suspend it even with viewers; resume reconnects only for active consumers. Cached history and durable chat sends remain available, with existing backend authorization, mention, edit/delete windows and read receipts unchanged. FCM is independent of socket ownership.
+
+Status: implemented with static verification and unauthenticated Swagger/OpenAPI checks; chat delivery, reconnect, overlapping owners, lifecycle, offline cache rendering and all visual/device states are NOT RUN. [Verification details](audit/SOCKET_LIFECYCLE.md).
 
 
 ## Multi-branch places — 2026-11-15
@@ -520,3 +526,30 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Place details reference layout — 2026-11-15
+
+Discover place details presents a swipeable cover gallery above a rounded details surface. Overview shows the available description, address, distance, opening hours and prices. Branches lists the existing physical brand branches with explicit selection, loading/retry and pagination; independent places show their own branch information. Reviews clearly states that reviews are not available; no rating or review count is fabricated. Save and Get directions remain at the bottom, with Plan Outing Here opening the existing wizard for the displayed physical place. Non-active places retain their availability notice and cannot start a new plan. Directions failures use localized feedback. Visual/device/authenticated behavior remains unverified.
+
+
+## Location tie/revote journey — 2026-11-15
+
+At the backend deadline, members see the frozen tied places, images/counts and round number. Zero-vote results explain that every eligible place remains available. Members see a waiting message; only the outing creator sees Roll the Dice and Revote. Random requires confirmation, persists the backend winner, then reveals it for about 2.4 seconds. Reduced motion immediately reveals it. Reopening the screen shows the confirmed venue without replaying the reveal.
+
+Revote opens a bounded shared bottom sheet with tied candidates and a localized date/time picker. It validates a future deadline before outing start and within seven days. A fresh round starts at zero; members can select/change/remove multiple locations again. Historic ballots and RSVP remain intact. Timeouts trigger canonical REST recovery. The final venue uses the existing location section/map action and winning place image.
+
+```mermaid
+stateDiagram-v2
+  active --> confirmed: unique positive leader at deadline
+  active --> tie_pending: tied leaders or zero votes
+  tie_pending --> confirmed: creator / server crypto RNG
+  tie_pending --> revote_active: creator / future deadline
+  revote_active --> confirmed: unique positive leader at deadline
+  revote_active --> tie_pending: another tie or zero votes
+  active --> cancelled: creator cancels outing
+  tie_pending --> cancelled: creator cancels outing
+  revote_active --> cancelled: creator cancels outing
+```
+
+Implemented and checked via static analysis and local served Swagger/HTTP fixtures. English/Arabic, light/dark, reduced motion, large text, phone/wide/foldable, offline-device and input behavior remain visually/runtime unverified under the no-launch restriction.

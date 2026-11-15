@@ -106,7 +106,16 @@ abstract class OutingsRepository {
   Future<Either<Failure, OutingSnapshot>> finalizeVote(String outingId);
 
   /// Owner tie-break; returns snapshot plus server-selected winning option id.
-  Future<Either<Failure, TieBreakResult>> breakTie(String outingId);
+  Future<Either<Failure, TieBreakResult>> breakTie(
+    String outingId, [
+    int? roundNumber,
+  ]);
+
+  Future<Either<Failure, OutingSnapshot>> startRevote(
+    String outingId,
+    DateTime deadline,
+    int roundNumber,
+  );
 
   Future<Either<Failure, OutingSnapshot>> clearVotes(String outingId);
 

@@ -35,6 +35,8 @@ class OutingArrivalService {
   Stream<String> get arrivalChanges => _socket.arrivalChanges;
   Stream<bool> get connectionChanges => _socket.connectionChanges;
   Future<void> connect() => _socket.ensureConnected();
+  void retainRealtime(Object owner) => _socket.retain(owner);
+  void releaseRealtime(Object owner) => _socket.release(owner);
   Future<OutingArrivalRoster> list(String outingId) => _remote.list(outingId);
 
   Future<ArrivalVerification> verify(

@@ -69,15 +69,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
         return LayoutBuilder(
           builder: (context, constraints) {
             final height = math.min(
-              180 + MediaQuery.textScalerOf(context).scale(42),
+              140 + MediaQuery.textScalerOf(context).scale(42),
               constraints.maxHeight * .4,
             );
             final showCards = !keyboard && catalog.places.isNotEmpty;
             final bottom = navInset + (showCards ? height + 8 : 0);
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted)
-                catalog.mapController.attributionInset.value = bottom + 4;
-            });
             final issue = catalog.locationIssue;
             final message = catalog.error != null
                 ? l10n.mapLookupFailed

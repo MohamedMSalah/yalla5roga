@@ -30,6 +30,10 @@ function uidOf(socket: Socket): string | null {
  */
 export function registerChatGateway(io: Server): void {
   io.on("connection", (socket) => {
+    // An authorization query may finish after leave/disconnect. Invalidate its
+    // intent before awaiting so a late join cannot resurrect a closed screen.
+    const joins = new Map<string, object>();
+    socket.on("disconnect", () => joins.clear());
     socket.on("outing:join", async (raw: unknown, ack?: unknown) => {
       const uid = uidOf(socket);
       if (!uid) {
@@ -44,16 +48,26 @@ export function registerChatGateway(io: Server): void {
       }
 
       const { outingId } = parsed.data;
+      const intent = {};
+      joins.set(outingId, intent);
       try {
         await assertChatParticipant(outingId, uid);
       } catch {
+        if (!socket.connected || joins.get(outingId) !== intent) return;
+        joins.delete(outingId);
         await socket.leave(outingChatRoom(outingId));
         safeAck(ack, { ok: false, error: "FORBIDDEN" });
         return;
       }
 
       const room = outingChatRoom(outingId);
+      if (!socket.connected || joins.get(outingId) !== intent) return;
       await socket.join(room);
+      if (!socket.connected || joins.get(outingId) !== intent) {
+        if (!joins.has(outingId)) await socket.leave(room);
+        return;
+      }
+      joins.delete(outingId);
       safeAck(ack, { ok: true, room });
     });
 
@@ -65,6 +79,7 @@ export function registerChatGateway(io: Server): void {
       }
 
       const room = outingChatRoom(parsed.data.outingId);
+      joins.delete(parsed.data.outingId);
       await socket.leave(room);
       safeAck(ack, { ok: true, room });
     });

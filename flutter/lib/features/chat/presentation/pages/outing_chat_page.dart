@@ -48,6 +48,46 @@ class _OutingChatPageState extends State<OutingChatPage> {
   DateTime? _scheduledClose;
   OutingChatProvider? _chat;
   OutingsProvider? _outings;
+  bool _subscribed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = ModalRoute.isCurrentOf(context) ?? true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || visible != (ModalRoute.isCurrentOf(context) ?? true)) {
+        return;
+      }
+      if (visible && !_subscribed) {
+        unawaited(_openChat());
+      } else if (!visible && _subscribed) {
+        _subscribed = false;
+        unawaited(_chat?.unsubscribe(_outingId));
+      }
+    });
+  }
+
+  Future<void> _openChat() async {
+    _subscribed = true;
+    _chat = context.read<OutingChatProvider>();
+    final groups = context.read<GroupsProvider>();
+    final userId = context.read<AuthProvider>().user?.id;
+    unawaited(_outings!.refreshLifecycle(outingId: _outingId));
+    await _chat!.subscribe(_outingId, userId: userId);
+    if (!mounted || !_subscribed) return;
+    if (widget.messageId != null) {
+      final available = await _chat!.focusMessage(_outingId, widget.messageId!);
+      if (!mounted || !_subscribed) return;
+      if (!available) {
+        AppSnackBar.showError(context.l10n.notificationTargetUnavailable);
+      }
+    }
+    final groupId = widget.event.groupId;
+    if (groupId != null && groupId.isNotEmpty) {
+      await groups.ensureGroupLoaded(groupId);
+    }
+    if (mounted) _scheduleCloseCheck();
+  }
 
   String get _outingId => widget.event.id;
 
@@ -56,30 +96,6 @@ class _OutingChatPageState extends State<OutingChatPage> {
     super.initState();
     _outings = context.read<OutingsProvider>()..openOuting(_outingId);
     _controller.addListener(_onTextChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      _chat = context.read<OutingChatProvider>();
-      final outings = context.read<OutingsProvider>();
-      final groups = context.read<GroupsProvider>();
-      final userId = context.read<AuthProvider>().user?.id;
-      unawaited(outings.refreshLifecycle(outingId: _outingId));
-      await _chat!.subscribe(_outingId, userId: userId);
-      if (!mounted) return;
-      if (widget.messageId != null) {
-        final available = await _chat!.focusMessage(
-          _outingId,
-          widget.messageId!,
-        );
-        if (!mounted) return;
-        if (!available)
-          AppSnackBar.showError(context.l10n.notificationTargetUnavailable);
-      }
-      final groupId = widget.event.groupId;
-      if (groupId != null && groupId.isNotEmpty) {
-        await groups.ensureGroupLoaded(groupId);
-      }
-      if (mounted) _scheduleCloseCheck();
-    });
   }
 
   @override
@@ -89,7 +105,8 @@ class _OutingChatPageState extends State<OutingChatPage> {
     _editExpiryTimer?.cancel();
     // Fire-and-forget leave; provider outlives this page.
     final chat = _chat;
-    if (chat != null) {
+    if (chat != null && _subscribed) {
+      _subscribed = false;
       unawaited(chat.unsubscribe(_outingId));
     }
     _controller.removeListener(_onTextChanged);

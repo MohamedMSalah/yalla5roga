@@ -65,7 +65,7 @@ flowchart TB
 
 1. Auth → sync/login → Bearer on all domain APIs  
 2. Create outing → owner Going → candidates → voting  
-3. Vote upsert → maybe early close → notify  
+3. Current-round vote upsert → targeted realtime invalidation  
 4. Deadline/tie-break/cancel → status transition → notify  
 5. Chat / attendance / saves as independent side paths  
 
@@ -159,20 +159,20 @@ sequenceDiagram
   participant P as OutingsProvider
   participant API as PUT /votes
   participant UC as ReplaceBallot use case
-  participant VR as tryCloseIfAllVoted
+  participant VR as Backend deadline job
   participant DB as Neon
 
   UI->>P: submit complete selection
-  P->>API: { option_ids }
+  P->>API: { option_ids, round_number }
   API->>UC: lock outing; assert eligible + open
   UC->>DB: replace caller selections atomically
-  UC->>VR: if all distinct eligible voters submitted, resolve
-  VR-->>API: outing maybe confirmed
+  UC-->>API: current-round votes, resolution null
+  Note over VR,DB: At deadline, independently lock outing and freeze results
   API-->>P: vote + state
   P-->>UI: refresh tallies / winner UI
 ```
 
-Transaction: full ballot replacement and existing early-close resolution share the outing row lock and transaction. Option tallies count selected rows; participation counts distinct eligible users. Notifications and realtime publication follow commit. Legacy single-selection POST remains additive and idempotent.
+Transaction: full ballot replacement locks the outing; backend deadline closure uses the same lock. Option tallies count selected rows; participation counts distinct eligible users. Notifications and realtime publication follow commit. Legacy single-selection POST remains additive and idempotent.
 
 ### Tie-break
 
@@ -252,7 +252,7 @@ sequenceDiagram
 
 Flutter reads all plans through the same authenticated `GET /api/outings/cuser` snapshot. The client compares `scheduled_at` to the current instant and moves an outing to Settings → Outing history at its scheduled start, along with rows whose server status is `past` or `cancelled`. The provider schedules a local update at the next start and recalculates when the app resumes. The completion job determines when a confirmed outing’s database status becomes `past`.
 
-**Tie nuance (implemented):** Status may remain `voting` while `vote_closed_at` is set (ballots locked) until Owner tie-break confirms.
+**Tie nuance (implemented):** Main status stays `voting` while the round is `tie_pending` and ballots lock, until creator random confirmation or revote.
 
 Enforcement: use cases + `vote-resolution` + jobs. Flutter must refresh server state, not invent transitions.
 
@@ -262,7 +262,7 @@ stateDiagram-v2
   draft --> voting: options added
   draft --> confirmed: created with fixed place path
   voting --> confirmed: uniqueWinner_or_tieBreak
-  voting --> cancelled: zeroVotes_or_ownerCancel
+  voting --> cancelled: creatorCancel
   confirmed --> past: completionJob
   confirmed --> cancelled: ownerCancel
 ```
@@ -279,15 +279,15 @@ stateDiagram-v2
 - Eligible: Owner + accepted Members (+ group members of `group_id`).  
 - Mandatory Owner-defined deadline.  
 - Multiple unique selections per caller ballot; atomically replace the full selection; lock after close.
-- All voted → immediate close; deadline → close.  
+- All voted → remain active; backend deadline → close.  
 - Unique max → confirm; tie → Owner RNG among tied only.  
-- Zero at close → cancel; zero while open → stay open.  
+- Zero at close → tie_pending with every current-round candidate; zero while open → stay open.  
 - Candidate set change → clear votes, keep deadline, notify.  
 - After confirm, place locked.
 
 ### Persistence / concurrency
 
-- PK `(outing_id, user_id, option_id)` prevents duplicate selections; count distinct users for participation.
+- PK `(outing_id, user_id, option_id, round_number)` prevents duplicate selections; count distinct users for participation.
 - Replace options deletes votes+options in transaction.  
 - Resolution uses transactional updates; concurrency tests exist (`voting-concurrency.test.ts`).  
 - Deadline job idempotent via status/`vote_closed_at` checks.
@@ -362,13 +362,13 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  A[Close trigger: all voted OR deadline] --> B{Votes count}
-  B -->|0| C[Cancel zero_votes]
+  A[Backend deadline] --> B{Current round counts}
+  B -->|0| E[Persist tied candidates and tie_pending]
   B -->|unique max| D[Confirm winner]
-  B -->|tie| E[Lock ballots vote_closed_at]
-  E --> F[Owner tie-break]
+  B -->|tie| E
+  E --> F[Creator random or revote]
   F --> D
-  C --> N[Notify]
+  E --> N[Notify]
   D --> N
 ```
 
@@ -522,14 +522,14 @@ Simple weekday schedules are parsed only when exactly representable by the exist
 
 ## Vector map viewport and selection workflow — 2026-11-14
 
-YallaMapView renders the provider-independent OpenMapTiles style through MapLibre. Native gestures settle for 350 ms after all pointers lift; PlaceCatalogProvider then debounces the bounds/filter query for 350 ms. Movement/filter changes cancel pending reads and reject stale generations. The existing repository/query cache and API snapshots supply 50-row pages (ten per viewport burst, then Load more). Only active, coordinate-valid database records enter the catalog GeoJSON source. Native clustering and symbol collision placement reduce density; selected records use a separate upper source. User-visible cards reuse the existing image cache.
+YallaMapView renders the provider-independent OpenMapTiles style through MapLibre. Native gestures settle for 350 ms after all pointers lift; PlaceCatalogProvider then debounces the bounds/filter query for 350 ms. Movement/filter changes cancel pending reads and reject stale generations. The existing repository/query cache and API snapshots supply 50-row pages (ten per viewport burst, then Load more). Only active, coordinate-valid database records enter the catalog GeoJSON source. Individual category pins replace numbered clusters; native symbol collision placement reduces density and selected records use a separate upper source. User-visible cards reuse the existing image cache.
 
 Pin or card focus updates presentation selection and camera only. Create Outing's existing picker owns explicit single/multiple confirmation and custom geographic candidates. Catalog providers retain camera state across picker navigation. Explicit offline region downloads use the configured vector style and the native offline database with bounded area/tile/concurrency limits; ordinary tile viewing does not guarantee offline coverage. No backend lifecycle or notification workflow changed.
 
 
 ## Discover viewport/search/selection refinement — 2026-11-14
 
-DiscoverMapProvider extends the shared catalog provider without a second API/cache path. Global database search drops bbox/location restrictions while retaining taxonomy; current bounds are recorded without querying during search or selection-camera focus. Clearing search restores those current bounds. Panning and cluster exploration resume viewport queries; panning does not cancel global search. Debounced updates expose subtle loading, cancel superseded requests and retain matching cached records. Loaded viewport places sort by current-user distance; new pages append through existing raw offsets and deduplication. Selection survives paging by ID, while changed search/filters clear it. Programmatic carousel scrolling suppresses intermediate callbacks; a centered-card swipe updates selection/camera once and retains native snapping. Create Outing receives the existing SuggestedPlace and performs no immediate mutation. No voting, invitation, attendance or lifecycle rule changed.
+DiscoverMapProvider extends the shared catalog provider without a second API/cache path. Global database search drops bbox/location restrictions while retaining taxonomy; current bounds are recorded without querying during search or selection-camera focus. Clearing search restores those current bounds. Panning resumes viewport queries; panning does not cancel global search. Debounced updates expose subtle loading, cancel superseded requests and retain matching cached records. Loaded viewport places sort by current-user distance; new pages append through existing raw offsets and deduplication. Selection survives paging by ID, while changed search/filters clear it. Programmatic carousel scrolling suppresses intermediate callbacks; a centered-card swipe updates selection/camera once and retains native snapping. Create Outing receives the existing SuggestedPlace and performs no immediate mutation. No voting, invitation, attendance or lifecycle rule changed.
 
 
 ## Startup permissions and sole-owner leave — 2026-11-14
@@ -548,6 +548,12 @@ Arrival refresh callbacks and returned data both require scheduled start to have
 
 The shared session socket and REST recovery workflow are retained. Transient outing-room joins now stop after five delayed retries (1/2/4/8/16 seconds); desired room intent survives exhaustion for a later explicit recovery/reconnect, and success clears the attempt budget. Leaving the room/disconnecting cancels timers and clears attempts. Definitive authorization rejection still drops room intent. The chat provider reference-counts viewers, ignores repeated zero-count unsubscribe and advances its generation before disposal to reject pending asynchronous completions. Closing a chat page leaves the outing room; it does not disconnect the transport used by other app-wide invalidations. REST remains canonical and closed-chat history remains read-only. Verification is source/static only for sockets; no live Socket.IO exercise occurred in this phase.
 
+## On-demand socket lifecycle — 2026-11-15
+
+This supersedes the Phase 7 note that transport always stays available for app-wide invalidations. AppSyncProvider coordinates foreground/network state and idempotent visible-route leases; the existing socket service combines them with reference-counted chat demand. Closing one consumer only disconnects when no other consumer remains. Background/inactive/offline suspension retains intent and the reconciliation cursor, invalidates pending callbacks, cancels join/auth retries and disposes the manager. Auth and transport retries are bounded at five attempts each. Returning to the foreground reconnects only for active demand. Opening/reopening chat renders its existing cache before forced REST revalidation, joins the room and retains canonical REST sends, mentions, edits, tombstones and read operations. Closing/covering chat cancels its last-viewer listeners and leaves the room without clearing cached messages.
+
+Socket-only reconnect reconciliation avoids repeating account, catalog, native notification and draft recovery. Startup/resume/network recovery retain those existing workflows. Group/outing details revalidate on acquisition; Home/Groups/Outings tabs revalidate on visits/return without owning a socket or polling. A missing/expired replay checkpoint still requests bounded REST fallback. Backend join intent is invalidated by leave/disconnect before asynchronous authorization returns, and Socket.IO performs automatic room cleanup. See [lifecycle diagram](SYSTEM_ARCHITECTURE.md#on-demand-realtime-ownership--2026-11-15) and [verification limits](audit/SOCKET_LIFECYCLE.md). Outing lifecycle, voting, RSVP and GPS authority are unchanged.
+
 
 ## Multi-branch places — 2026-11-15
 
@@ -556,3 +562,24 @@ Places remain physical branches with stable UUIDs and existing outing/vote, taxo
 GET /api/places accepts brand_id; GET /api/place-brands/:id and /:id/branches expose metadata and paginated physical branches. Nearby and detail DTOs carry brand/branch metadata. Flutter reuses catalog Provider/repository/cache queries for explicit branch selection; map pins and outing payloads retain physical IDs and coordinates. No category/vibe defaults are inherited. Existing manual import operation is retained; no weekly scheduler is restored.
 
 Verification: ten requested scenarios passed through served Swagger/HTTP against local PostgreSQL/WASM, migration applied twice, 15 catalog logic tests passed, TypeScript and Prisma validation passed. Targeted Dart analysis has no errors/warnings and three existing style infos. Flutter runtime, themes/locales/sizes/input states and device/realtime behavior were not exercised. See audit/PLACE_BRANCHES_OPENAPI_RESULTS.json and audit/PLACE_BRANCHES_MIGRATION_DEPLOYMENT.json for deployment status.
+
+
+## Location voting rounds — 2026-11-15
+
+The existing 30-second deadline worker closes the current round even with no clients connected. One outing-row lock orders ballots, deadline closure, random selection and revote; frozen results determine tied candidates. A revote closes the pending round, inserts the next active round and its relational eligible options, then switches the outing pointer/deadline in the same transaction. It never deletes old votes or changes RSVP. Final confirmation retains the existing canonical location fields and transactional notification side effects.
+
+```mermaid
+flowchart TD
+  D[Backend deadline job] --> L[Lock outing and current round]
+  L --> T[Freeze valid current-round counts]
+  T -->|one positive leader| C[Persist final location and confirmation]
+  T -->|tie or zero votes| P[Persist tie_pending and tied candidates]
+  P -->|creator random| R[Crypto RNG among persisted candidates]
+  R --> C
+  P -->|creator revote| N[Close old round and create empty tied-only round]
+  N --> D
+  C --> O[Transactional notification outbox]
+  P --> O
+  N --> O
+  O --> I[Post-commit outing invalidation and REST recovery]
+```

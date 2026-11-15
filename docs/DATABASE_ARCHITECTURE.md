@@ -5,7 +5,7 @@
 | Last verified | 2026-11-13 |
 | Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | All **19** repository migrations are applied, including special-event occasions, voting duration presets, Android notification metadata and places taxonomy/catalog synchronization. Current target/history/checksum verification and successful Prisma deployment check: [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json). Earlier deployment/backup evidence remains in [prior migration deployment](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json) and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
+| Configured Neon schema | All **21** repository migrations are applied (latest: [voting rounds deployment](audit/LOCATION_TIE_MIGRATION_DEPLOYMENT.json)), including special-event occasions, voting duration presets, Android notification metadata and places taxonomy/catalog synchronization. Current target/history/checksum verification and successful Prisma deployment check: [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json). Earlier deployment/backup evidence remains in [prior migration deployment](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json) and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -124,7 +124,7 @@ UUID PK. FK outing (cascade). Optional `place_id`. Unique `(outing_id, place_id)
 
 ### `outing_votes`
 
-**Multiple location selections per ballot.** PK `(outing_id, user_id, option_id)`. The option FK still uses `(option_id, outing_id)`, preventing cross-outing selections. `20261113180000_multi_location_ballots` expands the primary key without deleting rows, changing IDs or replacing foreign keys. Existing single selections remain valid. Distinct user IDs determine participation; option rows determine each candidate tally.
+**Multiple location selections per ballot.** PK `(outing_id, user_id, option_id, round_number)`. The option FK still uses `(option_id, outing_id)`, preventing cross-outing selections. `20261113180000_multi_location_ballots` expands the primary key without deleting rows, changing IDs or replacing foreign keys. Existing single selections remain valid. Distinct user IDs determine participation; option rows determine each candidate tally.
 
 ### `outing_drafts`
 
@@ -166,7 +166,7 @@ Indexes: owner, cleanup `(status, upload_expires_at)`, and each optional entity 
 
 1. Firebase UID = `users.id`.
 2. Outing Owner = `outings.created_by` (not a global role).
-3. One selection per `(outing_id, user_id, option_id)`; multiple selections form one caller ballot.
+3. One selection per `(outing_id, user_id, option_id, round_number)`; multiple selections form one caller ballot.
 4. Winner option must belong to same outing (composite FK).
 5. Attendance changes must never mutate `outing_votes`.
 6. Confirmed winning location must stay consistent with `winning_option_id`.
@@ -184,9 +184,9 @@ Indexes: owner, cleanup `(status, upload_expires_at)`, and each optional entity 
 |-----------|-------------|
 | Create outing | Create outing + owner attendance Going |
 | Replace candidates | Delete votes + options + insert options; preserve `vote_ends_at` |
-| Cast vote + early close | Upsert vote; if all eligible voted, resolve in transaction |
+| Cast vote | Lock outing, validate current round/deadline, persist selection; remain open |
 | Deadline close / tie-break | Lock outing row; resolve tallies; update status/winner |
-| Zero votes at close | Cancel outing; set `vote_close_reason=zero_votes` |
+| Zero votes at close | Freeze all current candidates as tied; await creator |
 
 ## 6. Data ownership
 
@@ -332,3 +332,10 @@ erDiagram
   place_brands ||--o{ place_brand_aliases : names
   places ||--o{ outings : selected_branch
 ```
+
+
+## Voting rounds migration — 2026-11-15
+
+`20261115010000_location_voting_rounds` adds `outings.current_voting_round`, `resolution_method`, `resolved_at`, plus `outing_voting_rounds` and `outing_voting_round_options`. Existing `outing_votes` gains default round 1 and a four-column primary key. Round options persist eligible option IDs, frozen counts and tied flags. Composite foreign keys prevent cross-outing/round votes; SQL checks, unique round numbers and a partial index enforce one active round. The current-round FK is deferred; insert triggers initialize round 1 and its candidates for existing creation paths. These SQL-only checks/triggers/partial index supplement the Prisma model.
+
+Existing outings/ballots are backfilled without changing original columns or historical confirmed locations. Deployment to the verified configured Neon branch passed backup/restore rehearsal for 37 tables / 200,478 rows; original application columns were unchanged, five initial rounds were backfilled and no orphan votes remain. Metadata evidence: [deployment](audit/LOCATION_TIE_MIGRATION_DEPLOYMENT.json). Private backup rows remain ignored under `backend/.database-backups/`. No historical zero-vote cancellations were reopened. Historical confirmed rows retain their original close metadata; new transitions populate resolution method/time.

@@ -27,8 +27,8 @@ class OutingArrivalsSection extends StatefulWidget {
 class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
     with WidgetsBindingObserver {
   late final OutingArrivalService _service;
-  late final StreamSubscription<String> _arrivalSubscription;
-  late final StreamSubscription<bool> _connectionSubscription;
+  StreamSubscription<String>? _arrivalSubscription;
+  StreamSubscription<bool>? _connectionSubscription;
   Timer? _verificationTimer;
   Timer? _refreshTimer;
   Timer? _startTimer;
@@ -57,12 +57,6 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
     _foreground =
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     _service = context.read<OutingArrivalService>();
-    _arrivalSubscription = _service.arrivalChanges.listen((id) {
-      if (id == widget.outing.id) _queueRefresh();
-    });
-    _connectionSubscription = _service.connectionChanges.listen((connected) {
-      if (connected) _queueRefresh();
-    });
   }
 
   @override
@@ -100,6 +94,9 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
     _verificationTimer?.cancel();
     _refreshTimer?.cancel();
     _startTimer?.cancel();
+    if (!_active || !_hasStarted) {
+      _releaseRealtime();
+    }
     if (!_active) return;
     _lastAttempt = null;
     if (!_hasStarted) {
@@ -114,8 +111,22 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
       }
       return;
     }
+    _arrivalSubscription ??= _service.arrivalChanges.listen((id) {
+      if (id == widget.outing.id) _queueRefresh();
+    });
+    _connectionSubscription ??= _service.connectionChanges.listen((connected) {
+      if (connected) _queueRefresh();
+    });
+    _service.retainRealtime(this);
     _queueRefresh();
-    unawaited(_service.connect().catchError((Object _) {}));
+  }
+
+  void _releaseRealtime() {
+    unawaited(_arrivalSubscription?.cancel());
+    unawaited(_connectionSubscription?.cancel());
+    _arrivalSubscription = null;
+    _connectionSubscription = null;
+    _service.releaseRealtime(this);
   }
 
   void _queueRefresh() {
@@ -231,8 +242,7 @@ class _OutingArrivalsSectionState extends State<OutingArrivalsSection>
   void dispose() {
     _generation++;
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_arrivalSubscription.cancel());
-    unawaited(_connectionSubscription.cancel());
+    _releaseRealtime();
     _verificationTimer?.cancel();
     _refreshTimer?.cancel();
     _startTimer?.cancel();

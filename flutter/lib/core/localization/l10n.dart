@@ -5,6 +5,13 @@ import 'package:intl/intl.dart';
 /// Single source for every on-screen string.
 /// Getter names match the copy they return.
 class L10n {
+  String get placeOverview => _t('Overview', 'نظرة عامة');
+  String get placeBranches => _t('Branches', 'الفروع');
+  String get placeReviews => _t('Reviews', 'التقييمات');
+  String get placeReviewsUnavailable =>
+      _t('Reviews are not available yet', 'التقييمات غير متاحة حالياً');
+  String get placeDirections => _t('Get directions', 'الاتجاهات');
+
   String get multipleBranches => _t('Multiple branches', 'فروع متعددة');
   String get chooseBranch => _t('Choose a branch', 'اختار الفرع');
   String viewOtherBranches(int count) => _t(
@@ -12,29 +19,92 @@ class L10n {
     'شوف الفروع التانية (${n(count)})',
   );
 
+  String get locationTieTitle =>
+      _t('Location vote needs a decision', 'تصويت المكان محتاج قرار');
+  String get locationTieExplanation => _t(
+    'These places are tied for first. Only the outing creator can roll the dice or start another round.',
+    'الأماكن دي متعادلة في المركز الأول. منشئ الخروجة بس يقدر يختار عشوائي أو يبدأ جولة جديدة.',
+  );
+  String get noLocationVotesExplanation => _t(
+    'No location received votes. All proposed places remain eligible.',
+    'مفيش أصوات لأي مكان. كل الأماكن المقترحة لسه متاحة.',
+  );
+  String get waitingForOutingCreator => _t(
+    'Waiting for the outing creator to decide.',
+    'في انتظار قرار منشئ الخروجة.',
+  );
+  String get rollTheDice => _t('Roll the Dice', 'اختيار عشوائي');
+  String get randomLocationPrompt => _t(
+    'Randomly select one of these places? This confirms the final location.',
+    'نختار مكان عشوائي من الأماكن دي؟ الاختيار هيأكد المكان النهائي.',
+  );
+  String get revote => _t('Revote', 'إعادة التصويت');
+  String get startRevote => _t('Start Revote', 'ابدأ إعادة التصويت');
+  String get revoteExplanation => _t(
+    'Start a fresh round with these tied places. Previous location votes stay in history. Attendance intentions stay unchanged.',
+    'ابدأ جولة جديدة بالأماكن المتعادلة دي. الأصوات القديمة محفوظة في السجل، واختيارات الحضور مش هتتغير.',
+  );
+  String get revoteStarted =>
+      _t('New voting round started.', 'بدأت جولة تصويت جديدة.');
+  String get locationSelected => _t('Location Selected!', 'تم اختيار المكان!');
+  String votingRound(int round) =>
+      _t('Voting round ${n(round)}', 'جولة التصويت ${n(round)}');
+
   const L10n(this.locale);
 
   final Locale locale;
   String get mapFilters => _t('Map filters', 'فلاتر الخريطة');
-  String get mapSaveOffline => _t('Save this area offline', 'احفظ المنطقة بدون إنترنت');
-  String get mapOfflineSaved => _t('Area saved offline (up to zoom 14)', 'تم حفظ المنطقة بدون إنترنت (حتى تكبير ١٤)');
-  String get mapOfflineFailed => _t('Could not save this area. Zoom in and retry.', 'تعذر حفظ المنطقة. قرّب الخريطة وحاول تاني.');
-  String get savePlace=>_t('Save place','حفظ المكان');
-  String get unsavePlace=>_t('Unsave place','إلغاء حفظ المكان');
-  String get savedPlacesFilter=>_t('Places','الأماكن');
-  String get noSavedPlaces=>_t('No saved places yet','لا توجد أماكن محفوظة بعد');
-  String get savedPlaceFailed=>_t('Could not update saved places. Try again.','تعذر تحديث الأماكن المحفوظة. حاول مرة أخرى.');
-  String get catalogClearFilters=>_t('Clear All Filters','مسح كل الفلاتر');
-  String get catalogRetryCategories=>_t('Retry categories','إعادة تحميل التصنيفات');
-  String get catalogSearch=>_t('Search places','ابحث عن مكان');
-  String get catalogSearchLocations=>_t('Search locations','نتائج البحث عن مواقع');
-  String get catalogNoCategories=>_t('No categories available','لا توجد تصنيفات متاحة');
-  String get catalogDistance=>_t('Distance','المسافة');
-  String get catalogRetry=>_t('Could not load places. Retry','تعذر تحميل الأماكن. حاول تاني');
-  String get catalogMore=>_t('Load more','عرض المزيد');
-  String catalogKm(num value)=>'${n(value)} ${_t('km','كم')}';
-  String catalogStatus(String status)=>switch(status){'temporarily_closed'=>_t('Temporarily closed','مغلق مؤقتًا'),'permanently_closed'=>_t('Permanently closed','مغلق نهائيًا'),'unverified'=>_t('Availability unverified','التوفر غير مؤكد'),_=>''};
-  String catalogGroup(String group)=>switch(group){'food_drinks'=>_t('Food & Drinks','أكل ومشروبات'),'entertainment'=>_t('Entertainment','ترفيه'),'outdoor'=>_t('Outdoor','أماكن خارجية'),'shopping'=>_t('Shopping','تسوق'),'activities'=>_t('Activities','أنشطة'),'culture'=>_t('Culture','ثقافة'),'social'=>_t('Social','اجتماعي'),_=>group};
+  String get mapSaveOffline =>
+      _t('Save this area offline', 'احفظ المنطقة بدون إنترنت');
+  String get mapOfflineSaved => _t(
+    'Area saved offline (up to zoom 14)',
+    'تم حفظ المنطقة بدون إنترنت (حتى تكبير ١٤)',
+  );
+  String get mapOfflineFailed => _t(
+    'Could not save this area. Zoom in and retry.',
+    'تعذر حفظ المنطقة. قرّب الخريطة وحاول تاني.',
+  );
+  String get savePlace => _t('Save place', 'حفظ المكان');
+  String get unsavePlace => _t('Unsave place', 'إلغاء حفظ المكان');
+  String get savedPlacesFilter => _t('Places', 'الأماكن');
+  String get noSavedPlaces =>
+      _t('No saved places yet', 'لا توجد أماكن محفوظة بعد');
+  String get savedPlaceFailed => _t(
+    'Could not update saved places. Try again.',
+    'تعذر تحديث الأماكن المحفوظة. حاول مرة أخرى.',
+  );
+  String get catalogClearFilters => _t('Clear All Filters', 'مسح كل الفلاتر');
+  String get catalogRetryCategories =>
+      _t('Retry categories', 'إعادة تحميل التصنيفات');
+  String get catalogSearch => _t('Search places', 'ابحث عن مكان');
+  String get catalogSearchLocations =>
+      _t('Search locations', 'نتائج البحث عن مواقع');
+  String get catalogNoCategories =>
+      _t('No categories available', 'لا توجد تصنيفات متاحة');
+  String get catalogDistance => _t('Distance', 'المسافة');
+  String get catalogRetry =>
+      _t('Could not load places. Retry', 'تعذر تحميل الأماكن. حاول تاني');
+  String get catalogMore => _t('Load more', 'عرض المزيد');
+  String catalogKm(num value) => '${n(value)} ${_t('km', 'كم')}';
+  String catalogDistanceLabel(double kilometers) => kilometers < 1
+      ? '${n((kilometers * 1000).round())} ${_t('m', 'م')}'
+      : catalogKm(double.parse(kilometers.toStringAsFixed(1)));
+  String catalogStatus(String status) => switch (status) {
+    'temporarily_closed' => _t('Temporarily closed', 'مغلق مؤقتًا'),
+    'permanently_closed' => _t('Permanently closed', 'مغلق نهائيًا'),
+    'unverified' => _t('Availability unverified', 'التوفر غير مؤكد'),
+    _ => '',
+  };
+  String catalogGroup(String group) => switch (group) {
+    'food_drinks' => _t('Food & Drinks', 'أكل ومشروبات'),
+    'entertainment' => _t('Entertainment', 'ترفيه'),
+    'outdoor' => _t('Outdoor', 'أماكن خارجية'),
+    'shopping' => _t('Shopping', 'تسوق'),
+    'activities' => _t('Activities', 'أنشطة'),
+    'culture' => _t('Culture', 'ثقافة'),
+    'social' => _t('Social', 'اجتماعي'),
+    _ => group,
+  };
   String get openingDetails => _t('Opening details…', 'جاري فتح التفاصيل…');
   String get onboardingSkip => _t('Skip', 'تخطي');
   String get onboardingNext => _t('Next', 'التالي');
@@ -876,7 +946,8 @@ class L10n {
   String get planThisOuting => _t('Plan this outing', 'خطط الخروجة');
   String get allVibes => _t('All vibes', 'كل الأجواء');
   String get discoverAllPlaces => _t('All', 'الكل');
-  String get discoverCreateOutingHere => _t('Create Outing Here', 'اعمل خروجة هنا');
+  String get discoverCreateOutingHere =>
+      _t('Create Outing Here', 'اعمل خروجة هنا');
   String get discoverPlaceDetails => _t('Place details', 'تفاصيل المكان');
   String outingAtPlace(String place, String time) =>
       digits(_t('$place · $time', '$place · $time'));
