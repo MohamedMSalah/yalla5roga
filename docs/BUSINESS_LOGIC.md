@@ -118,6 +118,8 @@ None that contradict `PRODUCT_SCENARIOS.md` §22 Open decisions. Eligibility inc
 
 Group invitation consent (owner-approved 2026-11-14): Create Group and Add people require one explicit confirmation covering WhatsApp invitations for recipients who do not already use the app. Both UI submit actions and the group provider reject unchecked consent; recipient edits clear confirmation. Consent is never inferred from registration status. The backend checks the verified app identity after persisting the pending invitation and queues WhatsApp only for a consented non-user. Registered users retain pending in-app invitations and must explicitly accept.
 
+The Groups tab invitation banner selects from the account's accepted memberships before opening Add people. Owners and accepted members follow the same phone invitation and consent rules.
+
 | Flow | Status |
 |------|--------|
 | Create group → creator is first member | Implemented — the group and its first `group_members` owner commit atomically; `member_count` starts at 1; members list includes the creator card (`name`/`phone`/`image_url` from `users`) |
@@ -142,7 +144,7 @@ Rules:
 
 1. The uploader owns the asset (`owner_id` = Bearer UID). Confirm/delete by another user returns `404`.
 2. An asset becomes usable only after `confirm` verifies the object in storage. The reference must match the entity purpose (`profile`/`group`/`outing`/`place`/`chat`) before it can be attached.
-3. Group/outing covers may be uploaded before the row exists; attachment authorization happens when the create/update persists the reference (group owner / outing creator).
+3. Group covers can be uploaded before group creation. The Flutter outing creation flow uses the selected venue image. Existing media attachment authorization continues to apply when create or update persists a reference.
 4. Visibility is fixed by purpose: `place` → public; all others → private. Private media is delivered only through short-lived signed GET URLs after participation/ownership checks. Profile avatars are viewable by authenticated users; group/outing/chat media requires membership/participant eligibility.
 5. Abandoned pending intents and failed uploads are cleaned up (storage object + row). Presigned URL expiry does not create a ready asset.
 6. Flutter uploads before create/update and never sends local paths. Image cache identity is the stable asset id (`media_private_<uid>_<id>` for private), not the rotating signed URL. Logout/account switch clears that account's private URL metadata and cached images.
@@ -222,7 +224,7 @@ The complete ballot uses the existing authenticated participant definition and a
 
 ## Create voting deadline policy — 2026-11-14
 
-The selected duration is 1–168 hours and remains a duration throughout the wizard/draft lifecycle. The posted absolute deadline is calculated at the request boundary, after cover upload, so time spent editing does not shorten it. Every create deadline must be future-dated and, when scheduled_at exists, strictly earlier than that start; equality is invalid. Creation validation and the use-case boundary both enforce this, including direct use-case callers. Legacy relative-only API requests are resolved using server time. Existing deadline jobs, winner/closure/tie-break and vote eligibility are unchanged. The optional integer duration field is metadata; vote_ends_at remains the authoritative closure instant. The API response is authoritative for confirmation, including idempotent retries.
+The selected duration is 1–168 hours and remains a duration throughout the wizard/draft lifecycle. The posted absolute deadline is calculated at the request boundary so time spent editing does not shorten it. Every create deadline must be future-dated and, when scheduled_at exists, strictly earlier than that start; equality is invalid. Creation validation and the use-case boundary both enforce this, including direct use-case callers. Legacy relative-only API requests are resolved using server time. Existing deadline jobs, winner/closure/tie-break and vote eligibility are unchanged. The optional integer duration field is metadata; vote_ends_at remains the authoritative closure instant. The API response is authoritative for confirmation, including idempotent retries.
 
 
 ## Default RSVP read model — 2026-11-14
@@ -280,3 +282,5 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 `resolveClosedVoting` freezes valid current-participant votes into relational round-option results at the deadline. Historical ballots remain immutable when a revote starts. The outing row is locked for every ballot, closure, random resolution, revote and ordinary cancellation. `current_voting_round` selects the authoritative round; votes are unique per outing/user/option/round. The round table persists active/tie_pending/closed/confirmed/cancelled; API derives `revote_active` from an active round numbered above one. Group-owner status is irrelevant to creator authorization.
 
 Random and revote serialize on the same row. Random retries in the same confirmed round return the same winner; duplicate/stale revote requests return 409. New clients send `round_number`; omitted round guards mean round 1 for compatibility and cannot mutate later rounds. Vote removal uses the same guard in its query. New-round options must reference that round; manual confirmation cannot bypass a revote. Notification outbox writes commit with transitions and durable per-round keys. GPS/RSVP and chat membership never change.
+
+The deadline worker selects only rounds with at least two candidates, so older single-location outings awaiting manual confirmation leave room in each batch for competitive rounds. An elapsed outing end removes creator tie actions and prevents resolution.

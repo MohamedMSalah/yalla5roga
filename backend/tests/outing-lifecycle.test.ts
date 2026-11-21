@@ -1,3 +1,4 @@
+import { isolatedDatabase } from "./support/isolated-database.js";
 import assert from "node:assert/strict";
 import { randomInt, randomUUID } from "node:crypto";
 import test from "node:test";
@@ -40,7 +41,7 @@ async function cleanup(userIds: string[], outingIds: string[], groupIds: string[
   }
 }
 
-test("outing lifecycle: create, vote upsert, unique winner, attendance independent", async () => {
+test("outing lifecycle: create, vote upsert, unique winner, attendance independent", { skip: !isolatedDatabase }, async () => {
   const owner = await seedUser("owner");
   const member = await seedUser("member");
   const outingIds: string[] = [];
@@ -114,7 +115,7 @@ test("outing lifecycle: create, vote upsert, unique winner, attendance independe
     await new ReplaceBallotUseCase().execute(outing.id, owner, [b.id]);
     const ownerVote = await prisma.outing_votes.findUnique({
       where: {
-        outing_id_user_id_option_id: { outing_id: outing.id, user_id: owner, option_id: b.id },
+        outing_id_user_id_option_id_round_number: { outing_id: outing.id, user_id: owner, option_id: b.id, round_number: 1 },
       },
     });
     assert.equal(ownerVote?.option_id, b.id);
@@ -144,7 +145,7 @@ test("outing lifecycle: create, vote upsert, unique winner, attendance independe
   }
 });
 
-test("unique winner confirms; tie-break selects server winner; member rejected", async () => {
+test("unique winner confirms; tie-break selects server winner; member rejected", { skip: !isolatedDatabase }, async () => {
   const owner = await seedUser("own2");
   const m1 = await seedUser("m1");
   const m2 = await seedUser("m2");
@@ -190,9 +191,10 @@ test("unique winner confirms; tie-break selects server winner; member rejected",
     const cast = new CastVoteUseCase();
     await cast.execute(outing.id, owner, a.id);
     await cast.execute(outing.id, m1, a.id);
-    const result = await cast.execute(outing.id, m2, a.id);
-
-    assert.equal(result.resolution?.outcome, "confirmed");
+    await cast.execute(outing.id, m2, a.id);
+    assert.equal((await prisma.outings.findUnique({ where: { id: outing.id } }))?.status, "voting");
+    await prisma.outings.update({ where: { id: outing.id }, data: { vote_ends_at: new Date(Date.now() - 1000) } });
+    assert.equal((await closeVotingByDeadline(outing.id))?.outcome, "confirmed");
     const confirmed = await prisma.outings.findUnique({ where: { id: outing.id } });
     assert.equal(confirmed?.status, "confirmed");
     assert.equal(confirmed?.winning_option_id, a.id);
@@ -235,7 +237,7 @@ test("unique winner confirms; tie-break selects server winner; member rejected",
     const again = await new TieBreakUseCase().execute(tied.id, owner);
     assert.equal(again.winningOptionId, broken.winningOptionId);
 
-    // Zero votes cancel
+    // Zero votes with multiple candidates remain available for owner resolution.
     const empty = await create.execute({
       title: "No Votes",
       created_by: owner,
@@ -244,36 +246,40 @@ test("unique winner confirms; tie-break selects server winner; member rejected",
     });
     outingIds.push(empty.id);
     await options.execute(owner, { outing_id: empty.id, label: "Z" });
+    await options.execute(owner, { outing_id: empty.id, label: "W" });
     await prisma.outings.update({
       where: { id: empty.id },
       data: { vote_ends_at: new Date(Date.now() - 1000), status: "voting" },
     });
-    const cancelled = await closeVotingByDeadline(empty.id);
-    assert.equal(cancelled?.outcome, "cancelled");
+    const noVotes = await closeVotingByDeadline(empty.id);
+    assert.equal(noVotes?.outcome, "tie");
     const row = await prisma.outings.findUnique({ where: { id: empty.id } });
-    assert.equal(row?.status, "cancelled");
+    assert.equal(row?.status, "voting");
+    assert.equal(row?.vote_close_reason, "zero_votes");
   } finally {
     await cleanup(userIds, outingIds, groupIds);
   }
 });
 
-test("special event create and chat statuses remain open in draft", async () => {
+test("fixed-venue special events can start with chat", { skip: !isolatedDatabase }, async () => {
   const owner = await seedUser("spec");
   try {
     const outing = await new CreateOutingUseCase().execute({
       title: "Birthday",
       created_by: owner,
       occasion: "birthday",
-      vote_deadline_hours: 24,
+      scheduled_at: new Date(Date.now() + 86400000),
+      vote_deadline_hours: 2,
+      location_name: "Birthday venue",
     });
     assert.equal(outing.type, "special_event");
-    assert.equal(outing.status, "draft");
+    assert.equal(outing.status, "confirmed");
 
     const message = await prisma.chat_messages.create({
       data: {
         outing_id: outing.id,
         sender_id: owner,
-        text: "hello draft chat",
+        text: "hello special event chat",
       },
     });
     assert.ok(message.id);

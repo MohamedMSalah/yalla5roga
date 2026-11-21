@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 
 import '../pages/about_developer_page.dart';
+import '../pages/contact_us_page.dart';
 import '../pages/profile_info_page.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/settings_tile.dart';
@@ -13,6 +14,7 @@ class SettingsAboutSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     return SettingsSection(
+      icon: Icons.info_outline,
       title: l10n.about,
       children: [
         SettingsTile(
@@ -44,6 +46,15 @@ class SettingsAboutSection extends StatelessWidget {
                   title: l10n.privacyPolicy,
                   body: l10n.privacyPolicyBody,
                 ),
+                TextButton.icon(
+                  onPressed: () => Get.to(
+                    () => const ContactUsPage(
+                      initialTopic: SupportTopic.privacyPolicy,
+                    ),
+                  ),
+                  icon: const Icon(Icons.mail_outline),
+                  label: Text(l10n.contactUs),
+                ),
               ],
             ),
           ),
@@ -62,14 +73,20 @@ class SettingsAboutSection extends StatelessWidget {
                   title: l10n.termsAndConditions,
                   body: l10n.termsBody,
                 ),
+                TextButton.icon(
+                  onPressed: () => Get.to(
+                    () => const ContactUsPage(initialTopic: SupportTopic.terms),
+                  ),
+                  icon: const Icon(Icons.mail_outline),
+                  label: Text(l10n.contactUs),
+                ),
               ],
             ),
           ),
         ),
         SettingsTile(
-          icon: Icons.computer_outlined,
+          icon: Icons.person_outline,
           title: l10n.aboutDeveloper,
-          //subtitle: l10n.developerName,
           background: context.palette.brandSoft,
           foreground: context.palette.brandStrong,
           trailing: const SettingsChevron(),

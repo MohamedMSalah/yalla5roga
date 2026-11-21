@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
-import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/presentation/outing_l10n.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/create_outing_provider.dart';
@@ -12,11 +11,10 @@ class SpecialEventFields extends StatelessWidget {
   const SpecialEventFields({
     super.key,
     required this.form,
-    required this.onPickGroup,
     required this.onInviteGuests,
   });
   final CreateOutingProvider form;
-  final VoidCallback onPickGroup, onInviteGuests;
+  final VoidCallback onInviteGuests;
   static const occasions = [
     OutingOccasion.birthday,
     OutingOccasion.wedding,
@@ -40,28 +38,6 @@ class SpecialEventFields extends StatelessWidget {
           ],
           index: occasions.indexOf(form.occasion),
           onChanged: (index) => form.setOccasion(occasions[index]),
-        ),
-        Responsive.spaceMd.gapH,
-        Text(l10n.eventGroupOptional, style: context.texts.titleSmall),
-        AppCard(
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.groups_outlined),
-            title: Text(form.group?.name ?? l10n.independentEvent),
-            subtitle: Text(
-              form.group == null
-                  ? l10n.chooseGroup
-                  : l10n.membersWillBeInvited(form.group!.memberCount),
-            ),
-            onTap: form.groupLocked ? null : onPickGroup,
-            trailing: form.group == null || form.groupLocked
-                ? null
-                : IconButton(
-                    tooltip: l10n.independentEvent,
-                    icon: const Icon(Icons.close),
-                    onPressed: () => form.setGroup(null),
-                  ),
-          ),
         ),
         Responsive.spaceMd.gapH,
         CustomButton(

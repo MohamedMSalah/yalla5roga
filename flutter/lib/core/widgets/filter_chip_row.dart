@@ -7,10 +7,12 @@ class FilterChipRow extends StatelessWidget {
     required this.labels,
     required this.index,
     required this.onChanged,
+    this.icons,
   });
   final List<String> labels;
   final int index;
   final ValueChanged<int> onChanged;
+  final List<IconData?>? icons;
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
     scrollDirection: Axis.horizontal,
@@ -19,6 +21,9 @@ class FilterChipRow extends StatelessWidget {
         for (var i = 0; i < labels.length; i++) ...[
           if (i > 0) Responsive.spaceSm.gapW,
           ChoiceChip(
+            avatar: icons != null && i < icons!.length && icons![i] != null
+                ? Icon(icons![i], size: 16)
+                : null,
             label: Text(labels[i]),
             selected: i == index,
             showCheckmark: false,

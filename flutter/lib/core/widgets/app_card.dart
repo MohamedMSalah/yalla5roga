@@ -25,25 +25,34 @@ class AppCard extends StatelessWidget {
   final Color? borderColor;
   final double? radius;
 
-  /// Cards are borderless by default; keep this for rare emphasis cases.
+  /// Opt in to an outline for emphasis on light surfaces.
   final bool showBorder;
 
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+    final outlined = showBorder || palette.isDark;
     final card = AnimatedContainer(
       duration: AppMotion.of(context, AppMotion.standard),
       curve: AppMotion.settle,
       margin: margin,
       padding: padding ?? EdgeInsets.all(14.w),
       decoration: BoxDecoration(
-        color: color ?? context.palette.surface,
+        color: color ?? palette.surface,
+        gradient: color == null && palette.isDark
+            ? palette.panelGradient
+            : null,
         borderRadius: BorderRadius.circular((radius ?? AppRadii.card).r),
-        border: showBorder
+        border: outlined
             ? Border.all(color: borderColor ?? context.palette.border)
             : null,
-        boxShadow: showBorder ? null : AppShadows.card(context.palette.shadow),
+        boxShadow: outlined ? null : AppShadows.card(context.palette.shadow),
       ),
-      child: child,
+      child: Material(
+        type: MaterialType.transparency,
+        borderRadius: BorderRadius.circular((radius ?? AppRadii.card).r),
+        child: child,
+      ),
     );
 
     if (onTap == null) return card;

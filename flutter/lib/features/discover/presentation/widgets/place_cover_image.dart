@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_markers.dart';
 import 'package:yalla_5roga/core/widgets/app_network_image.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_category_style.dart';
@@ -10,6 +11,7 @@ class PlaceCoverImage extends StatelessWidget {
     super.key,
     required this.url,
     required this.vibe,
+    this.categoryId = '',
     this.width,
     this.height,
     this.fit = BoxFit.cover,
@@ -26,7 +28,8 @@ class PlaceCoverImage extends StatelessWidget {
     this.radius,
     this.fade = true,
   }) : url = place.coverImageUrl,
-       vibe = place.vibe;
+       vibe = place.vibe,
+       categoryId = place.categoryId;
 
   PlaceCoverImage.fromOutingPlace({
     super.key,
@@ -37,9 +40,10 @@ class PlaceCoverImage extends StatelessWidget {
     this.radius,
     this.fade = true,
   }) : url = place.imageUrl,
-       vibe = place.vibe;
+       vibe = place.vibe,
+       categoryId = place.categoryId;
 
-  final String url;
+  final String url, categoryId;
   final OutingVibe vibe;
   final double? width;
   final double? height;
@@ -55,6 +59,18 @@ class PlaceCoverImage extends StatelessWidget {
       height: height,
       fit: fit,
       radius: radius,
+      placeholder: categoryId.isEmpty
+          ? null
+          : ColoredBox(
+              color: vibe.softBackground,
+              child: Center(
+                child: Image.asset(
+                  '${YallaMapMarkers.assetPath}/${YallaMapMarkers.assetId(categoryId)}.png',
+                  width: 32,
+                  height: 32,
+                ),
+              ),
+            ),
       placeholderIcon: vibe.icon,
       placeholderColor: vibe.softBackground,
       placeholderIconColor: vibe.accent,

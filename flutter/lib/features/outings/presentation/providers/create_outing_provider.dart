@@ -5,6 +5,7 @@ import 'package:yalla_5roga/features/outings/domain/entities/voting_deadline.dar
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/utils/validators.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
@@ -30,7 +31,6 @@ class CreateOutingProvider extends ChangeNotifier {
     this.saved,
     this.draft,
     bool specialEvent = false,
-    bool letVote = false,
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now,
        _group = group,
@@ -42,29 +42,19 @@ class CreateOutingProvider extends ChangeNotifier {
            (saved?.occasion ?? OutingOccasion.none) != OutingOccasion.none,
        _draftId = draft?.id ?? _newDraftId() {
     _deadlineNow = _now();
-    placeCatalog?.addListener(notifyListeners);
     if (draft == null) _date = _now().add(const Duration(days: 1));
     nameController = TextEditingController(
       text: saved?.title ?? draft?.title ?? '',
     );
-    customPlaceController = TextEditingController();
-    customPlaceController.addListener(_onCustomPlaceChanged);
+    nameController.addListener(notifyListeners);
     if (_specialEvent) _occasion = OutingOccasion.birthday;
-    // Multi-place voting is group-outing only (suggest + create share one form).
-    _letVote = !_specialEvent && letVote;
     if (suggestedPlace != null) {
       final place = suggestedPlace.toOutingPlace();
-      _vibe = suggestedPlace.vibe.index;
-      _image = suggestedPlace.coverImageUrl;
-      if (_letVote) {
-        _selectedPlaces.add(place);
-      } else {
-        _place = place;
-      }
+      _vibe = place.vibe.index;
+      _selectedPlaces = List.unmodifiable([place]);
     }
     if (saved != null) {
       nameController.text = saved!.title;
-      _image = saved!.image;
       if (saved!.occasion != OutingOccasion.none) {
         _occasion = saved!.occasion;
       }
@@ -72,7 +62,6 @@ class CreateOutingProvider extends ChangeNotifier {
     }
     if (draft != null) {
       nameController.text = draft!.title;
-      _image = draft!.image;
       _vibe = draft!.vibe;
       _time = draft!.time;
       _date = draft!.date;
@@ -89,12 +78,10 @@ class CreateOutingProvider extends ChangeNotifier {
       }
       _applyLocation(draft!.location);
       _voteDeadlineHours = draft!.voteDeadlineHours ?? 3;
-      if (draft!.letVote) {
-        _letVote = true;
-        _selectedPlaces
-          ..clear()
-          ..addAll(draft!.selectedPlaces);
-        _voteDeadlineHours = draft!.voteDeadlineHours ?? 3;
+      if (!_specialEvent &&
+          draft!.letVote &&
+          draft!.selectedPlaces.isNotEmpty) {
+        _selectedPlaces = _normalizeSelection(draft!.selectedPlaces);
       }
     }
     _date = clampDate(_date);
@@ -103,6 +90,7 @@ class CreateOutingProvider extends ChangeNotifier {
             VotingDeadlinePolicy.dayPresets.contains(_voteDeadlineHours ~/ 24)
         ? VotingDeadlineUnit.days
         : VotingDeadlineUnit.hours;
+    markDraftSaved();
     _deadlineTimer = Timer.periodic(
       const Duration(seconds: 30),
       (_) => refreshDeadlineClock(),
@@ -136,29 +124,25 @@ class CreateOutingProvider extends ChangeNotifier {
   final _guestPhones = <String>{};
 
   late final TextEditingController nameController;
-  late final TextEditingController customPlaceController;
 
   int _step = 0;
   int _vibe = 0;
-  bool _letVote = false;
   int _voteDeadlineHours = 3;
-  String? _image;
   Group? _group;
   DateTime _date = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _time = const TimeOfDay(hour: 11, minute: 30);
-  Place? _place;
-  final _selectedPlaces = <Place>[];
-  String _customArea = '';
-  double? _customLatitude;
-  double? _customLongitude;
+  List<Place> _selectedPlaces = const [];
+  late String _savedState;
+
+  String get _draftState => toDraft().toJson().toString();
+  bool get hasUnsavedChanges => _savedState != _draftState;
+  void markDraftSaved() => _savedState = _draftState;
   OutingOccasion _occasion = OutingOccasion.none;
   Locale _locale = const Locale('en');
 
   int get step => _step;
 
   int get vibe => _vibe;
-
-  bool get letVote => _letVote;
 
   int get voteDeadlineHours => _voteDeadlineHours;
 
@@ -168,6 +152,13 @@ class CreateOutingProvider extends ChangeNotifier {
   DateTime get previewVotingDeadline =>
       VotingDeadlinePolicy.endsAt(_deadlineNow, _voteDeadlineHours);
   bool get isVotingDeadlineValid => _deadlineProblem(_deadlineNow) == null;
+
+  // The existing API validates deadline metadata for fixed venues as well.
+  // Use the shortest supported group duration and the established event default.
+  int get _fixedLocationDeadlineHours =>
+      _specialEvent ? 3 : VotingDeadlinePolicy.hourPresets.first;
+  int get _submittedDeadlineHours =>
+      multiPlaceMode ? _voteDeadlineHours : _fixedLocationDeadlineHours;
 
   VotingDeadlineProblem? _deadlineProblem(DateTime now, [int? hours]) =>
       VotingDeadlinePolicy.validate(
@@ -197,7 +188,7 @@ class CreateOutingProvider extends ChangeNotifier {
 
   void refreshDeadlineClock() {
     _deadlineNow = _now();
-    notifyListeners();
+    if (_step == 1) notifyListeners();
   }
 
   void setDeadlineUnit(VotingDeadlineUnit unit) {
@@ -215,37 +206,33 @@ class CreateOutingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String? get image => _image;
-
   Group? get group => _group;
 
   DateTime get date => _date;
 
   TimeOfDay get time => _time;
 
-  Place? get place => _place;
+  List<Place> get selectedPlaces => _selectedPlaces;
 
-  List<Place> get selectedPlaces => List.unmodifiable(_selectedPlaces);
+  LatLng? _distanceOrigin;
+  LatLng? get distanceOrigin => _distanceOrigin;
 
-  List<Place> get catalogPlaces => List.unmodifiable(_catalogPlaces);
-
-  /// Places matching the selected vibe (all places for special events).
-  List<Place> get suggestedPlaces {
-    if (placeCatalog case final catalog?) {
-      return catalog.places.map((p) => p.toOutingPlace()).toList();
-    }
-    if (_specialEvent) return catalogPlaces;
-    final selectedVibe =
-        OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)];
-    return [
-      for (final place in _catalogPlaces)
-        if (place.vibe == selectedVibe) place,
-    ];
+  void setDistanceOrigin(LatLng? point) {
+    _distanceOrigin = point;
+    notifyListeners();
   }
 
-  double? get customLatitude => _customLatitude;
+  double? placeDistanceKm(Place place) {
+    final origin = _distanceOrigin;
+    if (origin == null || !place.hasCoordinates) return null;
+    return const Distance(roundResult: false).as(
+      LengthUnit.Kilometer,
+      origin,
+      LatLng(place.latitude!, place.longitude!),
+    );
+  }
 
-  double? get customLongitude => _customLongitude;
+  List<Place> get catalogPlaces => List.unmodifiable(_catalogPlaces);
 
   OutingOccasion get occasion => _occasion;
 
@@ -262,7 +249,8 @@ class CreateOutingProvider extends ChangeNotifier {
 
   bool get allGuestsSelected => _guestIds.length == contacts.length;
 
-  bool get multiPlaceMode => !_specialEvent && _letVote;
+  bool get multiPlaceMode => _selectedPlaces.length > 1;
+  int get maxSelections => _specialEvent ? 1 : OutingsProvider.maxVotePlaces;
 
   DateTime get minDate {
     final now = _now();
@@ -278,41 +266,16 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   String get resolvedImage {
-    if (_image != null && _image!.isNotEmpty) return _image!;
+    if (_selectedPlaces.firstOrNull case final place?) return place.imageUrl;
     if (_specialEvent) return _specialEventImage(_occasion);
     return '';
   }
 
-  bool get isCustomPlace => customPlaceController.text.trim().isNotEmpty;
+  PlaceLocation? get selectedLocation =>
+      _selectedPlaces.firstOrNull?.toLocation();
 
-  bool get customPlacePinned =>
-      _customLatitude != null && _customLongitude != null;
-
-  PlaceLocation? get selectedLocation {
-    if (multiPlaceMode) {
-      return _selectedPlaces.firstOrNull?.toLocation();
-    }
-    if (isCustomPlace) {
-      return PlaceLocation(
-        name: customPlaceController.text.trim(),
-        area: _customArea,
-        latitude: _customLatitude,
-        longitude: _customLongitude,
-      );
-    }
-    return _place?.toLocation();
-  }
-
-  String get locationLabel {
-    if (multiPlaceMode && _selectedPlaces.isNotEmpty) {
-      return _selectedPlaces.map((place) => place.name).join(' · ');
-    }
-    if (customPlaceController.text.trim().isNotEmpty) {
-      return customPlaceController.text.trim();
-    }
-    if (_place != null) return '${_place!.name}, ${_place!.area}';
-    return '';
-  }
+  String get locationLabel =>
+      _selectedPlaces.map((place) => place.name).join(' · ');
 
   String get formattedDate => L10n(_locale).formatDate(_date);
 
@@ -364,39 +327,23 @@ class CreateOutingProvider extends ChangeNotifier {
           : item.name == location.name &&
                 (location.area.isEmpty || item.area == location.area),
     );
-    if (match.isNotEmpty) {
-      _place = match.first;
+    if (match.isNotEmpty && (id != null || !location.hasCoordinates)) {
+      _selectedPlaces = List.unmodifiable([match.first]);
       return;
     }
-    if (id != null) {
-      _place = Place(
-        id: id,
+    if (location.name.trim().isEmpty && id == null) return;
+    _selectedPlaces = List.unmodifiable([
+      Place(
+        id: id ?? '',
         name: location.name,
         area: location.area,
+        address: location.address,
+        categoryId: location.categoryId,
         latitude: location.latitude,
         longitude: location.longitude,
-      );
-      return;
-    }
-    customPlaceController.text = location.name;
-    _customArea = location.area;
-    _customLatitude = location.latitude;
-    _customLongitude = location.longitude;
-  }
-
-  void _onCustomPlaceChanged() {
-    if (isCustomPlace && _place != null) {
-      _place = null;
-      notifyListeners();
-    } else {
-      notifyListeners();
-    }
-  }
-
-  void editStep(int step) {
-    if (step < 0 || step > _step) return;
-    _step = step;
-    notifyListeners();
+        vibe: OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)],
+      ),
+    ]);
   }
 
   void back() {
@@ -405,110 +352,66 @@ class CreateOutingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  String? validateStep(L10n l10n) {
-    final deadlineError = validateVotingDeadlineNow(l10n);
-    if (deadlineError != null) return deadlineError;
-    if (_step == 0) {
-      final nameError = Validators.outingName(nameController.text, l10n);
-      if (nameError != null) return nameError;
-      if (_specialEvent &&
-          !DateTime(
-            _date.year,
-            _date.month,
-            _date.day,
-            _time.hour,
-            _time.minute,
-          ).isAfter(_now())) {
-        return l10n.futureEventRequired;
-      }
-      // Cover photo uses the existing optional upload pipeline.
-      if (_specialEvent) {
-        if (_group == null && _guestIds.isEmpty && _guestPhones.isEmpty) {
-          return l10n.guestsRequired;
-        }
-      } else if (_group == null) {
-        return l10n.groupRequired;
-      }
-    }
-    if (_step == 1) {
-      if (multiPlaceMode) {
-        if (_selectedPlaces.length < 2) return l10n.pickAtLeastTwoPlaces;
-        if (_selectedPlaces.length > OutingsProvider.maxVotePlaces) {
-          return l10n.pickAtMostFivePlaces;
-        }
-      } else {
-        if (locationLabel.isEmpty) return l10n.locationRequired;
-        if (isCustomPlace && !customPlacePinned) {
-          return l10n.pickLocationRequired;
-        }
-      }
+  String? validateLocation(L10n l10n) {
+    if (_selectedPlaces.isEmpty) return l10n.locationRequired;
+    if (_selectedPlaces.any((place) => !_eligible(place))) {
+      return l10n.pickLocationRequired;
     }
     return null;
   }
+
+  static bool _eligible(Place place) =>
+      place.name.trim().isNotEmpty &&
+      place.status != 'permanently_closed' &&
+      ((place.id.isNotEmpty && !place.id.startsWith('private:')) ||
+          place.hasCoordinates);
+
+  String? scheduleError(L10n l10n) {
+    if (!scheduledAt.isAfter(_now()) || date.isAfter(maxDate)) {
+      return l10n.creationFutureStart;
+    }
+    if (!multiPlaceMode &&
+        _deadlineProblem(_now(), _fixedLocationDeadlineHours) != null) {
+      return l10n.creationFixedStartLeadTime(_fixedLocationDeadlineHours);
+    }
+    return null;
+  }
+
+  String? audienceError(L10n l10n) {
+    if (_specialEvent) {
+      if (_group == null && _guestIds.isEmpty && _guestPhones.isEmpty) {
+        return l10n.guestsRequired;
+      }
+    } else if (_group == null) {
+      return l10n.groupRequired;
+    }
+    return null;
+  }
+
+  String? validateDetails(L10n l10n) =>
+      Validators.outingName(nameController.text, l10n) ??
+      scheduleError(l10n) ??
+      audienceError(l10n) ??
+      (multiPlaceMode ? validateVotingDeadlineNow(l10n) : null);
 
   String? next(L10n l10n) {
-    final error = validateStep(l10n);
+    if (_step != 0) return null;
+    final error = validateLocation(l10n);
     if (error != null) return error;
-    if (_step >= 2) return null;
-    _step += 1;
+    _step = 1;
+    _deadlineNow = _now();
     notifyListeners();
     return null;
   }
 
-  String? draftError(L10n l10n) {
-    final nameError = Validators.outingName(nameController.text, l10n);
-    if (nameError != null) return nameError;
-    if (multiPlaceMode) {
-      if (_selectedPlaces.length < 2) return l10n.pickAtLeastTwoPlaces;
-      if (_selectedPlaces.length > OutingsProvider.maxVotePlaces) {
-        return l10n.pickAtMostFivePlaces;
-      }
-    } else if (locationLabel.isEmpty) {
-      return l10n.locationRequired;
-    }
-    return null;
-  }
-
-  void setImage(String path) {
-    _image = path;
-    notifyListeners();
-  }
-
-  void setVibe(int value) {
-    _vibe = value;
-    final selectedVibe =
-        OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)];
-    _selectedPlaces.removeWhere((place) => place.vibe != selectedVibe);
-    if (_place != null && _place!.vibe != selectedVibe) {
-      _place = null;
-    }
-    notifyListeners();
-  }
+  String? draftError(L10n l10n) =>
+      Validators.outingName(nameController.text, l10n) ??
+      validateLocation(l10n);
 
   void setOccasion(OutingOccasion value) {
     _occasion = value;
     notifyListeners();
   }
-
-  void setLetVote(bool value) {
-    if (_specialEvent || _letVote == value) return;
-    if (value && _selectedPlaces.isEmpty) {
-      if (_place case final place?) {
-        _selectedPlaces.add(place);
-      } else if (customPlacePinned && isCustomPlace) {
-        _selectedPlaces.add(
-          mapInitialPlace!.copyWith(
-            vibe:
-                OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)],
-          ),
-        );
-      }
-    }
-    _letVote = value;
-    notifyListeners();
-  }
-
-  void toggleLetVote() => setLetVote(!_letVote);
 
   void setVoteDeadlineHours(int hours) {
     _voteDeadlineHours = hours;
@@ -516,75 +419,31 @@ class CreateOutingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool isPlaceSelected(Place place) =>
-      _selectedPlaces.any(place.matchesSelection);
+  bool canAddPlace(Place place) =>
+      _selectedPlaces.length < maxSelections &&
+      _eligible(place) &&
+      !_selectedPlaces.any(place.matchesSelection);
 
-  Place? get mapInitialPlace {
-    if (_place != null) return _place;
-    final location = selectedLocation;
-    if (location == null) return null;
-    return Place(
-      name: location.name,
-      area: location.area,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      vibe: OutingVibe.values[_vibe.clamp(0, OutingVibe.values.length - 1)],
-    );
+  void addPlace(Place place) {
+    if (canAddPlace(place)) replaceMapSelection([..._selectedPlaces, place]);
+  }
+
+  void removePlace(Place place) => replaceMapSelection(
+    _selectedPlaces.where((item) => !place.matchesSelection(item)).toList(),
+  );
+
+  List<Place> _normalizeSelection(Iterable<Place> places) {
+    final ordered = <Place>[];
+    for (final place in places) {
+      if (ordered.length == maxSelections) break;
+      if (!ordered.any(place.matchesSelection)) ordered.add(place);
+    }
+    return List.unmodifiable(ordered);
   }
 
   void replaceMapSelection(List<Place> places) {
-    if (!multiPlaceMode) {
-      if (places.length == 1) applyPickedPlace(places.single);
-      return;
-    }
-    final ordered = <Place>[];
-    for (final place in places.take(OutingsProvider.maxVotePlaces)) {
-      if (ordered.any(place.matchesSelection)) continue;
-      ordered.add(
-        place.id.isNotEmpty
-            ? place
-            : place.copyWith(
-                vibe: OutingVibe
-                    .values[_vibe.clamp(0, OutingVibe.values.length - 1)],
-              ),
-      );
-    }
-    _selectedPlaces
-      ..clear()
-      ..addAll(ordered);
+    _selectedPlaces = _normalizeSelection(places);
     notifyListeners();
-  }
-
-  bool get canAddMorePlaces =>
-      multiPlaceMode && _selectedPlaces.length < OutingsProvider.maxVotePlaces;
-
-  void addSelectedPlace(Place place) {
-    if (place.status == 'permanently_closed') return;
-    if (!multiPlaceMode) {
-      setCatalogPlace(place);
-      return;
-    }
-    if (isPlaceSelected(place)) return;
-    if (_selectedPlaces.length >= OutingsProvider.maxVotePlaces) return;
-    _selectedPlaces.add(place);
-    notifyListeners();
-  }
-
-  void removeSelectedPlace(Place place) {
-    _selectedPlaces.removeWhere((item) => item.matchesSelection(place));
-    notifyListeners();
-  }
-
-  void togglePlace(Place place) {
-    if (!multiPlaceMode) {
-      setCatalogPlace(place);
-      return;
-    }
-    if (isPlaceSelected(place)) {
-      removeSelectedPlace(place);
-    } else {
-      addSelectedPlace(place);
-    }
   }
 
   void setGroup(Group? value) {
@@ -602,33 +461,6 @@ class CreateOutingProvider extends ChangeNotifier {
   void setTime(TimeOfDay value) {
     _time = value;
     _deadlineNow = _now();
-    notifyListeners();
-  }
-
-  void setCatalogPlace(Place value) {
-    if (value.status == 'permanently_closed') return;
-    if (multiPlaceMode) {
-      togglePlace(value);
-      return;
-    }
-    _place = value;
-    _customArea = '';
-    _customLatitude = null;
-    _customLongitude = null;
-    customPlaceController.clear();
-    notifyListeners();
-  }
-
-  void applyPickedPlace(Place picked) {
-    if (picked.id.isNotEmpty) {
-      setCatalogPlace(picked);
-      return;
-    }
-    _place = null;
-    _customArea = picked.area;
-    _customLatitude = picked.latitude;
-    _customLongitude = picked.longitude;
-    customPlaceController.text = picked.name;
     notifyListeners();
   }
 
@@ -668,32 +500,31 @@ class CreateOutingProvider extends ChangeNotifier {
       date: _date,
       hour: _time.hour,
       minute: _time.minute,
-      vibe: _vibe,
+      vibe: _selectedPlaces.firstOrNull?.vibe.index ?? _vibe,
       groupId: _group?.id,
       occasion: _occasion,
       specialEvent: _specialEvent,
       guestIds: _guestIds.toList(),
       guestPhones: _guestPhones.toList(),
-      letVote: _letVote,
+      letVote: multiPlaceMode,
       voteDeadlineHours: _voteDeadlineHours,
-      selectedPlaces: multiPlaceMode ? List.of(_selectedPlaces) : const [],
+      selectedPlaces: _voteOptions,
     );
   }
+
+  List<Place> get _voteOptions => [
+    if (multiPlaceMode)
+      for (final place in _selectedPlaces)
+        place.id.startsWith('private:') ? place.copyWith(id: '') : place,
+  ];
 
   Outing buildOuting({String? createdById}) {
     final guests = [
       for (final id in _guestIds)
         if (_memberById(id) != null) id,
     ];
-    final voting = !_specialEvent && _letVote;
-    final places = voting ? List<Place>.of(_selectedPlaces) : const <Place>[];
-    final scheduled = DateTime(
-      _date.year,
-      _date.month,
-      _date.day,
-      _time.hour,
-      _time.minute,
-    );
+    final voting = multiPlaceMode;
+    final places = _voteOptions;
     return Outing(
       id: 'outing-${DateTime.now().millisecondsSinceEpoch}',
       image: resolvedImage,
@@ -720,20 +551,17 @@ class CreateOutingProvider extends ChangeNotifier {
           : OutingStatus.draft,
       votePlaces: places,
       // Backend create requires a deadline even when voting UI is off.
-      voteDeadlineHours: _voteDeadlineHours,
+      voteDeadlineHours: _submittedDeadlineHours,
       createdById: createdById,
-      scheduledAt: scheduled,
+      scheduledAt: scheduledAt,
     );
   }
 
   @override
   void dispose() {
-    placeCatalog?.removeListener(notifyListeners);
     placeCatalog?.dispose();
     _deadlineTimer?.cancel();
-    customPlaceController.removeListener(_onCustomPlaceChanged);
     nameController.dispose();
-    customPlaceController.dispose();
     super.dispose();
   }
 }

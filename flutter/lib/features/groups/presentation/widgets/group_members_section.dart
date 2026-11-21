@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/section_header.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -27,24 +28,11 @@ class GroupMembersSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                l10n.members,
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: Responsive.fontMd,
-                ),
-              ),
-            ),
-            if (canInvite)
-              TextButton.icon(
-                onPressed: onAddMember,
-                icon: Icon(Icons.person_add_alt_1_outlined, size: 18.w),
-                label: Text(l10n.addPeople),
-              ),
-          ],
+        SectionHeader(
+          title: l10n.members,
+          icon: Icons.people_outline,
+          actionLabel: canInvite ? l10n.addPeople : null,
+          onAction: canInvite ? onAddMember : null,
         ),
         Responsive.spaceSm.gapH,
         if (members.isEmpty)

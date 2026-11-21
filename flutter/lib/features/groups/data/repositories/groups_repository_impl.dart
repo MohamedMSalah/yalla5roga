@@ -96,13 +96,10 @@ class GroupsRepositoryImpl implements GroupsRepository {
             }
           },
           (group) {
-            final listed = _groupsCache.getStale(_groupsKey);
-            if (listed != null) {
-              _groupsCache.set(_groupsKey, [
-                if (!listed.any((item) => item.id == group.id)) group,
-                for (final item in listed) item.id == group.id ? group : item,
-              ]);
-            }
+            _groupsCache.updateExisting(_groupsKey, (listed) => [
+              if (!listed.any((item) => item.id == group.id)) group,
+              for (final item in listed) item.id == group.id ? group : item,
+            ]);
           },
         );
       }

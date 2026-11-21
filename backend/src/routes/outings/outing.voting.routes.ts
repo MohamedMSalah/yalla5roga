@@ -56,6 +56,8 @@ import {
  *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
@@ -67,7 +69,17 @@ import {
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
  *     requestBody:
- *       $ref: "#/components/requestBodies/CreateVoteOption"
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [options]
+ *             properties:
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   $ref: "#/components/schemas/CreateVoteOptionRequest"
  *     responses:
  *       "200":
  *         description: Replaced vote options
@@ -77,6 +89,8 @@ import {
  *               $ref: "#/components/schemas/VoteOptionListResponse"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
+ *       "403":
+ *         $ref: "#/components/responses/Forbidden"
  * /api/outings/{id}/vote-options/{optionId}:
  *   delete:
  *     tags: [Outing Voting]
@@ -133,7 +147,7 @@ import {
  *                   format: uuid
  *     responses:
  *       "200":
- *         description: Complete ballot persisted before existing closure rules run
+ *         description: Complete ballot persisted for the active round
  *         content:
  *           application/json:
  *             schema:
@@ -174,7 +188,7 @@ import {
  *   post:
  *     tags: [Outing Voting]
  *     summary: Cast a vote
- *     description: Idempotently add one selection for the authenticated Firebase UID. Use PUT for a complete ballot before early closure evaluation.
+ *     description: Idempotently add one selection for the authenticated Firebase UID. Use PUT to replace the complete ballot.
  *     operationId: castVote
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -440,10 +454,10 @@ router.put(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [deadline, round_number]
+ *             required: [deadline]
  *             properties:
  *               deadline: { type: string, format: date-time }
- *               round_number: { type: integer, minimum: 1 }
+ *               round_number: { type: integer, minimum: 1, description: Required after the initial round }
  *     responses:
  *       "200":
  *         description: Current voting state with new empty round
@@ -457,6 +471,6 @@ router.put(
  *       "404": { $ref: "#/components/responses/NotFound" }
  *       "409": { description: Round changed or voting is not tie pending }
  */
-router.post("/:id/voting/revote", validate({ params: outingIdParamsSchema, body: z.object({ deadline: z.iso.datetime({ offset: true }), round_number: z.number().int().positive() }) }), controller.revote);
+router.post("/:id/voting/revote", validate({ params: outingIdParamsSchema, body: z.object({ deadline: z.iso.datetime({ offset: true }), round_number: z.number().int().positive().optional() }) }), controller.revote);
 
 export default router;

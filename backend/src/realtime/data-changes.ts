@@ -1,3 +1,4 @@
+import { errorCode, logger } from "../monitoring/logger.js";
 import { prisma } from "../config/database.js";
 import { getChatIo } from "./chat-emitter.js";
 import { groupRealtimeRoom, userRealtimeRoom } from "./rooms.js";
@@ -58,7 +59,7 @@ export async function groupRealtimeUsers(id: string): Promise<string[]> {
     return rows.map((row) => row.user_id);
   } catch (error) {
     recoveryFloor = ++sequence;
-    console.error("[realtime] failed to resolve group audience", error);
+    logger.warn({ errorCode: errorCode(error) }, "Group audience lookup failed");
     return [];
   }
 }
@@ -88,7 +89,7 @@ export async function outingRealtimeUsers(id: string, includePending = true,
     ];
   } catch (error) {
     recoveryFloor = ++sequence;
-    console.error("[realtime] failed to resolve outing audience", error);
+    logger.warn({ errorCode: errorCode(error) }, "Outing audience lookup failed");
     return [];
   }
 }
@@ -112,18 +113,43 @@ export async function publishGroupChange(
 
 export async function publishOutingChange(
   id: string, kind: "outing" | "outings" = "outing", extraUsers: string[] = [],
-  votingEvent: "outing:voting_tie_detected" | "outing:voting_revote_started" | "outing:voting_round_updated" | "outing:location_confirmed" = "outing:voting_round_updated",
+  votingEvent?: "outing:voting_tie_detected" | "outing:voting_revote_started" | "outing:voting_round_updated" | "outing:location_confirmed",
+  expectedRound?: number,
 ): Promise<void> {
   const recipients = [...(await outingRealtimeUsers(id)), ...extraUsers];
   emitDataChange({ kind, id }, recipients);
   emitDataChange({ kind: "inbox" }, recipients);
-  if (!getChatIo() || recipients.length === 0) return;
-  const outing = await prisma.outings.findUnique({ where: { id }, select: { current_voting_round: true, vote_closed_at: true, winning_option_id: true, status: true, updated_at: true } });
-  if (outing) {
-    const round = await prisma.outing_voting_rounds.findUnique({ where: { outing_id_round_number: { outing_id: id, round_number: outing.current_voting_round } }, include: { options: { where: { is_tied: true }, select: { option_id: true } } } });
-    const votingState = outing.status === "cancelled" ? "cancelled" : outing.winning_option_id ? "confirmed" : outing.vote_closed_at ? "tie_pending" : outing.current_voting_round > 1 ? "revote_active" : "active";
-    const event = votingEvent;
-    const payload = { outingId: id, roundId: round?.id, roundNumber: outing.current_voting_round, votingState, tiedOptionIds: votingState === "tie_pending" ? round?.options.map(o => o.option_id) ?? [] : [], confirmedOptionId: outing.winning_option_id, updatedAt: outing.updated_at.toISOString() };
-    getChatIo()?.to([...new Set(recipients)].map(userRealtimeRoom)).emit(event, payload);
+  const io = getChatIo();
+  if (!io || !votingEvent || recipients.length === 0) return;
+  try {
+    const [row] = await prisma.$queryRaw<Array<{
+      round_id: string; round_number: number; round_status: string; outing_status: string;
+      winning_option_id: string | null; updated_at: Date; option_ids: string[]; tied_option_ids: string[];
+    }>>`
+      SELECT r.id AS round_id, r.round_number, r.status AS round_status, o.status AS outing_status,
+             o.winning_option_id, o.updated_at,
+             ARRAY(SELECT option_id FROM outing_voting_round_options
+                   WHERE outing_id = o.id AND round_number = r.round_number) AS option_ids,
+             ARRAY(SELECT option_id FROM outing_voting_round_options
+                   WHERE outing_id = o.id AND round_number = r.round_number AND is_tied) AS tied_option_ids
+      FROM outings o JOIN outing_voting_rounds r
+        ON r.outing_id = o.id AND r.round_number = o.current_voting_round
+      WHERE o.id = ${id}::uuid
+    `;
+    if (!row || (expectedRound !== undefined && row.round_number !== expectedRound)) return;
+    const votingState = row.outing_status === "cancelled" ? "cancelled" :
+      row.outing_status === "confirmed" || row.round_status === "confirmed" || row.winning_option_id ? "confirmed" :
+      row.outing_status === "voting" && row.round_status === "tie_pending" && row.tied_option_ids.length >= 2 ? "tie_pending" :
+      row.round_number > 1 ? "revote_active" : "active";
+    if (votingEvent === "outing:voting_tie_detected" && votingState !== "tie_pending") return;
+    if (votingEvent === "outing:voting_revote_started" && votingState !== "revote_active") return;
+    if (votingEvent === "outing:location_confirmed" && votingState !== "confirmed") return;
+    io.to([...new Set(recipients)].map(userRealtimeRoom)).emit(votingEvent, {
+      outingId: id, roundId: row.round_id, roundNumber: row.round_number, votingState,
+      optionIds: row.option_ids, tiedOptionIds: votingState === "tie_pending" ? row.tied_option_ids : [],
+      confirmedOptionId: row.winning_option_id, updatedAt: row.updated_at.toISOString(),
+    });
+  } catch (error) {
+    logger.warn({ errorCode: errorCode(error) }, "Voting update delivery failed");
   }
 }

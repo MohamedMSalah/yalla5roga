@@ -1,5 +1,4 @@
 import 'package:firebase_performance/firebase_performance.dart';
-import 'package:flutter/foundation.dart';
 
 /// Custom traces + helpers for important app operations.
 class PerformanceService {
@@ -21,14 +20,21 @@ class PerformanceService {
   Future<T> trace<T>(String name, Future<T> Function() action) async {
     if (!_ready) return action();
 
-    final custom = _performance.newTrace(name);
-    await custom.start();
-    if (kDebugMode) debugPrint('[Performance] start $name');
+    Trace? custom;
+    try {
+      custom = _performance.newTrace(name);
+      await custom.start();
+    } catch (_) {
+      return action();
+    }
     try {
       return await action();
     } finally {
-      await custom.stop();
-      if (kDebugMode) debugPrint('[Performance] stop $name');
+      try {
+        await custom.stop();
+      } catch (_) {
+        // A completed action still has its original outcome.
+      }
     }
   }
 

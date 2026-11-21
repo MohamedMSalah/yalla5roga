@@ -7,6 +7,7 @@ import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 
 import 'package:dartz/dartz.dart' show Either, Right;
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
@@ -69,6 +70,15 @@ class _Lookup implements LocationRepository {
 class _Denied extends MapLocation {
   const _Denied();
   @override
+  Future<MapLocationFix?> previous() async => null;
+  @override
+  Future<MapLocationFix> locateFix({required bool requestPermission}) async => (
+    point: null,
+    issue: MapLocationIssue.denied,
+    accuracy: null,
+    timestamp: null,
+  );
+  @override
   Future<({LatLng? point, MapLocationIssue? issue})> locate({
     required bool requestPermission,
   }) async => (point: null, issue: MapLocationIssue.denied);
@@ -90,7 +100,10 @@ class _MapPlatform extends ml.MapLibrePlatform {
         scheduleMicrotask(() => onMapStyleLoadedPlatform(null));
       });
     }
-    return const SizedBox.expand();
+    return const ColoredBox(
+      color: Colors.transparent,
+      child: SizedBox.expand(),
+    );
   }
 
   @override
@@ -136,6 +149,10 @@ class _DiscoverRepository implements DiscoverRepository {
   @override
   Stream<void> get catalogChanges => const Stream.empty();
   @override
+  Future<Either<Failure, List<SuggestedPlace>>> getSavedPlaces({
+    bool forceRefresh = false,
+  }) async => const Right([]);
+  @override
   Future<Either<Failure, List<CatalogDefinition>>> getDefinitions(
     String kind, {
     bool forceRefresh = false,
@@ -163,7 +180,7 @@ class _DiscoverRepository implements DiscoverRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Widget _app(Widget home) => MaterialApp(
+Widget _app(Widget home) => GetMaterialApp(
   localizationsDelegates: const [
     L10n.delegate,
     GlobalMaterialLocalizations.delegate,
@@ -248,7 +265,6 @@ void main() {
       contacts: const [],
       catalogPlaces: const [_cafe],
       specialEventImage: (_) => '',
-      letVote: true,
     );
     addTearDown(form.dispose);
     form.replaceMapSelection(picker.selected);
@@ -256,7 +272,6 @@ void main() {
     expect(draft.selectedPlaces.map((p) => p.name), ['Cairo Cafe', 'Rooftop']);
     expect(draft.selectedPlaces.first.id, 'catalog');
     expect(draft.selectedPlaces.first.latitude, isNull);
-    form.setLetVote(false);
     form.replaceMapSelection(const [_cafe]);
     final fixed = OutingDraft.fromJson(form.toDraft().toJson()).location;
     expect(fixed.placeId, 'catalog');
@@ -299,6 +314,8 @@ void main() {
       await tester.tap(find.byTooltip(_l10n.yourLocation));
       await tester.pumpAndSettle();
       expect(find.text(_l10n.locationPermissionDenied), findsOneWidget);
+      await tester.pump(const Duration(seconds: 4));
+      await tester.pumpAndSettle();
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(result, isNull);
@@ -312,6 +329,54 @@ void main() {
       await tester.pumpAndSettle();
       expect(result?.single.id, _cafe.id);
       expect(lookup.searches, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'embedded map confirms selected places without popping the wizard',
+    (tester) async {
+      final selected = <Place>[];
+      final pins = [
+        _cafe,
+        const Place(
+          id: 'bistro',
+          name: 'Bistro',
+          area: 'Cairo',
+          latitude: 30.05,
+          longitude: 31.23,
+        ),
+      ];
+      await tester.pumpWidget(
+        Provider<LocationRepository>.value(
+          value: _Lookup(),
+          child: _app(
+            Scaffold(
+              body: PickLocationPage(
+                catalog: pins,
+                selected: [_cafe],
+                maxSelections: 5,
+                onConfirm: selected.addAll,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final continueButton = find.widgetWithText(
+        ElevatedButton,
+        _l10n.continueToDetails,
+      );
+      expect(tester.widget<ElevatedButton>(continueButton).onPressed, isNull);
+      final picker = tester
+          .element(find.byType(YallaMapView))
+          .read<PickLocationProvider>();
+      picker.choose(pins.last);
+      expect(picker.add(), isTrue);
+      await tester.pumpAndSettle();
+      await tester.tap(continueButton);
+      expect(selected.map((place) => place.id), [_cafe.id, 'bistro']);
+      expect(find.byType(YallaMapView), findsOneWidget);
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -380,13 +445,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(YallaMapView), findsOneWidget);
     await tester.enterText(find.byType(TextField), 'Unknown');
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     expect(find.text('Cairo Cafe'), findsNothing);
     await tester.enterText(find.byType(TextField), 'Cairo');
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.text('Cairo Cafe').first);
     await tester.tap(find.text('Cairo Cafe').first);
     await tester.pumpAndSettle();
-    expect(find.text(_l10n.createOutingAt('Cairo Cafe')), findsOneWidget);
+    expect(find.text(_l10n.discoverCreateOutingHere), findsOneWidget);
   });
 }

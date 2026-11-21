@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
+import 'package:yalla_5roga/features/setting/presentation/pages/offline_maps_page.dart';
 import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
@@ -84,8 +85,16 @@ class _SettingsPreferencesSectionState
     final theme = context.watch<ThemeProvider>();
     final savedOutings = context.watch<SavedOutingsProvider>();
     return SettingsSection(
+      icon: Icons.settings_outlined,
       title: l10n.preferences,
       children: [
+        SettingsTile(
+          icon: Icons.download_for_offline_outlined,
+          title: l10n.offlineMaps,
+          subtitle: l10n.offlineMapsHint,
+          trailing: const SettingsChevron(),
+          onTap: () => Get.to(() => const OfflineMapsPage()),
+        ),
         SettingsTile(
           icon: Icons.bookmark_outline,
           title: l10n.mySaved,

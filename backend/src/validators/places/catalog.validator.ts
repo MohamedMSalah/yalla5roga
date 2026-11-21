@@ -21,7 +21,9 @@ const coordinate = (min: number, max: number) =>
     .optional();
 const baseCatalogQuerySchema = z
   .object({
+    compact: z.literal("true").optional(),
     brand_id: z.uuid().optional(),
+    details: z.literal("true").optional(),
     featured: z.enum(["true", "false"]).optional(),
     vibe: z.enum(["food", "activity", "outdoor", "movie"]).optional(),
     categories: ids,
@@ -46,15 +48,18 @@ const baseCatalogQuerySchema = z
       .optional()
       .transform((s, ctx) => {
         if (!s) return undefined;
-        const a = s.split(",").map(Number);
+        const coordinates = s.split(",");
+        const a = coordinates.map(Number);
         if (
           a.length !== 4 ||
+          coordinates.some((value) => value.trim() === "") ||
           !a.every(Number.isFinite) ||
-          a[0]! < -180 ||
-          a[2]! > 180 ||
+          Math.abs(a[0]!) > 180 ||
+          Math.abs(a[2]!) > 180 ||
           a[1]! < -90 ||
           a[3]! > 90 ||
-          a[0]! >= a[2]! ||
+          a[0] === a[2] ||
+          (a[0] === 180 && a[2] === -180) ||
           a[1]! >= a[3]!
         ) {
           ctx.addIssue({
@@ -65,7 +70,7 @@ const baseCatalogQuerySchema = z
         }
         return a;
       }),
-    sort: z.enum(["updated", "name", "distance"]).default("updated"),
+    sort: z.enum(["updated", "name", "distance", "id"]).default("updated"),
   })
   .superRefine((q, ctx) => {
     if (

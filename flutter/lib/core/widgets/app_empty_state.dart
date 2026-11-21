@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
@@ -59,6 +60,46 @@ class AppEmptyState extends StatelessWidget {
         ],
       ],
     );
+
+    if (compact) {
+      return SizedBox(
+        width: double.infinity,
+        child: AppCard(
+          padding: padding,
+          child: Row(
+            children: [
+              if (MediaQuery.sizeOf(context).width > 230) ...[
+                IconCircle(
+                  icon: icon,
+                  size: 46,
+                  iconSize: 22,
+                  radius: 15,
+                  background: palette.brandSoft,
+                  foreground: palette.brandStrong,
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(message, style: context.texts.titleSmall),
+                    if (subtitle?.trim().isNotEmpty ?? false)
+                      Text(
+                        subtitle!,
+                        style: context.texts.bodySmall?.copyWith(
+                          color: palette.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     final padded = Padding(
       padding:

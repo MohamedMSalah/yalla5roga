@@ -1,46 +1,34 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
-import 'package:yalla_5roga/features/outings/presentation/widgets/cards/active_vote_card.dart';
-import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/cards/outing_preview_card.dart';
 
-/// Horizontal active-votes list for the Outings tab.
 class ActiveVotesList extends StatelessWidget {
-  const ActiveVotesList({super.key});
+  const ActiveVotesList({
+    super.key,
+    required this.items,
+    required this.onOpen,
+    this.limit,
+  });
+
+  final List<Outing> items;
+  final ValueChanged<Outing> onOpen;
+  final int? limit;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final votes = context.watch<OutingsProvider>().activeVotes;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          l10n.activeVotes,
-          style: TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: Responsive.fontMd,
+    return SliverList.builder(
+      itemCount: limit == null ? items.length : items.length.clamp(0, limit!),
+      itemBuilder: (context, index) {
+        final outing = items[index];
+        return Padding(
+          key: ValueKey(outing.id),
+          padding: EdgeInsets.only(top: index == 0 ? 0 : 8),
+          child: ActiveVotePreviewCard(
+            outing: outing,
+            onTap: () => onOpen(outing),
           ),
-        ),
-        Responsive.spaceSm.gapH,
-        if (votes.isEmpty)
-          AppEmptyState(
-            icon: Icons.how_to_vote_outlined,
-            message: l10n.noActiveVotes,
-            compact: true,
-          )
-        else
-          Column(
-            children: [
-              for (final vote in votes) ...[
-                ActiveVoteCard(outing: vote),
-                Responsive.spaceMd.gapH,
-              ],
-            ],
-          ),
-      ],
+        );
+      },
     );
   }
 }

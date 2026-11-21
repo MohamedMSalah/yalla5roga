@@ -1,3 +1,5 @@
+import { errorCode } from "../../monitoring/logger.js";
+import { recordRequestError } from "../../monitoring/http.js";
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { configuredGeocodingProvider, geocodingRequest } from "../../services/places/geocoding.js";
@@ -116,7 +118,8 @@ router.post("/geocoding", authMiddleware, async (req, res) => {
       success: true,
       data: { available: true, results, attribution: provider.attribution, cache_seconds: provider.cacheSeconds },
     });
-  } catch {
+  } catch (error) {
+    recordRequestError(errorCode(error));
     if (!res.destroyed) res.status(502).json({ success: false, message: "Geocoding unavailable" });
   } finally {
     res.off("close", onClose);

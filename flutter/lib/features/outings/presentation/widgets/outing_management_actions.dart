@@ -6,8 +6,6 @@ import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
-import 'package:yalla_5roga/features/outings/presentation/pages/edit_outing_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 
 class OutingManagementActions extends StatelessWidget {
@@ -70,46 +68,6 @@ class OutingManagementActions extends StatelessWidget {
             label: l10n.decline,
             variant: AppButtonVariant.outlined,
             onPressed: busy ? null : () => decide(false),
-          ),
-        ],
-        if (owner &&
-            outing.status != OutingStatus.cancelled &&
-            outing.status != OutingStatus.past) ...[
-          CustomButton(
-            label: l10n.editOuting,
-            icon: Icons.edit_outlined,
-            variant: AppButtonVariant.outlined,
-            onPressed: busy
-                ? null
-                : () => Get.to(() => EditOutingPage(outing: outing)),
-          ),
-          Responsive.spaceSm.gapH,
-          CustomButton(
-            label: l10n.cancelOuting,
-            icon: Icons.cancel_outlined,
-            variant: AppButtonVariant.danger,
-            isLoading: busy,
-            onPressed: busy
-                ? null
-                : () async {
-                    if (!await AppAlert.confirm(
-                      title: l10n.cancelOuting,
-                      message: l10n.cancelOutingPrompt,
-                      confirmText: l10n.cancelOuting,
-                      cancelText: l10n.cancel,
-                      destructive: true,
-                    )) {
-                      return;
-                    }
-                    final ok = await provider.cancel(outing.id);
-                    if (context.mounted) {
-                      AppSnackBar.show(
-                        ok
-                            ? l10n.changesSaved
-                            : provider.errorMessage ?? l10n.tryAgain,
-                      );
-                    }
-                  },
           ),
         ],
         if (owner && provider.guestsFor(outing.id).isNotEmpty) ...[

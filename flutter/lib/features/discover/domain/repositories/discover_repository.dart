@@ -7,7 +7,41 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 
+abstract interface class ViewportCatalog {
+  Future<({double lat, double lng, double? accuracy})?> previousFix(
+    String owner,
+  );
+  Future<void> rememberFix(
+    String owner,
+    double lat,
+    double lng,
+    double? accuracy,
+    DateTime measured,
+  );
+  Stream<List<SuggestedPlace>> viewport(
+    PlaceFilters filters, {
+    required Future<void> cancelled,
+    String? owner,
+    bool privateOnly = false,
+  });
+  Future<void> savePrivate(String owner, SuggestedPlace place);
+  Future<void> deletePrivate(String owner, String id);
+}
+
+abstract interface class OfflinePlaceCatalog {
+  Stream<List<SuggestedPlace>> placesForOfflineRegion(String bounds);
+}
+
 abstract class DiscoverRepository {
+  List<SuggestedPlace>? cachedRecommendations();
+  Future<List<SuggestedPlace>?> restoreRecommendations();
+  Future<Either<Failure, List<SuggestedPlace>>> getRecommendations({
+    bool forceRefresh = false,
+  });
+  Future<Either<Failure, List<SuggestedPlace>>> getNearbyRecommendations({
+    required double latitude,
+    required double longitude,
+  });
   Future<Either<Failure, List<SuggestedPlace>>> getSavedPlaces({
     bool forceRefresh = false,
   });

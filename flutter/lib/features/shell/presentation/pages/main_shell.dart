@@ -1,3 +1,5 @@
+import 'package:yalla_5roga/features/shell/presentation/shell_route_navigation.dart';
+
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -8,10 +10,8 @@ import 'package:yalla_5roga/core/network/app_sync_provider.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_bottom_nav.dart';
 import 'package:yalla_5roga/core/widgets/app_bottom_nav_layout.dart';
 import 'package:yalla_5roga/features/discover/presentation/pages/discover_page.dart';
-import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/groups_page.dart';
 import 'package:yalla_5roga/features/home/presentation/pages/home_page.dart';
 import 'package:yalla_5roga/features/invites/presentation/providers/invite_deep_link_provider.dart';
@@ -43,7 +43,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final visible = ModalRoute.isCurrentOf(context) ?? true;
-    if (visible && _routeVisible == false && _lastIndex <= 2) {
+    if (visible && _routeVisible == false && _lastIndex <= 1) {
       context.read<AppSyncProvider>().openLists();
     }
     _routeVisible = visible;
@@ -53,7 +53,8 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
     final index = _shell!.index;
     if (index == _lastIndex) return;
     _lastIndex = index;
-    if (index == 0 || index == 1 || index == 2) {
+    // Groups uses the mounted list and the session's normal sync triggers.
+    if (index == 0) {
       context.read<AppSyncProvider>().openLists();
     }
   }
@@ -114,12 +115,6 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   /// Start cache hydration before warming the other tabs.
   Future<void> _loadShell() async {
     final synchronization = context.read<AppSyncProvider>().start();
-    // Give the initial cached content a frame before warming Discover.
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
-    await context.read<DiscoverProvider>().load();
-    if (!mounted) return;
-
     await WidgetsBinding.instance.endOfFrame;
     if (!mounted) return;
     await synchronization;
@@ -176,33 +171,7 @@ class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
         _pageFor(3, shell),
         _pageFor(4, shell),
       ],
-      items: [
-        AppBottomNavItem(
-          icon: Icons.home_outlined,
-          selectedIcon: Icons.home,
-          label: l10n.navHome,
-        ),
-        AppBottomNavItem(
-          icon: Icons.groups_2_outlined,
-          selectedIcon: Icons.groups_2,
-          label: l10n.navGroups,
-        ),
-        AppBottomNavItem(
-          icon: Icons.calendar_month_outlined,
-          selectedIcon: Icons.calendar_month,
-          label: l10n.navOutings,
-        ),
-        AppBottomNavItem(
-          icon: Icons.explore_outlined,
-          selectedIcon: Icons.explore,
-          label: l10n.navDiscover,
-        ),
-        AppBottomNavItem(
-          icon: Icons.settings_outlined,
-          selectedIcon: Icons.settings,
-          label: l10n.navSettings,
-        ),
-      ],
+      items: shellNavigationItems(l10n),
     );
   }
 }

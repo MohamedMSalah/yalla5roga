@@ -1,4 +1,4 @@
-import "dotenv/config";
+import { isolatedDatabase } from "./support/isolated-database.js";
 import assert from "node:assert/strict";
 import { randomUUID, randomInt } from "node:crypto";
 import { once } from "node:events";
@@ -13,6 +13,7 @@ import type { IGroupInvitationRepository } from "../src/repositories/groups/i-gr
 import { claimPendingInvitations } from "../src/services/groups/claim-pending-invitations.js";
 import { NoopNotificationPublisher } from "../src/services/notifications/notification-publisher.js";
 import { InviteToGroupUseCase } from "../src/usecases/groups/invite-to-group.usecase.js";
+import { AcceptGroupInvitationUseCase } from "../src/usecases/groups/accept-group-invitation.usecase.js";
 import { ClaimGroupInvitationsUseCase } from "../src/usecases/groups/claim-group-invitations.usecase.js";
 import { SignupUseCase } from "../src/usecases/auth/signup.usecase.js";
 import { LoginUseCase } from "../src/usecases/auth/login.usecase.js";
@@ -28,7 +29,7 @@ import { inviteToGroupBodySchema } from "../src/validators/groups/group.validato
 // Real PostgreSQL queries, real controllers/use cases; Firebase proofs and
 // sessions are injected. Every fixture write is inside one rolled-back txn.
 it("HTTP invite -> signup/login -> PostgreSQL membership -> current-user groups", {
-  skip: process.env.RUN_GROUP_DATABASE_TESTS !== "1",
+  skip: !isolatedDatabase,
   timeout: 90000,
 }, async () => {
   const suffix = randomUUID();
@@ -56,6 +57,12 @@ it("HTTP invite -> signup/login -> PostgreSQL membership -> current-user groups"
         create:(data:never) => tx.users.create({data}),
       } as unknown as IUserRepository;
       const invitations = {
+        findById:(id:string) => tx.group_invitations.findUnique({where:{id}}),
+        accept:async (id:string, userId:string) => {
+          const invitation = await tx.group_invitations.update({where:{id},data:{status:"accepted", user_id:userId}});
+          await tx.group_members.createMany({data:[{group_id:invitation.group_id,user_id:userId,role:"member"}],skipDuplicates:true});
+          return invitation;
+        },
         findPending:(groupId:string, phone:string) => tx.group_invitations.findFirst({where:{group_id:groupId, invited_phone:phone, status:"pending"}}),
         createPending:async (data:never) => ({created:true, invitation:await tx.group_invitations.create({data})}),
         claimForVerifiedPhone:(userId:string, phone:string) => claimPendingInvitations(new PrismaInvitationClaimStore(tx), {userId,phone,now:new Date()}),
@@ -75,6 +82,10 @@ it("HTTP invite -> signup/login -> PostgreSQL membership -> current-user groups"
       app.use(createAuthMiddleware(async token => ({uid:token}) as never));
       app.post("/api/groups/:id/invitations",validate({body:inviteToGroupBodySchema}),gc.invite);
       app.get("/api/groups/cuser",gc.listForCuser);
+      app.post("/api/invitations/:id/accept", async (req, res) => {
+        const decision = await new AcceptGroupInvitationUseCase(invitations, groups).execute({ invitationId: req.params.id, userId: req.user!.uid });
+        res.json({success:true, data:decision});
+      });
       app.use(errorMiddleware);
       const server = app.listen(0,"127.0.0.1"); await once(server,"listening");
       const address = server.address(); assert.ok(address && typeof address!=="string");
@@ -85,10 +96,13 @@ it("HTTP invite -> signup/login -> PostgreSQL membership -> current-user groups"
       }
       try {
         assert.equal((await request("/api/groups/cuser",registered)).body.data.length,0);
-        const added = await request(`/api/groups/${group.id}/invitations`,owner,{phoneNumber:phone});
-        assert.equal(added.status,201); assert.equal(added.body.data.outcome,"member_added");
-        assert.equal(added.body.data.member.user_id,registered);
-        assert.equal(added.body.data.member.group_id,group.id);
+        const registeredInvite = await request(`/api/groups/${group.id}/invitations`, owner, {phoneNumber:phone});
+        assert.equal(registeredInvite.status,201);
+        assert.equal(registeredInvite.body.data.outcome,"invited");
+        assert.equal((await request("/api/groups/cuser",registered)).body.data.length,0);
+        const registeredInviteId = registeredInvite.body.data.invitation_id;
+        assert.equal((await request(`/api/invitations/${registeredInviteId}/accept`,stranger,{})).status,403);
+        assert.equal((await request(`/api/invitations/${registeredInviteId}/accept`,registered,{})).body.data.status,"accepted");
         const list = await request("/api/groups/cuser",registered);
         assert.equal(list.status,200); assert.equal(list.body.data[0].id,group.id); assert.equal(list.body.data[0].my_role,"member");
         assert.equal((await request("/api/groups/cuser",stranger)).body.data.length,0);
@@ -106,7 +120,9 @@ it("HTTP invite -> signup/login -> PostgreSQL membership -> current-user groups"
         assert.equal(retry.body.data.user.has_password, true);
         assert.equal("password_hash" in retry.body.data.user, false);
         const after = await tx.group_invitations.findUniqueOrThrow({where:{id:inviteId}});
-        assert.equal(after.status,"accepted"); assert.equal(after.user_id,future);
+        assert.equal(after.status,"pending"); assert.equal(after.user_id,future);
+        assert.equal((await request("/api/groups/cuser",future)).body.data.length,0);
+        assert.equal((await request(`/api/invitations/${inviteId}/accept`,future,{})).body.data.status,"accepted");
         assert.equal((await request("/api/groups/cuser",future)).body.data[0].id,group.id);
         assert.equal((await request("/api/auth/login",future,{phone:futurePhone,password:"secret123"})).status,200);
         assert.equal(await tx.group_members.count({where:{group_id:group.id,user_id:future}}),1);
@@ -124,7 +140,7 @@ it("HTTP invite -> signup/login -> PostgreSQL membership -> current-user groups"
         const stored = await tx.notifications.findUniqueOrThrow({ where: { id: notification.id } });
         assert.equal(stored.user_id, future);
         assert.equal(stored.outing_id, outing.id);
-        console.log("Verified: immediate member, pending invite, signup claim, login, isolation, duplicate safety, FK IDs and group list.");
+        console.log("Verified: invite consent, signup linkage, login, isolation, duplicate safety, foreign keys and group list.");
       } finally {server.closeAllConnections(); await new Promise<void>((resolve,reject) => server.close(error => error ? reject(error):resolve()));}
       throw rollback;
     },{timeout:80000,maxWait:10000}), error => error===rollback);

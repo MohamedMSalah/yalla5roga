@@ -1,5 +1,5 @@
-/** API integration only. Real isolated Neon schema, bcrypt and Express; controlled Firebase SDK boundary. */
-import "dotenv/config";
+/** API integration only. Real isolated PostgreSQL schema, bcrypt and Express; controlled Firebase SDK boundary. */
+import { isolatedDatabase } from "./support/isolated-database.js";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
@@ -9,15 +9,13 @@ import express from "express";
 import type { Auth, DecodedIdToken, UserRecord } from "firebase-admin/auth";
 
 await test("password recovery HTTP/OpenAPI integration", {
-  skip: process.env.RUN_RECOVERY_API_TESTS !== "1", timeout:120000,
+  skip: !isolatedDatabase, timeout:120000,
 }, async t => {
   const schema = `recovery_api_${randomUUID().replaceAll("-", "")}`;
   const url = new URL(process.env.DATABASE_URL!);
   process.env.NODE_ENV="test";
-  url.searchParams.set("sslmode","verify-full");
-  url.searchParams.delete("channel_binding"); url.searchParams.delete("pgbouncer");
-  url.hostname = url.hostname.replace("-pooler.", ".");
-  const admin = new Client({connectionString:url.toString(),ssl:{rejectUnauthorized:true},connectionTimeoutMillis:15000});
+  url.searchParams.set("sslmode", "disable");
+  const admin = new Client({connectionString:url.toString(),connectionTimeoutMillis:5000});
   url.searchParams.set("schema",schema); process.env.DATABASE_URL=url.toString();
   await admin.connect();
   let prisma: import("@prisma/client").PrismaClient | undefined;
@@ -27,6 +25,7 @@ await test("password recovery HTTP/OpenAPI integration", {
     await admin.query(`SET search_path TO "${schema}"`);
     await admin.query(`CREATE TABLE users (id VARCHAR(128) PRIMARY KEY,name VARCHAR(30) NOT NULL,
       phone VARCHAR(16) UNIQUE NOT NULL,password_hash VARCHAR(255),image_url VARCHAR(2048),
+      notification_preferences JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),updated_at TIMESTAMPTZ NOT NULL DEFAULT now())`);
     await admin.query(readFileSync(new URL("../prisma/migrations/20261111180000_password_recovery/migration.sql",import.meta.url),"utf8"));
     prisma=(await import("../src/config/database.js")).prisma;

@@ -58,7 +58,9 @@ class Place {
       : name;
 
   PlaceLocation toLocation() => PlaceLocation(
-    placeId: id.isEmpty ? null : id,
+    placeId: id.isEmpty || id.startsWith('private:') ? null : id,
+    address: address,
+    categoryId: categoryId,
     name: name,
     area: area,
     latitude: latitude,

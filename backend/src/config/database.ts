@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { enabled } from "../monitoring/config.js";
+import { observe } from "../monitoring/metrics.js";
+import { instrumentPrisma } from "../monitoring/prisma.js";
 
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
@@ -35,27 +38,24 @@ function connectionString(raw: string | undefined): string | undefined {
 
 const url = connectionString(process.env.DATABASE_URL);
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createClient() {
+  const client = new PrismaClient({
     datasources: url ? { db: { url } } : undefined,
     // Row-locked workflows can queue behind a concurrent request over Neon.
     transactionOptions: { maxWait: 10_000, timeout: 15_000 },
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["query", "error", "warn"]
-        : ["error"],
+    log: enabled ? [{ emit: "event", level: "query" } as const] : [],
   });
+  if (enabled) {
+    client.$on("query", event => observe("db_engine_query_seconds", event.duration / 1000));
+  }
+  return instrumentPrisma(client);
+}
+
+export const prisma = globalForPrisma.prisma ?? createClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 
-  // Neon suspends an idle compute and drops open sockets. A quiet ping keeps
-  // the dev connection alive so the next request does not hit a closed socket.
-  const timer = setInterval(() => {
-    prisma.$queryRaw`SELECT 1`.catch(() => undefined);
-  }, 4 * 60 * 1000);
-  timer.unref();
 }
 
 export default prisma;

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:yalla_5roga/core/constants/asset_constants.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
@@ -100,7 +99,7 @@ class _ToastBubble extends StatelessWidget {
                             Responsive.radiusMd,
                           ),
                         ),
-                        child: SvgPicture.asset(
+                        child: Image.asset(
                           AssetConstants.logo,
                           excludeFromSemantics: true,
                         ),

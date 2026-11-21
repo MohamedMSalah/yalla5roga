@@ -1,3 +1,4 @@
+import { errorCode, logger } from "../../monitoring/logger.js";
 import type { IGroupInvitationRepository } from "../../repositories/groups/i-group-invitation.repository.js";
 import { GroupInvitationRepository } from "../../repositories/groups/group-invitation.repository.js";
 import type { IGroupRepository } from "../../repositories/groups/i-group.repository.js";
@@ -152,7 +153,7 @@ export class InviteToGroupUseCase {
         channel: "whatsapp",
       }).catch((error: unknown) => {
         notificationQueued = false;
-        console.error("[group-invitation] enqueue failed", error);
+        logger.warn({ errorCode: errorCode(error) }, "Group invitation notification failed");
       });
     }
 

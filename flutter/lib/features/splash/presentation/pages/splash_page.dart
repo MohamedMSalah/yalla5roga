@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,10 +54,14 @@ class _OnboardingPage extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SvgPicture.asset(
-                          AssetConstants.logo,
-                          width: 40,
-                          height: 40,
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.asset(
+                            AssetConstants.logo,
+                            width: 40,
+                            height: 40,
+                            excludeFromSemantics: true,
+                          ),
                         ),
                         Responsive.spaceSm.gapW,
                         Text(l10n.appName, style: context.texts.titleLarge),

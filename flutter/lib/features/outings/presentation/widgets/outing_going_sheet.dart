@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
+import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
@@ -13,7 +14,7 @@ import 'package:yalla_5roga/features/outings/presentation/widgets/outing_attenda
 class OutingGoingSheet {
   const OutingGoingSheet._();
 
-  static Future<void> show(Outing event) {
+  static Future<void> show(Outing event, {required String viewerId}) {
     final context = Get.context;
     final outings = context == null
         ? null
@@ -21,10 +22,13 @@ class OutingGoingSheet {
     return Get.bottomSheet(
       SafeArea(
         child: outings == null
-            ? _OutingGoingSheetBody(eventId: event.id)
+            ? _OutingGoingSheetBody(eventId: event.id, viewerId: viewerId)
             : ChangeNotifierProvider<OutingsProvider>.value(
                 value: outings,
-                child: _OutingGoingSheetBody(eventId: event.id),
+                child: _OutingGoingSheetBody(
+                  eventId: event.id,
+                  viewerId: viewerId,
+                ),
               ),
       ),
       isScrollControlled: true,
@@ -35,9 +39,9 @@ class OutingGoingSheet {
 }
 
 class _OutingGoingSheetBody extends StatelessWidget {
-  const _OutingGoingSheetBody({required this.eventId});
+  const _OutingGoingSheetBody({required this.eventId, required this.viewerId});
 
-  final String eventId;
+  final String eventId, viewerId;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +49,11 @@ class _OutingGoingSheetBody extends StatelessWidget {
     final palette = context.palette;
     final outings = context.watch<OutingsProvider>();
     final event = outings.findById(eventId);
-    if (event == null) {
+    final currentUser = context.select((AuthProvider auth) => auth.user?.id);
+    if (event == null ||
+        currentUser != viewerId ||
+        outings.isUnavailable(eventId) ||
+        !outings.isAttendanceParticipant(eventId, viewerId)) {
       return const SizedBox.shrink();
     }
     final members = outings.membersForOuting(event);
@@ -62,7 +70,7 @@ class _OutingGoingSheetBody extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            l10n.whoIsGoing,
+            l10n.outingParticipants,
             style: TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: Responsive.fontMd,

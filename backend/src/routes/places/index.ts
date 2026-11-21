@@ -1,5 +1,6 @@
 import { CatalogController } from "../../controllers/places/catalog.controller.js";
 import { Router } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import placeCrudRoutes from "./place.crud.routes.js";
 import placeMetaRoutes from "./place.meta.routes.js";
 import placeSavedRoutes from "./place.saved.routes.js";
@@ -19,6 +20,6 @@ const router = Router();
 const brands = new CatalogController();
 router.get("/api/place-brands/:id/branches", brands.branches);
 router.get("/api/place-brands/:id", brands.brand);
-router.use("/api/places", api);
+mountRoutes(router, "/api/places", api);
 
 export default router;

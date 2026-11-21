@@ -1,4 +1,4 @@
-import { ConflictError, ForbiddenError } from "../../utils/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError } from "../../utils/errors.js";
 import { getNotificationConfig, hasAutomaticWhatsApp,
 } from "../../config/notifications.js";
 import { specialEventInvitation } from "../../services/whatsapp/special-event-invitation.js";
@@ -147,18 +147,30 @@ export class OutingDatasource {
       const [before] = await tx.$queryRaw<
         Outing[]
       >`SELECT * FROM outings WHERE id = ${id}::uuid FOR UPDATE`;
+      if (!before) throw new NotFoundError("Outing");
+      const changesDeadline = data.vote_ends_at !== undefined || data.vote_deadline_hours !== undefined;
+      if (changesDeadline && (before.vote_closed_at || before.current_voting_round > 1)) {
+        throw new ConflictError("The voting round deadline is locked");
+      }
+      if ((before.status === "confirmed" || before.winning_option_id) && (
+        data.location_place_id !== undefined || data.location_name !== undefined ||
+        data.location_category_id !== undefined || data.location_address !== undefined ||
+        data.location_area !== undefined || data.location_latitude !== undefined || data.location_longitude !== undefined
+      )) {
+        throw new ConflictError("Confirmed winning place cannot be changed");
+      }
       if (
         data.location_place_id &&
-        data.location_place_id !== before?.location_place_id
+        data.location_place_id !== before.location_place_id
       )
         await assertSelectablePlaces(tx, [data.location_place_id]);
       const updated = await tx.outings.update({
-      where: { id },
-      data: { ...data, updated_at: new Date() },
+        where: { id },
+        data: { ...data, updated_at: new Date(Math.max(Date.now(), before.updated_at.getTime() + 1)) },
       });
       if (data.vote_ends_at !== undefined) await tx.outing_voting_rounds.update({ where: { outing_id_round_number: { outing_id: id, round_number: updated.current_voting_round } }, data: { ends_at: updated.vote_ends_at } });
       if (updated.status === "cancelled" || updated.status === "past") await tx.outing_voting_rounds.updateMany({ where: { outing_id: id, status: { in: ["active", "tie_pending"] } }, data: { status: updated.status === "cancelled" ? "cancelled" : "closed" } });
-      await persistOutingTransition(tx, before!, updated);
+      await persistOutingTransition(tx, before, updated);
       return updated;
     });
   }

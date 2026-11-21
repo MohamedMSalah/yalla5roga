@@ -37,7 +37,7 @@ class NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
-      color: unread ? context.palette.brandSoft : context.palette.surface,
+      color: unread ? context.palette.brandSoft : null,
       radius: 16,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

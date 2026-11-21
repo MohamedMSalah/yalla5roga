@@ -34,19 +34,24 @@ class PlaceFilters {
     this.longitude,
     this.radiusKm = 10,
     this.bounds,
+    this.pageSize = 50,
+    this.compact = false,
   });
   final Set<String> categories, vibes;
   final String search;
   final String? brandId;
   final double? latitude, longitude;
   final double radiusKm;
+  final int pageSize;
+  final bool compact;
 
   /// west,south,east,north as accepted by the existing catalog API.
   final String? bounds;
   Map<String, dynamic> query({int offset = 0}) => {
-    'limit': 50,
+    'limit': pageSize.clamp(1, 100),
     'offset': offset,
     'status': 'active',
+    if (compact) 'compact': 'true',
     if (brandId != null) 'brand_id': brandId,
     if (bounds != null) 'bbox': bounds,
     if (categories.isNotEmpty)
@@ -72,7 +77,11 @@ class PlaceFilters {
     bool clearLocation = false,
     String? bounds,
     bool clearBounds = false,
+    int? pageSize,
+    bool? compact,
   }) => PlaceFilters(
+    pageSize: pageSize ?? this.pageSize,
+    compact: compact ?? this.compact,
     brandId: brandId ?? this.brandId,
     categories: categories ?? this.categories,
     vibes: vibes ?? this.vibes,
@@ -97,9 +106,10 @@ class PlaceFilters {
     if (bounds case final value?) {
       final box = value.split(',').map(double.parse).toList();
       if (!place.hasCoordinates ||
-          place.longitude! < box[0] ||
           place.latitude! < box[1] ||
-          place.longitude! > box[2] ||
+          (box[0] <= box[2]
+              ? place.longitude! < box[0] || place.longitude! > box[2]
+              : place.longitude! < box[0] && place.longitude! > box[2]) ||
           place.latitude! > box[3]) {
         return false;
       }

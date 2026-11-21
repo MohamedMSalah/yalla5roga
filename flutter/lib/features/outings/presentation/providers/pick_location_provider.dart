@@ -74,6 +74,15 @@ class PickLocationProvider extends ChangeNotifier {
     lookupFailed = false;
   }
 
+  void clearCandidate() {
+    _cancelReverse();
+    _candidate = null;
+    nameController.clear();
+    moving = false;
+    lookupFailed = false;
+    notifyListeners();
+  }
+
   void rename(String value) {
     final candidate = _candidate;
     if (candidate == null || candidate.id.isNotEmpty) return;

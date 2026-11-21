@@ -3,13 +3,7 @@ import { getAuth } from "firebase-admin/auth";
 
 export function initFirebase() {
   const existing = getApps();
-  if (existing.length > 0) {
-    console.error("[Firebase Admin] Reusing existing app", {
-      appCount: existing.length,
-      projectIds: existing.map((app) => app.options.projectId ?? null),
-    });
-    return;
-  }
+  if (existing.length > 0) return;
 
   const projectId = process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
@@ -31,7 +25,6 @@ export function initFirebase() {
     }),
   });
 
-  console.error("[Firebase Admin] Initialized", { projectId });
 }
 
 export function getFirebaseAuth() {

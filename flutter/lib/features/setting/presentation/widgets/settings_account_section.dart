@@ -7,7 +7,6 @@ import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.d
 import '../pages/edit_profile_page.dart';
 import '../widgets/settings_section.dart';
 import '../widgets/settings_tile.dart';
-import 'delete_account_action.dart';
 import 'phone_verification_chip.dart';
 import 'profile_phone_sheet.dart';
 
@@ -18,6 +17,7 @@ class SettingsAccountSection extends StatelessWidget {
     final l10n = context.l10n;
     final user = context.watch<AuthProvider>().user;
     return SettingsSection(
+      icon: Icons.person_outline,
       title: l10n.accountSettings,
       children: [
         SettingsTile(
@@ -50,14 +50,6 @@ class SettingsAccountSection extends StatelessWidget {
               : null,
           background: context.palette.warningSoft,
           foreground: context.palette.warning,
-        ),
-        SettingsTile(
-          icon: Icons.delete_outline,
-          title: l10n.deleteAccount,
-          foreground: context.colors.error,
-          onTap: context.watch<AuthProvider>().isLoading
-              ? null
-              : () => confirmDeleteAccount(context),
         ),
       ],
     );

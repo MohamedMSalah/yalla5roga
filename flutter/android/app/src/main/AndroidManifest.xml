@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.READ_CONTACTS"/>
     <application
+        android:fullBackupContent="@xml/places_backup"
+        android:dataExtractionRules="@xml/places_extraction"
         android:label="Yalla 5roga"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
@@ -17,7 +19,7 @@
             android:value="yalla_outings_v1" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
+            android:resource="@drawable/ic_notification" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

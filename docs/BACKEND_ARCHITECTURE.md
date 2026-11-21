@@ -5,7 +5,7 @@
 | Last verified | 2026-11-08 |
 | Documentation version | 1.0.0 |
 | Entry | `backend/src/server.ts` → `app.ts` |
-| Needs verification | Production logging/monitoring exporters; WhatsApp provider credentials per env |
+| Needs verification | Hosted observability retention and load; WhatsApp provider credentials per env |
 
 ## 1. Style
 
@@ -312,3 +312,9 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 ## Location voting round extension — 2026-11-15
 
 Existing voting routes/controllers/use cases and `OutingDataSource` now scope ballots/results to the authoritative round. `startRevote` joins the existing vote-resolution service; validation uses existing Zod/error middleware. Row locks and database constraints serialize closure, ballots, random/revote and cancellation. Notification producers persist with the state transaction; delivery retries remain in the existing outbox worker. Legacy route names remain supported. See [contract](API_CONTRACTS.md#location-tierevote-contract--2026-11-15) and [HTTP evidence](audit/LOCATION_TIE_OPENAPI_RESULTS.json).
+
+Outing updates check venue and deadline locks after acquiring the same row lock used for resolution. Named Socket.IO voting events read the current outing revision and its round in one database statement. Generic outing invalidations continue to use the existing account-scoped sync path.
+
+## Request observability
+
+Express installs one completion recorder before CORS and parsing. AsyncLocalStorage associates measured Prisma Client operations and selected service, authorization and external spans. Prisma engine events aggregate SQL counts and timings. Pino sends structured JSON in production and pretty output in development. Health/readiness use a shared lightweight probe. Protected metrics, route inventory and the optional Prometheus/Grafana profile are described in the [operator guide](development/OBSERVABILITY.md).

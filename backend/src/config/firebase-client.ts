@@ -1,3 +1,4 @@
+import { measure } from "../monitoring/context.js";
 import { randomUUID } from "node:crypto";
 import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
 import {
@@ -62,7 +63,7 @@ export async function signInWithCustomTokenSession(
   customToken: string,
 ): Promise<FirebaseSession> {
   return withClientAuth(async (auth) => {
-    const credential = await signInWithCustomToken(auth, customToken);
+    const credential = await measure("externalMs", () => signInWithCustomToken(auth, customToken));
     const idToken = await credential.user.getIdToken();
     return {
       uid: credential.user.uid,

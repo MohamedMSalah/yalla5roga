@@ -1,11 +1,15 @@
+import { isolatedDatabase } from "./support/isolated-database.js";
 import assert from "node:assert/strict";
 import { randomInt, randomUUID } from "node:crypto";
 import test from "node:test";
 import { PrismaClient } from "@prisma/client";
 import { CreateOutingUseCase } from "../src/usecases/outings/create-outing.usecase.js";
+import { ReplaceBallotUseCase, TieBreakUseCase } from "../src/usecases/outings/voting.usecase.js";
+import { closeVotingByDeadline } from "../src/services/outings/vote-resolution.js";
+import { hasOutingAccess } from "../src/services/outings/outing-access.js";
 import { createOutingBodySchema } from "../src/validators/outings/outing.validator.js";
 
-test("initial candidates publish atomically and a concurrent replay returns the same outing", async () => {
+test("initial candidates publish atomically and a concurrent replay returns the same outing", { skip: !isolatedDatabase }, async () => {
   const prisma = new PrismaClient();
   const owner = `map-${randomUUID()}`;
   const useCase = new CreateOutingUseCase();
@@ -25,8 +29,8 @@ test("initial candidates publish atomically and a concurrent replay returns the 
         vote_deadline_hours: 3,
         initial_vote_options: [
           { place_id: catalog.id, label: catalog.name, latitude: null, longitude: null, sort_order: 20 },
-          { label: "Lobby", latitude: 0, longitude: 0 },
-          { label: "Rooftop", latitude: 0, longitude: 0 },
+          { label: "Lobby", latitude: 0, longitude: 0, category_id: "parks", address: "North entrance" },
+          { label: "Rooftop", latitude: 0, longitude: 0, category_id: "cafes", address: "Level three" },
         ],
       });
       const input = { ...body, created_by: owner };
@@ -42,6 +46,8 @@ test("initial candidates publish atomically and a concurrent replay returns the 
       assert.equal(options[0]?.place_id, catalog.id);
       assert.equal(options[0]?.latitude, null);
       assert.equal(options[1]?.latitude, 0);
+      assert.equal(options[1]?.category_id, "parks");
+      assert.equal(options[1]?.address, "North entrance");
       assert.equal(await prisma.outing_attendance.count({ where: { outing_id: first.id } }), 1);
 
       await assert.rejects(useCase.execute({
@@ -49,6 +55,25 @@ test("initial candidates publish atomically and a concurrent replay returns the 
         initial_vote_options: [{ label: " Lobby ", latitude: 0, longitude: 0 },
           { label: "lobby", latitude: 0, longitude: 0 }],
       }), /Duplicate initial option/);
+
+      const ballot = await new ReplaceBallotUseCase().execute(first.id, owner, [options[1]!.id, options[2]!.id]);
+      assert.equal(ballot.votes.length, 2);
+      await prisma.outings.update({
+        where: { id: first.id },
+        data: { vote_ends_at: new Date(Date.now() - 1000) },
+      });
+      const closed = await closeVotingByDeadline(first.id);
+      assert.equal(closed?.outcome, "tie");
+      const resolution = await new TieBreakUseCase().execute(first.id, owner);
+      assert.equal(resolution.outcome, "confirmed");
+      const winningOption = options.find((option) => option.id === resolution.winningOptionId)!;
+      assert.equal(resolution.outing.location_place_id, null);
+      assert.equal(resolution.outing.location_category_id, winningOption.category_id);
+      assert.equal(resolution.outing.location_address, winningOption.address);
+      assert.equal(resolution.outing.location_latitude, 0);
+      assert.equal(resolution.outing.location_longitude, 0);
+      assert.equal(await hasOutingAccess(resolution.outing, owner), true);
+      assert.equal(await hasOutingAccess(resolution.outing, "unrelated-user"), false);
 
       const brokenKey = randomUUID();
       await assert.rejects(useCase.execute({

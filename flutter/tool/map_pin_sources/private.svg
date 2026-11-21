@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs><linearGradient id="pin" x2="0" y2="1"><stop stop-color="rgb(149, 111, 210)"/><stop offset="1" stop-color="rgb(103, 61, 173)"/></linearGradient></defs>
+  <path d="M64 127 C52 112 19 79 17 57 C11 27 33 5 64 5 C95 5 117 27 111 57 C109 79 76 112 64 127 Z" fill="url(#pin)"/>
+  <circle cx="64" cy="53" r="36" fill="rgb(157, 122, 213)"/>
+  <polygon points="64.00,29.00 69.88,44.91 86.83,45.58 73.51,56.09 78.11,72.42 64.00,63.00 49.89,72.42 54.49,56.09 41.17,45.58 58.12,44.91" fill="white"/>
+</svg>

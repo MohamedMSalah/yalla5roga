@@ -59,7 +59,7 @@ export class SyncUserUseCase {
       await this.assertPhoneAvailable(proof.phone, input.id);
       await this.phones.bindPhone(input.id, proof);
       verifiedPhone = proof.phone;
-    } else if (verifiedPhone) {
+    } else if (verifiedPhone && verifiedPhone !== existing?.phone) {
       await this.assertPhoneAvailable(verifiedPhone, input.id);
     }
 

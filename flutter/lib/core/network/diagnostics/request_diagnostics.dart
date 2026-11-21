@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 /// Outcome of a recorded API attempt (debug diagnostics only).
-enum RequestOutcome { network, cache, deduped }
+enum RequestOutcome { network, cache, cacheMiss, stale, deduped }
 
 /// One API attempt captured by [RequestDiagnostics] (no tokens/bodies).
 class RequestDiagnosticEntry {
@@ -17,6 +17,18 @@ class RequestDiagnosticEntry {
     this.source,
     this.operation,
     this.error = false,
+    this.startedAt,
+    this.requestId,
+    this.operationId,
+    this.trigger,
+    this.serverMs,
+    this.overheadMs,
+    this.responseBytes,
+    this.cacheStatus,
+    this.retry = 0,
+    this.errorKind,
+    this.duplicateCount,
+    this.concurrent,
   });
 
   final String method;
@@ -30,6 +42,18 @@ class RequestDiagnosticEntry {
   final String? source;
   final String? operation;
   final bool error;
+  final DateTime? startedAt;
+  final String? requestId;
+  final String? operationId;
+  final String? trigger;
+  final double? serverMs;
+  final double? overheadMs;
+  final int? responseBytes;
+  final String? cacheStatus;
+  final int retry;
+  final String? errorKind;
+  final int? duplicateCount;
+  final int? concurrent;
 
   String get identityKey => '${method.toUpperCase()} $normalizedEndpoint';
 }
@@ -42,59 +66,48 @@ class RequestDiagnostics {
 
   static final RequestDiagnostics instance = RequestDiagnostics._();
 
+  static const enabled = bool.fromEnvironment(
+    'API_DIAGNOSTICS',
+    defaultValue: kDebugMode,
+  );
+  static const logRequests = bool.fromEnvironment(
+    'API_DIAGNOSTICS_LOG',
+    defaultValue: kDebugMode,
+  );
   static const int maxEntries = 500;
   final List<RequestDiagnosticEntry> _entries = [];
-  final Map<String, int> _countsByIdentity = {};
-  final Map<String, int> _countsByFeature = {};
-  var _cacheHits = 0;
-  var _deduped = 0;
-  var _network = 0;
-  var _errors = 0;
 
   List<RequestDiagnosticEntry> get entries => List.unmodifiable(_entries);
 
   int get totalRequests => _entries.length;
 
-  int get cacheHits => _cacheHits;
+  int _count(RequestOutcome outcome) =>
+      _entries.where((entry) => entry.outcome == outcome).length;
+  int get cacheHits =>
+      _count(RequestOutcome.cache) + _count(RequestOutcome.stale);
+  int get dedupedRequests => _count(RequestOutcome.deduped);
+  int get networkRequests =>
+      _entries.where((entry) => entry.requestId != null).length;
+  int get errorCount => _entries.where((entry) => entry.error).length;
 
-  int get dedupedRequests => _deduped;
-
-  int get networkRequests => _network;
-
-  int get errorCount => _errors;
-
-  void clear() {
-    if (!kDebugMode) return;
-    _entries.clear();
-    _countsByIdentity.clear();
-    _countsByFeature.clear();
-    _cacheHits = 0;
-    _deduped = 0;
-    _network = 0;
-    _errors = 0;
-  }
+  void clear() => _entries.clear();
 
   void record(RequestDiagnosticEntry entry) {
-    if (!kDebugMode) return;
+    if (!enabled) return;
+    if (_entries.length == maxEntries) _entries.removeAt(0);
     _entries.add(entry);
-    if (_entries.length > maxEntries) {
-      _entries.removeRange(0, _entries.length - maxEntries);
+    if (logRequests && entry.requestId != null) {
+      debugPrint(
+        '[DIO] ${entry.method} ${entry.normalizedEndpoint} | '
+        '${entry.statusCode ?? entry.errorKind ?? 'unknown'} '
+        'request=${entry.requestId} operation=${entry.operationId} '
+        'origin=${entry.source ?? 'unknown'} trigger=${entry.trigger} '
+        'client=${entry.durationMs}ms app=${entry.serverMs ?? 'n/a'}ms '
+        'transport/client estimate=${entry.overheadMs?.toStringAsFixed(1) ?? 'n/a'}ms '
+        'bytes=${entry.responseBytes ?? 'n/a'} cache=${entry.cacheStatus ?? 'n/a'} retry=${entry.retry}'
+        '${entry.duplicateCount == null ? '' : ' potential_duplicate=${entry.duplicateCount} concurrent=${entry.concurrent}'}',
+      );
     }
-
-    _countsByIdentity[entry.identityKey] =
-        (_countsByIdentity[entry.identityKey] ?? 0) + 1;
-    final feature = entry.feature ?? 'unknown';
-    _countsByFeature[feature] = (_countsByFeature[feature] ?? 0) + 1;
-
-    switch (entry.outcome) {
-      case RequestOutcome.cache:
-        _cacheHits++;
-      case RequestOutcome.deduped:
-        _deduped++;
-      case RequestOutcome.network:
-        _network++;
-    }
-    if (entry.error) _errors++;
   }
 
   /// Cache / dedupe hits that never reached Dio.
@@ -105,15 +118,16 @@ class RequestDiagnostics {
     String? feature,
     String? source,
     String? operation,
+    int durationMs = 0,
   }) {
-    if (!kDebugMode) return;
+    if (!enabled) return;
     record(
       RequestDiagnosticEntry(
         method: method,
-        endpoint: endpoint,
+        endpoint: normalizeEndpoint(endpoint),
         normalizedEndpoint: normalizeEndpoint(endpoint),
         timestamp: DateTime.now(),
-        durationMs: 0,
+        durationMs: durationMs,
         outcome: outcome,
         feature: feature,
         source: source,
@@ -122,14 +136,25 @@ class RequestDiagnostics {
     );
   }
 
-  Map<String, int> get countsByFeature => Map.unmodifiable(_countsByFeature);
+  Map<String, int> get countsByFeature {
+    final counts = <String, int>{};
+    for (final entry in _entries) {
+      counts.update(
+        entry.feature ?? 'unknown',
+        (value) => value + 1,
+        ifAbsent: () => 1,
+      );
+    }
+    return Map.unmodifiable(counts);
+  }
 
-  /// Identities seen more than once (potential duplicates).
   Map<String, int> get repeatedRequests {
-    return {
-      for (final entry in _countsByIdentity.entries)
-        if (entry.value > 1) entry.key: entry.value,
-    };
+    final counts = <String, int>{};
+    for (final entry in _entries) {
+      final repeats = entry.duplicateCount;
+      if (repeats != null) counts[entry.identityKey] = repeats;
+    }
+    return counts;
   }
 
   List<RequestDiagnosticEntry> get slowRequests {
@@ -142,11 +167,11 @@ class RequestDiagnostics {
   RequestDiagnosticsSummary summary() {
     return RequestDiagnosticsSummary(
       totalRequests: totalRequests,
-      networkRequests: _network,
-      cacheHits: _cacheHits,
-      dedupedRequests: _deduped,
-      errorCount: _errors,
-      byFeature: Map.of(_countsByFeature),
+      networkRequests: networkRequests,
+      cacheHits: cacheHits,
+      dedupedRequests: dedupedRequests,
+      errorCount: errorCount,
+      byFeature: countsByFeature,
       repeated: repeatedRequests,
       slowCount: slowRequests.length,
     );
@@ -166,38 +191,98 @@ class RequestDiagnostics {
     return buf.toString();
   }
 
-  /// Collapse UUID / numeric path segments for grouping.
-  static String normalizeEndpoint(String path) {
-    final uri = Uri.tryParse(path);
-    final raw = uri?.path.isNotEmpty == true ? uri!.path : path;
-    final segments = raw.split('/');
-    final normalized = [
-      for (final segment in segments)
-        if (segment.isEmpty)
-          segment
-        else if (_looksLikeId(segment))
-          ':id'
-        else
-          segment,
-    ].join('/');
-    return normalized.isEmpty ? '/' : normalized;
-  }
+  // Allowed path components from the API inventory. Unknown components may
+  // contain account IDs, tokens, file keys or coordinates.
+  static const _static = {
+    'api',
+    'auth',
+    'users',
+    'groups',
+    'outings',
+    'notifications',
+    'places',
+    'invitations',
+    'place-brands',
+    'media',
+    'cuser',
+    'signup',
+    'login',
+    'change-password',
+    'verify-password',
+    'recovery',
+    'start',
+    'verify',
+    'reset',
+    'sync',
+    'fcm-token',
+    'members',
+    'pending-memberships',
+    'accept',
+    'decline',
+    'drafts',
+    'saved',
+    'save',
+    'cancel',
+    'attendance',
+    'guests',
+    'arrivals',
+    'self',
+    'vote-options',
+    'votes',
+    'voting-state',
+    'tie-break',
+    'confirmed-venue',
+    'voting',
+    'revote',
+    'messages',
+    'read',
+    'branches',
+    'geocoding',
+    'geojson',
+    'recommendations',
+    'licenses',
+    'categories',
+    'vibes',
+    'version',
+    'changes',
+    'status',
+    'history',
+    'nearby',
+    'hours',
+    'images',
+    'prices',
+    'preferences',
+    'system-payload',
+    'upload-url',
+    'signed-urls',
+    'confirm',
+    'url',
+    ':id',
+    ':token',
+    ':outingId',
+    ':groupId',
+    ':invitationId',
+    ':messageId',
+    ':optionId',
+    ':userId',
+    ':imageId',
+    ':priceId',
+    ':hourId',
+    ':key',
+  };
 
-  static bool _looksLikeId(String segment) {
-    if (RegExp(r'^\d+$').hasMatch(segment)) return true;
-    if (RegExp(
-      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-    ).hasMatch(segment)) {
-      return true;
-    }
-    // Firebase / cuid-like opaque ids (length + mixed charset).
-    if (segment.length >= 16 &&
-        RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(segment) &&
-        RegExp(r'[0-9]').hasMatch(segment) &&
-        RegExp(r'[A-Za-z]').hasMatch(segment)) {
-      return true;
-    }
-    return false;
+  static String normalizeEndpoint(String path) {
+    final raw = path.startsWith('/')
+        ? path.split('?').first
+        : Uri.tryParse(path)?.path;
+    if (raw == null || !raw.startsWith('/api/')) return '/other';
+    return raw
+        .split('/')
+        .map((segment) {
+          if (segment.isEmpty || _static.contains(segment)) return segment;
+          return ':id';
+        })
+        .join('/');
   }
 }
 
@@ -221,13 +306,4 @@ class RequestDiagnosticsSummary {
   final Map<String, int> byFeature;
   final Map<String, int> repeated;
   final int slowCount;
-}
-
-/// Dio [Options.extra] keys for diagnostic tagging.
-abstract final class RequestDiagKeys {
-  static const feature = 'diag_feature';
-  static const source = 'diag_source';
-  static const operation = 'diag_operation';
-  static const outcome = 'diag_outcome';
-  static const startedAt = 'diag_started_at';
 }

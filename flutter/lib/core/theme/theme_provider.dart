@@ -6,7 +6,7 @@ import 'package:yalla_5roga/core/constants/app_constants.dart';
 class ThemeProvider extends ChangeNotifier {
   ThemeProvider(this._prefs) {
     final stored = _prefs.getString(AppConstants.themeKey);
-    _themeMode = stored == 'dark' ? ThemeMode.dark : ThemeMode.light;
+    _themeMode = stored == 'light' ? ThemeMode.light : ThemeMode.dark;
   }
 
   final SharedPreferences _prefs;

@@ -13,6 +13,7 @@ import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_local_dat
 import 'package:yalla_5roga/features/chat/data/datasources/outing_chat_remote_datasource.dart';
 import 'package:yalla_5roga/features/chat/data/repositories/outing_chat_repository_impl.dart';
 import 'package:yalla_5roga/features/discover/data/datasources/discover_remote_datasource.dart';
+import 'package:yalla_5roga/features/discover/data/datasources/places_local_store.dart';
 import 'package:yalla_5roga/features/discover/data/repositories/discover_repository_impl.dart';
 import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
 import 'package:yalla_5roga/features/groups/data/datasources/groups_remote_datasource.dart';
@@ -96,6 +97,7 @@ class RepositoryFactory {
   DiscoverRepository discover() {
     return DiscoverRepositoryImpl(
       remote: DiscoverRemoteDataSource(apiClient),
+      local: PlacesLocalStore(config.apiBaseUrl),
       networkInfo: networkInfo,
     );
   }

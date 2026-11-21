@@ -28,8 +28,9 @@ class _RevoteBottomSheetState extends State<RevoteBottomSheet> {
   Future<void> _pick() async {
     final now = DateTime.now();
     var last = now.add(const Duration(days: 7));
-    if (widget.scheduledAt != null && widget.scheduledAt!.isBefore(last)) {
-      last = widget.scheduledAt!;
+    final scheduledAt = widget.scheduledAt?.toLocal();
+    if (scheduledAt != null && scheduledAt.isBefore(last)) {
+      last = scheduledAt;
     }
     if (!last.isAfter(now)) {
       setState(() => _error = context.l10n.votingDeadlineBeforeOuting);

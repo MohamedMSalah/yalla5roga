@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_card.dart';
+import 'package:yalla_5roga/features/groups/presentation/widgets/group_info_section_card.dart';
+import 'package:yalla_5roga/features/groups/presentation/widgets/group_page_chrome.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 
 class GroupBioCard extends StatefulWidget {
@@ -45,40 +46,23 @@ class _GroupBioCardState extends State<GroupBioCard> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final palette = context.palette;
+    final style = GroupPageColors(context);
     final isEmpty = widget.bio.trim().isEmpty;
     final canEdit = widget.onSave != null;
     final editing = canEdit && _editing;
 
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l10n.groupBio,
-                  style: TextStyle(
-                    color: palette.textMuted,
-                    fontWeight: FontWeight.w700,
-                    fontSize: Responsive.fontCaption,
-                  ),
-                ),
-              ),
-              if (canEdit && !editing)
-                TextButton(
-                  onPressed: () {
-                    _controller.text = widget.bio;
-                    setState(() => _editing = true);
-                  },
-                  child: Text(l10n.editGroupBio),
-                ),
-            ],
-          ),
-          6.gapH,
-          if (editing)
-            Form(
+    return GroupInfoSectionCard(
+      title: l10n.groupBio,
+      icon: Icons.article_outlined,
+      inlineBody: !editing,
+      onTap: canEdit && !editing
+          ? () {
+              _controller.text = widget.bio;
+              setState(() => _editing = true);
+            }
+          : null,
+      body: editing
+          ? Form(
               key: _form,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -119,17 +103,12 @@ class _GroupBioCardState extends State<GroupBioCard> {
                 ],
               ),
             )
-          else
-            Text(
+          : Text(
               isEmpty ? l10n.noGroupBio : widget.bio,
-              style: TextStyle(
-                color: isEmpty ? palette.textMuted : palette.textPrimary,
-                fontSize: Responsive.fontBody,
-                height: 1.35,
-              ),
+              maxLines: canEdit ? 2 : null,
+              overflow: canEdit ? TextOverflow.ellipsis : null,
+              style: TextStyle(color: style.muted, fontSize: 14, height: 1.35),
             ),
-        ],
-      ),
     );
   }
 }

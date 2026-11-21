@@ -58,6 +58,8 @@ export type CreateOutingInput = {
   scheduled_at?: Date | null;
   /** Optional end time; the completion job falls back to scheduled_at + 6h. */
   ends_at?: Date | null;
+  location_category_id?: string | null;
+  location_address?: string | null;
   location_place_id?: string | null;
   location_name?: string | null;
   location_area?: string | null;
@@ -93,6 +95,8 @@ export type CreateVoteOptionInput = {
   place_id?: string | null;
   label: string;
   area?: string;
+  category_id?: string;
+  address?: string;
   image_url?: string;
   vibe?: OutingVibe;
   latitude?: number | null;

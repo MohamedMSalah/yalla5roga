@@ -5,6 +5,124 @@ import 'package:intl/intl.dart';
 /// Single source for every on-screen string.
 /// Getter names match the copy they return.
 class L10n {
+  String get groupHistoryTitle => _t('History', 'السجل');
+  String get attendancePrompt => _t('Let your group know.', 'بلّغ مجموعتك.');
+  String get creationSubmit => _t('Create Outing', 'إنشاء الخروجة');
+  String get creationTitle => _t('Create an Outing', 'إنشاء خروجة');
+  String get creationReview => _t('Review & Create', 'راجع وأنشئ');
+  String get creationReviewHint => _t(
+    'Check the details and create your outing',
+    'راجع التفاصيل وأنشئ خروجتك',
+  );
+  String get creationChooseLocation => _t('Choose Location', 'اختار المكان');
+  String get creationSearch => _t('Search places...', 'ابحث عن مكان...');
+  String get creationNoResults => _t('No places found.', 'مفيش أماكن مطابقة.');
+  String get creationPickFirst =>
+      _t('Select a place to continue', 'اختار مكان علشان تكمّل');
+  String get creationClear => _t('Clear', 'مسح');
+  String get creationNext => _t('Next', 'التالي');
+  String get creationDateTime => _t('Date & Time', 'التاريخ والوقت');
+  String get creationNameHint => _t('Give your outing a name', 'سمّي خروجتك');
+  String get creationVotingLocations => _t('Voting locations', 'أماكن التصويت');
+  String get creationGroup => _t('Group', 'المجموعة');
+  String get creationPlaceDetails => _t('Place details', 'تفاصيل المكان');
+  String get creationGroupVote => _t('Group voting', 'تصويت المجموعة');
+  String get creationVotePrompt => _t(
+    'Let everyone choose their favorite place.',
+    'خلّي كل واحد يختار مكانه المفضل.',
+  );
+  String get creationVoteHint => _t(
+    'These places will be included in a group vote.',
+    'المجموعة هتصوّت على الأماكن دي.',
+  );
+  String get creationFixedHint => _t(
+    'Choose one place to set the outing location.',
+    'اختار مكان واحد للخروجة.',
+  );
+  String get creationVoteDeadlineHint => _t(
+    'Choose multiple places to let your group vote. Set a voting deadline before the outing starts.',
+    'اختار أكتر من مكان علشان مجموعتك تصوّت. حدّد ميعاد انتهاء التصويت قبل بداية الخروجة.',
+  );
+  String get creationVoteWinner => _t(
+    'The place with the most votes will be selected when voting ends.',
+    'لما التصويت يخلص، المكان اللي عليه أكتر أصوات هو اللي هيتحدد.',
+  );
+  String get creationVoteTie => _t(
+    'If there’s a tie, the outing creator can start a re-vote or roll the dice.',
+    'لو التصويت انتهى بتعادل، منشئ الخروجة يقدر يبدأ تصويت جديد أو يرمي النرد.',
+  );
+  String get creationEventOnePlace => _t(
+    'Special events use one location.',
+    'المناسبات الخاصة ليها مكان واحد.',
+  );
+  String get creationInfo =>
+      _t('How location selection works', 'طريقة اختيار المكان');
+  String get creationSignInAgain => _t(
+    'Reopen this form from your current account.',
+    'افتح النموذج من حسابك الحالي.',
+  );
+  String get creationFutureStart => _t(
+    'Choose a start time in the future.',
+    'اختار ميعاد بداية في المستقبل.',
+  );
+  String creationFixedStartLeadTime(int hours) => hours == 1
+      ? _t(
+          'Choose a start time more than one hour from now.',
+          'اختار ميعاد بداية بعد أكتر من ساعة من دلوقتي.',
+        )
+      : _t(
+          'Choose a start time more than ${n(hours)} hours from now.',
+          'اختار ميعاد بداية بعد أكتر من ${n(hours)} ساعات من دلوقتي.',
+        );
+  String get creationDiscardTitle => _t('Discard changes?', 'تلغي التغييرات؟');
+  String get creationDiscardMessage => _t(
+    'Your unsaved changes will be lost.',
+    'التغييرات اللي ما اتحفظتش هتضيع.',
+  );
+  String get creationDiscard => _t('Discard changes', 'إلغاء التغييرات');
+  String creationSelectedCount(int count) => switch (count) {
+    1 => _t('1 location selected', 'تم اختيار مكان واحد'),
+    2 => _t('2 locations selected', 'تم اختيار مكانين'),
+    _ => _t('${n(count)} locations selected', 'تم اختيار ${n(count)} أماكن'),
+  };
+
+  String get wizardLocation => _t('Location', 'المكان');
+  String get wizardReview => _t('Review', 'المراجعة');
+  String get wizardDetailsShort => _t('Details', 'التفاصيل');
+
+  String get recentlyCreatedGroups => _t('Recently created', 'اتعملت قريب');
+
+  String get outingParticipants => _t('Participants', 'المشاركون');
+  String get viewOnMap => _t('View on map', 'عرض على الخريطة');
+  String get checkIn => _t('Check in', 'تأكيد الوصول');
+  String get homePlanTitle => _t('Plan your next outing', 'خطط لخروجتك الجاية');
+  String get homePlanAccent => _t('outing', 'لخروجتك');
+  String get homePlanBody => _t(
+    'Discover places, create outings, and enjoy with your group.',
+    'اكتشف أماكن جديدة وخطط لخروجات مع مجموعتك.',
+  );
+  String get outingsHeaderBody =>
+      _t('Plan, vote, and go out together', 'خططوا وصوّتوا واخرجوا مع بعض');
+  String get settingsHeaderBody => _t(
+    'Manage your account and app preferences',
+    'إدارة حسابك وتفضيلات التطبيق',
+  );
+  String get wizardMapHint => _t(
+    'Pick one or more places from the map',
+    'اختار مكان أو أكتر من الخريطة',
+  );
+  String get continueToDetails => _t('Continue to details', 'متابعة للتفاصيل');
+  String get wizardDetails => _t('Outing details', 'تفاصيل الخروجة');
+  String groupListSummary(int count) => _groupStatistic(
+    count,
+    'active group',
+    'active groups',
+    'مجموعة نشطة واحدة',
+    'مجموعتان نشطتان',
+    'مجموعات نشطة',
+    'مجموعة نشطة',
+  );
+
   String get placeOverview => _t('Overview', 'نظرة عامة');
   String get placeBranches => _t('Branches', 'الفروع');
   String get placeReviews => _t('Reviews', 'التقييمات');
@@ -54,6 +172,52 @@ class L10n {
 
   final Locale locale;
   String get mapFilters => _t('Map filters', 'فلاتر الخريطة');
+  String get offlineMaps => _t('Offline maps', 'خرائط بدون إنترنت');
+  String get offlineMapsHint =>
+      _t('Download areas and places', 'نزّل مناطق وأماكن');
+  String get offlineMapsUnavailable => _t(
+    'Offline map downloads are unavailable on this device or with this map provider.',
+    'تنزيل الخرائط غير متاح على هذا الجهاز أو مع مزوّد الخرائط الحالي.',
+  );
+  String get offlineMapSelect => _t('Select an area', 'اختر منطقة');
+  String get offlineMapInternetRequired => _t(
+    'Connect to the internet to download or resume an area.',
+    'اتصل بالإنترنت لتنزيل منطقة أو استكمال تنزيلها.',
+  );
+  String get offlineMapEmpty =>
+      _t('No downloaded areas', 'لا توجد مناطق منزّلة');
+  String get offlineMapDownloading =>
+      _t('Downloading map tiles', 'جارٍ تنزيل الخريطة');
+  String offlineMapPhotoCount(String count) =>
+      _t('$count photos saved', 'تم حفظ $count صورة');
+  String get offlineMapSavingPlaces =>
+      _t('Saving places and photos', 'جارٍ حفظ الأماكن والصور');
+  String get offlineMapPause => _t('Pause', 'إيقاف مؤقت');
+  String get offlineMapResume =>
+      _t('Resume or retry', 'استكمال أو إعادة المحاولة');
+  String get offlineMapDelete => _t('Delete area', 'حذف المنطقة');
+  String get offlineMapIncomplete => _t('Incomplete', 'غير مكتملة');
+  String get offlineMapLimit =>
+      _t('You can save up to six areas.', 'يمكنك حفظ ست مناطق كحد أقصى.');
+  String get offlineMapStandard => _t('Standard (3–12)', 'عادية (٣–١٢)');
+  String get offlineMapDetailed => _t('Detailed (3–14)', 'مفصّلة (٣–١٤)');
+  String get offlineMapTooLarge =>
+      _t('Zoom in or make the square smaller.', 'قرّب الخريطة أو صغّر المربع.');
+  String offlineMapMegabytes(String count) => _t('$count MB', '$count م.ب.');
+  String offlineMapEstimate(String size, String photos) => _t(
+    'About $size for the map, plus up to $photos for photos',
+    'حوالي $size للخريطة، وحتى $photos للصور',
+  );
+  String offlineMapCoverage(String count) => _t('$count km²', '$count كم²');
+  String offlineMapResize(String count) =>
+      _t('Area square size $count percent', 'حجم مربع المنطقة $count بالمئة');
+  String offlineMapCoordinates(String lat, String lng) =>
+      _t('Area at $lat, $lng', 'منطقة عند $lat، $lng');
+  String offlineMapStorage(String maps, String photos) => _t(
+    'Map packs $maps · Photos $photos',
+    'حزم الخرائط $maps · الصور $photos',
+  );
+
   String get mapSaveOffline =>
       _t('Save this area offline', 'احفظ المنطقة بدون إنترنت');
   String get mapOfflineSaved => _t(
@@ -64,6 +228,14 @@ class L10n {
     'Could not save this area. Zoom in and retry.',
     'تعذر حفظ المنطقة. قرّب الخريطة وحاول تاني.',
   );
+  String get myPrivatePlaces => _t('My places', 'أماكني');
+  String get deviceLocalPlace =>
+      _t('Saved only on this device.', 'محفوظ على هذا الجهاز فقط.');
+  String get findPlaceAddress => _t('Find address', 'البحث عن العنوان');
+  String get localLocationDraft =>
+      _t('Draft saved on this device.', 'تم حفظ المسودة على هذا الجهاز.');
+  String get selectMapLocation => _t('Select location', 'اختيار الموقع');
+  String get removePrivatePlace => _t('Delete place', 'حذف المكان');
   String get savePlace => _t('Save place', 'حفظ المكان');
   String get unsavePlace => _t('Unsave place', 'إلغاء حفظ المكان');
   String get savedPlacesFilter => _t('Places', 'الأماكن');
@@ -316,6 +488,17 @@ class L10n {
     return digits(_ar ? text : text.toUpperCase());
   }
 
+  String formatCreationDate(DateTime date) =>
+      digits(DateFormat.MMMEd(_dateLocale).format(date));
+
+  /// Compact schedule label for the Home outing card.
+  String formatHomeOutingDate(DateTime date) => digits(
+    (_ar
+            ? DateFormat.MMMEd(_dateLocale)
+            : DateFormat('EEE, d MMM', _dateLocale))
+        .format(date),
+  );
+
   /// Join date for profile “Member since” (e.g. 8 Nov 2026 / ٨ نوفمبر ٢٠٢٦).
   String formatMemberSince(DateTime date) {
     return digits(DateFormat.yMMMd(_dateLocale).format(date));
@@ -422,7 +605,7 @@ class L10n {
   String get showPassword => _t('Show password', 'إظهار كلمة المرور');
   String get hidePassword => _t('Hide password', 'إخفاء كلمة المرور');
   String get search => _t('Search', 'بحث');
-  String get searchGroups => _t('Search groups', 'ابحث عن مجموعة');
+  String get searchGroups => _t('Search groups...', 'ابحث عن مجموعة...');
   String get back => _t('Back', 'رجوع');
   String get edit => _t('Edit', 'تعديل');
   String get change => _t('Change', 'تغيير');
@@ -817,6 +1000,34 @@ class L10n {
   String get invite => _t('Invite', 'ادعُ أصدقاءك');
   String get happeningNow => _t('Happening now', 'يحدث الآن');
   String get seeAll => _t('See all', 'عرض الكل');
+  String seeAllOutings(int count) =>
+      _t('See all (${n(count)})', 'عرض الكل (${n(count)})');
+  String get voteForOutingPlace =>
+      _t('Vote for the outing place', 'صوّت لمكان الخروجة');
+  String get noActiveOrUpcomingOutings => _t(
+    'No active votes or upcoming outings',
+    'لا توجد تصويتات نشطة أو خروجات قادمة',
+  );
+
+  String outingVoteTimeLeft(int minutes) {
+    final days = minutes ~/ 1440;
+    final hours = (minutes ~/ 60) % 24;
+    final mins = minutes % 60;
+    if (days > 0) {
+      return _t(
+        '${n(days)}d ${n(hours)}h left',
+        'متبقي ${n(days)} ي ${n(hours)} س',
+      );
+    }
+    if (hours > 0) {
+      return _t(
+        '${n(hours)}h ${n(mins)}m left',
+        'متبقي ${n(hours)} س ${n(mins)} د',
+      );
+    }
+    return _t('${n(mins)}m left', 'متبقي ${n(mins)} د');
+  }
+
   String get twoHoursLeft => digits(_t('2h left', 'متبقي ساعتان'));
   String get exploreNearby =>
       _t('Explore nearby places', 'استكشف الأماكن القريبة');
@@ -1011,9 +1222,58 @@ class L10n {
   String get yourCircles => _t('Your circles', 'دوائرك');
   String get groupsTitle => _t('Groups', 'المجموعات');
   String activeGroupsFriends(int groups, int friends) {
-    final g = n(groups);
-    final f = n(friends);
-    return _t('$g active groups · $f friends', '$g مجموعات نشطة · $f صديقاً');
+    final friendsLabel = _groupStatistic(
+      friends,
+      'friend',
+      'friends',
+      'صديق واحد',
+      'صديقان',
+      'أصدقاء',
+      'صديقًا',
+    );
+    return '${groupListSummary(groups)} · $friendsLabel';
+  }
+
+  String groupMembersCount(int count) => _groupStatistic(
+    count,
+    'member',
+    'members',
+    'عضو واحد',
+    'عضوان',
+    'أعضاء',
+    'عضوًا',
+  );
+
+  String groupOutingsCount(int count) => _groupStatistic(
+    count,
+    'outing',
+    'outings',
+    'خروجة واحدة',
+    'خروجتان',
+    'خروجات',
+    'خروجة',
+  );
+
+  String _groupStatistic(
+    int count,
+    String singular,
+    String plural,
+    String one,
+    String two,
+    String few,
+    String other,
+  ) {
+    final value = n(count);
+    if (!_ar) return '$value ${count == 1 ? singular : plural}';
+    return Intl.plural(
+      count,
+      locale: 'ar',
+      zero: '$value $few',
+      one: one,
+      two: two,
+      few: '$value $few',
+      other: '$value $other',
+    );
   }
 
   String get allGroups => _t('All groups', 'كل المجموعات');
@@ -1030,13 +1290,28 @@ class L10n {
 
   String get voteNow => _t('Vote now', 'صوّت الآن');
   String get startNewCircle => _t('Start a new circle', 'ابدأ مجموعة جديدة');
-  String get inviteWithLink =>
-      _t('Invite friends with one link', 'ادعُ أصدقاءك برابط واحد');
+  String get inviteFriendsToGroups =>
+      _t('Invite friends to your groups', 'ادعُ أصدقاءك إلى مجموعاتك');
+  String get clearGroupSearch => _t('Clear search', 'مسح البحث');
   String membersOutings(int members, int outings) {
-    final m = n(members);
-    final o = n(outings);
-    return _t('$m members · $o outings', '$m أعضاء · $o خروجة');
+    return '${groupMemberCount(members)} · ${groupOutingCount(outings)}';
   }
+
+  String groupMemberCount(int count) =>
+      _t('${n(count)} ${count == 1 ? 'member' : 'members'}', switch (count) {
+        1 => 'عضو واحد',
+        2 => 'عضوان',
+        >= 3 && <= 10 => '${n(count)} أعضاء',
+        _ => '${n(count)} عضو',
+      });
+
+  String groupOutingCount(int count) =>
+      _t('${n(count)} ${count == 1 ? 'outing' : 'outings'}', switch (count) {
+        1 => 'خروجة واحدة',
+        2 => 'خروجتان',
+        >= 3 && <= 10 => '${n(count)} خروجات',
+        _ => '${n(count)} خروجة',
+      });
 
   String get createGroup => _t('Create a group', 'إنشاء مجموعة');
   String get groupName => _t('Group name', 'اسم المجموعة');
@@ -1115,6 +1390,34 @@ class L10n {
     'No active votes yet. Start an outing to vote together.',
     'لا توجد تصويتات نشطة بعد. ابدأ خرجة للتصويت معاً.',
   );
+  String get groupNoActiveVotes =>
+      _t('No active votes yet', 'لا توجد تصويتات نشطة بعد');
+  String get groupStartVote =>
+      _t('Start an outing to vote together.', 'ابدأ خروجة للتصويت معًا.');
+  String get groupLocationPending =>
+      _t('Location pending', 'لم يُحدد المكان بعد');
+  String get groupLastOwnerCannotLeave => _t(
+    'The last owner cannot leave while the group has other members.',
+    'لا يمكن للمالك الأخير المغادرة طالما في المجموعة أعضاء آخرون.',
+  );
+  String get groupCannotDeleteWithOutings => _t(
+    'Groups with outings cannot be deleted.',
+    'لا يمكن حذف مجموعة تحتوي على خروجات.',
+  );
+  String groupExitMessage(String name, {required bool delete}) => delete
+      ? _t(
+          'Permanently delete “$name”? Groups with outings cannot be deleted.',
+          'هل تريد حذف «$name» نهائيًا؟ لا يمكن حذف مجموعة تحتوي على خروجات.',
+        )
+      : _t(
+          'Leave “$name”? You will lose access to resources exclusive to group members.',
+          'هل تريد مغادرة «$name»؟ ستفقد الوصول إلى الموارد المخصصة لأعضاء المجموعة.',
+        );
+  String get groupExitChanged => _t(
+    'Group membership changed. Review the available actions and try again.',
+    'تغيّرت عضوية المجموعة. راجع الإجراءات المتاحة وحاول مرة أخرى.',
+  );
+  String get groupDeleted => _t('Group deleted', 'تم حذف المجموعة');
   String get noActiveVotesHint => _t(
     'When a group starts voting, it will show up here.',
     'لما تبدأ مجموعة تصويت، هيظهر هنا.',
@@ -1568,6 +1871,15 @@ class L10n {
   String get mapRetryTiles => _t('Reload map tiles', 'أعد تحميل الخريطة');
   String get mapManagePlaces =>
       _t('Manage places on map', 'إدارة الأماكن على الخريطة');
+  String get discoverExpandPlaces => _t('Expand places', 'توسيع الأماكن');
+  String get discoverCollapsePlaces => _t('Collapse places', 'طي الأماكن');
+  String get mapAppearance => _t('Map appearance', 'مظهر الخريطة');
+  String get mapFollowTheme => _t('Follow app theme', 'اتباع مظهر التطبيق');
+  String get mapDay => _t('Day map', 'خريطة نهارية');
+  String get mapNight => _t('Night map', 'خريطة ليلية');
+  String get mapResetNorth => _t('Point map north', 'توجيه الخريطة شمالاً');
+  String get discoverViewDetails => _t('View details', 'عرض التفاصيل');
+  String get discoverSearchHint => _t('Search places...', 'ابحث عن مكان...');
   String get mapSearchHint => _t('Search places', 'ابحث عن مكان');
   String get mapPinHint => _t(
     'Move the map or tap to place the pin.',
@@ -1660,6 +1972,25 @@ class L10n {
   String get support => _t('Support', 'الدعم');
   String get helpAndFaq => _t('Help & FAQ', 'المساعدة والأسئلة');
   String get contactUs => _t('Contact Us', 'تواصل معنا');
+  String get generalSupport => _t('General support', 'دعم عام');
+  String get bugReport => _t('Bug report', 'الإبلاغ عن مشكلة تقنية');
+  String get featureSuggestion => _t('Feature suggestion', 'اقتراح ميزة');
+  String get privacyAndSafety => _t('Privacy and safety', 'الخصوصية والأمان');
+  String get accountAndDataDeletion =>
+      _t('Account and data deletion', 'حذف الحساب والبيانات');
+  String get contactSupport => _t('Contact support', 'تواصل مع الدعم');
+  String get supportCategory => _t('Support category', 'فئة الدعم');
+  String get supportSubject => _t('Subject', 'الموضوع');
+  String get supportMessage => _t('Message', 'الرسالة');
+  String get supportMessageRequired => _t('Enter a message.', 'اكتب رسالتك.');
+  String get openEmailApp => _t('Open email app', 'افتح تطبيق البريد');
+  String get noEmailApp => _t(
+    'An email app couldn’t be opened. You can copy the address and use it in your email service.',
+    'تعذّر فتح تطبيق البريد. يمكنك نسخ العنوان واستخدامه في خدمة البريد الخاصة بك.',
+  );
+  String get copyEmailAddress => _t('Copy email address', 'انسخ عنوان البريد');
+  String get emailAddressCopied =>
+      _t('Email address copied.', 'تم نسخ عنوان البريد.');
   String get aboutYalla5roga => _t('About Yalla 5roga', 'عن يلا خروجة');
   String get privacyPolicy => _t('Privacy Policy', 'سياسة الخصوصية');
   String get termsAndConditions => _t('Terms & Conditions', 'الشروط والأحكام');
@@ -1796,27 +2127,35 @@ class L10n {
   String get accountDeleted => _t('Account deleted', 'تم حذف الحساب');
   String get aboutDeveloper => _t('About Developer', 'عن المطوّر');
   String get developerName => _t('Mohamed Mohamed Salah', 'محمد محمد صلاح');
-  String get developerInitials => _t('MS', 'مس');
-  String get developerTitle =>
-      _t('Full-Stack Mobile App Developer', 'مطوّر تطبيقات موبايل متكامل');
-  String get developerTagline => _t(
-    'Building complete mobile experiences from frontend to backend.',
-    'بناء تجارب موبايل كاملة من الواجهة إلى الخادم.',
+  String get developerRole => _t('CREATOR & DEVELOPER', 'صاحب الفكرة والمطوّر');
+  String get developerTitle => _t('Software Engineer', 'مهندس برمجيات');
+  String get developerLocation => _t('Egypt 🇪🇬', 'مصر 🇪🇬');
+  String get developerAboutHeading => _t('About Me', 'نبذة عنّي');
+  String get developerAboutBody => _t(
+    "I'm a software engineer passionate about creating meaningful digital experiences that simplify everyday life. I created Yalla 5roga to bring people closer together, make planning easier, and help friends create unforgettable memories.",
+    'أنا مهندس برمجيات شغوف بابتكار تجارب رقمية هادفة تُسهّل الحياة اليومية. أنشأت يلا خروجة لأقرّب الناس من بعضهم، وأسهّل التخطيط، وأساعد الأصدقاء على صنع ذكريات لا تُنسى.',
   );
-  String get developerDescription => _t(
-    'Yalla 5roga is designed and developed by Mohamed Mohamed Salah, a Full-Stack Mobile App Developer focused on building modern mobile applications, robust backend APIs, and scalable database systems.',
-    'يلا خروجة صمّمها وطوّرها محمد محمد صلاح، مطوّر تطبيقات موبايل متكامل يركّز على بناء تطبيقات حديثة وواجهات برمجية قوية وأنظمة قواعد بيانات قابلة للتوسّع.',
+  String get developerStoryHeading =>
+      _t('From an Idea to an Experience', 'من فكرة إلى تجربة');
+  String get developerStoryBody => _t(
+    "Great memories shouldn't require complicated planning. Yalla 5roga was created with a simple vision: bring friends together, make discovering new places easier, and turn every outing into something worth remembering.",
+    'الذكريات الجميلة لا تحتاج إلى تخطيط معقّد. انطلقت يلا خروجة برؤية بسيطة: جمع الأصدقاء، وتسهيل اكتشاف أماكن جديدة، وتحويل كل خروجة إلى تجربة تستحق أن نتذكّرها.',
   );
-  String get developerShortDescription => _t(
-    'Yalla 5roga is designed and developed by Mohamed Mohamed Salah, a Flutter Developer focused on building modern mobile applications and scalable backend systems.',
-    'يلا خروجة صمّمها وطوّرها محمد صلاح، مطوّر فلاتر يركّز على بناء تطبيقات موبايل حديثة وأنظمة خلفية قابلة للتوسّع.',
-  );
-  String get github => _t('GitHub', 'GitHub');
-  String get viewMyProjects => _t('View my projects', 'عرض مشاريعي');
+  String get developerConnect => _t('Connect With Me', 'تواصل معي');
+  String get github => 'GitHub';
+  String get viewMyProjects => _t('Explore my projects.', 'تصفّح مشاريعي.');
   String get portfolio => _t('Portfolio', 'معرض الأعمال');
-  String get viewMyPortfolio => _t('View my portfolio', 'عرض معرض أعمالي');
-  String get contactDeveloper => _t('Contact Developer', 'تواصل مع المطوّر');
-  String get getInTouch => _t('Get in touch', 'تواصل معي');
+  String get viewMyPortfolio => _t('Explore my work.', 'تصفّح أعمالي.');
+  String get linkedIn => 'LinkedIn';
+  String get developerLinkedInSubtitle =>
+      _t("Let's connect professionally.", 'لنتواصل مهنيًا.');
+  String get getInTouch => _t('Get in touch.', 'تواصل معي.');
+  String get developerFooterPassion =>
+      _t('Designed & Developed with Passion', 'صُمّم وطُوّر بشغف');
+  String get developerFooterLove =>
+      _t('Made with love in Egypt 🇪🇬', 'صُنع بحب في مصر 🇪🇬');
+  String developerCopyright(int year) =>
+      '© ${digits(year.toString())} $developerName';
   String get couldNotOpenLink =>
       _t('Could not open this link', 'تعذّر فتح هذا الرابط');
 

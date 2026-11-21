@@ -9,6 +9,13 @@ class SectionHeader extends StatelessWidget {
     this.actionLabel,
     this.onAction,
     this.eyebrow,
+    this.icon,
+    this.iconColor,
+    this.iconSize = 23,
+    this.iconGap = 10,
+    this.titleStyle,
+    this.trailing,
+    this.trailingMaxWidth,
   });
 
   final String title;
@@ -16,11 +23,25 @@ class SectionHeader extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
   final String? eyebrow;
+  final IconData? icon;
+  final Color? iconColor;
+  final double iconSize, iconGap;
+  final TextStyle? titleStyle;
+  final Widget? trailing;
+  final double? trailingMaxWidth;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
+        if (icon != null) ...[
+          Icon(
+            icon,
+            color: iconColor ?? context.palette.brandStrong,
+            size: iconSize,
+          ),
+          SizedBox(width: iconGap),
+        ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,11 +57,14 @@ class SectionHeader extends StatelessWidget {
                   ),
                 ),
               if (eyebrow != null) Responsive.spaceXs.gapH,
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  fontSize: Responsive.fontMd,
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style:
+                      titleStyle ??
+                      Theme.of(context).textTheme.titleLarge
+                          ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               if (subtitle != null) ...[
@@ -56,15 +80,35 @@ class SectionHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (actionLabel != null)
-          TextButton(
-            onPressed: onAction,
-            child: Text(
-              actionLabel!,
-              style: TextStyle(
-                color: context.palette.brandStrong,
-                fontWeight: FontWeight.w800,
-                fontSize: Responsive.fontSm,
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          if (trailingMaxWidth case final width?)
+            ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: width),
+              child: trailing!,
+            )
+          else
+            Flexible(
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: trailing!,
+              ),
+            ),
+        ] else if (actionLabel != null)
+          Flexible(
+            child: Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton(
+                onPressed: onAction,
+                child: Text(
+                  actionLabel!,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(
+                    color: context.palette.brandStrong,
+                    fontWeight: FontWeight.w800,
+                    fontSize: Responsive.fontSm,
+                  ),
+                ),
               ),
             ),
           ),

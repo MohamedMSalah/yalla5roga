@@ -6,7 +6,7 @@ import 'dart:io';
 import '../lib/core/maps/yalla_map_style.dart';
 
 // Pure Dart export for style-spec validation. Does not import or launch Flutter.
-void main() {
+void main(List<String> arguments) {
   final variants = <String, dynamic>{};
   for (final dark in [false, true]) {
     for (final language in ['ar', 'en']) {
@@ -24,7 +24,8 @@ void main() {
       variants['${dark ? 'dark' : 'light'}_$language'] = style;
     }
   }
-  File('../docs/audit/MAPLIBRE_STYLES.json').writeAsStringSync(
+  final output = arguments.singleOrNull ?? '../docs/audit/MAPLIBRE_STYLES.json';
+  File(output).writeAsStringSync(
     '${const JsonEncoder.withIndent('  ').convert(variants)}\n',
   );
   stdout.writeln(

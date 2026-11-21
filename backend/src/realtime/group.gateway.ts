@@ -1,4 +1,6 @@
 import type { Server } from "socket.io";
+import { observeSocketAck } from "../monitoring/socket.js";
+import { increment } from "../monitoring/metrics.js";
 import { z } from "zod";
 import { GroupRepository } from "../repositories/groups/group.repository.js";
 import { assertGroupMember } from "../services/groups/group-access.js";
@@ -16,15 +18,18 @@ export function registerGroupGateway(
     socket.on("disconnect", () => joins.clear());
     for (const action of ["join", "leave"] as const) {
       socket.on(`group:${action}`, async (raw: unknown, ack: unknown) => {
-        const respond = (payload: object) => { if (typeof ack === "function") ack(payload); };
+        const reply = observeSocketAck(`group:${action}`, ack);
+        const respond = (payload: object) => reply?.(payload);
         const parsed = groupIdSchema.safeParse(raw);
         if (!parsed.success) return respond({ ok: false, error: "INVALID_GROUP_ID" });
         if (!socket.data.uid) return respond({ ok: false, error: "UNAUTHORIZED" });
         const room = groupRealtimeRoom(parsed.data.groupId);
         const id = parsed.data.groupId;
         const intent = {};
-        if (action === "join") joins.set(id, intent);
-        else joins.delete(id);
+        if (action === "join") {
+          if (joins.has(id)) increment("socket_overlapping_joins_total", { event: "group:join" });
+          joins.set(id, intent);
+        } else joins.delete(id);
         try {
           if (action === "join") {
             await authorize(parsed.data.groupId, socket.data.uid);

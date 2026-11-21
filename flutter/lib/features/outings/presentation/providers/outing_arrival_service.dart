@@ -44,6 +44,7 @@ class OutingArrivalService {
     OutingArrivalRoster roster, {
     required bool Function() isActive,
     required bool Function() shouldRequestPermission,
+    void Function()? onSubmitting,
   }) async {
     bool withinWindow() {
       final now = DateTime.now();
@@ -101,6 +102,7 @@ class OutingArrivalService {
     if (!distance.isFinite || distance > roster.radiusMeters) {
       return ArrivalVerification.outsideRadius;
     }
+    onSubmitting?.call();
     final arrived = await _remote.record(
       outingId,
       latitude: position.latitude,

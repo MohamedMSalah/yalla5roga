@@ -35,6 +35,10 @@ class OutingsProvider extends ChangeNotifier {
   final DateTime Function() _now;
   final MediaUploadService? mediaUploads;
   Timer? _scheduleTimer;
+  final _visibleFeeds = <Object>{};
+  final _checkedVoteDeadlines = <String, DateTime>{};
+
+  DateTime currentTime() => _now();
 
   var _outings = <Outing>[];
   final _deletedOutingIds = <String>{};
@@ -45,6 +49,9 @@ class OutingsProvider extends ChangeNotifier {
       <String, ({String user, AttendanceStatus status})>{};
   int _featuredIndex = 0;
   var _hasLoaded = false;
+  var _hasCompleteOutingsList = false;
+  List<Outing>? _groupCountsSource;
+  Map<String, int> _groupCounts = const {};
   var _isCreating = false;
   String? _errorMessage;
 
@@ -162,6 +169,23 @@ class OutingsProvider extends ChangeNotifier {
 
   bool get hasLoaded => _hasLoaded;
 
+  Map<String, int>? get groupOutingCounts {
+    if (!_hasCompleteOutingsList) return null;
+    if (!identical(_groupCountsSource, _outings)) {
+      _groupCountsSource = _outings;
+      final counts = <String, int>{};
+      for (final outing in _outings) {
+        if (outing.groupId case final id?) {
+          counts.update(id, (count) => count + 1, ifAbsent: () => 1);
+        }
+      }
+      if (!mapEquals(counts, _groupCounts)) {
+        _groupCounts = Map.unmodifiable(counts);
+      }
+    }
+    return _groupCounts;
+  }
+
   bool get isCreating => _isCreating;
 
   String? get errorMessage => _errorMessage;
@@ -180,20 +204,78 @@ class OutingsProvider extends ChangeNotifier {
     );
   }
 
-  List<Outing> get upcoming {
+  List<Outing>? _sectionSource;
+  DateTime? _sectionsReadAt;
+  DateTime? _nextSectionChange;
+  var _sections = (active: const <Outing>[], upcoming: const <Outing>[]);
+
+  List<Outing> get upcoming => _feedSections().upcoming;
+
+  /// Open place-voting outings with server options and an unexpired deadline.
+  List<Outing> get activeVotes => _feedSections().active;
+
+  ({List<Outing> active, List<Outing> upcoming}) _feedSections() {
     final now = _now();
-    final openVoteIds = _activeVotesAt(now).map((outing) => outing.id).toSet();
-    return [
-      for (final outing in _outings)
-        if (!_isArchived(outing, now) && !openVoteIds.contains(outing.id))
-          outing,
-    ];
+    if (identical(_sectionSource, _outings) &&
+        !now.isBefore(_sectionsReadAt!) &&
+        (_nextSectionChange?.isAfter(now) ?? true)) {
+      return _sections;
+    }
+
+    final active = <Outing>[];
+    final upcoming = <Outing>[];
+    DateTime? nextChange;
+    void consider(DateTime? at) {
+      if (at != null && (nextChange == null || at.isBefore(nextChange!))) {
+        nextChange = at;
+      }
+    }
+
+    for (final outing in _outings) {
+      if (_isArchived(outing, now)) continue;
+      consider(outing.scheduledAt);
+      final deadline = voteDeadlineFor(outing);
+      if (_isOpenVoteRound(outing) && (deadline?.isAfter(now) ?? true)) {
+        active.add(outing);
+        consider(deadline);
+      } else {
+        upcoming.add(outing);
+      }
+    }
+    upcoming.sort((a, b) {
+      final first = a.scheduledAt;
+      final second = b.scheduledAt;
+      if (first == null && second != null) return 1;
+      if (first != null && second == null) return -1;
+      final byDate = first == null ? 0 : first.compareTo(second!);
+      return byDate == 0 ? a.id.compareTo(b.id) : byDate;
+    });
+    _sectionSource = _outings;
+    _sectionsReadAt = now;
+    _nextSectionChange = nextChange;
+    return _sections = (
+      active: List.unmodifiable(active),
+      upcoming: List.unmodifiable(upcoming),
+    );
   }
 
   bool _isArchived(Outing outing, DateTime now) =>
       outing.status == OutingStatus.cancelled || outing.isPastAt(now);
 
+  void openFeed(Object owner) {
+    if (_visibleFeeds.add(owner) && _visibleFeeds.length == 1) {
+      _scheduleNextStart();
+    }
+  }
+
+  void closeFeed(Object owner) {
+    if (_visibleFeeds.remove(owner) && _visibleFeeds.isEmpty) {
+      _scheduleNextStart();
+    }
+  }
+
   void refreshSchedule() {
+    _sectionSource = null;
     _scheduleNextStart();
     notifyListeners();
   }
@@ -201,14 +283,44 @@ class OutingsProvider extends ChangeNotifier {
   void _scheduleNextStart() {
     _scheduleTimer?.cancel();
     final now = _now();
-    DateTime? nextStart;
-    for (final outing in _outings) {
-      final start = outing.scheduledAt;
-      if (start == null || _isArchived(outing, now)) continue;
-      if (nextStart == null || start.isBefore(nextStart)) nextStart = start;
+    DateTime? nextBoundary;
+    void consider(DateTime at) {
+      if (nextBoundary == null || at.isBefore(nextBoundary!)) {
+        nextBoundary = at;
+      }
     }
-    if (nextStart != null) {
-      _scheduleTimer = Timer(nextStart.difference(now), refreshSchedule);
+
+    final expired = <String, DateTime>{};
+    final unresolved = <String>{};
+    for (final outing in _outings) {
+      if (_isArchived(outing, now)) continue;
+      final start = outing.scheduledAt;
+      if (start != null) consider(start);
+      if (!_isOpenVoteRound(outing)) continue;
+      final deadline = voteDeadlineFor(outing);
+      if (deadline == null) continue;
+      unresolved.add(outing.id);
+      if (deadline.isAfter(now)) {
+        consider(deadline);
+      } else if (_visibleFeeds.isNotEmpty &&
+          _checkedVoteDeadlines[outing.id] != deadline) {
+        expired[outing.id] = deadline;
+      }
+    }
+    _checkedVoteDeadlines.removeWhere((id, _) => !unresolved.contains(id));
+
+    if (expired.isNotEmpty) {
+      // Refresh once per deadline through the existing targeted read. Socket
+      // invalidations still reconcile the result when the server closes a round.
+      _scheduleTimer = Timer(Duration.zero, () {
+        for (final entry in expired.entries) {
+          _checkedVoteDeadlines[entry.key] = entry.value;
+          unawaited(refreshLifecycle(outingId: entry.key, forceRefresh: true));
+        }
+        refreshSchedule();
+      });
+    } else if (nextBoundary case final at?) {
+      _scheduleTimer = Timer(at.difference(now), refreshSchedule);
     }
   }
 
@@ -219,25 +331,21 @@ class OutingsProvider extends ChangeNotifier {
     ];
   }
 
-  /// Open place-voting outings (not expired). Source of truth for active vote UIs.
-  List<Outing> get activeVotes => _activeVotesAt(_now());
-
-  List<Outing> _activeVotesAt(DateTime now) {
-    return [
-      for (final outing in _outings)
-        if (!_isArchived(outing, now) &&
-            outing.status == OutingStatus.voting &&
-            optionsFor(outing.id).isNotEmpty &&
-            !isVoteExpired(outing.id))
-          outing,
-    ];
+  bool _isOpenVoteRound(Outing outing) {
+    final vote = _votesByOuting[outing.id];
+    return outing.status == OutingStatus.voting &&
+        vote != null &&
+        vote.options.isNotEmpty &&
+        !vote.finalized &&
+        (vote.votingState == 'active' || vote.votingState == 'revote_active');
   }
 
   int _sessionEpoch = 0;
   final _openOutings = <String, int>{};
   Iterable<String> get openOutingIds => _openOutings.keys;
   final _unavailableOutings = <String>{};
-  bool isUnavailable(String id) => _unavailableOutings.contains(id);
+  bool isUnavailable(String id) =>
+      _deletedOutingIds.contains(id) || _unavailableOutings.contains(id);
   bool containsOuting(String id) => findById(id) != null;
 
   bool applyAttendanceChange(
@@ -300,7 +408,10 @@ class OutingsProvider extends ChangeNotifier {
           snapshot.outings.map((outing) => outing.id),
         );
         changed =
-            changed || _errorMessage != null || _snapshotDiffers(snapshot);
+            changed ||
+            _hasCompleteOutingsList != snapshot.hasCompleteOutingsList ||
+            _errorMessage != null ||
+            _snapshotDiffers(snapshot);
         if (changed) _applySnapshot(snapshot);
       },
     );
@@ -317,6 +428,7 @@ class OutingsProvider extends ChangeNotifier {
       }
     }
     _outings = List.of(snapshot.outings);
+    _hasCompleteOutingsList = snapshot.hasCompleteOutingsList;
     _suggestions = List.of(snapshot.suggestions);
     _votesByOuting = Map.of(snapshot.votesByOuting);
     _attendanceByOuting = {
@@ -365,17 +477,26 @@ class OutingsProvider extends ChangeNotifier {
 
   DateTime? voteEndsAt(String outingId) => _votesByOuting[outingId]?.endsAt;
 
-  bool isVoteExpired(String outingId) {
-    final ends = voteEndsAt(outingId);
-    if (ends == null) return false;
-    return !ends.isAfter(DateTime.now());
-  }
+  DateTime? voteDeadlineFor(Outing outing) =>
+      voteEndsAt(outing.id) ?? outing.voteEndsAt;
+
+  DateTime? _voteDeadlineById(String id) =>
+      voteEndsAt(id) ?? findById(id)?.voteEndsAt;
+
+  bool isVoteExpired(String outingId) =>
+      _voteDeadlineById(outingId)?.isAfter(_now()) == false;
 
   Duration? voteRemaining(String outingId) {
-    final ends = voteEndsAt(outingId);
+    final ends = _voteDeadlineById(outingId);
     if (ends == null) return null;
-    final remaining = ends.difference(DateTime.now());
+    final remaining = ends.difference(_now());
     return remaining.isNegative ? Duration.zero : remaining;
+  }
+
+  ({int voted, int eligible})? voteParticipationFor(String id) {
+    final vote = _votesByOuting[id];
+    if (vote == null || !vote.hasParticipationCounts) return null;
+    return (voted: vote.votedCount, eligible: vote.eligibleVoterCount);
   }
 
   int eligibleVoterCountFor(String outingId) =>
@@ -409,11 +530,21 @@ class OutingsProvider extends ChangeNotifier {
   bool hasAttendanceFor(String outingId) =>
       _attendanceByOuting.containsKey(outingId);
 
+  int? attendanceParticipantCount(String outingId) =>
+      _attendanceByOuting[outingId]?.length;
+
+  bool isAttendanceParticipant(String outingId, String? userId) =>
+      userId != null &&
+      (_attendanceByOuting[outingId]?.containsKey(userId) ?? false);
+
   Map<String, AttendanceStatus> attendanceMapFor(String outingId) {
+    final attendance = _attendanceByOuting[outingId];
+    if (attendance == null) return const {};
     final pending = _pendingAttendance[outingId];
     return Map.unmodifiable({
-      ...?_attendanceByOuting[outingId],
-      if (pending != null) pending.user: pending.status,
+      ...attendance,
+      if (pending != null && attendance.containsKey(pending.user))
+        pending.user: pending.status,
     });
   }
 
@@ -422,7 +553,10 @@ class OutingsProvider extends ChangeNotifier {
 
   AttendanceStatus attendanceFor(String outingId, String memberId) {
     final pending = _pendingAttendance[outingId];
-    if (pending?.user == memberId) return pending!.status;
+    if (pending?.user == memberId &&
+        isAttendanceParticipant(outingId, memberId)) {
+      return pending!.status;
+    }
     return _attendanceByOuting[outingId]?[memberId] ?? AttendanceStatus.unset;
   }
 
@@ -456,6 +590,8 @@ class OutingsProvider extends ChangeNotifier {
 
   bool isTied(String outingId) =>
       _votesByOuting[outingId]?.votingState == 'tie_pending';
+  bool canResolveTie(String outingId) =>
+      isTied(outingId) && _votesByOuting[outingId]!.canResolveTie;
   int roundNumberFor(String outingId) =>
       _votesByOuting[outingId]?.roundNumber ?? 1;
   VoteOption? winningOptionFor(String id) {
@@ -479,7 +615,11 @@ class OutingsProvider extends ChangeNotifier {
     DateTime deadline,
     int roundNumber,
   ) async {
-    if (_managing.contains(outingId)) return false;
+    if (_managing.contains(outingId) ||
+        !canResolveTie(outingId) ||
+        roundNumberFor(outingId) != roundNumber) {
+      return false;
+    }
     final epoch = _managementEpoch;
     _managing.add(outingId);
     notifyListeners();
@@ -489,7 +629,6 @@ class OutingsProvider extends ChangeNotifier {
       roundNumber,
     );
     if (epoch != _managementEpoch) return false;
-    _managing.remove(outingId);
     var success = result.fold((failure) => false, (snapshot) {
       _applySnapshot(snapshot);
       return true;
@@ -498,7 +637,8 @@ class OutingsProvider extends ChangeNotifier {
       await refreshLifecycle(outingId: outingId, forceRefresh: true);
     }
     if (epoch != _managementEpoch) return false;
-    if (!success && roundNumberFor(outingId) > roundNumber) success = true;
+    _managing.remove(outingId);
+    if (!success && roundNumberFor(outingId) == roundNumber + 1) success = true;
     if (!success) {
       result.fold(
         (failure) => AppErrorFeedback.report(
@@ -514,13 +654,21 @@ class OutingsProvider extends ChangeNotifier {
   }
 
   Future<String?> breakTieFor(String outingId, [int? roundNumber]) async {
+    if (_managing.contains(outingId) ||
+        !canResolveTie(outingId) ||
+        (roundNumber != null && roundNumberFor(outingId) != roundNumber)) {
+      return null;
+    }
     final epoch = _managementEpoch;
+    _managing.add(outingId);
+    notifyListeners();
     final result = await repository.breakTie(outingId, roundNumber);
     if (epoch != _managementEpoch) return null;
     if (result.isLeft()) {
       await refreshLifecycle(outingId: outingId, forceRefresh: true);
     }
     if (epoch != _managementEpoch) return null;
+    _managing.remove(outingId);
     if (result.isLeft() && _votesByOuting[outingId]?.winningOptionId != null) {
       _errorMessage = null;
       notifyListeners();
@@ -551,7 +699,12 @@ class OutingsProvider extends ChangeNotifier {
     AttendanceStatus status,
   ) async {
     // Attendance is independent of voting lock (product scenarios Ãƒâ€šÃ‚Â§3.10).
-    if (isSavingAttendance(outingId)) return false;
+    if (isSavingAttendance(outingId) ||
+        !canChangeAttendance(outingId, userId: memberId) ||
+        !isAttendanceParticipant(outingId, memberId)) {
+      return false;
+    }
+    final epoch = _sessionEpoch;
     if (attendanceFor(outingId, memberId) == status) return true;
     final change = (user: memberId, status: status);
     _pendingAttendance[outingId] = change;
@@ -561,7 +714,9 @@ class OutingsProvider extends ChangeNotifier {
       memberId: memberId,
       status: status,
     );
-    if (_pendingAttendance[outingId] != change) return false;
+    if (epoch != _sessionEpoch || _pendingAttendance[outingId] != change) {
+      return false;
+    }
     _pendingAttendance.remove(outingId);
     return result.fold(
       (failure) {
@@ -680,7 +835,7 @@ class OutingsProvider extends ChangeNotifier {
       },
       (_) {
         _deletedOutingIds.add(outingId);
-        _outings.removeWhere((outing) => outing.id == outingId);
+        _outings = _outings.where((outing) => outing.id != outingId).toList();
         _suggestions.removeWhere((item) => item.outingId == outingId);
         _votesByOuting.remove(outingId);
         _attendanceByOuting.remove(outingId);
@@ -692,7 +847,9 @@ class OutingsProvider extends ChangeNotifier {
 
   Future<OutingCreation?> add(Outing outing, {String? creatorId}) async {
     if (_isCreating) return null;
+    final epoch = _sessionEpoch;
     _isCreating = true;
+    _errorMessage = null;
     notifyListeners();
 
     var outgoing = outing;
@@ -709,8 +866,10 @@ class OutingsProvider extends ChangeNotifier {
           path: outgoing.image,
           purpose: MediaPurpose.outing,
         );
+        if (epoch != _sessionEpoch) return null;
         outgoing = outgoing.copyWith(image: uploaded.reference);
       } catch (_) {
+        if (epoch != _sessionEpoch) return null;
         _isCreating = false;
         _errorMessage = _l10n?.imageUploadFailed;
         notifyListeners();
@@ -719,6 +878,7 @@ class OutingsProvider extends ChangeNotifier {
     }
 
     final result = await repository.add(outgoing, creatorId: creatorId);
+    if (epoch != _sessionEpoch) return null;
     final created = result.fold<OutingCreation?>(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -823,9 +983,13 @@ class OutingsProvider extends ChangeNotifier {
     _outings = [];
     _suggestions = [];
     _votesByOuting = {};
+    _checkedVoteDeadlines.clear();
     _attendanceByOuting = {};
     _featuredIndex = 0;
     _hasLoaded = false;
+    _hasCompleteOutingsList = false;
+    _groupCountsSource = null;
+    _groupCounts = const {};
     _isCreating = false;
     _errorMessage = null;
     refreshSchedule();
@@ -862,7 +1026,7 @@ class OutingsProvider extends ChangeNotifier {
         if (outingId != null &&
             (failure.statusCode == 403 || failure.statusCode == 404)) {
           changed = _unavailableOutings.add(outingId);
-          _outings.removeWhere((item) => item.id == outingId);
+          _outings = _outings.where((item) => item.id != outingId).toList();
           _votesByOuting.remove(outingId);
           _attendanceByOuting.remove(outingId);
           return;
@@ -905,11 +1069,14 @@ class OutingsProvider extends ChangeNotifier {
       if (previous == null ||
           previous.roundNumber != next.roundNumber ||
           previous.votingState != next.votingState ||
+          previous.canResolveTie != next.canResolveTie ||
+          previous.winningOptionId != next.winningOptionId ||
           !listEquals(previous.tiedOptionIds, next.tiedOptionIds) ||
           previous.finalized != next.finalized ||
           previous.endsAt != next.endsAt ||
           previous.eligibleVoterCount != next.eligibleVoterCount ||
           previous.votedCount != next.votedCount ||
+          previous.hasParticipationCounts != next.hasParticipationCounts ||
           !listEquals(previous.cuserOptionIds, next.cuserOptionIds) ||
           previous.options.length != next.options.length) {
         return true;
@@ -918,8 +1085,11 @@ class OutingsProvider extends ChangeNotifier {
         final before = previous.options[index];
         final after = next.options[index];
         if (before.placeId != after.placeId ||
+            before.catalogPlaceId != after.catalogPlaceId ||
             before.label != after.label ||
             before.area != after.area ||
+            before.categoryId != after.categoryId ||
+            before.imageUrl != after.imageUrl ||
             before.votes != after.votes ||
             before.percent != after.percent) {
           return true;

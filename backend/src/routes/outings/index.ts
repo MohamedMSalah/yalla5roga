@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import outingChatRoutes from "./outing.chat.routes.js";
 import outingCrudRoutes from "./outing.crud.routes.js";
@@ -20,6 +21,6 @@ api.use(outingVotingRoutes);
 api.use(outingChatRoutes);
 
 const router = Router();
-router.use("/api/outings", api);
+mountRoutes(router, "/api/outings", api);
 
 export default router;

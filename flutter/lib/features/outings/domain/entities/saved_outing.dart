@@ -80,6 +80,9 @@ class OutingDraft {
   });
 
   final String? remoteVersion;
+  bool get deviceLocalLocation =>
+      location.placeId == null && location.hasCoordinates ||
+      selectedPlaces.any((p) => p.id.isEmpty && p.hasCoordinates);
   final bool pending;
   final bool deleted;
   final bool conflict;

@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_scope.dart';
 import 'package:yalla_5roga/core/network/realtime_change.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
@@ -224,14 +225,17 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _profileDirty = true;
     notifyListeners();
     if (!_online || !_foreground) return;
-    await _recoverData();
+    await RequestScope.run(_recoverData, origin: 'AppSyncProvider', trigger: 'initial_load');
     if (_disposed || generation != _generation) return;
-    await _sync();
+    await _sync('initial_load');
     if ((_uid == uid && generation == _generation)) sendsChanged();
   }
 
   void _networkChanged(bool online) {
     if (_disposed) return;
+    if (online && (_uid == null || !_foreground)) {
+      unawaited(onCatalogRecovery?.call() ?? Future<void>.value());
+    }
     if (_online == online) return;
     _online = online;
     socket.setNetworkAvailable(online);
@@ -258,7 +262,8 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       _needsSocketCatchUp = true;
       return;
     }
-    unawaited(_recoverData(recoverSession: false));
+    unawaited(RequestScope.run(() => _recoverData(recoverSession: false),
+      origin: 'AppSyncProvider', trigger: 'socket_event'));
     if (_retry != null) sendsChanged();
   }
 
@@ -292,7 +297,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
         final synchronized = await auth.synchronizeRestoredAccount();
         if (_disposed || (_uid != uid || generation != _generation)) return;
         await onNotificationRecovery?.call();
-        await onCatalogRecovery?.call();
+        unawaited(onCatalogRecovery?.call() ?? Future<void>.value());
         if (_disposed || (_uid != uid || generation != _generation)) return;
         _inboxDirty = true;
         if (synchronized) {
@@ -335,6 +340,9 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       if (_foreground) return;
       _foreground = true;
       socket.setForeground(true);
+      if (_uid == null) {
+        unawaited(onCatalogRecovery?.call() ?? Future<void>.value());
+      }
       unawaited(_resume());
     } else if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
@@ -363,13 +371,13 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _online = online;
     socket.setNetworkAvailable(online);
     notifyListeners();
-    _recover();
+    _recover('app_resume');
   }
 
-  void _recover() {
+  void _recover([String trigger = 'background_sync']) {
     if (!_foreground || !_online || _uid == null) return;
     _syncAttempt = 0;
-    unawaited(_recoverData());
+    unawaited(RequestScope.run(_recoverData, origin: 'AppSyncProvider', trigger: trigger));
     sendsChanged();
   }
 
@@ -381,7 +389,8 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (_syncAttempt > 5) _syncAttempt = 0;
     switch (event.kind) {
       case 'catalog':
-        unawaited(onCatalogRecovery?.call() ?? Future<void>.value());
+        unawaited(RequestScope.run(() => onCatalogRecovery?.call() ?? Future<void>.value(),
+          origin: 'AppSyncProvider', trigger: 'socket_event'));
       case 'membership':
         _chatDirty = true;
         _outingsDirty = true;
@@ -430,10 +439,10 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
       default:
         return;
     }
-    _scheduleSync();
+    _scheduleSync('socket_event');
   }
 
-  void _scheduleSync() {
+  void _scheduleSync([String? trigger]) {
     if (_disposed ||
         _uid == null ||
         !_foreground ||
@@ -445,11 +454,14 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     }
     _debounce = Timer(
       const Duration(milliseconds: 250),
-      () => unawaited(_sync()),
+      () => unawaited(_sync(trigger ?? RequestScope.current?.trigger ?? 'background_sync')),
     );
   }
 
-  Future<void> _sync() async {
+  Future<void> _sync([String trigger = 'background_sync']) =>
+      RequestScope.run(_syncResources, origin: 'AppSyncProvider', trigger: trigger);
+
+  Future<void> _syncResources() async {
     final uid = _uid;
     final generation = _generation;
     if (_disposed || _working || uid == null || !_foreground || !_online) {
@@ -579,7 +591,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     _syncAttempt++;
     _syncRetry = Timer(Duration(seconds: seconds), () {
       _syncRetry = null;
-      _scheduleSync();
+      _scheduleSync('retry');
     });
     notifyListeners();
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_palette.dart';
 import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -86,6 +87,10 @@ class CustomButton extends StatelessWidget {
         };
     // Label <-> spinner crossfade so an async press does not pop. Material
     // already tweens the enabled/disabled colours (ButtonStyle.animationDuration).
+    final gradient =
+        variant == AppButtonVariant.filled &&
+        color == null &&
+        (onPressed != null || isLoading);
     final child = AnimatedSwitcher(
       duration: AppMotion.of(context, AppMotion.press),
       switchInCurve: AppMotion.enter,
@@ -95,7 +100,7 @@ class CustomButton extends StatelessWidget {
               key: const ValueKey('loading'),
               size: _iconSize,
               strokeWidth: 2.2,
-              color: foreground,
+              color: gradient ? AppPalette.gradientText : foreground,
             )
           : Row(
               key: const ValueKey('label'),
@@ -132,11 +137,15 @@ class CustomButton extends StatelessWidget {
       backgroundColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.disabled) && !isLoading
             ? palette.surfaceMuted
+            : gradient
+            ? Colors.transparent
             : background,
       ),
       foregroundColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.disabled) && !isLoading
             ? palette.textMuted
+            : gradient
+            ? AppPalette.gradientText
             : foreground,
       ),
       side: variant == AppButtonVariant.outlined
@@ -158,7 +167,17 @@ class CustomButton extends StatelessWidget {
             child: child,
           );
 
-    if (!expand) return button;
-    return SizedBox(width: double.infinity, child: button);
+    final surface = gradient
+        ? DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: AppPalette.actionGradient,
+              borderRadius: BorderRadius.circular(_radius),
+              border: Border.all(color: Colors.white.withValues(alpha: .16)),
+            ),
+            child: button,
+          )
+        : button;
+    if (!expand) return surface;
+    return SizedBox(width: double.infinity, child: surface);
   }
 }

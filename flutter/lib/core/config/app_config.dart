@@ -131,6 +131,12 @@ class AppConfig {
   static const String defaultOsmTileUrlTemplate =
       'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   static const String defaultDownloadUrl = 'https://yalla5roga.com';
+  static const String contactEmail = 'm0hamed724@outlook.com';
+  static const String developerPortfolioUrl =
+      'https://mohamedmsalah.github.io/Mohamed-Mohamed-Salah/';
+  static const String developerLinkedInUrl =
+      'https://eg.linkedin.com/in/mohamed-mohamed-salah';
+  static const String developerGitHubUrl = 'https://github.com/MohamedMSalah';
   static const int defaultTimeoutMs = 15000;
 
   final AppEnvironment environment;

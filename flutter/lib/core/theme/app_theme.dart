@@ -53,6 +53,7 @@ class AppTheme {
         .copyWith(
           headlineLarge: fonts.headlineLarge?.copyWith(
             fontSize: AppTypography.display,
+            height: 1.15,
             fontWeight: FontWeight.w700,
           ),
           headlineSmall: fonts.headlineSmall?.copyWith(
@@ -126,6 +127,7 @@ class AppTheme {
         centerTitle: true,
         elevation: 0,
         scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
         backgroundColor: palette.background,
         foregroundColor: palette.textPrimary,
         titleTextStyle: text.titleLarge,
@@ -136,6 +138,7 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadii.card),
+          side: BorderSide(color: palette.border),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(style: button),

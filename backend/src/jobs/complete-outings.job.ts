@@ -1,3 +1,4 @@
+import { scheduleJob } from "../monitoring/jobs.js";
 import { prisma } from "../config/database.js";
 import { publishOutingChange } from "../realtime/data-changes.js";
 
@@ -21,27 +22,6 @@ export async function completeFinishedOutings(): Promise<string[]> {
 }
 
 /** Runs the completion step once a minute. Returns a stop function. */
-export function startOutingCompletionJob(): () => void {
-  let running = false;
-
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const ids = await completeFinishedOutings();
-      if (ids.length > 0) {
-        console.log(`[outings] marked ${ids.length} outing(s) as past`);
-      }
-    } catch (error) {
-      console.error("[outings] completion job failed", error);
-    } finally {
-      running = false;
-    }
-  };
-
-  void tick();
-  const timer = setInterval(() => void tick(), INTERVAL_MS);
-  timer.unref();
-
-  return () => clearInterval(timer);
+export function startOutingCompletionJob() {
+  return scheduleJob("complete_outings", INTERVAL_MS, async () => { await completeFinishedOutings(); });
 }

@@ -1,3 +1,4 @@
+import { logger } from "../../monitoring/logger.js";
 import { randomUUID, createHash } from "node:crypto";
 import { createReadStream, readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -70,7 +71,7 @@ export async function synchronizePlaces(options: SyncOptions = {}) {
       !Number.isFinite(maxDistance) || maxDistance < 1 || maxDistance > 200 ||
       !Number.isInteger(absenceThreshold) || absenceThreshold < 2) throw new Error("Invalid places import configuration");
   const target = await verifyPlacesTarget();
-  console.log(JSON.stringify({ places_target_verified: target, source, dry_run: !!options.dryRun }));
+  logger.info({ source, dryRun: !!options.dryRun }, "Catalog target verified")
   const token = randomUUID();
   let runId: string | undefined, heartbeat: ReturnType<typeof setInterval> | undefined, leaseLost = false;
   let counters = emptyCounters(), checkpoint = 0;
@@ -183,7 +184,7 @@ export async function synchronizePlaces(options: SyncOptions = {}) {
         }
       }
       for (const log of logs) diagnostics[log.code] = (diagnostics[log.code] ?? 0) + 1;
-      console.log(JSON.stringify({ places_run: runId ?? "dry-run", source, line: lastLine, ...counters }));
+      logger.info({ source, line: lastLine, ...counters }, "Catalog import progress")
     }
     let pending: { text: string; line: number }[] = [];
     for await (const text of createInterface({ input: createReadStream(manifest.path), crlfDelay: Infinity })) {

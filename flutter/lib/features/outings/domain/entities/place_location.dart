@@ -3,12 +3,14 @@ class PlaceLocation {
   const PlaceLocation({
     required this.name,
     this.placeId,
+    this.address = '',
+    this.categoryId = '',
     this.area = '',
     this.latitude,
     this.longitude,
   });
 
-  final String name;
+  final String name, categoryId, address;
   final String? placeId;
   final String area;
   final double? latitude;
@@ -16,10 +18,13 @@ class PlaceLocation {
 
   bool get hasCoordinates => latitude != null && longitude != null;
 
-  String get label => area.isEmpty ? name : '$name, $area';
+  String get vicinity => address.isNotEmpty ? address : area;
+  String get label => vicinity.isEmpty ? name : '$name, $vicinity';
 
   Map<String, dynamic> toJson() => {
     'name': name,
+    if (categoryId.isNotEmpty) 'category_id': categoryId,
+    if (address.isNotEmpty) 'address': address,
     if (placeId != null) 'placeId': placeId,
     'area': area,
     'latitude': latitude,
@@ -28,6 +33,8 @@ class PlaceLocation {
 
   factory PlaceLocation.fromJson(Map<String, dynamic> json) {
     return PlaceLocation(
+      categoryId: json['category_id'] as String? ?? '',
+      address: json['address'] as String? ?? '',
       name: json['name'] as String? ?? '',
       placeId: json['placeId'] as String?,
       area: json['area'] as String? ?? '',

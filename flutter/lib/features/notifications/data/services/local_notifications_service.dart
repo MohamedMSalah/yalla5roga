@@ -139,7 +139,7 @@ class LocalNotificationsService {
     );
     final ok = await _plugin.initialize(
       settings: InitializationSettings(
-        android: const AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: const AndroidInitializationSettings('ic_notification'),
         iOS: darwin,
       ),
       onDidReceiveNotificationResponse: (response) {
@@ -380,7 +380,7 @@ class LocalNotificationsService {
         android: AndroidNotificationDetails(
           'yalla_${category}_v1',
           _channelLabel(category),
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_notification',
           importance: p.isMention
               ? Importance.high
               : Importance.defaultImportance,
@@ -495,7 +495,7 @@ class LocalNotificationsService {
           'yalla_chat_v1',
           _channelLabel('chat'),
           tag: tag,
-          icon: '@mipmap/ic_launcher',
+          icon: 'ic_notification',
           groupKey: 'chat.$uid.$outing',
           setAsGroupSummary: true,
           groupAlertBehavior: GroupAlertBehavior.children,

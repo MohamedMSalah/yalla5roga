@@ -22,7 +22,7 @@ class AppPageHeader extends StatelessWidget {
           children: [
             Semantics(
               header: true,
-              child: Text(title, style: context.texts.headlineSmall),
+              child: Text(title, style: context.texts.headlineLarge),
             ),
             if (subtitle != null) ...[
               Responsive.spaceXs.gapH,

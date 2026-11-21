@@ -68,24 +68,76 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Dark palette: violet accents on deep, low-glare surfaces.
   static const dark = AppPalette(
-    background: Color(0xFF121016),
-    surface: Color(0xFF1D1925),
-    surfaceMuted: Color(0xFF25202F),
-    surfaceSoft: Color(0xFF2D2638),
-    border: Color(0xFF463D54),
-    textPrimary: Color(0xFFF1F5F9),
-    textSecondary: Color(0xFFCEC5DA),
-    textMuted: AppColors.slate400,
-    hint: AppColors.slate400,
+    background: Color(0xFF14121E),
+    surface: Color(0xFF211B2C),
+    surfaceMuted: Color(0xFF292235),
+    surfaceSoft: Color(0xFF332843),
+    border: Color(0xFF3A304A),
+    textPrimary: Color(0xFFFBF8FF),
+    textSecondary: Color(0xFFD4C5EF),
+    textMuted: Color(0xFFB9ABCB),
+    hint: Color(0xFFB9ABCB),
     brand: AppColors.brand200,
     brandStrong: AppColors.brand200,
-    brandSoft: Color(0xFF33204E),
-    brandSoftBorder: Color(0xFF513474),
-    navBackground: Color(0xFF1D1925),
+    brandSoft: Color(0xFF352154),
+    brandSoftBorder: Color(0xFF583780),
+    navBackground: Color(0xFF211B2C),
     chipActive: AppColors.brand200,
     chipActiveText: AppColors.slate950,
     shadow: Color(0x33000000),
-    inputFill: Color(0xFF1D1925),
+    inputFill: Color(0xFF211B2C),
+  );
+
+  /// Map-first screens use a cooler surface while retaining the app's light identity.
+  static final discoverDark = dark.copyWith(
+    background: const Color(0xFF0D1020),
+    surface: const Color(0xFF14172B),
+    surfaceMuted: const Color(0xFF191C32),
+    border: const Color(0xFF36334F),
+    textPrimary: const Color(0xFFF5F3FF),
+    textSecondary: const Color(0xFFB4B0D3),
+    hint: const Color(0xFFB4B0D3),
+    brandSoftBorder: const Color(0xFF704699),
+    inputFill: const Color(0xFF14172B),
+    navBackground: const Color(0xFF14172B),
+  );
+
+  static ThemeData discoverTheme(ThemeData theme) =>
+      theme.brightness == Brightness.light
+      ? theme
+      : theme.copyWith(
+          extensions: [
+            ...theme.extensions.values.where((value) => value is! AppPalette),
+            discoverDark,
+          ],
+        );
+
+  static const selectionHighlight = Color(0xFFA45CFF);
+  static const gradientText = Color(0xFFFAF5FF);
+  static const actionGradient = LinearGradient(
+    begin: AlignmentDirectional.topStart,
+    end: AlignmentDirectional.bottomEnd,
+    colors: [Color(0xFF7835D5), Color(0xFF5022A3)],
+  );
+  static const selectedGradient = LinearGradient(
+    begin: AlignmentDirectional.topStart,
+    end: AlignmentDirectional.bottomEnd,
+    colors: [Color(0xFF7B38C5), Color(0xFF3F226F)],
+  );
+  static const darkSelectedGradient = LinearGradient(
+    begin: AlignmentDirectional.topStart,
+    end: AlignmentDirectional.bottomEnd,
+    colors: [Color(0xFF654093), Color(0xFF40286A)],
+  );
+  LinearGradient get panelGradient => LinearGradient(
+    begin: AlignmentDirectional.topStart,
+    end: AlignmentDirectional.bottomEnd,
+    colors: [surfaceMuted, surface],
+  );
+  LinearGradient get featureGradient => LinearGradient(
+    begin: AlignmentDirectional.topStart,
+    end: AlignmentDirectional.bottomEnd,
+    colors: [brandSoft, surface],
   );
 
   bool get isDark => background.computeLuminance() < 0.1;

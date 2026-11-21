@@ -1,3 +1,4 @@
+import { measure } from "../../monitoring/context.js";
 import type { IGroupRepository } from "../../repositories/groups/i-group.repository.js";
 import { ForbiddenError, NotFoundError } from "../../utils/errors.js";
 
@@ -6,12 +7,14 @@ export async function assertGroupMember(
   groupId: string,
   callerUid: string,
 ) {
-  const membership = await groups.findMember(groupId, callerUid);
-  if (!membership) {
-    if (!(await groups.findById(groupId))) throw new NotFoundError("Group");
-    throw new ForbiddenError("Only group members can access this group");
-  }
-  return membership;
+  return measure("authorizationMs", async () => {
+    const membership = await groups.findMember(groupId, callerUid);
+    if (!membership) {
+      if (!(await groups.findById(groupId))) throw new NotFoundError("Group");
+      throw new ForbiddenError("Only group members can access this group");
+    }
+    return membership;
+  });
 }
 
 /**

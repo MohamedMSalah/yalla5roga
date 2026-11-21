@@ -27,7 +27,6 @@ import {
 import { UpdateOutingUseCase } from "../src/usecases/outings/update-outing.usecase.js";
 import {
   CreateVoteOptionUseCase,
-  DeleteVoteOptionUseCase,
 } from "../src/usecases/outings/voting.usecase.js";
 import {
   ForbiddenError,
@@ -418,21 +417,7 @@ describe("Outing creator authorization", () => {
     );
   });
 
-  it("allows the creator to create and delete a vote option", async () => {
-    const repo = new FakeOutings();
-    const create = new CreateVoteOptionUseCase(
-      repo as unknown as IOutingRepository,
-    );
-    const remove = new DeleteVoteOptionUseCase(
-      repo as unknown as IOutingRepository,
-    );
-    const option = await create.execute(CREATOR, {
-      outing_id: OUTING_ID,
-      label: "Cafe",
-    });
-    await remove.execute(option.id, CREATOR);
-    assert.equal(repo.options.size, 0);
-  });
+
 });
 
 describe("Notification ownership authorization", () => {

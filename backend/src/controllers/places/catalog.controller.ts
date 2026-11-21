@@ -5,8 +5,24 @@ import { CATALOG_ATTRIBUTION } from "../../services/places/import-normalization.
 import { NotFoundError } from "../../utils/errors.js";
 import { z } from "zod";
 import { catalogLicenses } from "../../services/places/data-licenses.js";
+import { decodeChangeCursor } from "../../services/places/catalog-cursor.js";
+import { currentRequest, measure } from "../../monitoring/context.js";
+
+const recommendationQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(CatalogUseCase.maxRecommendations).default(8),
+  lat: z.string().trim().min(1).transform(Number).pipe(z.number().finite().min(-90).max(90)).optional(),
+  lng: z.string().trim().min(1).transform(Number).pipe(z.number().finite().min(-180).max(180)).optional(),
+}).refine(({ lat, lng }) => (lat === undefined) === (lng === undefined));
+
 export class CatalogController {
   constructor(private readonly catalog = new CatalogUseCase()) {}
+  recommendations = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { limit, lat, lng } = recommendationQuery.parse(req.query);
+      const area = lat !== undefined && lng !== undefined ? { lat, lng } : undefined;
+      res.json({ success: true, data: await this.catalog.recommendations(limit, area) });
+    } catch (error) { next(error); }
+  };
   brand = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = z.uuid().parse(req.params.id);
@@ -26,13 +42,17 @@ export class CatalogController {
     } catch (error) { next(error); }
   };
   licenses = (_req: Request, res: Response, next: NextFunction) => {
-    try { res.json({ success: true, data: catalogLicenses() }); } catch (error) { next(error); }
+    try {
+      const data = catalogLicenses();
+      const cache = currentRequest()?.cache;
+      if (cache) res.set("X-Cache-Status", cache);
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
   };
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await this.catalog.list(
-        catalogQuerySchema.parse(req.query),
-      );
+      const input = catalogQuerySchema.parse(req.query);
+      const result = await measure("serviceMs", () => this.catalog.list(input));
       res.setHeader("Link", '</api/places/licenses>; rel="license"');
       res.json({
         success: true,
@@ -71,6 +91,25 @@ export class CatalogController {
     } catch (e) {
       next(e);
     }
+  };
+  changes = async (req: Request, res: Response, next: NextFunction) => {
+    const query = z.object({
+      cursor: z.string().max(256).optional().transform((value, ctx) => {
+        try { return decodeChangeCursor(value); } catch {
+          ctx.addIssue({ code: "custom", message: "Invalid catalog cursor" });
+          return z.NEVER;
+        }
+      }),
+      limit: z.coerce.number().int().min(1).max(500).default(250),
+    }).strict().safeParse(req.query);
+    if (!query.success) {
+      res.status(400).json({ success: false, message: "Invalid catalog changes query" });
+      return;
+    }
+    try {
+      res.setHeader("Link", '</api/places/licenses>; rel="license"');
+      res.json({ success: true, data: await this.catalog.changes(query.data.cursor, query.data.limit) });
+    } catch (error) { next(error); }
   };
   version = async (_req: Request, res: Response, next: NextFunction) => {
     try {

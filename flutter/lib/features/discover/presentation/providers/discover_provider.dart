@@ -11,9 +11,14 @@ import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
 class DiscoverProvider extends ChangeNotifier {
   DiscoverProvider({required this.repository}) {
-    _catalogChanges = repository.catalogChanges.listen(
-      (_) => load(forceRefresh: true),
-    );
+    _catalogChanges = repository.catalogChanges.listen((_) {
+      if (!_hasLoaded && _loadingPlaces == null) return;
+      if (_loadingPlaces != null) {
+        _refreshPending = true;
+      } else {
+        unawaited(load());
+      }
+    });
   }
   late final StreamSubscription<void> _catalogChanges;
   @override
@@ -58,6 +63,7 @@ class DiscoverProvider extends ChangeNotifier {
   }
 
   Future<bool> toggleSavedPlace(SuggestedPlace place) async {
+    if (place.id.startsWith('private:')) return false;
     if (savingPlaceId != null || !savedLoaded || savedFailed) return false;
     final epoch = _savedEpoch;
     final save = !isPlaceSaved(place.id);
@@ -156,7 +162,18 @@ class DiscoverProvider extends ChangeNotifier {
               ));
   }
 
-  Future<void> load({bool forceRefresh = false}) async {
+  Future<void>? _loadingPlaces;
+  bool _refreshPending = false;
+  Future<void> load({bool forceRefresh = false}) =>
+      _loadingPlaces ??= _loadPlaces(forceRefresh).whenComplete(() {
+        _loadingPlaces = null;
+        if (_refreshPending) {
+          _refreshPending = false;
+          unawaited(load());
+        }
+      });
+
+  Future<void> _loadPlaces(bool forceRefresh) async {
     final featuredFuture = repository.getFeaturedPlaces(
       forceRefresh: forceRefresh,
     );

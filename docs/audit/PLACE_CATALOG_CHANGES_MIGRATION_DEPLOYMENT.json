@@ -1,0 +1,141 @@
+{
+  "checkedAt": "2026-11-21T09:59:19.041Z",
+  "target": {
+    "database": "neondb",
+    "role": "neondb_owner",
+    "project": "rough-mountain-69896781",
+    "branch": "br-fragrant-heart-avfm4h2t"
+  },
+  "migration": "20261120000200_place_catalog_changes",
+  "pendingBefore": [
+    "20261120000200_place_catalog_changes"
+  ],
+  "checksum": "28d0bbb6a167cb98a6576a88a7e258b4d72c2ac913525e10a9ab60bb00af0595",
+  "backup": {
+    "directory": ".database-backups/place-catalog-changes-2026-11-21T09-59-20.358Z",
+    "tables": {
+      "place_categories": {
+        "rows": 44,
+        "sha256": "fcc35fdd3a7447dae5b8905d749e20339cd67b4cc41e4c2e0eda0eef58ce9309"
+      },
+      "vibes": {
+        "rows": 23,
+        "sha256": "a4ddb3c2dc7ba1c6486adfde87b6fa0bb2de738058187bf527c320d3a1528356"
+      },
+      "place_brands": {
+        "rows": 31,
+        "sha256": "84d9fa53e5e7585dfc22f849178fe247177ddaa8946cdfc04e2f3286ed945913"
+      },
+      "places": {
+        "rows": 11617,
+        "sha256": "c0def559c0554dc6aef4c261d59aff4650734d7930d696442fc3073f9c4f7e13"
+      },
+      "place_images": {
+        "rows": 0,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      "place_prices": {
+        "rows": 11,
+        "sha256": "40aa855e3a9cd8f4eabbea9c7511cf7f8ae5adeb970b044023f93efe82a3a60f"
+      },
+      "place_hours": {
+        "rows": 546,
+        "sha256": "51c1b0874732aa6f629f719e7cf72fc91e22c796601de096e29732d50b640f2b"
+      },
+      "place_vibes": {
+        "rows": 22860,
+        "sha256": "3cc07339561a39f93043622f7a4f6dcdcd7a71bc2e1995b7ed38f9e026742ae4"
+      }
+    },
+    "manifestSha256": "37809528fbdf3871d29e74e54e08dd93554a6eff9734eb94406ea76fb53c1cfe"
+  },
+  "rehearsal": {
+    "result": "PASS",
+    "seeded": [
+      {
+        "kind": "brand",
+        "rows": 31
+      },
+      {
+        "kind": "category",
+        "rows": 44
+      },
+      {
+        "kind": "place",
+        "rows": 11607
+      },
+      {
+        "kind": "vibe",
+        "rows": 23
+      }
+    ],
+    "preservedAllEightSourceTables": true,
+    "foreignKeysEnabledDuringRestore": true,
+    "syncOnlyEditIgnored": true,
+    "visibleEditTracked": true,
+    "relatedImageTracked": true
+  },
+  "pendingAfter": [],
+  "appliedAt": "2026-11-21T09:59:53.679Z",
+  "production": {
+    "triggers": [
+      {
+        "name": "place_brands",
+        "events": 3
+      },
+      {
+        "name": "place_categories",
+        "events": 3
+      },
+      {
+        "name": "place_hours",
+        "events": 3
+      },
+      {
+        "name": "place_images",
+        "events": 3
+      },
+      {
+        "name": "place_prices",
+        "events": 3
+      },
+      {
+        "name": "place_vibes",
+        "events": 3
+      },
+      {
+        "name": "places",
+        "events": 3
+      },
+      {
+        "name": "vibes",
+        "events": 3
+      }
+    ],
+    "index": {
+      "indisvalid": true,
+      "indisready": true,
+      "definition": "CREATE INDEX idx_place_catalog_changes_revision ON public.place_catalog_changes USING btree (revision, kind, entity_id)"
+    },
+    "checkpoints": [
+      {
+        "kind": "brand",
+        "rows": 31
+      },
+      {
+        "kind": "category",
+        "rows": 44
+      },
+      {
+        "kind": "place",
+        "rows": 11607
+      },
+      {
+        "kind": "vibe",
+        "rows": 23
+      }
+    ]
+  },
+  "changedSourceTables": [],
+  "result": "PASS"
+}

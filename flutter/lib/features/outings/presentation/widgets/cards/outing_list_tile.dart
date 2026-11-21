@@ -17,6 +17,8 @@ class OutingListTile extends StatelessWidget {
     this.trailing,
     this.statusLabel,
     this.heroTag,
+    this.detailsFooter,
+    this.dateLabel,
   });
 
   final String title;
@@ -25,7 +27,8 @@ class OutingListTile extends StatelessWidget {
   final OutingOccasion occasion;
   final VoidCallback? onTap;
   final Widget? trailing;
-  final String? statusLabel;
+  final String? statusLabel, dateLabel;
+  final Widget? detailsFooter;
 
   /// Shared-element tag for the thumbnail; pass the same tag to the details
   /// page. Null when the tile does not open outing details.
@@ -36,19 +39,43 @@ class OutingListTile extends StatelessWidget {
     return OutingCard(
       title: title,
       statusLabel: statusLabel,
+      detailsFooter: detailsFooter,
       subtitle: subtitle,
       onTap: onTap,
       trailing: trailing,
-      cover: AppHero(
-        tag: heroTag,
-        url: image,
-        radius: 12.r,
-        child: PlanningCover(
-          url: image,
-          art: occasion.coverArt,
-          width: 48.w,
-          height: 48.w,
-        ),
+      cover: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (dateLabel != null &&
+              MediaQuery.sizeOf(context).width >= 350 &&
+              MediaQuery.textScalerOf(context).scale(1) <= 1.3) ...[
+            Container(
+              width: 46,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+              decoration: BoxDecoration(
+                color: context.palette.brandSoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                dateLabel!,
+                textAlign: TextAlign.center,
+                style: context.texts.labelMedium,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          AppHero(
+            tag: heroTag,
+            url: image,
+            radius: 12.r,
+            child: PlanningCover(
+              url: image,
+              art: occasion.coverArt,
+              width: 68.w,
+              height: 70.w,
+            ),
+          ),
+        ],
       ),
     );
   }

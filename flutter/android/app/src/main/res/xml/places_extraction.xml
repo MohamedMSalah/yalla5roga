@@ -1,0 +1,4 @@
+<data-extraction-rules>
+    <cloud-backup><exclude domain="database" path="device_places" /></cloud-backup>
+    <device-transfer><exclude domain="database" path="device_places" /></device-transfer>
+</data-extraction-rules>

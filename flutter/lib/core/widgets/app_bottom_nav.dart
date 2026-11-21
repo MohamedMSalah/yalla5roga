@@ -1,6 +1,7 @@
-import 'dart:ui' show ImageFilter;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_palette.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -19,8 +20,8 @@ class AppBottomNavItem {
 
 /// Floating capsule-shaped bottom navigation bar.
 ///
-/// The entire bar uses a [StadiumBorder] with a continuous pill background.
-/// Selection uses a filled primary-colored icon without a background indicator.
+/// The entire bar uses a continuous pill-shaped gradient.
+/// Selection uses a violet capsule and a filled icon.
 /// All existing palette colors, semantics, accessibility, high-contrast
 /// handling, and theme responsiveness are preserved.
 class AppBottomNav extends StatelessWidget {
@@ -48,7 +49,7 @@ class AppBottomNav extends StatelessWidget {
           child: Padding(
             // Bottom margin lifts the capsule bar off the bottom edge for the
             // floating effect; horizontal padding keeps it off screen edges.
-            padding: Responsive.padding(horizontal: 16, bottom: 10),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
             child: _PillBar(
               items: items,
               currentIndex: currentIndex,
@@ -62,7 +63,7 @@ class AppBottomNav extends StatelessWidget {
   }
 }
 
-/// The inner capsule bar with backdrop blur and an outer drop shadow.
+/// The inner capsule bar and its hairline outline.
 class _PillBar extends StatelessWidget {
   const _PillBar({
     required this.items,
@@ -79,40 +80,48 @@ class _PillBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final shape = StadiumBorder(
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(34),
       side: BorderSide(
-        color: highContrast ? palette.textSecondary : Colors.transparent,
+        color: highContrast ? palette.textSecondary : palette.border,
         width: 1.0,
       ),
     );
 
-    final barColor = palette.navBackground.withValues(
-      alpha: highContrast ? 1.0 : 0.88,
-    );
-
-    Widget barContent = Material(
-      color: barColor,
+    final barContent = Material(
+      color: Colors.transparent,
       shape: shape,
       clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: Responsive.padding(horizontal: 6, vertical: 6),
-        child: _NavRow(
-          items: items,
-          currentIndex: currentIndex,
-          onChanged: onChanged,
+      child: Ink(
+        decoration: ShapeDecoration(
+          shape: shape,
+          color: highContrast
+              ? palette.navBackground.withValues(alpha: 1)
+              : null,
+          gradient: highContrast
+              ? null
+              : LinearGradient(
+                  begin: AlignmentDirectional.topStart,
+                  end: AlignmentDirectional.bottomEnd,
+                  colors: [
+                    palette.surfaceMuted.withValues(alpha: .94),
+                    palette.navBackground.withValues(alpha: .96),
+                  ],
+                ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xs,
+            vertical: 7,
+          ),
+          child: _NavRow(
+            items: items,
+            currentIndex: currentIndex,
+            onChanged: onChanged,
+          ),
         ),
       ),
     );
-
-    if (!highContrast) {
-      barContent = ClipPath(
-        clipper: const StadiumBorderClipper(),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-          child: barContent,
-        ),
-      );
-    }
 
     return DecoratedBox(
       decoration: ShapeDecoration(
@@ -124,28 +133,7 @@ class _PillBar extends StatelessWidget {
   }
 }
 
-/// Custom clipper that clips child pixels to a stadium (fully rounded capsule).
-class StadiumBorderClipper extends CustomClipper<Path> {
-  const StadiumBorderClipper();
-
-  @override
-  Path getClip(Size size) {
-    return Path()..addRRect(
-      RRect.fromLTRBR(
-        0,
-        0,
-        size.width,
-        size.height,
-        Radius.circular(size.height / 2),
-      ),
-    );
-  }
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
-}
-
-/// Equal-width items with a shared label height, including scaled/wrapped text.
+/// Equal-width tabs with one shared icon and label baseline.
 class _NavRow extends StatelessWidget {
   const _NavRow({
     required this.items,
@@ -161,23 +149,35 @@ class _NavRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final slotWidth = constraints.maxWidth / items.length;
+        final fontSize = slotWidth < 64
+            ? AppTypography.compactNavigationLabel
+            : AppTypography.navigationLabel;
+        final textScaler = MediaQuery.textScalerOf(context);
         final labelStyle = (context.texts.labelSmall ?? const TextStyle())
-            .copyWith(fontSize: AppTypography.navigationLabel);
-        final labelWidth = constraints.maxWidth / items.length - AppSpacing.sm;
+            .copyWith(
+              fontSize: fontSize,
+              letterSpacing: 0,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+            );
+        var itemWidth = math.max(slotWidth, AppSizes.touchTarget);
         var labelHeight = 0.0;
         for (final item in items) {
           final painter = TextPainter(
             text: TextSpan(text: item.label, style: labelStyle),
             textDirection: Directionality.of(context),
-            textScaler: MediaQuery.textScalerOf(context),
+            textScaler: textScaler,
             locale: Localizations.maybeLocaleOf(context),
-            textAlign: TextAlign.center,
-          )..layout(maxWidth: labelWidth.clamp(1.0, double.infinity));
+            maxLines: 1,
+          )..layout();
+          // Include the pill border and the label's horizontal inset.
+          itemWidth = math.max(itemWidth, painter.width.ceilToDouble() + 6);
           if (painter.height > labelHeight) labelHeight = painter.height;
           painter.dispose();
         }
 
-        return Row(
+        final row = Row(
           children: [
             for (var i = 0; i < items.length; i++)
               Expanded(
@@ -190,6 +190,17 @@ class _NavRow extends StatelessWidget {
                 ),
               ),
           ],
+        );
+        final scaledUp = textScaler.scale(fontSize) > fontSize;
+        final needsScroll =
+            slotWidth < AppSizes.touchTarget ||
+            (scaledUp && itemWidth > slotWidth);
+        if (!needsScroll) return row;
+        // Large system text can exceed the available width for five tabs.
+        // Let the bar scroll horizontally while preserving the scaled labels.
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(width: itemWidth * items.length, child: row),
         );
       },
     );
@@ -241,9 +252,27 @@ class _NavItemState extends State<_NavItem>
   ]).animate(_controller);
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.selected) _revealSelected();
+  }
+
+  void _revealSelected() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.selected) return;
+      final scrollable = Scrollable.maybeOf(context, axis: Axis.horizontal);
+      final item = context.findRenderObject();
+      if (scrollable != null && item != null) {
+        scrollable.position.ensureVisible(item, alignment: .5);
+      }
+    });
+  }
+
+  @override
   void didUpdateWidget(covariant _NavItem oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selected == widget.selected) return;
+    if (widget.selected) _revealSelected();
     if (widget.selected && !AppMotion.reduce(context)) {
       _controller.forward(from: 0);
     } else {
@@ -266,9 +295,11 @@ class _NavItemState extends State<_NavItem>
   @override
   Widget build(BuildContext context) {
     final duration = AppMotion.of(context, AppMotion.standard);
+    final highContrast = MediaQuery.highContrastOf(context);
+    final palette = context.palette;
     final color = widget.selected
-        ? context.colors.primary
-        : context.palette.textSecondary;
+        ? AppPalette.gradientText
+        : palette.textSecondary;
 
     return Semantics(
       selected: widget.selected,
@@ -278,11 +309,34 @@ class _NavItemState extends State<_NavItem>
       onTap: widget.onTap,
       child: InkWell(
         onTap: widget.onTap,
-        customBorder: const StadiumBorder(),
-        child: ConstrainedBox(
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: duration,
           constraints: const BoxConstraints(minHeight: AppSizes.navItem),
+          decoration: BoxDecoration(
+            color: widget.selected && highContrast
+                ? const Color(0xFF5022A3)
+                : Colors.transparent,
+            gradient: widget.selected && !highContrast
+                ? (palette.isDark
+                      ? AppPalette.darkSelectedGradient
+                      : AppPalette.selectedGradient)
+                : null,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: widget.selected && !highContrast
+                ? const [BoxShadow(color: Color(0x407B48BD), blurRadius: 9)]
+                : const [],
+            border: Border.all(
+              color: widget.selected
+                  ? AppPalette.gradientText.withValues(alpha: .22)
+                  : Colors.transparent,
+            ),
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xs),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 2,
+              vertical: AppSpacing.xs,
+            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
@@ -297,7 +351,7 @@ class _NavItemState extends State<_NavItem>
                   ),
                   child: SizedBox.square(
                     // Reserve the pulse's full size so it never shifts layout.
-                    dimension: Responsive.iconMd * 1.12,
+                    dimension: AppSizes.navIcon * 1.12,
                     child: Center(
                       child: ScaleTransition(
                         scale: _scale,
@@ -310,14 +364,14 @@ class _NavItemState extends State<_NavItem>
                                 ? widget.item.selectedIcon ?? widget.item.icon
                                 : widget.item.icon,
                             key: ValueKey(widget.selected),
-                            size: Responsive.iconMd,
+                            size: AppSizes.navIcon,
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-                Responsive.spaceXs.gapH,
+                const SizedBox(height: 4),
                 AnimatedDefaultTextStyle(
                   duration: duration,
                   curve: Curves.easeInOutCubic,
@@ -325,7 +379,24 @@ class _NavItemState extends State<_NavItem>
                   child: SizedBox(
                     height: widget.labelHeight,
                     width: double.infinity,
-                    child: Text(widget.item.label, textAlign: TextAlign.center),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        widget.item.label,
+                        maxLines: 1,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ),
+                AnimatedOpacity(
+                  opacity: widget.selected && !highContrast ? 1 : 0,
+                  duration: duration,
+                  child: const SizedBox(
+                    height: 2,
+                    width: 24,
+                    child: ColoredBox(color: AppPalette.selectionHighlight),
                   ),
                 ),
               ],

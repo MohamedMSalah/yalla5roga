@@ -1,178 +1,199 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
+import 'package:yalla_5roga/core/network/app_sync_provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_fade_switcher.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
-import 'package:yalla_5roga/core/widgets/planning_cover.dart';
-import 'package:yalla_5roga/core/widgets/app_page_bar.dart';
+import 'package:yalla_5roga/core/widgets/app_bottom_sheet.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
-import 'package:yalla_5roga/core/widgets/custom_button.dart';
-import 'package:yalla_5roga/core/widgets/image_source_sheet.dart';
+import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
+import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
-import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/invite_guests_page.dart';
-import 'package:yalla_5roga/features/outings/presentation/pages/pick_location_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/create_outing_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_basics_step.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_location_step.dart';
-import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
-import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_review_step.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_step_header.dart';
 
-class CreateOutingPage extends StatelessWidget {
+class CreateOutingPage extends StatefulWidget {
   const CreateOutingPage({
     super.key,
     this.group,
     this.suggestedPlace,
+    this.suggestionOwner,
     this.saved,
     this.draft,
     this.specialEvent = false,
-    this.letVote = false,
   });
 
   final Group? group;
   final SuggestedPlace? suggestedPlace;
+  final String? suggestionOwner;
   final SavedOuting? saved;
   final OutingDraft? draft;
   final bool specialEvent;
 
-  /// Opens the shared create form in multi-place voting mode (replaces the
-  /// old separate "suggest places" sheet).
-  final bool letVote;
+  @override
+  State<CreateOutingPage> createState() => _CreateOutingPageState();
+}
+
+class _CreateOutingPageState extends State<CreateOutingPage> {
+  late final _owner = context.read<AuthProvider>().user?.id;
 
   @override
   Widget build(BuildContext context) {
-    // Read dependencies in build — Provider.create must not listen to InheritedWidgets.
+    final owner = context.select((AuthProvider p) => p.user?.id);
+    if (_owner == null || _owner != owner) {
+      return Scaffold(
+        appBar: AppBar(title: Text(context.l10n.creationTitle)),
+        body: Center(child: Text(context.l10n.creationSignInAgain)),
+      );
+    }
     final groups = context.read<GroupsProvider>();
     final outings = context.read<OutingsProvider>();
     final discover = context.read<DiscoverProvider>();
     final l10n = context.l10n;
 
     return ChangeNotifierProvider(
+      key: ValueKey(owner),
       create: (_) {
         final form = CreateOutingProvider(
-          placeCatalog: PlaceCatalogProvider(discover.repository)
-            ..loadDefinitions()
-            ..load(),
+          placeCatalog:
+              PlaceCatalogProvider(
+                  discover.repository,
+                  searchAcrossBounds: true,
+                )
+                ..privateOwner = owner
+                ..loadDefinitions(),
           groups: groups.groups,
           contacts: groups.contacts,
           catalogPlaces: discover.catalogPlaces().isNotEmpty
               ? discover.catalogPlaces()
               : outings.places,
           specialEventImage: outings.specialEventImage,
-          group: group,
-          suggestedPlace: suggestedPlace,
-          saved: saved,
-          draft: draft,
-          specialEvent: specialEvent,
-          letVote: letVote,
+          group: widget.group,
+          suggestedPlace:
+              widget.suggestionOwner == null || widget.suggestionOwner == owner
+              ? widget.suggestedPlace
+              : null,
+          saved: widget.saved,
+          draft: widget.draft,
+          specialEvent: widget.specialEvent,
         );
         form.applySuggestionTitle(l10n);
         return form;
       },
-      child: const _CreateOutingView(),
-    );
-  }
-}
-
-/// Slides wizard steps along the reading direction: forward enters from the
-/// end side, back enters from the start side. Keyed on the step index only,
-/// so form edits within a step never replay the transition.
-class _StepSwitcher extends StatefulWidget {
-  const _StepSwitcher({required this.step, required this.child});
-
-  final int step;
-  final Widget child;
-
-  @override
-  State<_StepSwitcher> createState() => _StepSwitcherState();
-}
-
-class _StepSwitcherState extends State<_StepSwitcher> {
-  var _forward = true;
-
-  @override
-  void didUpdateWidget(covariant _StepSwitcher oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.step != widget.step) {
-      _forward = widget.step > oldWidget.step;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AppFadeSwitcher(
-      axis: AppRevealAxis.horizontal,
-      forward: _forward,
-      alignment: AlignmentDirectional.topStart,
-      child: widget.child,
+      child: _CreateOutingView(owner: owner!),
     );
   }
 }
 
 class _CreateOutingView extends StatefulWidget {
-  const _CreateOutingView();
+  const _CreateOutingView({required this.owner});
+
+  final String owner;
 
   @override
   State<_CreateOutingView> createState() => _CreateOutingViewState();
 }
 
 class _CreateOutingViewState extends State<_CreateOutingView> {
-  final _scroll = ScrollController();
+  bool _submitting = false;
+  bool _confirmingExit = false;
+  bool _savingDraft = false;
 
-  @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
+  bool get _isCurrent =>
+      mounted && context.read<AuthProvider>().user?.id == widget.owner;
 
-  void _goBack(CreateOutingProvider form) {
-    if (form.step == 0) {
-      Get.back();
+  Future<void> _goBack(CreateOutingProvider form) async {
+    if (_submitting || _savingDraft || _confirmingExit || !_isCurrent) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (form.step > 0) {
+      form.placeCatalog?.resumeBrowsing();
+      form.back();
       return;
     }
-    FocusScope.of(context).unfocus();
-    form.back();
-    if (_scroll.hasClients) _scroll.jumpTo(0);
+    if (form.hasUnsavedChanges) {
+      final l10n = context.l10n;
+      _confirmingExit = true;
+      final discard = await AppAlert.confirm(
+        title: l10n.creationDiscardTitle,
+        message: l10n.creationDiscardMessage,
+        confirmText: l10n.creationDiscard,
+        cancelText: l10n.cancel,
+        destructive: true,
+      );
+      _confirmingExit = false;
+      if (!discard || !_isCurrent) return;
+    }
+    if (mounted) Navigator.of(context).pop();
   }
 
-  Future<void> _uploadPhoto(
-    BuildContext context,
-    CreateOutingProvider form,
-  ) async {
-    final path = await ImageSourceSheet.pick(title: context.l10n.uploadPhoto);
-    if (path == null) return;
-    form.setImage(path);
-  }
-
-  Future<void> _pickCustomLocation(
-    BuildContext context,
-    CreateOutingProvider form,
-  ) async {
-    final discover = context.read<DiscoverProvider>();
-    final multi = form.multiPlaceMode;
-    final selected = await Get.to<List<Place>>(
-      () => PickLocationPage(
-        catalog: discover.catalogPlaces(),
-        placeCatalog: form.placeCatalog,
-        initial: multi ? null : form.mapInitialPlace,
-        selected: multi ? form.selectedPlaces : const [],
-        maxSelections: multi ? OutingsProvider.maxVotePlaces : 1,
+  Future<void> _showInfo(CreateOutingProvider form) {
+    final l10n = context.l10n;
+    return AppBottomSheet.show<void>(
+      context: context,
+      builder: (sheetContext) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 10,
+        children: [
+          Text(l10n.creationInfo, style: sheetContext.texts.titleLarge),
+          Text(
+            form.specialEvent
+                ? l10n.creationEventOnePlace
+                : l10n.creationFixedHint,
+          ),
+          if (!form.specialEvent) ...[
+            Text(l10n.creationVoteDeadlineHint),
+            Text(l10n.creationVoteWinner),
+            Text(l10n.creationVoteTie),
+          ],
+        ],
       ),
     );
-    if (selected == null || !context.mounted) return;
-    form.replaceMapSelection(selected);
   }
+
+  Future<void> _pickSchedule(CreateOutingProvider form) =>
+      AppBottomSheet.show<void>(
+        context: context,
+        builder: (sheetContext) => ListenableBuilder(
+          listenable: form,
+          builder: (context, _) => !_isCurrent
+              ? const SizedBox.shrink()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.calendar_today_outlined),
+                      title: Text(context.l10n.date),
+                      subtitle: Text(
+                        context.l10n.formatCreationDate(form.date),
+                      ),
+                      trailing: Icon(context.chevronForward),
+                      onTap: () => _pickDate(sheetContext, form),
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.schedule_rounded),
+                      title: Text(context.l10n.time),
+                      subtitle: Text(form.formattedTime),
+                      trailing: Icon(context.chevronForward),
+                      onTap: () => _pickTime(sheetContext, form),
+                    ),
+                  ],
+                ),
+        ),
+      );
 
   Future<void> _pickDate(
     BuildContext context,
@@ -184,7 +205,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
       firstDate: form.minDate,
       lastDate: form.maxDate,
     );
-    if (picked == null) return;
+    if (picked == null || !_isCurrent) return;
     form.setDate(picked);
   }
 
@@ -196,7 +217,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
       context: context,
       initialTime: form.time,
     );
-    if (picked == null) return;
+    if (picked == null || !_isCurrent) return;
     form.setTime(picked);
   }
 
@@ -211,7 +232,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
         initialSelectedPhones: form.guestPhones,
       ),
     );
-    if (selected == null || !context.mounted) return;
+    if (selected == null || !_isCurrent) return;
     form.setGuests(selected.ids, phones: selected.phones);
   }
 
@@ -252,7 +273,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
                           leading: const Icon(Icons.person_outline),
                           title: Text(l10n.independentEvent),
                           onTap: () {
-                            form.setGroup(null);
+                            if (_isCurrent) form.setGroup(null);
                             Get.back();
                           },
                         ),
@@ -305,203 +326,278 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
       enterBottomSheetDuration: AppMotion.sheetEnter,
       exitBottomSheetDuration: AppMotion.sheetExit,
     );
-    if (selected == null) return;
+    if (selected == null || !_isCurrent) return;
     form.setGroup(selected);
   }
 
-  void _next(BuildContext context, CreateOutingProvider form) {
+  void _next(CreateOutingProvider form) {
+    if (form.step != 0) return;
     final error = form.next(context.l10n);
     if (error != null) {
       AppSnackBar.show(error);
       return;
     }
-    FocusScope.of(context).unfocus();
-    if (_scroll.hasClients) _scroll.jumpTo(0);
+    FocusManager.instance.primaryFocus?.unfocus();
+    form.placeCatalog?.pauseBrowsing();
   }
 
-  Future<void> _create(BuildContext context, CreateOutingProvider form) async {
+  Future<void> _create(CreateOutingProvider form) async {
     final outings = context.read<OutingsProvider>();
-    if (outings.isCreating) return;
-    form.editStep(0);
-    final basicsError = form.validateStep(context.l10n);
-    if (basicsError != null) {
-      AppSnackBar.show(basicsError);
+    if (_submitting || _savingDraft || outings.isCreating || !_isCurrent) {
       return;
     }
-    form.next(context.l10n);
-    final locationError = form.validateStep(context.l10n);
-    if (locationError != null) {
-      AppSnackBar.show(locationError);
+    final l10n = context.l10n;
+    final error = form.validateLocation(l10n) ?? form.validateDetails(l10n);
+    if (error != null) {
+      AppSnackBar.show(error);
       return;
     }
-    form.next(context.l10n);
-    if (form.guestPhones.isNotEmpty) {
-      final l10n = context.l10n;
-      final optedIn = await AppAlert.confirm(
-        title: l10n.whatsappInvites,
-        message: l10n.whatsappOptInPrompt,
-        confirmText: l10n.confirmWhatsAppInvites,
-        cancelText: l10n.cancel,
+    final sync = context.read<AppSyncProvider>();
+    final savedOutings = context.read<SavedOutingsProvider>();
+    if (sync.status == SyncStatus.offline) {
+      AppSnackBar.showError(l10n.noInternet);
+      return;
+    }
+
+    setState(() => _submitting = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    bool routed = false;
+    try {
+      if (form.guestPhones.isNotEmpty) {
+        final optedIn = await AppAlert.confirm(
+          title: l10n.whatsappInvites,
+          message: l10n.whatsappOptInPrompt,
+          confirmText: l10n.confirmWhatsAppInvites,
+          cancelText: l10n.cancel,
+        );
+        if (!_isCurrent || !optedIn) return;
+      }
+      final latestError = form.validateDetails(l10n);
+      if (latestError != null) {
+        form.refreshDeadlineClock();
+        AppSnackBar.show(latestError);
+        return;
+      }
+
+      final created = await outings.add(
+        form.buildOuting(createdById: widget.owner),
+        creatorId: widget.owner,
       );
-      if (!context.mounted || !optedIn || outings.isCreating) return;
+      if (!_isCurrent) return;
+      if (created == null) {
+        if (outings.errorMessage case final error?) AppSnackBar.show(error);
+        return;
+      }
+      if (form.draft case final draft?) {
+        await savedOutings.removeDraft(draft.id);
+      }
+      if (!_isCurrent) return;
+      routed = true;
+      AppSnackBar.show(l10n.outingCreated);
+      unawaited(
+        Get.off(
+          () => EventPage(
+            event: created.outing,
+            createdVotingDeadline: form.multiPlaceMode
+                ? created.outing.voteEndsAt
+                : null,
+            manualWhatsAppUrls: created.manualWhatsAppUrls,
+          ),
+        ),
+      );
+    } finally {
+      if (!routed && _isCurrent) setState(() => _submitting = false);
     }
-    final deadlineError = form.validateVotingDeadlineNow(context.l10n);
-    if (deadlineError != null) {
-      form.refreshDeadlineClock();
-      AppSnackBar.show(deadlineError);
-      return;
-    }
-    final userId = context.read<AuthProvider>().user?.id;
-    final outing = form.buildOuting(createdById: userId);
-    final created = await outings.add(outing);
-    if (!context.mounted) return;
-    if (created == null) {
-      final error = outings.errorMessage;
-      if (error != null) AppSnackBar.show(error);
-      return;
-    }
-    if (form.draft != null) {
-      await context.read<SavedOutingsProvider>().removeDraft(form.draft!.id);
-    }
-    if (!context.mounted) return;
-    AppSnackBar.show(context.l10n.outingCreated);
-    Get.off(
-      () => EventPage(
-        event: created.outing,
-        createdVotingDeadline: created.outing.voteEndsAt,
-        manualWhatsAppUrls: created.manualWhatsAppUrls,
-      ),
-    );
   }
 
-  Future<void> _saveDraft(
-    BuildContext context,
-    CreateOutingProvider form,
-  ) async {
-    if (context.read<OutingsProvider>().isCreating) return;
+  Future<void> _saveDraft(CreateOutingProvider form) async {
+    if (_savingDraft || _submitting || !_isCurrent) return;
     final l10n = context.l10n;
     final error = form.draftError(l10n);
     if (error != null) {
       AppSnackBar.show(error);
       return;
     }
-    await context.read<SavedOutingsProvider>().saveDraft(form.toDraft());
-    if (!context.mounted) return;
+    final draft = form.toDraft();
     final store = context.read<SavedOutingsProvider>();
-    AppSnackBar.show(
-      store.hasDraftConflicts
-          ? l10n.draftSyncConflict
-          : store.hasPendingDrafts
-          ? l10n.draftPending
-          : l10n.draftSaved,
+    setState(() => _savingDraft = true);
+    FocusManager.instance.primaryFocus?.unfocus();
+    try {
+      final saved = await store.saveDraft(draft);
+      if (!_isCurrent) return;
+      if (saved == null) {
+        AppSnackBar.showError(l10n.dataSendFailed);
+        return;
+      }
+      if (!saved.conflict) form.markDraftSaved();
+      AppSnackBar.show(
+        saved.deviceLocalLocation
+            ? l10n.localLocationDraft
+            : saved.conflict
+            ? l10n.draftSyncConflict
+            : saved.pending
+            ? l10n.draftPending
+            : l10n.draftSaved,
+      );
+    } finally {
+      if (_isCurrent) setState(() => _savingDraft = false);
+    }
+  }
+
+  Widget _details(
+    CreateOutingProvider form, {
+    required bool creating,
+    required bool offline,
+  }) {
+    final l10n = context.l10n;
+    final style = OutingCreationStyle(context);
+    final sending = _submitting || creating;
+    final locked = sending || _savingDraft;
+    return ListenableBuilder(
+      listenable: form,
+      builder: (context, _) {
+        final validLocation = form.validateLocation(l10n) == null;
+        final canSubmit =
+            validLocation && form.validateDetails(l10n) == null && !offline;
+        return CustomScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              sliver: SliverToBoxAdapter(
+                child: ExcludeFocus(
+                  excluding: locked,
+                  child: AbsorbPointer(
+                    absorbing: locked,
+                    child: CreateOutingBasicsStep(
+                      form: form,
+                      onEditLocation: () => _goBack(form),
+                      onInviteGuests: () => _inviteGuests(context, form),
+                      onPickGroup: () => _pickGroup(context, form),
+                      onPickSchedule: () => _pickSchedule(form),
+                      onPickDeadline: () => AppBottomSheet.show<void>(
+                        context: context,
+                        builder: (_) => CreationDeadlineSheet(
+                          form: form,
+                          isActive: () => _isCurrent,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 22, 18, 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (offline)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            l10n.noInternet,
+                            style: TextStyle(color: style.muted),
+                          ),
+                        ),
+                      CreationPrimaryButton(
+                        label: form.specialEvent
+                            ? l10n.createSpecialEvent
+                            : l10n.creationSubmit,
+                        icon: Icons.send_outlined,
+                        loading: sending,
+                        onPressed: canSubmit && !locked
+                            ? () => _create(form)
+                            : null,
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: style.muted,
+                        ),
+                        onPressed: locked ? null : () => _goBack(form),
+                        child: Text(l10n.back),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: style.muted,
+                        ),
+                        onPressed: locked || form.draftError(l10n) != null
+                            ? null
+                            : () => _saveDraft(form),
+                        child: Text(l10n.saveDraft),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final form = context.watch<CreateOutingProvider>()..syncLocale(l10n);
-    final creating = context.watch<OutingsProvider>().isCreating;
-    final actions = [
-      form.multiPlaceMode ? l10n.continueToPlaces : l10n.continueToLocation,
-      l10n.continueToReview,
-      l10n.createAndGo,
-    ];
-
+    final form = context.read<CreateOutingProvider>()..syncLocale(l10n);
+    final details = context.select((CreateOutingProvider p) => p.step == 1);
+    final creating = context.select((OutingsProvider p) => p.isCreating);
+    final offline = context.select(
+      (AppSyncProvider p) => p.status == SyncStatus.offline,
+    );
+    final locked = _submitting || creating || _savingDraft;
     return PopScope(
-      canPop: !creating && form.step == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && !creating && form.step > 0) _goBack(form);
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !locked) unawaited(_goBack(form));
       },
       child: Scaffold(
-        // AppPageBar — create outing / special event
-        appBar: AppPageBar(
-          title: form.specialEvent
-              ? l10n.createSpecialEvent
-              : l10n.createOuting,
-          backIcon: form.step == 0 ? Icons.close : context.chevronBack,
-          onBack: creating ? () {} : () => _goBack(form),
-        ),
-        body: SafeArea(
-          top: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: ListView(
-                      controller: _scroll,
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: Responsive.pagePadding(),
-                      children: [
-                        CreateOutingStepHeader(form: form),
-                        IgnorePointer(
-                          ignoring: creating,
-                          child: _StepSwitcher(
-                            step: form.step,
-                            child: switch (form.step) {
-                              0 => CreateOutingBasicsStep(
-                                key: const ValueKey(0),
-                                form: form,
-                                onUploadPhoto: () =>
-                                    _uploadPhoto(context, form),
-                                onInviteGuests: () =>
-                                    _inviteGuests(context, form),
-                                onPickGroup: () => _pickGroup(context, form),
-                                onPickDate: () => _pickDate(context, form),
-                                onPickTime: () => _pickTime(context, form),
-                              ),
-                              1 => CreateOutingLocationStep(
-                                key: const ValueKey(1),
-                                form: form,
-                                onPickCustomLocation: () =>
-                                    _pickCustomLocation(context, form),
-                              ),
-                              _ => CreateOutingReviewStep(
-                                key: const ValueKey(2),
-                                form: form,
-                              ),
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Material(
-                    color: context.palette.background,
-                    child: Padding(
-                      padding: Responsive.pagePadding(top: 8, bottom: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          CustomButton(
-                            label: form.step == 2 && form.specialEvent
-                                ? l10n.createSpecialEvent
-                                : actions[form.step],
-                            icon: form.step == 2
-                                ? Icons.check
-                                : context.chevronForward,
-                            isLoading: form.step == 2 && creating,
-                            onPressed: creating || !form.isVotingDeadlineValid
-                                ? null
-                                : form.step == 2
-                                ? () => _create(context, form)
-                                : () => _next(context, form),
-                          ),
-                          if (form.step == 2)
-                            TextButton(
-                              onPressed: creating
-                                  ? null
-                                  : () => _saveDraft(context, form),
-                              child: Text(l10n.saveDraft),
-                            ),
-                        ],
+        backgroundColor: OutingCreationStyle(context).base,
+        body: OutingCreationBackground(
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: Responsive.contentMaxWidth,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      OutingCreationAppBar(
+                        title: form.specialEvent
+                            ? l10n.createSpecialEvent
+                            : l10n.creationTitle,
+                        onBack: locked ? null : () => _goBack(form),
+                        onInfo: locked ? null : () => _showInfo(form),
                       ),
-                    ),
+                      if (constraints.maxHeight >= 360)
+                        CreateOutingStepHeader(
+                          details: details,
+                          onLocation: locked ? null : () => _goBack(form),
+                        ),
+                      Expanded(
+                        child: details
+                            ? _details(
+                                form,
+                                creating: creating,
+                                offline: offline,
+                              )
+                            : CreateOutingLocationStep(
+                                key: ValueKey(l10n.locale.languageCode),
+                                form: form,
+                                onNext: () => _next(form),
+                              ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

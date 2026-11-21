@@ -1,3 +1,5 @@
+import { increment } from "../monitoring/metrics.js";
+import { observeSocketAck, watchSocketServer } from "../monitoring/socket.js";
 import type { Server as HttpServer } from "node:http";
 import { Server } from "socket.io";
 import { bindChatEmitter } from "./chat-emitter.js";
@@ -30,9 +32,13 @@ export function attachRealtime(httpServer: HttpServer): Server {
   });
 
   io.use((socket, next) => {
-    void authenticateSocket(socket, next);
+    void authenticateSocket(socket, error => {
+      if (error) increment("socket_auth_failures_total");
+      next(error);
+    });
   });
 
+  watchSocketServer(io);
   registerChatGateway(io);
   registerGroupGateway(io);
   bindChatEmitter(io);
@@ -40,17 +46,7 @@ export function attachRealtime(httpServer: HttpServer): Server {
   io.on("connection", (socket) => {
     void socket.join(userRealtimeRoom(socket.data.uid));
     socket.on("data:reconcile", (cursor: unknown, ack: unknown) => {
-      if (typeof ack === "function") ack(reconcileDataChanges(socket.data.uid, cursor));
-    });
-    if (process.env.NODE_ENV !== "production") {
-      console.log(`[realtime] connected uid=${socket.data.uid} id=${socket.id}`);
-    }
-    socket.on("disconnect", (reason) => {
-      if (process.env.NODE_ENV !== "production") {
-        console.log(
-          `[realtime] disconnected uid=${socket.data.uid} id=${socket.id} reason=${reason}`,
-        );
-      }
+      observeSocketAck("data:reconcile", ack)?.(reconcileDataChanges(socket.data.uid, cursor));
     });
   });
 

@@ -1,3 +1,6 @@
+import { scheduleJob } from "../monitoring/jobs.js";
+import { errorCode, logger } from "../monitoring/logger.js";
+import { increment } from "../monitoring/metrics.js";
 import { prisma } from "../config/database.js";
 import {
   closeVotingByDeadline,
@@ -8,47 +11,34 @@ const INTERVAL_MS = 30 * 1000;
 
 /** Closes voting for outings whose deadline has passed. */
 export async function closeDueVotingDeadlines(): Promise<string[]> {
-  const due = await prisma.outings.findMany({
-    where: {
-      status: "voting",
-      vote_closed_at: null,
-      vote_ends_at: { lte: new Date() },
-    },
-    select: { id: true },
-    take: 50,
-  });
+  const due = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT o.id FROM outings o
+    WHERE o.status = 'voting' AND o.vote_closed_at IS NULL AND o.vote_ends_at <= now()
+      AND EXISTS (
+        SELECT 1 FROM outing_voting_round_options candidate
+        WHERE candidate.outing_id = o.id AND candidate.round_number = o.current_voting_round
+        OFFSET 1
+      )
+    ORDER BY o.vote_ends_at, o.id
+    LIMIT 50
+  `;
 
   const closed: string[] = [];
   for (const row of due) {
-    const result = await closeVotingByDeadline(row.id);
-    if (result) {
-      closed.push(row.id);
-      await emitResolutionNotifications(result);
+    try {
+      const result = await closeVotingByDeadline(row.id);
+      if (result) {
+        closed.push(row.id);
+        await emitResolutionNotifications(result);
+      }
+    } catch (error) {
+      increment("job_item_failures_total", { job: "close_voting" });
+      logger.debug({ errorCode: errorCode(error) }, "Voting deadline item failed");
     }
   }
   return closed;
 }
 
-export function startVotingDeadlineJob(): () => void {
-  let running = false;
-
-  const tick = async () => {
-    if (running) return;
-    running = true;
-    try {
-      const ids = await closeDueVotingDeadlines();
-      if (ids.length > 0) {
-        console.log(`[outings] closed voting for ${ids.length} outing(s) by deadline`);
-      }
-    } catch (error) {
-      console.error("[outings] voting deadline job failed", error);
-    } finally {
-      running = false;
-    }
-  };
-
-  void tick();
-  const timer = setInterval(() => void tick(), INTERVAL_MS);
-  timer.unref();
-  return () => clearInterval(timer);
+export function startVotingDeadlineJob() {
+  return scheduleJob("close_voting", INTERVAL_MS, async () => { await closeDueVotingDeadlines(); });
 }

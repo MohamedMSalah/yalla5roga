@@ -6,7 +6,11 @@ class AppLauncher {
   static Future<bool> open(String url) async {
     final uri = Uri.tryParse(url);
     if (uri == null) return false;
-    return launchUrl(uri, mode: LaunchMode.externalApplication);
+    try {
+      return await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<bool> openMaps({
@@ -16,7 +20,9 @@ class AppLauncher {
   }) async {
     try {
       if (latitude != null && longitude != null) {
-        final label = (query == null || query.isEmpty) ? '$latitude,$longitude' : query;
+        final label = (query == null || query.isEmpty)
+            ? '$latitude,$longitude'
+            : query;
         final geo = Uri.parse(
           'geo:$latitude,$longitude?q=${Uri.encodeComponent('$latitude,$longitude($label)')}',
         );
@@ -24,13 +30,19 @@ class AppLauncher {
           return await launchUrl(geo, mode: LaunchMode.externalApplication);
         }
         return await launchUrl(
-          Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': '$latitude,$longitude'}),
+          Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': '$latitude,$longitude',
+          }),
           mode: LaunchMode.externalApplication,
         );
       }
       if (query != null && query.trim().isNotEmpty) {
         return await launchUrl(
-          Uri.https('www.google.com', '/maps/search/', {'api': '1', 'query': query.trim()}),
+          Uri.https('www.google.com', '/maps/search/', {
+            'api': '1',
+            'query': query.trim(),
+          }),
           mode: LaunchMode.externalApplication,
         );
       }
@@ -40,9 +52,33 @@ class AppLauncher {
     }
   }
 
+  static Future<bool> openDirections({
+    double? latitude,
+    double? longitude,
+    required String query,
+  }) async {
+    final destination = latitude != null && longitude != null
+        ? '$latitude,$longitude'
+        : query.trim();
+    if (destination.isEmpty) return false;
+    try {
+      return await launchUrl(
+        Uri.https('www.google.com', '/maps/dir/', {
+          'api': '1',
+          'destination': destination,
+        }),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<bool> shareOnWhatsApp(String message) async {
     try {
-      final native = Uri.parse('whatsapp://send?text=${Uri.encodeComponent(message)}');
+      final native = Uri.parse(
+        'whatsapp://send?text=${Uri.encodeComponent(message)}',
+      );
       if (await canLaunchUrl(native)) {
         return await launchUrl(native, mode: LaunchMode.externalApplication);
       }

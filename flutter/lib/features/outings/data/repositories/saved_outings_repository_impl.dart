@@ -79,7 +79,11 @@ class SavedOutingsRepositoryImpl implements SavedOutingsRepository {
     final rows = {for (final draft in server) draft.id: draft};
     for (final draft in cached) {
       _checkAccount(uid);
-      if (!draft.pending || draft.conflict) continue;
+      if ((!draft.deleted && draft.deviceLocalLocation) ||
+          !draft.pending ||
+          draft.conflict) {
+        continue;
+      }
       final id = _stableId(draft.id, uid);
       final incoming = rows[id];
       var outgoing = draft.withSync(id: id);
@@ -164,7 +168,9 @@ class SavedOutingsRepositoryImpl implements SavedOutingsRepository {
     cached = await local.getDrafts();
     for (final incoming in rows.values) {
       final previous = cached.where((d) => d.id == incoming.id).firstOrNull;
-      if (previous?.pending == true) continue;
+      if (previous?.pending == true || previous?.deviceLocalLocation == true) {
+        continue;
+      }
       await local.saveDraft(
         OutingDraft.fromJson({
           ...incoming.toJson(),
@@ -175,7 +181,9 @@ class SavedOutingsRepositoryImpl implements SavedOutingsRepository {
       );
     }
     for (final old in cached) {
-      if (!old.pending && !rows.containsKey(old.id)) {
+      if (!old.deviceLocalLocation &&
+          !old.pending &&
+          !rows.containsKey(old.id)) {
         await local.removeDraft(old.id);
       }
     }
@@ -226,7 +234,7 @@ class SavedOutingsRepositoryImpl implements SavedOutingsRepository {
         await local.saveDraft(
           draft.withSync(
             version: draft.remoteVersion ?? current?.remoteVersion,
-            pending: true,
+            pending: !draft.deviceLocalLocation,
             conflict: false,
           ),
         );
@@ -240,7 +248,10 @@ class SavedOutingsRepositoryImpl implements SavedOutingsRepository {
             .where((d) => d.id == id)
             .firstOrNull;
         _checkAccount(uid);
-        if (draft != null) {
+        if (draft?.deviceLocalLocation == true &&
+            draft?.remoteVersion == null) {
+          await local.removeDraft(id);
+        } else if (draft != null) {
           await local.saveDraft(draft.withSync(pending: true, deleted: true));
         }
         return _syncDrafts(uid);

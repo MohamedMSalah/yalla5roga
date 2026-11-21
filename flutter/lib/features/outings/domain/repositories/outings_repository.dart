@@ -13,6 +13,7 @@ class OutingSnapshot {
     required this.suggestions,
     required this.votesByOuting,
     required this.attendanceByOuting,
+    this.hasCompleteOutingsList = false,
   });
 
   OutingSnapshot withoutOuting(String id) {
@@ -21,6 +22,7 @@ class OutingSnapshot {
       suggestions: suggestions.where((item) => item.outingId != id).toList(),
       votesByOuting: Map.of(votesByOuting)..remove(id),
       attendanceByOuting: Map.of(attendanceByOuting)..remove(id),
+      hasCompleteOutingsList: hasCompleteOutingsList,
     );
   }
 
@@ -28,6 +30,9 @@ class OutingSnapshot {
   final List<GroupPlaceSuggestion> suggestions;
   final Map<String, PlaceVote> votesByOuting;
   final Map<String, Map<String, AttendanceStatus>> attendanceByOuting;
+
+  /// Detail-only snapshots do not establish totals for the account's groups.
+  final bool hasCompleteOutingsList;
 }
 
 class OutingCreation {

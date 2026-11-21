@@ -19,28 +19,23 @@ class MapSearchBar extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final Widget? leading, trailing;
   @override
-  Widget build(BuildContext context) => Material(
-    color: context.palette.surface,
-    elevation: 3,
-    borderRadius: BorderRadius.circular(Responsive.radiusMd),
-    child: Row(
-      children: [
-        ?leading,
-        Expanded(
-          child: AppSearchField(
-            controller: controller,
-            focusNode: focusNode,
-            hint: context.l10n.mapSearchHint,
-            onChanged: onChanged,
-            onClear: () {
-              controller.clear();
-              onChanged('');
-            },
-          ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      if (leading != null) ...[leading!, const SizedBox(width: 6)],
+      Expanded(
+        child: AppSearchField(
+          controller: controller,
+          focusNode: focusNode,
+          hint: context.l10n.mapSearchHint,
+          onChanged: onChanged,
+          onClear: () {
+            controller.clear();
+            onChanged('');
+          },
         ),
-        ?trailing,
-      ],
-    ),
+      ),
+      if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+    ],
   );
 }
 
@@ -49,12 +44,15 @@ class MapCurrentLocationButton extends StatelessWidget {
     super.key,
     required this.onPressed,
     this.busy = false,
+    this.style,
   });
   final VoidCallback onPressed;
   final bool busy;
+  final ButtonStyle? style;
   @override
   Widget build(BuildContext context) => IconButton.filledTonal(
     tooltip: context.l10n.yourLocation,
+    style: style,
     constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
     onPressed: busy ? null : onPressed,
     icon: busy
@@ -62,7 +60,7 @@ class MapCurrentLocationButton extends StatelessWidget {
             dimension: 20,
             child: CircularProgressIndicator(strokeWidth: 2),
           )
-        : const Icon(Icons.my_location),
+        : const Icon(Icons.my_location_outlined),
   );
 }
 

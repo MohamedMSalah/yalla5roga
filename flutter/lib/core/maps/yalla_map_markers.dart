@@ -1,40 +1,59 @@
-import 'dart:ui' as ui;
+import 'dart:convert';
+import 'dart:ui' show lerpDouble;
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 import 'package:yalla_5roga/core/maps/yalla_map_clusters.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_place_selection.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_style.dart';
-import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
-import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
+import 'package:yalla_5roga/core/maps/yalla_pin_categories.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
 class YallaMapMarkers {
   static const pins = 'yalla-pins',
+      privateSource = 'yalla-private-places',
+      privatePins = 'yalla-private-pins',
       selectedSource = 'yalla-selected',
       selectedPins = 'yalla-selected-pins',
-      ring = 'yalla-selected-ring',
+      _glow = 'yalla-selected-glow',
       customSource = 'yalla-custom-selection',
-      customPoints = 'yalla-custom-points';
+      customPoints = 'yalla-custom-points',
+      customOrder = 'yalla-custom-order';
+  static const assetPath = 'assets/map/pins';
+  static String assetId(String categoryId) =>
+      yallaPinCategories.contains(categoryId) ? categoryId : 'fallback';
+
+  static const _selectionGrowth = .4;
+  static const _privateSize = .30;
+  static const _previousPinSize = .27;
+  static const _zoomSizes = [(8, .29), (10, .35), (12, _previousPinSize * 1.5)];
+  static const _empty = {'type': 'FeatureCollection', 'features': []};
+
   final _images = <String>{};
-  String? _lastData, _lastSelected, _lastCustom;
+  String? _lastData, _lastPrivate, _lastCustom, _selectionKey;
+  Map<String, Map<String, dynamic>> _selected = {}, _departing = {};
+  Map<String, double> _starts = {};
+  String _ink = '', _halo = '';
+
   void reset() {
     _images.clear();
-    _lastData = null;
-    _lastSelected = null;
-    _lastCustom = null;
+    _lastData = _lastPrivate = _lastCustom = _selectionKey = null;
+    _selected.clear();
+    _departing.clear();
+    _starts.clear();
   }
 
   static Map<String, dynamic> collection(
-    Iterable<Place> places,
-    List<CatalogDefinition> categories, {
+    Iterable<Place> places, {
     required String language,
+    bool includeUnavailable = false,
   }) => {
     'type': 'FeatureCollection',
     'features': [
       for (final place in places)
         if (place.id.isNotEmpty &&
-            place.status == 'active' &&
+            (includeUnavailable || place.status == 'active') &&
             validPoint(place))
           {
             'type': 'Feature',
@@ -45,13 +64,15 @@ class YallaMapMarkers {
             },
             'properties': {
               'place_id': place.id,
-              'name': place.displayName(language),
+              'name': place.id.startsWith('private:')
+                  ? '◆ ${place.displayName(language)}'
+                  : place.displayName(language),
               'category': place.categoryId,
-              'vibes': place.vibeIds,
-              'image_url': place.imageUrl,
-              'status': place.status,
-              'icon': 'yalla-${place.categoryId}',
-              'sort': 0,
+              'icon':
+                  place.id.startsWith('private:') && place.categoryId.isEmpty
+                  ? 'yalla-private'
+                  : 'yalla-${assetId(place.categoryId)}',
+              'private_place': place.id.startsWith('private:'),
             },
           },
     ],
@@ -65,174 +86,199 @@ class YallaMapMarkers {
 
   Future<void> images(
     ml.MapLibreMapController map,
-    Iterable<Place> places,
-    List<CatalogDefinition> definitions,
-  ) async {
-    for (final category in places.map((p) => p.categoryId).toSet()) {
-      final definition = definitions.where((d) => d.id == category).firstOrNull;
-      final signature = '$category:${definition?.icon}:${definition?.group}';
-      if (_images.contains(signature)) continue;
-      final icon = catalogIcon(definition?.icon ?? 'place', true);
-      final color = switch (definition?.group) {
-        'food_drinks' => const Color(0xFFB45326),
-        'outdoor' => const Color(0xFF28734D),
-        'culture' => const Color(0xFF346B8A),
-        'shopping' => const Color(0xFFA23567),
-        _ => const Color(0xFF6854B8),
-      };
-      // One compact, 2x style image per category, reused by native symbol layers.
-      final recorder = ui.PictureRecorder();
-      final canvas = Canvas(recorder)..scale(2);
-      final shape = Path()
-        ..moveTo(20, 46)
-        ..cubicTo(16, 39, 2, 29, 2, 20)
-        ..cubicTo(2, 10, 10, 2, 20, 2)
-        ..cubicTo(30, 2, 38, 10, 38, 20)
-        ..cubicTo(38, 29, 24, 39, 20, 46)
-        ..close();
-      canvas.drawShadow(shape, const Color(0x66000000), 2, true);
-      canvas.drawPath(shape, Paint()..color = Colors.white);
-      canvas.drawPath(
-        shape,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
-      canvas.drawCircle(const Offset(20, 20), 14, Paint()..color = color);
-      final painter = TextPainter(
-        text: TextSpan(
-          text: String.fromCharCode(icon.codePoint),
-          style: TextStyle(
-            fontSize: 19,
-            fontFamily: icon.fontFamily,
-            package: icon.fontPackage,
-            color: Colors.white,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      painter.paint(
-        canvas,
-        Offset((40 - painter.width) / 2, (40 - painter.height) / 2),
-      );
-      final picture = recorder.endRecording();
-      final image = await picture.toImage(80, 100);
-      final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-      await map.addImage('yalla-$category', bytes!.buffer.asUint8List());
-      painter.dispose();
-      image.dispose();
-      picture.dispose();
-      _images.add(signature);
+    Iterable<Place> places, {
+    required bool dark,
+  }) async {
+    for (final id in {
+      'fallback',
+      'private',
+      'selection_check',
+      'selection_glow',
+      YallaMapClusters.assetId(dark),
+      'landmark_school',
+      'landmark_culture',
+      ...places.map((place) => assetId(place.categoryId)),
+    }) {
+      if (_images.contains(id)) continue;
+      final directory = id.startsWith('landmark_')
+          ? 'assets/map/landmarks'
+          : assetPath;
+      ByteData bytes;
+      try {
+        bytes = await rootBundle.load('$directory/$id.png');
+      } on FlutterError {
+        if (!yallaPinCategories.contains(id)) rethrow;
+        bytes = await rootBundle.load('$assetPath/fallback.png');
+      }
+      try {
+        await map.addImage('yalla-$id', _bytes(bytes));
+      } on PlatformException catch (error) {
+        if (error.code != 'INVALID_IMAGE' || !yallaPinCategories.contains(id)) {
+          rethrow;
+        }
+        final fallback = await rootBundle.load('$assetPath/fallback.png');
+        await map.addImage('yalla-$id', _bytes(fallback));
+      }
+      _images.add(id);
     }
   }
 
-  Future<void> install(ml.MapLibreMapController map) async {
+  static Uint8List _bytes(ByteData bytes) =>
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes);
+
+  static List<Object> _zoomSize(Object Function(double size) value) => [
+    'interpolate',
+    ['linear'],
+    ['zoom'],
+    for (final (zoom, size) in _zoomSizes) ...[zoom, value(size)],
+  ];
+
+  static List<Object> _baseSize(double size) => [
+    'case',
+    [
+      '==',
+      ['get', 'icon'],
+      'yalla-private',
+    ],
+    _privateSize,
+    ['get', 'private_place'],
+    size * (_privateSize / _previousPinSize),
+    size,
+  ];
+
+  ml.SymbolLayerProperties _catalogPinProperties({
+    required bool selected,
+    required Object size,
+  }) => ml.SymbolLayerProperties(
+    iconImage: ['get', 'icon'],
+    iconSize: size,
+    iconAnchor: 'bottom',
+    iconPadding: 3,
+    iconAllowOverlap: selected,
+    iconIgnorePlacement: selected,
+    textField: ['get', 'name'],
+    textFont: [YallaMapStyle.font],
+    textSize: 12,
+    textAnchor: 'top',
+    textOffset: [0, .4],
+    textMaxWidth: selected ? 12 : 10,
+    textColor: _ink,
+    textHaloColor: _halo,
+    textHaloWidth: 1.5,
+    textOptional: true,
+    textAllowOverlap: selected,
+    textIgnorePlacement: selected,
+  );
+
+  ml.SymbolLayerProperties _glowProperties(Object size, Object opacity) =>
+      ml.SymbolLayerProperties(
+        iconImage: 'yalla-selection_glow',
+        iconSize: size,
+        iconOpacity: opacity,
+        iconAnchor: 'bottom',
+        iconAllowOverlap: true,
+        iconIgnorePlacement: true,
+      );
+
+  static const _unclustered = [
+    '!',
+    ['has', 'point_count'],
+  ];
+
+  Future<void> install(
+    ml.MapLibreMapController map, {
+    required bool dark,
+    bool showChecks = false,
+  }) async {
+    _ink = dark ? '#F5F3FF' : '#34264A';
+    _halo = dark ? '#0D1020' : '#FFFFFF';
     await map.addSymbolLayer(
       YallaMapClusters.source,
       pins,
-      const ml.SymbolLayerProperties(
-        iconImage: ['get', 'icon'],
-        iconSize: .5,
-        iconAnchor: 'bottom',
-        iconPadding: 3,
-        iconAllowOverlap: false,
-        textField: ['get', 'name'],
-        textFont: [YallaMapStyle.font],
-        textSize: 12,
-        textAnchor: 'top',
-        textOffset: [0, .4],
-        textMaxWidth: 10,
-        textColor: '#292333',
-        textHaloColor: '#FFFFFF',
-        textHaloWidth: 2,
-        textOptional: true,
-        symbolSortKey: ['get', 'sort'],
-      ),
-      filter: [
-        '!',
-        ['has', 'point_count'],
-      ],
+      _catalogPinProperties(selected: false, size: _zoomSize((size) => size)),
+      filter: _unclustered,
     );
-    await map.addGeoJsonSource(selectedSource, {
-      'type': 'FeatureCollection',
-      'features': [],
-    });
-    await map.addCircleLayer(
-      selectedSource,
-      ring,
-      const ml.CircleLayerProperties(
-        circleRadius: 7,
-        circleColor: '#FFFFFF',
-        circleOpacity: .7,
-        circleStrokeColor: '#7962D1',
-        circleStrokeWidth: 3,
+    await map.addGeoJsonSource(privateSource, _empty);
+    await map.addSymbolLayer(
+      privateSource,
+      privatePins,
+      _catalogPinProperties(selected: false, size: _zoomSize(_baseSize)),
+    );
+    // Explicitly chosen geographic locations are selection annotations, never
+    // generated catalog places/category pins.
+    await map.addGeoJsonSource(customSource, _empty);
+    if (showChecks) {
+      await map.addCircleLayer(
+        customSource,
+        'yalla-custom-halo',
+        const ml.CircleLayerProperties(
+          circleRadius: 36,
+          circleColor: '#8739E3',
+          circleOpacity: .30,
+        ),
+        enableInteraction: false,
+      );
+    }
+    await map.addSymbolLayer(
+      customSource,
+      customPoints,
+      ml.SymbolLayerProperties(
+        iconImage: showChecks ? 'yalla-selection_check' : 'yalla-private',
+        iconSize: showChecks ? .5 : .32,
+        iconAnchor: showChecks ? 'center' : 'bottom',
+        iconAllowOverlap: true,
+        iconIgnorePlacement: true,
       ),
+    );
+    await map.addSymbolLayer(
+      customSource,
+      customOrder,
+      ml.SymbolLayerProperties(
+        textField: [
+          'case',
+          ['has', 'selection_order'],
+          [
+            'concat',
+            ['get', 'selection_order'],
+            ' · ',
+            ['get', 'name'],
+          ],
+          ['get', 'name'],
+        ],
+        textFont: [YallaMapStyle.font],
+        textSize: 11,
+        textAnchor: 'top',
+        textMaxWidth: 12,
+        textOffset: showChecks ? [0, 1.5] : [0, .25],
+        textColor: _ink,
+        textHaloColor: _halo,
+        textHaloWidth: 1.5,
+        textAllowOverlap: true,
+        textIgnorePlacement: true,
+      ),
+      enableInteraction: false,
+    );
+    await map.addGeoJsonSource(selectedSource, _empty);
+    final selectedSize = _selectedSize(1);
+    await map.addSymbolLayer(
+      selectedSource,
+      _glow,
+      _glowProperties(selectedSize, 1),
       enableInteraction: false,
     );
     await map.addSymbolLayer(
       selectedSource,
       selectedPins,
-      const ml.SymbolLayerProperties(
-        iconImage: ['get', 'icon'],
-        iconSize: .67,
-        iconAnchor: 'bottom',
-        iconAllowOverlap: true,
-        iconIgnorePlacement: true,
-        textField: [
-          'coalesce',
-          ['get', 'name'],
-          '',
-        ],
-        textFont: [YallaMapStyle.font],
-        textSize: 12,
-        textAnchor: 'top',
-        textOffset: [0, .4],
-        textMaxWidth: 12,
-        textColor: '#47357E',
-        textHaloColor: '#FFFFFF',
-        textHaloWidth: 2,
-        textAllowOverlap: true,
-        textIgnorePlacement: true,
-      ),
-    );
-    // Explicitly chosen geographic locations are selection annotations, never
-    // generated catalog places/category pins.
-    await map.addGeoJsonSource(customSource, {
-      'type': 'FeatureCollection',
-      'features': [],
-    });
-    await map.addCircleLayer(
-      customSource,
-      customPoints,
-      const ml.CircleLayerProperties(
-        circleRadius: 15,
-        circleColor: '#FFFFFF',
-        circleStrokeColor: '#7962D1',
-        circleStrokeWidth: 3,
-      ),
-    );
-    await map.addSymbolLayer(
-      customSource,
-      'yalla-custom-order',
-      const ml.SymbolLayerProperties(
-        textField: ['get', 'selection_order'],
-        textFont: [YallaMapStyle.font],
-        textSize: 12,
-        textColor: '#47357E',
-        textAllowOverlap: true,
-        textIgnorePlacement: true,
-      ),
-      enableInteraction: false,
+      _catalogPinProperties(selected: true, size: selectedSize),
     );
   }
 
   Future<void> update(
     ml.MapLibreMapController map, {
     required String dataKey,
+    required String privateKey,
+    required Map<String, dynamic> privateData,
     required Map<String, dynamic> data,
-    required Map<String, dynamic> selected,
-    required String selectedKey,
     required Map<String, dynamic> custom,
     required String customKey,
   }) async {
@@ -240,47 +286,130 @@ class YallaMapMarkers {
       await map.setGeoJsonSource(YallaMapClusters.source, data);
       _lastData = dataKey;
     }
+    if (_lastPrivate != privateKey) {
+      await map.setGeoJsonSource(privateSource, privateData);
+      _lastPrivate = privateKey;
+    }
     if (_lastCustom != customKey) {
       await map.setGeoJsonSource(customSource, custom);
       _lastCustom = customKey;
     }
-    if (_lastSelected != selectedKey) {
-      await map.setGeoJsonSource(selectedSource, selected);
-      _lastSelected = selectedKey;
-      // Selected records live above ordinary pins and keep their focused styling.
-      final ids = (selected['features'] as List)
-          .map((f) => f['properties']['place_id'])
-          .toList();
-      await map.setFilter(pins, [
-        'all',
-        [
-          '!',
-          ['has', 'point_count'],
-        ],
-        [
-          '!',
-          [
-            'in',
-            ['get', 'place_id'],
-            ['literal', ids],
-          ],
-        ],
-      ]);
-    }
   }
 
-  Future<void> selectionFrame(ml.MapLibreMapController map, double t) async {
+  Future<bool> updateSelection(
+    ml.MapLibreMapController map,
+    Map<String, dynamic> selection, {
+    required bool animate,
+    required double progress,
+  }) async {
+    final key = jsonEncode(selection);
+    if (_selectionKey == key) {
+      if (!animate && _starts.isNotEmpty) await selectionFrame(map, 1);
+      return false;
+    }
+
+    final desired = {
+      for (final Map<String, dynamic> feature in selection['features'] as List)
+        feature['id'] as String: feature,
+    };
+    final changed =
+        desired.length != _selected.length ||
+        !desired.keys.every(_selected.containsKey);
+    if (changed) {
+      final previous = {..._departing, ..._selected};
+      final nextStarts = <String, double>{};
+      final departing = <String, Map<String, dynamic>>{};
+      if (animate && _selectionKey != null) {
+        for (final id in {...previous.keys, ...desired.keys}) {
+          final current = _progressFor(id, progress);
+          final target = desired.containsKey(id) ? 1.0 : 0.0;
+          if (current != target) {
+            nextStarts[id] = current;
+            if (target == 0) departing[id] = previous[id]!;
+          }
+        }
+      }
+      _starts = nextStarts;
+      _departing = departing;
+    }
+    if (!animate) {
+      _departing.clear();
+      _starts.clear();
+    }
+    _selected = desired;
+    _selectionKey = key;
+    final start = changed && _starts.isNotEmpty;
+    if (changed || !animate) {
+      await selectionFrame(map, start ? 0 : 1);
+    }
+    await _showSelection(map);
+    return start;
+  }
+
+  Future<void> _showSelection(ml.MapLibreMapController map) async {
+    final features = {..._departing, ..._selected};
+    await map.setGeoJsonSource(selectedSource, {
+      'type': 'FeatureCollection',
+      'features': features.values.toList(growable: false),
+    });
+    final exclude = [
+      '!',
+      [
+        'in',
+        ['get', 'place_id'],
+        ['literal', features.keys.toList()],
+      ],
+    ];
+    await map.setFilter(privatePins, exclude);
+    await map.setFilter(pins, ['all', _unclustered, exclude]);
+  }
+
+  double _progressFor(String id, double progress) =>
+      lerpDouble(_starts[id] ?? _target(id), _target(id), progress)!;
+
+  double _target(String id) => _selected.containsKey(id) ? 1 : 0;
+
+  Object _match(double progress, Object Function(double) value) {
+    if (_starts.isEmpty) return value(1);
+    return [
+      'match',
+      ['get', 'place_id'],
+      for (final id in _starts.keys) ...[id, value(_progressFor(id, progress))],
+      value(1),
+    ];
+  }
+
+  Object _selectedSize(double progress) => _zoomSize(
+    (size) => [
+      '*',
+      _baseSize(size),
+      _match(progress, (value) => 1 + _selectionGrowth * value),
+    ],
+  );
+
+  Future<void> selectionFrame(
+    ml.MapLibreMapController map,
+    double progress,
+  ) async {
+    final finished = progress >= 1;
+    final hadDeparting = _departing.isNotEmpty;
+    if (_starts.isEmpty && !finished) return;
+    final size = _selectedSize(progress);
+    // setLayerProperties replaces omitted properties with their SDK defaults.
+    // Send the full style on every frame so the category artwork stays visible.
     await map.setLayerProperties(
       selectedPins,
-      ml.SymbolLayerProperties(iconSize: .5 + .17 * t),
+      _catalogPinProperties(selected: true, size: size),
     );
     await map.setLayerProperties(
-      ring,
-      ml.CircleLayerProperties(
-        circleRadius: 5 + 2 * t,
-        circleStrokeWidth: 1 + 2 * t,
-      ),
+      _glow,
+      _glowProperties(size, _match(progress, (value) => value)),
     );
+    if (finished) {
+      _starts.clear();
+      _departing.clear();
+      if (hadDeparting) await _showSelection(map);
+    }
   }
 
   static List<Place> highlighted(
@@ -293,7 +422,7 @@ class YallaMapMarkers {
       YallaMapSelectionMode.multiple => selection.selected,
     };
     return {
-      for (final p in [...places, ...selection.selected])
+      for (final p in [...selection.selected, ...places])
         if (p.id.isNotEmpty &&
             (p.id == selection.focusedId || chosen.any(p.matchesSelection)))
           p.id: p,

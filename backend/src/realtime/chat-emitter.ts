@@ -1,10 +1,11 @@
+import { errorCode, logger } from "../monitoring/logger.js";
 import type { Server } from "socket.io";
 import type { ChatMessage, ChatRead } from "../types/chat/chat.types.js";
 import { outingChatRoom, userRealtimeRoom } from "./rooms.js";
 
 let io: Server | null = null;
 
-export function bindChatEmitter(server: Server): void {
+export function bindChatEmitter(server: Server | null): void {
   io = server;
 }
 
@@ -57,7 +58,7 @@ export async function emitOutingMessage(
       if (authorized.has(socket.data.uid)) socket.emit("outing:message", payload);
     }
   } catch (error) {
-    console.error("[realtime] chat delivery failed", error);
+    logger.warn({ errorCode: errorCode(error) }, "Chat event delivery failed");
   }
 }
 
@@ -73,7 +74,7 @@ export async function emitOutingRead(outingId: string, read: ChatRead): Promise<
       else await socket.leave(outingChatRoom(outingId));
     }
   } catch (error) {
-    console.error("[realtime] read delivery failed", error);
+    logger.warn({ errorCode: errorCode(error) }, "Chat read event delivery failed");
   }
 }
 

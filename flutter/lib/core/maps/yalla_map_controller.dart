@@ -42,6 +42,7 @@ class YallaMapController extends ChangeNotifier {
   );
   void focus(LatLng point, {double zoom = 16}) =>
       _run(() => camera.focus(point, zoom: zoom));
+  void resetOrientation() => _run(camera.resetOrientation);
   void focusSelection(LatLng point, {double zoom = 16}) => _run(
     () => camera.focus(
       point,

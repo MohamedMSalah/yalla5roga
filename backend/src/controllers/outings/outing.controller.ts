@@ -150,8 +150,7 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      await assertOutingAccess(id, req.user.uid);
-      const outing = await this.getOuting.execute(id);
+      const outing = await this.getOuting.execute(id, req.user.uid);
       res.json({ success: true, data: outing });
     } catch (error) {
       next(error);
@@ -420,7 +419,7 @@ export class OutingController {
         req.body.round_number,
       );
       // Resolution already published the committed lifecycle change.
-      if (!data.resolution) await publishOutingChange(req.params.id as string);
+      if (!data.resolution) await publishOutingChange(req.params.id as string, "outing", [], "outing:voting_round_updated", req.body.round_number ?? 1);
       res.status(201).json({ success: true, data });
     } catch (error) {
       next(error);
@@ -433,7 +432,7 @@ export class OutingController {
       const id = req.params.id as string;
       const data = await new ReplaceBallotUseCase().execute(id, req.user.uid, req.body.option_ids, req.body.round_number,
       );
-      await publishOutingChange(id);
+      await publishOutingChange(id, "outing", [], "outing:voting_round_updated", req.body.round_number ?? 1);
       res.json({ success: true, data });
     } catch (error) { next(error); }
   };
@@ -447,7 +446,7 @@ export class OutingController {
         req.params.optionId as string | undefined,
         req.query.round_number === undefined ? undefined : Number(req.query.round_number),
       );
-      await publishOutingChange(req.params.id as string);
+      await publishOutingChange(req.params.id as string, "outing", [], "outing:voting_round_updated", Number(req.query.round_number ?? 1));
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -462,7 +461,11 @@ export class OutingController {
         req.user.uid,
         req.body?.round_number,
       );
-      res.json({ success: true, data });
+      res.json({ success: true, data: {
+        ...data,
+        outing_id: data.outing.id,
+        confirmed_location_id: data.confirmed_location?.place_id ?? null,
+      } });
     } catch (error) {
       next(error);
     }
@@ -483,15 +486,22 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
-      await assertOutingAccess(id, req.user.uid);
-      const state = await this.votingState.execute(id);
+      const state = await this.votingState.execute(id, req.user.uid);
       const counts = new Map<string, number>();
       for (const vote of state.votes) counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
+      const { outing } = state;
+      const winner = state.options.find(option => option.id === outing.winning_option_id);
+      const fixedVenue = state.voting_state === "confirmed" && (outing.location_name || outing.location_place_id)
+        ? {
+            outing_id: id, place_id: outing.location_place_id, label: outing.location_name ?? "",
+            area: outing.location_area ?? "", image_url: outing.image_url,
+            latitude: outing.location_latitude, longitude: outing.location_longitude,
+          }
+        : null;
       res.json({ success: true, data: {
         ...state,
         outing_id: id,
-        can_resolve_tie: state.isTied && state.outing.created_by === req.user.uid,
-        confirmed_location: state.outing.winning_option_id ? state.options.find(o => o.id === state.outing.winning_option_id) ?? null : null,
+        confirmed_location: winner ?? fixedVenue,
         options: state.options.map((option) => ({ ...option, vote_count: state.isClosed ? option.persisted_vote_count : counts.get(option.id) ?? 0,
           })),
         my_option_ids: state.votes.filter((vote) => vote.user_id === req.user?.uid).map((vote) => vote.option_id),

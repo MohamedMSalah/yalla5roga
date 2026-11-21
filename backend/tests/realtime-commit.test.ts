@@ -21,6 +21,6 @@ test("group creation broadcasts only after successful persistence", async () => 
     return { id: "group" };
   } } as never);
   await committed.create(request, response, (error) => { throw error; });
-  assert.equal(events.length, 1);
-  assert.equal((events[0] as { kind: string }).kind, "group");
+  assert.deepEqual(events.map(event => (event as { kind: string }).kind), ["group", "inbox"]);
+  bindChatEmitter(null);
 });

@@ -5,10 +5,12 @@ import { requirePlaceCurator } from "../../middleware/place-curator.middleware.j
 const router = Router(),
   controller = new CatalogController();
 router.get("/geojson", controller.geojson);
+router.get("/recommendations", controller.recommendations);
 router.get("/licenses", controller.licenses);
 router.get("/categories", controller.categories);
 router.get("/vibes", controller.vibes);
 router.get("/version", controller.version);
+router.get("/changes", controller.changes);
 router.get(
   "/sync/status",
   authMiddleware,

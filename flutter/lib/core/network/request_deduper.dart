@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
 
 /// Reuses an in-flight Future for identical request keys.
@@ -29,7 +28,7 @@ class RequestDeduper {
   }) {
     final existing = _inFlight[key];
     if (existing != null) {
-      if (kDebugMode) {
+      if (RequestDiagnostics.enabled) {
         _diagnostics.recordLocal(
           method: method,
           endpoint: endpoint ?? key,
@@ -61,11 +60,7 @@ class RequestDeduper {
     if (query != null && query.isNotEmpty) {
       final keys = query.keys.toList()..sort();
       buffer.write('?');
-      buffer.write(
-        [
-          for (final k in keys) '$k=${query[k]}',
-        ].join('&'),
-      );
+      buffer.write([for (final k in keys) '$k=${query[k]}'].join('&'));
     }
     return buffer.toString();
   }

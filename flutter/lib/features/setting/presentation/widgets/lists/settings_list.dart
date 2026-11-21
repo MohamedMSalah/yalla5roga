@@ -9,38 +9,53 @@ class SettingsList extends StatelessWidget {
     required this.title,
     required this.children,
     this.action,
+    this.icon,
   });
 
   final String title;
   final List<Widget> children;
   final Widget? action;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    return AppCard(
-      child: Column(
-        children: [
-          Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: Responsive.fontBody,
-                  ),
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: context.palette.brandSoft,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  icon ?? Icons.settings_outlined,
+                  size: 18,
+                  color: context.palette.brandStrong,
                 ),
               ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(title, style: context.texts.titleMedium)),
               ?action,
             ],
           ),
-          12.gapH,
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) Divider(height: 20.h, color: context.palette.border),
-            children[i],
-          ],
-        ],
-      ),
+        ),
+        AppCard(
+          padding: const EdgeInsetsDirectional.fromSTEB(12, 3, 12, 3),
+          child: Column(
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0) const Divider(indent: 0, endIndent: 0, height: 1),
+                children[i],
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

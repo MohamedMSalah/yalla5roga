@@ -36,6 +36,20 @@ class YallaMapCameraManager {
     }
   }
 
+  Future<void> resetOrientation() async {
+    final map = native;
+    final current = position ?? map?.cameraPosition;
+    if (map == null || current == null) return;
+    final update = ml.CameraUpdate.newCameraPosition(
+      ml.CameraPosition(target: current.target, zoom: current.zoom),
+    );
+    if (reduceMotion) {
+      await map.moveCamera(update);
+    } else {
+      await map.animateCamera(update, duration: AppMotion.emphasis);
+    }
+  }
+
   Future<void> fit(List<LatLng> points, EdgeInsets padding) async {
     if (native == null || points.isEmpty) return;
     if (points.every((p) => p == points.first)) {

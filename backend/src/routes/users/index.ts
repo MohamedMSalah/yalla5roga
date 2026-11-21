@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import userFcmRoutes from "./user.fcm.routes.js";
 import userProfileRoutes from "./user.profile.routes.js";
@@ -13,6 +14,6 @@ api.use(userFcmRoutes);
 api.use(userProfileRoutes);
 
 const router = Router();
-router.use("/api/users", api);
+mountRoutes(router, "/api/users", api);
 
 export default router;

@@ -190,20 +190,20 @@ describe("user directory query", () => {
 
 describe("notification pagination query", () => {
   it("keeps the legacy request valid", () => {
-    assert.deepEqual(listNotificationsQuerySchema.parse({}), {});
+    assert.deepEqual(listNotificationsQuerySchema.parse({}), { limit: 20 });
   });
 
-  it("coerces limit and accepts a uuid cursor", () => {
-    const cursor = "33333333-3333-4333-8333-333333333333";
+  it("coerces limit and passes the opaque cursor to the paging service", () => {
+    const cursor = "opaque-page-cursor";
     assert.deepEqual(
       listNotificationsQuerySchema.parse({ limit: "25", cursor }),
       { limit: 25, cursor },
     );
   });
 
-  it("rejects out-of-range limits and non-uuid cursors", () => {
+  it("rejects out-of-range limits and oversized cursors", () => {
     assert.throws(() => listNotificationsQuerySchema.parse({ limit: "0" }));
     assert.throws(() => listNotificationsQuerySchema.parse({ limit: "101" }));
-    assert.throws(() => listNotificationsQuerySchema.parse({ cursor: "not-a-uuid" }));
+    assert.throws(() => listNotificationsQuerySchema.parse({ cursor: "x".repeat(513) }));
   });
 });

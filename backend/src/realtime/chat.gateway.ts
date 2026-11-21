@@ -1,3 +1,5 @@
+import { observeSocketAck } from "../monitoring/socket.js";
+import { increment } from "../monitoring/metrics.js";
 import type { Server, Socket } from "socket.io";
 import { z } from "zod";
 import { assertChatParticipant } from "../services/chat/chat-access.js";
@@ -34,7 +36,8 @@ export function registerChatGateway(io: Server): void {
     // intent before awaiting so a late join cannot resurrect a closed screen.
     const joins = new Map<string, object>();
     socket.on("disconnect", () => joins.clear());
-    socket.on("outing:join", async (raw: unknown, ack?: unknown) => {
+    socket.on("outing:join", async (raw: unknown, callback?: unknown) => {
+      const ack = observeSocketAck("outing:join", callback);
       const uid = uidOf(socket);
       if (!uid) {
         safeAck(ack, { ok: false, error: "UNAUTHORIZED" });
@@ -49,6 +52,7 @@ export function registerChatGateway(io: Server): void {
 
       const { outingId } = parsed.data;
       const intent = {};
+      if (joins.has(outingId)) increment("socket_overlapping_joins_total", { event: "outing:join" });
       joins.set(outingId, intent);
       try {
         await assertChatParticipant(outingId, uid);
@@ -71,7 +75,8 @@ export function registerChatGateway(io: Server): void {
       safeAck(ack, { ok: true, room });
     });
 
-    socket.on("outing:leave", async (raw: unknown, ack?: unknown) => {
+    socket.on("outing:leave", async (raw: unknown, callback?: unknown) => {
+      const ack = observeSocketAck("outing:leave", callback);
       const parsed = outingIdSchema.safeParse(raw);
       if (!parsed.success) {
         safeAck(ack, { ok: false, error: "INVALID_OUTING_ID" });

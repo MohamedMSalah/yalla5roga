@@ -1,0 +1,920 @@
+{
+  "uid": "yalla-api-overview",
+  "title": "Yalla 5roga API and Mobile",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": [
+    "yalla5roga"
+  ],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "environment",
+        "label": "Environment",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "yalla-prometheus"
+        },
+        "definition": "label_values(yalla_http_requests_total, environment)",
+        "query": {
+          "query": "label_values(yalla_http_requests_total, environment)",
+          "refId": "variable-environment"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "endpoint",
+        "label": "Endpoint",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "yalla-prometheus"
+        },
+        "definition": "label_values(yalla_http_requests_total, endpoint)",
+        "query": {
+          "query": "label_values(yalla_http_requests_total, endpoint)",
+          "refId": "variable-endpoint"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "method",
+        "label": "Method",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "yalla-prometheus"
+        },
+        "definition": "label_values(yalla_http_requests_total, method)",
+        "query": {
+          "query": "label_values(yalla_http_requests_total, method)",
+          "refId": "variable-method"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "status",
+        "label": "Status",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "yalla-prometheus"
+        },
+        "definition": "label_values(yalla_http_requests_total, status)",
+        "query": {
+          "query": "label_values(yalla_http_requests_total, status)",
+          "refId": "variable-status"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 2,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total requests in range",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(yalla_http_requests_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range]))",
+          "legendFormat": "requests",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Request rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(yalla_http_requests_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval]))",
+          "legendFormat": "requests/s",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(yalla_http_requests_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval])) * 60",
+          "legendFormat": "requests/min",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Requests by endpoint",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, endpoint) (increase(yalla_http_requests_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range]))",
+          "legendFormat": "{{method}} {{endpoint}}",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Endpoint latency percentiles",
+      "type": "timeseries",
+      "description": "Minimum selected-range samples per endpoint are 50 for P50/P95 and 200 for P99. Histograms approximate percentiles.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le, method, endpoint) (rate(yalla_http_duration_seconds_bucket{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval]))) and on (method, endpoint) (sum by (method, endpoint) (increase(yalla_http_duration_seconds_count{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range])) >= 50)",
+          "legendFormat": "P50 {{method}} {{endpoint}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le, method, endpoint) (rate(yalla_http_duration_seconds_bucket{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval]))) and on (method, endpoint) (sum by (method, endpoint) (increase(yalla_http_duration_seconds_count{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range])) >= 50)",
+          "legendFormat": "P95 {{method}} {{endpoint}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le, method, endpoint) (rate(yalla_http_duration_seconds_bucket{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval]))) and on (method, endpoint) (sum by (method, endpoint) (increase(yalla_http_duration_seconds_count{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range])) >= 200)",
+          "legendFormat": "P99 {{method}} {{endpoint}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Slowest APIs by P95",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, method, endpoint) (rate(yalla_http_duration_seconds_bucket{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval]))) and on (method, endpoint) (sum by (method, endpoint) (increase(yalla_http_duration_seconds_count{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range])) >= 50))",
+          "legendFormat": "{{method}} {{endpoint}}",
+          "range": false,
+          "instant": true,
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Client and server P95, sampled mobile",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, method, endpoint) (rate(yalla_mobile_duration_seconds_bucket{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval]))) and on (method, endpoint) (sum by (method, endpoint) (increase(yalla_mobile_duration_seconds_count{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range])) >= 50)",
+          "legendFormat": "client {{method}} {{endpoint}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le, method, endpoint) (rate(yalla_mobile_server_header_seconds_bucket{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__rate_interval]))) and on (method, endpoint) (sum by (method, endpoint) (increase(yalla_mobile_server_header_seconds_count{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[$__range])) >= 50)",
+          "legendFormat": "app header {{method}} {{endpoint}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "HTTP errors by status",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, endpoint, status) (rate(yalla_http_requests_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\",status=~\"[45]..\"}[$__rate_interval]))",
+          "legendFormat": "{{status}} {{method}} {{endpoint}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Timeouts and aborts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(yalla_http_timeouts_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\"}[$__rate_interval]))",
+          "legendFormat": "timeouts/s",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(yalla_http_aborted_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\"}[$__rate_interval]))",
+          "legendFormat": "aborts/s",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Potential duplicate request rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, endpoint, trigger) (rate(yalla_http_potential_duplicates_total{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\"}[$__rate_interval]))",
+          "legendFormat": "{{method}} {{endpoint}} {{trigger}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Database calls per request",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (method, endpoint) (rate(yalla_http_db_operations_sum{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\"}[$__rate_interval])) / clamp_min(sum by (method, endpoint) (rate(yalla_http_db_operations_count{environment=~\"$environment\",endpoint=~\"$endpoint\",method=~\"$method\"}[$__rate_interval])), 1e-9)",
+          "legendFormat": "{{method}} {{endpoint}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Database latency P95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(yalla_db_engine_query_seconds_bucket{environment=~\"$environment\"}[$__rate_interval])))",
+          "legendFormat": "Prisma engine SQL",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(yalla_db_operation_seconds_bucket{environment=~\"$environment\"}[$__rate_interval])))",
+          "legendFormat": "Prisma Client operation",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(yalla_db_transaction_seconds_bucket{environment=~\"$environment\"}[$__rate_interval])))",
+          "legendFormat": "transaction",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "SQL and slow operation rates",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(yalla_db_engine_query_seconds_count{environment=~\"$environment\"}[$__rate_interval]))",
+          "legendFormat": "SQL statements",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (band) (rate(yalla_db_slow_operations_total{environment=~\"$environment\"}[$__rate_interval]))",
+          "legendFormat": "{{band}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(yalla_db_pool_timeouts_total{environment=~\"$environment\"}[$__rate_interval]))",
+          "legendFormat": "pool acquisition timeouts",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Cache operation rates",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (layer, status) (rate(yalla_cache_operations_total{environment=~\"$environment\"}[$__rate_interval]))",
+          "legendFormat": "{{layer}} {{status}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "title": "Socket connections and rooms",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "yalla_socket_connections{environment=~\"$environment\"}",
+          "legendFormat": "transport",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "yalla_socket_authenticated{environment=~\"$environment\"}",
+          "legendFormat": "authenticated",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "yalla_socket_rooms{environment=~\"$environment\"}",
+          "legendFormat": "rooms",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "D",
+          "expr": "yalla_socket_room_memberships{environment=~\"$environment\"}",
+          "legendFormat": "memberships",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Socket events and reconnects",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (direction, event) (rate(yalla_socket_events_total{environment=~\"$environment\"}[$__rate_interval]))",
+          "legendFormat": "{{direction}} {{event}}",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(yalla_socket_reconnects_total{environment=~\"$environment\"}[$__rate_interval]))",
+          "legendFormat": "reconnects",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Process CPU utilization",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(yalla_process_cpu_seconds_total{environment=~\"$environment\"}[$__rate_interval]) * 100",
+          "legendFormat": "% of one core",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Process memory",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "yalla_process_rss_bytes{environment=~\"$environment\"}",
+          "legendFormat": "RSS",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "yalla_process_heap_bytes{environment=~\"$environment\"}",
+          "legendFormat": "JS heap",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Event loop lag",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "yalla_event_loop_p99_seconds{environment=~\"$environment\"}",
+          "legendFormat": "P99 since process start",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Active HTTP requests",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "yalla_http_active{environment=~\"$environment\"}",
+          "legendFormat": "in flight",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "title": "Database and job health",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 72,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "yalla_db_available{environment=~\"$environment\"}",
+          "legendFormat": "last DB probe result (1 = up)",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "B",
+          "expr": "yalla_jobs_failed{environment=~\"$environment\"}",
+          "legendFormat": "failed job ticks",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        },
+        {
+          "refId": "C",
+          "expr": "yalla_jobs_running{environment=~\"$environment\"}",
+          "legendFormat": "jobs running",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "API uptime",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "yalla-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 80,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "yalla_process_uptime_seconds{environment=~\"$environment\"}",
+          "legendFormat": "process uptime",
+          "range": true,
+          "instant": false,
+          "format": "time_series"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      }
+    }
+  ]
+}

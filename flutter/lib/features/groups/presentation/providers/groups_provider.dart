@@ -21,6 +21,8 @@ import 'package:yalla_5roga/features/groups/domain/repositories/groups_repositor
 import 'package:yalla_5roga/features/groups/presentation/widgets/add_member_phone_sheet.dart';
 import 'package:yalla_5roga/features/shell/presentation/providers/shell_provider.dart';
 
+enum GroupsFilter { all, mostActive, recentlyCreated }
+
 class GroupsProvider extends ChangeNotifier {
   GroupsProvider({
     required this.repository,
@@ -36,20 +38,22 @@ class GroupsProvider extends ChangeNotifier {
   bool get isDeletingGroup => _isDeletingGroup;
   var _groups = <Group>[];
   int _unreadGroupCount = 0;
-  int _filter = 0;
+  GroupsFilter _filter = GroupsFilter.all;
   var _searching = false;
   var _query = '';
   String? _createImage;
   final _createPhones = <String>[];
   var _isLoading = false;
   var _isLeaving = false;
+  var _confirmingExit = false;
   var _isCreating = false;
   var _hasLoaded = false;
+  var _hasGroupsSnapshot = false;
   String? _errorMessage;
   var _epoch = 0;
   var _accountEpoch = 0;
   final _openGroups = <String, int>{};
-  final _loadedRosters = <String>{};
+  final _groupAccessRevisions = <String, int>{};
   Iterable<String> get openGroupIds => _openGroups.keys;
 
   void openGroup(String id) =>
@@ -64,7 +68,10 @@ class GroupsProvider extends ChangeNotifier {
     }
   }
 
-  List<Group> get groups => List.unmodifiable(_groups);
+  List<Group> _groupsView = const [];
+  Map<String, Group> _groupsById = const {};
+
+  List<Group> get groups => _groupsView;
 
   int get unreadGroupCount => _unreadGroupCount;
 
@@ -78,9 +85,11 @@ class GroupsProvider extends ChangeNotifier {
 
   bool get isInitialLoading => !_hasLoaded;
 
+  bool get hasGroupsSnapshot => _hasGroupsSnapshot;
+
   String? get errorMessage => _errorMessage;
 
-  int get filter => _filter;
+  GroupsFilter get filter => _filter;
 
   bool get searching => _searching;
 
@@ -98,26 +107,104 @@ class GroupsProvider extends ChangeNotifier {
 
   GroupMember? memberByPhone(String phone) => repository.memberByPhone(phone);
 
-  List<Group> get visible {
+  (List<Group>, String)? _searchInput;
+  List<Group> _searchResults = const [];
+
+  List<Group> get matchingGroups {
     final needle = _query.trim().toLowerCase();
-    final items = [
-      for (final group in _groups)
-        if ((_filter != 2 || group.isOwner) &&
-            (needle.isEmpty || group.name.toLowerCase().contains(needle)))
-          group,
-    ];
-    if (_filter == 1) {
-      items.sort((a, b) => b.outingCount.compareTo(a.outingCount));
+    final input = (groups, needle);
+    if (input == _searchInput) return _searchResults;
+    _searchInput = input;
+    return _searchResults = needle.isEmpty
+        ? groups
+        : List.unmodifiable(
+            groups.where(
+              (group) =>
+                  group.name.toLowerCase().contains(needle) ||
+                  group.bio.toLowerCase().contains(needle),
+            ),
+          );
+  }
+
+  (List<Group>, GroupsFilter, Map<String, int>?)? _orderInput;
+  List<String> _visibleIds = const [];
+
+  List<String> visibleGroupIds(Map<String, int>? outingCounts) {
+    final counts = _filter == GroupsFilter.mostActive ? outingCounts : null;
+    final matches = matchingGroups;
+    final input = (matches, _filter, counts);
+    if (input == _orderInput) return _visibleIds;
+    _orderInput = input;
+    final order = matches.indexed.toList();
+    if (_filter == GroupsFilter.recentlyCreated || counts != null) {
+      order.sort((a, b) {
+        final (indexA, groupA) = a;
+        final (indexB, groupB) = b;
+        final result = counts != null
+            ? (counts[groupB.id] ?? 0).compareTo(counts[groupA.id] ?? 0)
+            : _newestFirst(groupA.createdAt, groupB.createdAt);
+        return result == 0 ? indexA.compareTo(indexB) : result;
+      });
     }
-    return items;
+    return _visibleIds = List.unmodifiable(order.map((entry) => entry.$2.id));
+  }
+
+  static int _newestFirst(DateTime? a, DateTime? b) {
+    if (a == null) return b == null ? 0 : 1;
+    return b == null ? -1 : b.compareTo(a);
+  }
+
+  (List<Group>, String?)? _summaryInput;
+  int? _friendsCount;
+
+  int? uniqueFriendsCount(String? userId) {
+    final input = (groups, userId);
+    if (input == _summaryInput) return _friendsCount;
+    _summaryInput = input;
+    return _friendsCount = _countFriends(userId);
+  }
+
+  int? _countFriends(String? userId) {
+    if (userId == null) return null;
+    final friends = <String>{};
+    for (final group in groups) {
+      final rosterIds = {
+        for (final member in group.members)
+          if (!member.isPending &&
+              member.id.isNotEmpty &&
+              !member.id.startsWith('preview_'))
+            member.id,
+      };
+      final count = group.acceptedMemberCount;
+      final accepted = rosterIds.length == count
+          ? rosterIds
+          : group.cachedAcceptedMemberIds.toSet();
+      if (accepted.length != count || !accepted.remove(userId)) {
+        return null;
+      }
+      friends.addAll(accepted);
+    }
+    return friends.length;
+  }
+
+  @override
+  void notifyListeners() {
+    if (!listEquals(_groupsView, _groups)) {
+      _groupsView = List.unmodifiable(_groups);
+      _groupsById = {for (final group in _groups) group.id: group};
+    }
+    super.notifyListeners();
   }
 
   Group? findById(String id) {
+    // Mutations may look up a group before publishing their new view.
     for (final group in _groups) {
       if (group.id == id) return group;
     }
     return null;
   }
+
+  Group? listedGroup(String id) => _groupsById[id];
 
   Group byId(String id) =>
       findById(id) ?? (_groups.isNotEmpty ? _groups.first : _emptyGroup(id));
@@ -132,22 +219,17 @@ class GroupsProvider extends ChangeNotifier {
     bool allowStale = true,
   }) async {
     final epoch = _epoch;
+    final revision = _groupAccessRevisions[groupId];
+    bool isCurrent() =>
+        epoch == _epoch && revision == _groupAccessRevisions[groupId];
     final existing = findById(groupId);
-    if (allowStale &&
-        !forceRefresh &&
-        _loadedRosters.contains(groupId) &&
-        existing != null &&
-        existing.members.isNotEmpty) {
-      return existing;
-    }
-
     if (allowStale &&
         !OfflineSnapshots.cacheOnly &&
         (existing == null || existing.members.isEmpty)) {
       final preview = await OfflineSnapshots.preview(
         () => repository.getGroup(groupId, forceRefresh: true),
       );
-      if (epoch != _epoch) return null;
+      if (!isCurrent()) return null;
       preview.fold((_) {}, (group) {
         if (findById(groupId) == null) {
           _groups = [group, ..._groups];
@@ -162,19 +244,17 @@ class GroupsProvider extends ChangeNotifier {
       forceRefresh: forceRefresh,
       allowStale: allowStale,
     );
-    if (epoch != _epoch) return null;
+    if (!isCurrent()) return null;
     return result.fold(
       (failure) {
         if (failure.statusCode == 403 || failure.statusCode == 404) {
-          _loadedRosters.remove(groupId);
-          _groups.removeWhere((item) => item.id == groupId);
+          _discardGroup(groupId);
           notifyListeners();
           return null;
         }
         return allowStale ? findById(groupId) : null;
       },
       (group) {
-        if (!OfflineSnapshots.cacheOnly) _loadedRosters.add(groupId);
         final index = _groups.indexWhere((item) => item.id == groupId);
         if (index < 0) {
           _groups = [group, ..._groups];
@@ -187,9 +267,18 @@ class GroupsProvider extends ChangeNotifier {
     );
   }
 
+  void _discardGroup(String groupId) {
+    _groupAccessRevisions.update(
+      groupId,
+      (revision) => revision + 1,
+      ifAbsent: () => 1,
+    );
+    _groups.removeWhere((item) => item.id == groupId);
+  }
+
   Future<void> loadGroups({bool forceRefresh = false}) async {
     final epoch = _epoch;
-    if (forceRefresh) _loadedRosters.clear();
+    final revisions = Map.of(_groupAccessRevisions);
     final result = await repository.getGroups(forceRefresh: forceRefresh);
     if (epoch != _epoch) return;
     if (OfflineSnapshots.cacheOnly && result.isLeft()) return;
@@ -206,17 +295,24 @@ class GroupsProvider extends ChangeNotifier {
         final existing = {for (final group in _groups) group.id: group};
         _groups = [
           for (final group in groups)
-            if (existing[group.id] case final previous?)
-              group.copyWith(
-                members: group.listedMemberCount == previous.memberCount
-                    ? previous.members
-                    : const [],
-                pendingMembers: previous.pendingMembers,
-                invitationHistory: previous.invitationHistory,
-              )
-            else
-              group,
+            if (revisions[group.id] == _groupAccessRevisions[group.id])
+              if (existing[group.id] case final previous?)
+                group.copyWith(
+                  members:
+                      group.members.isEmpty &&
+                          group.listedMemberCount ==
+                              previous.acceptedMemberCount
+                      ? previous.members
+                      : group.members,
+                  pendingMembers: previous.pendingMembers,
+                  invitationHistory: previous.invitationHistory,
+                )
+              else
+                group,
+          for (final group in existing.values)
+            if (revisions[group.id] != _groupAccessRevisions[group.id]) group,
         ];
+        _hasGroupsSnapshot = true;
         _errorMessage = null;
       },
     );
@@ -224,7 +320,7 @@ class GroupsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setFilter(int value) {
+  void setFilter(GroupsFilter value) {
     if (_filter == value) return;
     _filter = value;
     notifyListeners();
@@ -280,6 +376,12 @@ class GroupsProvider extends ChangeNotifier {
       GroupRole.member => l10n.member,
     };
   }
+
+  bool canParticipate(Group group, String? accountId) =>
+      accountId != null &&
+      group.members.any(
+        (member) => member.id == accountId && !member.isPending,
+      );
 
   bool canManage(Group group) => group.cuserRole == GroupRole.owner;
 
@@ -544,32 +646,37 @@ class GroupsProvider extends ChangeNotifier {
     return ok;
   }
 
-  Future<void> confirmLeaveGroup(String groupId) async {
+  Future<void> confirmLeaveGroup(
+    String groupId, {
+    required bool delete,
+    VoidCallback? onSuccess,
+  }) async {
     final l10n = _l10n;
-    if (l10n == null) return;
+    final group = findById(groupId);
+    if (l10n == null || group == null || _isLeaving || _confirmingExit) return;
 
-    final confirmed = await AppAlert.confirm(
-      title: l10n.leaveGroupTitle,
-      message:
-          findById(groupId)?.isOwner == true &&
-              findById(groupId)?.memberCount == 1
-          ? l10n.leaveSoleOwnerMessage
-          : l10n.leaveGroupMessage,
-      confirmText: l10n.leaveGroup,
-      cancelText: l10n.cancel,
-      destructive: true,
-    );
-    if (!confirmed) return;
-
-    final ok = await leaveGroup(groupId);
-    if (!ok) {
-      // Failures already surface via AppErrorFeedback in leaveGroup.
-      return;
+    final epoch = _accountEpoch;
+    _confirmingExit = true;
+    try {
+      final confirmed = await AppAlert.confirm(
+        title: delete ? l10n.deleteGroup : l10n.leaveGroupTitle,
+        message: l10n.groupExitMessage(group.name, delete: delete),
+        confirmText: delete ? l10n.deleteGroup : l10n.leaveGroup,
+        cancelText: l10n.cancel,
+        destructive: true,
+      );
+      if (!confirmed || epoch != _accountEpoch || findById(groupId) == null) {
+        return;
+      }
+      final ok = await leaveGroup(groupId, expectedDelete: delete);
+      if (!ok || epoch != _accountEpoch) return;
+      onSuccess?.call();
+      AppSnackBar.show(delete ? l10n.groupDeleted : l10n.leftGroup);
+      shell.setIndex(1);
+      Get.until((route) => route.isFirst);
+    } finally {
+      if (epoch == _accountEpoch) _confirmingExit = false;
     }
-
-    AppSnackBar.show(l10n.leftGroup);
-    shell.setIndex(1);
-    Get.until((route) => route.isFirst);
   }
 
   Future<bool> updateImage(String groupId, String url) =>
@@ -717,7 +824,7 @@ class GroupsProvider extends ChangeNotifier {
 
   /// The sole owner leaves through the existing delete API; other members use
   /// ordinary leave, retaining backend last-owner and historical-outing guards.
-  Future<bool> leaveGroup(String groupId) async {
+  Future<bool> leaveGroup(String groupId, {bool? expectedDelete}) async {
     if (_isLeaving) return false;
     _isLeaving = true;
     _errorMessage = null;
@@ -729,11 +836,7 @@ class GroupsProvider extends ChangeNotifier {
       forceRefresh: true,
       allowStale: false,
     );
-    if (epoch != _accountEpoch) {
-      _isLeaving = false;
-      notifyListeners();
-      return false;
-    }
+    if (epoch != _accountEpoch) return false;
     final current = fetched.fold<Group?>((failure) {
       _errorMessage = AppErrorFeedback.messageOf(failure);
       AppErrorFeedback.report(
@@ -752,14 +855,19 @@ class GroupsProvider extends ChangeNotifier {
         canManage(current) &&
         current.members.length == 1 &&
         current.members.single.role == GroupRole.owner;
-    final result = soleOwner
-        ? await repository.deleteGroup(groupId)
-        : await repository.leaveGroup(groupId);
-    if (epoch != _accountEpoch) {
+    if (expectedDelete != null && expectedDelete != soleOwner) {
+      final index = _groups.indexWhere((group) => group.id == groupId);
+      if (index >= 0) _groups[index] = current;
       _isLeaving = false;
+      final message = _l10n?.groupExitChanged;
+      if (message != null) AppSnackBar.show(message);
       notifyListeners();
       return false;
     }
+    final result = soleOwner
+        ? await repository.deleteGroup(groupId)
+        : await repository.leaveGroup(groupId);
+    if (epoch != _accountEpoch) return false;
     final ok = result.fold(
       (failure) {
         _errorMessage = AppErrorFeedback.messageOf(failure);
@@ -771,10 +879,7 @@ class GroupsProvider extends ChangeNotifier {
         return false;
       },
       (_) {
-        _groups = [
-          for (final item in _groups)
-            if (item.id != groupId) item,
-        ];
+        _discardGroup(groupId);
         return true;
       },
     );
@@ -809,14 +914,19 @@ class GroupsProvider extends ChangeNotifier {
     _accountEpoch++;
     repository.clearCache();
     _openGroups.clear();
-    _loadedRosters.clear();
+    _groupAccessRevisions.clear();
     _unreadGroupCount = 0;
     _groups = [];
+    _query = '';
+    _filter = GroupsFilter.all;
+    _searching = false;
     _isLoading = false;
     _isLeaving = false;
+    _confirmingExit = false;
     _isDeletingGroup = false;
     _isCreating = false;
     _hasLoaded = false;
+    _hasGroupsSnapshot = false;
     _errorMessage = null;
     notifyListeners();
   }

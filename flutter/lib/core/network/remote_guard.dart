@@ -8,6 +8,7 @@ import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/monitoring/crashlytics_service.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_scope.dart';
 
 /// Maps remote exceptions → [Failure] once. Crashlytics + blueprint logging
 /// happen here so providers can show snackbars without duplicating reports.
@@ -32,21 +33,28 @@ Future<Either<Failure, T>> guardRemote<T>(
       );
       return Left(failure);
     }
-    return Right(await action());
-  } on AppException catch (error, stack) {
-    if (OfflineSnapshots.cacheOnly) return Left(ExceptionMapper.toFailure(error));
-    ErrorBlueprintLogger.log(
-      error: error,
-      stackTrace: stack,
-      context: ctx.copyWith(
-        httpMethod: error.httpMethod,
-        endpoint: error.endpoint,
-        statusCode: error.statusCode,
+    return Right(
+      await RequestScope.run(
+        action,
+        feature: ctx.feature,
+        origin: ctx.layer,
+        operation: ctx.operation,
+        trigger: switch (reason) {
+          'discoverViewport' => 'viewport_changed',
+          _ => null,
+        },
       ),
     );
+  } on AppException catch (error, stack) {
+    if (OfflineSnapshots.cacheOnly) {
+      return Left(ExceptionMapper.toFailure(error));
+    }
+    if (error.statusCode == null && error is! NetworkException) {
+      ErrorBlueprintLogger.log(error: error, context: ctx);
+    }
     if (error is! NetworkException && error is! AuthException) {
       await CrashlyticsService.instance.recordError(
-        error,
+        StateError(error.runtimeType.toString()),
         stack,
         reason: reason ?? 'remote_app_exception',
       );
@@ -55,7 +63,7 @@ Future<Either<Failure, T>> guardRemote<T>(
   } catch (error, stack) {
     ErrorBlueprintLogger.log(error: error, stackTrace: stack, context: ctx);
     await CrashlyticsService.instance.recordError(
-      error,
+      StateError(error.runtimeType.toString()),
       stack,
       reason: reason ?? 'remote_unexpected',
     );

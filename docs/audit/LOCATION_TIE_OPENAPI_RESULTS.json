@@ -1,7 +1,7 @@
 {
-  "checkedAt": "2026-11-15T17:17:53.208Z",
+  "checkedAt": "2026-11-21T09:52:30.497Z",
   "engine": "Local PostgreSQL/WASM",
-  "mode": "Served Swagger HTTP, controlled Firebase verifier; no production writes, Flutter or workers",
+  "mode": "Served Swagger HTTP, controlled authentication, deadline worker invoked directly and local Socket.IO delivery",
   "results": [
     {
       "scenario": "All migrations apply in isolated local schema",
@@ -12,7 +12,15 @@
       "result": "PASS"
     },
     {
+      "scenario": "Pre-migration outing, winner, ballot and RSVP survive round-one backfill",
+      "result": "PASS"
+    },
+    {
       "scenario": "Clear winner automatically confirmed; multiple location selection supported",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Older single-venue outings do not block deadline processing",
       "result": "PASS"
     },
     {
@@ -28,7 +36,15 @@
       "result": "PASS"
     },
     {
+      "scenario": "Permission flag is creator-only and inaccessible voting resources return 404",
+      "result": "PASS"
+    },
+    {
       "scenario": "Revote contains only tied locations, zero new votes and preserved history",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Ordinary outing edits cannot clear a revote deadline",
       "result": "PASS"
     },
     {
@@ -68,6 +84,10 @@
       "result": "PASS"
     },
     {
+      "scenario": "Already confirmed fixed venues are returned with no tie actions",
+      "result": "PASS"
+    },
+    {
       "scenario": "Invalid deadline and cancelled outing rejected",
       "result": "PASS"
     },
@@ -92,6 +112,10 @@
       "result": "PASS"
     },
     {
+      "scenario": "Manual confirmation cannot bypass an expired competitive vote before the worker runs",
+      "result": "PASS"
+    },
+    {
       "scenario": "Completed outing cannot resolve a tie",
       "result": "PASS"
     },
@@ -101,6 +125,14 @@
     },
     {
       "scenario": "Retry creates no duplicate notification events",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Creator and member notifications are persisted with correct actions and outing links",
+      "result": "PASS"
+    },
+    {
+      "scenario": "Swagger mutations deliver consistent voting events to an authenticated fixture member, with one winner event on retry",
       "result": "PASS"
     }
   ]

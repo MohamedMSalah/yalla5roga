@@ -4,8 +4,55 @@ import type { CatalogQuery } from "../../validators/places/catalog.validator.js"
 import { nearbySearchBounds } from "../../services/places/nearby-search-bounds.js";
 import { decodeCatalogCursor, encodeCatalogCursor } from "../../services/places/catalog-cursor.js";
 
+const recommendationFields = Prisma.sql`p.id,p.name,p.name_ar,p.name_en,p.area,p.vibe,
+  coalesce(nullif(p.cover_image_url,''), (
+    SELECT i.image_url FROM place_images i
+    WHERE i.place_id=p.id ORDER BY i.sort_order,i.id LIMIT 1
+  ),'') AS cover_image_url`;
+
 /** All predicates run in PostgreSQL; JSON relations are aggregated only for the page. */
 export class CatalogDatasource {
+  recommendations(limit: number) {
+    const pivot = crypto.randomUUID();
+    return prisma.$queryRaw<Array<Record<string, unknown>>>`
+      WITH head AS MATERIALIZED (
+        SELECT id, name, name_ar, name_en, area, vibe, cover_image_url
+        FROM places WHERE is_active AND status='active' AND id >= ${pivot}::uuid
+        ORDER BY id LIMIT ${limit}
+      ), sample AS (
+        SELECT * FROM head
+        UNION ALL
+        (SELECT id, name, name_ar, name_en, area, vibe, cover_image_url
+         FROM places WHERE is_active AND status='active' AND id < ${pivot}::uuid
+         ORDER BY id LIMIT (${limit}::int - (SELECT count(*)::int FROM head)))
+      )
+      SELECT ${recommendationFields} FROM sample p ORDER BY (p.id < ${pivot}::uuid),p.id`;
+  }
+
+  nearbyRecommendations(limit: number, lat: number, lng: number) {
+    const bounds = nearbySearchBounds(lat, lng, 5);
+    const longitude = bounds.longitudes.length
+      ? Prisma.sql`AND (${Prisma.join(bounds.longitudes.map(([west, east]) =>
+          Prisma.sql`longitude BETWEEN ${west}::float8 AND ${east}::float8`), " OR ")})`
+      : Prisma.empty;
+    return prisma.$queryRaw<Array<Record<string, unknown>>>`
+      WITH candidates AS MATERIALIZED (
+        SELECT id,name,name_ar,name_en,area,vibe,cover_image_url FROM places
+        WHERE is_active AND status='active'
+          AND latitude BETWEEN ${bounds.latitude[0]}::float8 AND ${bounds.latitude[1]}::float8
+          ${longitude}
+          AND longitude IS NOT NULL
+          AND sin(radians(latitude-${lat}::float8)/2)^2 +
+            cos(radians(${lat}::float8))*cos(radians(latitude)) *
+            sin(radians(longitude-${lng}::float8)/2)^2 <= sin(5.0/12742)^2
+        LIMIT 96
+      ), sample AS MATERIALIZED (
+        SELECT candidates.*,random() AS sample_order FROM candidates
+        ORDER BY sample_order LIMIT ${limit}
+      )
+      SELECT ${recommendationFields} FROM sample p ORDER BY p.sample_order`;
+  }
+
   syncHistory(limit: number, offset: number) {
     return prisma.place_sync_runs.findMany({
       take: limit,
@@ -26,7 +73,7 @@ export class CatalogDatasource {
     ];
     if (q.brand_id) conditions.push(Prisma.sql`p.brand_id=${q.brand_id}::uuid`);
     if (q.featured === "true") conditions.push(Prisma.sql`p.featured=true`);
-    if (q.vibe) conditions.push(Prisma.sql`p.vibe::text=${q.vibe}`);
+    if (q.vibe) conditions.push(Prisma.sql`p.vibe=${q.vibe}::outing_vibe`);
     if (q.categories.length)
       conditions.push(
         Prisma.sql`p.category_id IN (${Prisma.join(q.categories)})`,
@@ -42,10 +89,15 @@ export class CatalogDatasource {
         Prisma.sql`(p.name ILIKE ${term} OR p.name_ar ILIKE ${term} OR p.name_en ILIKE ${term} OR p.area ILIKE ${term} OR p.address ILIKE ${term})`,
       );
     }
-    if (q.bbox)
+    if (q.bbox) {
+      const [west, south, east, north] = q.bbox;
+      const longitude = west! < east!
+        ? Prisma.sql`p.longitude BETWEEN ${west}::float8 AND ${east}::float8`
+        : Prisma.sql`(p.longitude >= ${west}::float8 OR p.longitude <= ${east}::float8)`;
       conditions.push(
-        Prisma.sql`p.longitude BETWEEN ${q.bbox[0]}::float8 AND ${q.bbox[2]}::float8 AND p.latitude BETWEEN ${q.bbox[1]}::float8 AND ${q.bbox[3]}::float8`,
+        Prisma.sql`${longitude} AND p.latitude BETWEEN ${south}::float8 AND ${north}::float8`,
       );
+    }
     let distance = Prisma.sql`NULL::float8`;
     if (q.lat !== undefined && q.lng !== undefined) {
       distance = Prisma.sql`6371.0088*2*asin(least(1.0,sqrt(power(sin(radians(p.latitude-${q.lat}::float8)/2),2)+cos(radians(${q.lat}::float8))*cos(radians(p.latitude))*power(sin(radians(p.longitude-${q.lng}::float8)/2),2))))`;
@@ -72,27 +124,66 @@ export class CatalogDatasource {
     }
     const cursor = decodeCatalogCursor(q);
     if (cursor) {
-      if (q.sort === "updated") conditions.push(Prisma.sql`(p.updated_at < ${cursor.value}::timestamptz OR (p.updated_at = ${cursor.value}::timestamptz AND p.id > ${cursor.id}::uuid))`);
+      if (q.sort === "id") conditions.push(Prisma.sql`p.id > ${cursor.id}::uuid`);
+      else if (q.sort === "updated") conditions.push(Prisma.sql`p.updated_at <= ${cursor.value}::timestamptz AND (p.updated_at < ${cursor.value}::timestamptz OR p.id > ${cursor.id}::uuid)`);
       else if (q.sort === "name") conditions.push(Prisma.sql`(p.name > ${cursor.value} OR (p.name = ${cursor.value} AND p.id > ${cursor.id}::uuid))`);
       else conditions.push(Prisma.sql`(${distance} > ${cursor.value}::float8 OR (${distance} = ${cursor.value}::float8 AND p.id > ${cursor.id}::uuid))`);
     }
     const where = Prisma.join(conditions, " AND ");
     const order =
-      q.sort === "distance"
+      q.sort === "id" ? Prisma.sql`p.id ASC` : q.sort === "distance"
         ? Prisma.sql`distance_km ASC,p.id ASC`
         : q.sort === "name"
           ? Prisma.sql`p.name ASC,p.id ASC`
           : Prisma.sql`p.updated_at DESC,p.id ASC`;
-    const fields = markers ? Prisma.sql`p.id,p.name,p.name_ar,p.name_en,p.latitude,p.longitude,p.category_id,p.updated_at` : Prisma.sql`p.id,p.name,p.name_ar,p.name_en,p.area,p.vibe,p.description,coalesce(nullif(p.cover_image_url,''),(SELECT pi.image_url FROM place_images pi WHERE pi.place_id=p.id ORDER BY pi.sort_order,pi.id LIMIT 1),'') AS cover_image_url,coalesce(nullif(p.cover_image_url,''),(SELECT pi.image_url FROM place_images pi WHERE pi.place_id=p.id ORDER BY pi.sort_order,pi.id LIMIT 1),'') AS image_url,p.price_level,p.price_min,p.price_max,p.currency,p.latitude,p.longitude,p.featured,p.is_active,p.category_id,p.address,p.city,p.district,p.phone,p.website,p.opening_hours,p.source,p.source_id,p.source_type,p.status,p.last_synced_at,p.last_seen_at,p.created_at,p.updated_at`;
+    const markerFields = Prisma.sql`p.id,p.name,p.name_ar,p.name_en,p.latitude,p.longitude,p.category_id,p.updated_at`;
+    const compact = !markers && q.compact === "true" && q.details !== "true";
+    const cardFields = Prisma.sql`p.area,p.vibe,p.status,p.address,p.price_level`;
+    const catalogFields = compact ? cardFields : Prisma.sql`${cardFields},p.description,p.price_min,p.price_max,p.currency,
+      p.featured,p.is_active,p.city,p.district,p.phone,p.website,p.opening_hours,
+      p.last_synced_at,p.last_seen_at,p.created_at`;
+    const pageDetails = markers ? Prisma.empty : Prisma.sql`,${catalogFields},p.cover_image_url`;
+    const fields = markers ? markerFields : Prisma.sql`${markerFields},
+      ${catalogFields},
+      coalesce(nullif(p.cover_image_url,''),image.image_url,'') AS cover_image_url
+      ${compact ? Prisma.empty : Prisma.sql`,p.source,p.source_id,p.source_type,
+        coalesce(nullif(p.cover_image_url,''),image.image_url,'') AS image_url`}`;
+    const coverImage = markers ? Prisma.empty : Prisma.sql`
+      LEFT JOIN LATERAL (
+        SELECT pi.image_url FROM place_images pi
+        WHERE pi.place_id=p.id AND nullif(p.cover_image_url,'') IS NULL
+        ORDER BY pi.sort_order,pi.id LIMIT 1
+      ) image ON true`;
+    const details = !markers && q.details === "true" ? Prisma.sql`
+      ,coalesce((SELECT jsonb_agg(jsonb_build_object('image_url', i.image_url, 'caption', i.caption)
+        ORDER BY i.sort_order, i.id) FROM place_images i WHERE i.place_id=p.id),'[]'::jsonb) AS place_images
+      ,coalesce((SELECT jsonb_agg(jsonb_build_object('day', h.day, 'opens_at', h.opens_at,
+        'closes_at', h.closes_at, 'is_closed', h.is_closed)) FROM place_hours h WHERE h.place_id=p.id),'[]'::jsonb) AS place_hours
+      ,coalesce((SELECT jsonb_agg(jsonb_build_object('label', pr.label, 'amount', pr.amount,
+        'currency', pr.currency)) FROM place_prices pr WHERE pr.place_id=p.id),'[]'::jsonb) AS place_prices
+    ` : Prisma.empty;
     const rows = await prisma.$queryRaw<
       any[]
-    >`SELECT ${fields},p.id AS branch_id,p.branch_name,p.brand_id,
-      (SELECT b.name FROM place_brands b WHERE b.id=p.brand_id) AS brand_name,
-      coalesce((SELECT count(*)::int FROM places branches WHERE branches.brand_id=p.brand_id AND branches.is_active AND branches.status='active'),0) AS branch_count,
-      p.source || ':' || coalesce(p.source_type,'') AS external_source,p.source_id AS external_place_id,to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_updated_at,${distance} AS distance_km,
+    >`WITH page AS MATERIALIZED (
+        SELECT ${markerFields},p.branch_name,p.brand_id,p.source,p.source_id,p.source_type,
+          ${distance} AS distance_km${pageDetails}
+        FROM places p
+        WHERE ${where} ORDER BY ${order} LIMIT ${q.limit + 1} OFFSET ${q.offset}
+      ), brand_summaries AS MATERIALIZED (
+        SELECT b.id,b.name,
+          (SELECT count(*)::int FROM places branch
+           WHERE branch.brand_id=b.id AND branch.is_active AND branch.status='active') AS branch_count
+        FROM (SELECT DISTINCT brand_id FROM page WHERE brand_id IS NOT NULL) brands
+        JOIN place_brands b ON b.id=brands.brand_id
+      )
+      SELECT ${fields},p.id AS branch_id,p.branch_name,p.brand_id,
+      b.name AS brand_name,coalesce(b.branch_count,0) AS branch_count,
+      ${compact ? Prisma.empty : Prisma.sql`p.source || ':' || coalesce(p.source_type,'') AS external_source,p.source_id AS external_place_id,`}
+      to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_updated_at,p.distance_km,
       coalesce((SELECT jsonb_agg(pv.vibe_id ORDER BY pv.vibe_id) FROM place_vibes pv JOIN vibes v ON v.id=pv.vibe_id WHERE pv.place_id=p.id AND v.is_active),'[]'::jsonb) AS vibes,
-      (SELECT to_jsonb(c) FROM place_categories c WHERE c.id=p.category_id) AS category
-      FROM places p WHERE ${where} ORDER BY ${order} LIMIT ${q.limit + 1} OFFSET ${q.offset}`;
+      ${compact ? Prisma.sql`NULL::jsonb` : Prisma.sql`(SELECT to_jsonb(c) FROM place_categories c WHERE c.id=p.category_id)`} AS category ${details}
+      FROM page p LEFT JOIN brand_summaries b ON b.id=p.brand_id
+      ${coverImage} ORDER BY ${order}`;
     const hasMore = rows.length > q.limit;
     return {
       places: rows.slice(0, q.limit).map(({ cursor_updated_at, ...row }) => row),

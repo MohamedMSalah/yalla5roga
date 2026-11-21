@@ -5,6 +5,8 @@ import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
 import 'package:yalla_5roga/core/network/dio_interceptors.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_scope.dart';
 
 class ApiClient {
   const ApiClient(
@@ -24,24 +26,43 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
     CancelToken? cancelToken,
+    bool useSnapshots = true,
+    bool publicRead = false,
   }) async {
     final store = snapshots;
-    final key = store?.keyFor(path, queryParameters);
+    final key = useSnapshots && !publicRead
+        ? store?.keyFor(path, queryParameters)
+        : null;
     final generation = store?.generation;
-    final uid = store?.userId();
+    final uid = publicRead ? null : store?.userId();
     final request = RequestOptions(path: path);
     Response<T>? cached() {
       if (store?.userId() != uid || store?.generation != generation) {
         return null;
       }
+      final clock = Stopwatch()..start();
       final data = store?.read<T>(key);
+      if (key != null) {
+        RequestDiagnostics.instance.recordLocal(
+          method: 'GET',
+          endpoint: path,
+          outcome: data == null
+              ? RequestOutcome.cacheMiss
+              : RequestOutcome.stale,
+          source: 'OfflineSnapshots',
+          feature: RequestScope.current?.feature,
+          operation: RequestScope.current?.operation,
+          durationMs: clock.elapsedMilliseconds,
+        );
+      }
       return data == null
           ? null
           : Response<T>(requestOptions: request, data: data);
     }
 
     if (OfflineSnapshots.cacheOnly ||
-        (key != null && await networkInfo?.isConnected == false)) {
+        ((key != null || publicRead) &&
+            await networkInfo?.isConnected == false)) {
       return cached() ??
           (throw DioException(
             requestOptions: request,
@@ -50,7 +71,11 @@ class ApiClient {
           ));
     }
     try {
-      final bound = uid == null
+      final bound = publicRead
+          ? (options ?? Options()).copyWith(
+              extra: {...?options?.extra, publicReadKey: true},
+            )
+          : uid == null
           ? options
           : (options ?? Options()).copyWith(
               extra: {...?options?.extra, expectedUserIdKey: uid},

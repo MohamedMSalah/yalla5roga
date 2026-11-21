@@ -16,10 +16,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
+
+import 'outing_info_style.dart';
+
+import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
-import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/icon_circle.dart';
@@ -34,13 +37,14 @@ class OutingVoteWidget extends StatefulWidget {
     super.key,
     required this.outing,
     this.showHeader = true,
+    required this.canParticipate,
     this.compact = false,
     this.placeVotingKey,
     this.attendanceKey,
   });
 
   final Outing outing;
-  final bool showHeader;
+  final bool showHeader, canParticipate;
   final bool compact;
   final Key? placeVotingKey;
   final Key? attendanceKey;
@@ -55,17 +59,22 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
   var _breakingTie = false;
   var _voting = false;
 
+  String _optionsKey(OutingsProvider store, String id) {
+    final optionIds = store.optionsFor(id).map((option) => option.placeId);
+    return '${store.roundNumberFor(id)}:${optionIds.join(',')}';
+  }
+
   Future<void> _submitBallot() async {
-    if (_voting || _draftIndexes == null) return;
-    if (context.read<OutingsProvider>().isVoteExpired(widget.outing.id)) {
+    if (_voting || _draftIndexes == null || !widget.canParticipate) return;
+    final outings = context.read<OutingsProvider>();
+    final id = widget.outing.id;
+    if (_optionSet != _optionsKey(outings, id)) return;
+    if (outings.isVoteExpired(id)) {
       AppSnackBar.show(context.l10n.voteEnded);
       return;
     }
     setState(() => _voting = true);
-    final ok = await context.read<OutingsProvider>().setBallotFor(
-      widget.outing.id,
-      _draftIndexes!,
-    );
+    final ok = await outings.setBallotFor(widget.outing.id, _draftIndexes!);
     if (!mounted) return;
     setState(() {
       _voting = false;
@@ -76,22 +85,26 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
 
   Future<void> _chooseVenue(List<VoteOption> options) async {
     final l10n = context.l10n;
-    final choice = await showDialog<VoteOption>(
-      context: context,
-      builder: (context) => SimpleDialog(
-        title: Text(l10n.confirmVenue),
-        children: [
-          for (final option in options)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, option),
-              child: ListTile(
-                title: Text(option.label),
-                subtitle: Text(l10n.votesPercent(option.votes, option.percent)),
-              ),
+    final choice = options.length == 1
+        ? options.single
+        : await showDialog<VoteOption>(
+            context: context,
+            builder: (context) => SimpleDialog(
+              title: Text(l10n.confirmVenue),
+              children: [
+                for (final option in options)
+                  SimpleDialogOption(
+                    onPressed: () => Navigator.pop(context, option),
+                    child: ListTile(
+                      title: Text(option.label),
+                      subtitle: Text(
+                        l10n.votesPercent(option.votes, option.percent),
+                      ),
+                    ),
+                  ),
+              ],
             ),
-        ],
-      ),
-    );
+          );
     if (!mounted || choice == null) return;
     final confirmed = await AppAlert.confirm(
       title: l10n.confirmVenue,
@@ -100,6 +113,14 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
       cancelText: l10n.cancel,
     );
     if (!mounted || !confirmed) return;
+    final store = context.read<OutingsProvider>();
+    final current = store.findById(widget.outing.id);
+    if (current?.status != OutingStatus.voting ||
+        current?.createdById != context.read<AuthProvider>().user?.id ||
+        store.isTied(widget.outing.id) ||
+        store.roundNumberFor(widget.outing.id) != 1) {
+      return;
+    }
     setState(() => _voting = true);
     await context.read<OutingsProvider>().confirmVenue(
       widget.outing.id,
@@ -108,71 +129,84 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     if (mounted) setState(() => _voting = false);
   }
 
+  bool _canResolve(OutingsProvider outings, int round, String? creator) {
+    final id = widget.outing.id;
+    final current = outings.findById(id);
+    return mounted &&
+        creator != null &&
+        context.read<AuthProvider>().user?.id == creator &&
+        current?.createdById == creator &&
+        current?.status == OutingStatus.voting &&
+        outings.canResolveTie(id) &&
+        !outings.isManaging(id) &&
+        outings.roundNumberFor(id) == round;
+  }
+
   Future<void> _runTieBreak() async {
     if (_breakingTie) return;
     final outings = context.read<OutingsProvider>();
-    final userId = context.read<AuthProvider>().user?.id;
-    final isOwner =
-        widget.outing.createdById != null &&
-        widget.outing.createdById == userId;
-    if (!isOwner) return;
+    final id = widget.outing.id;
+    final round = outings.roundNumberFor(id);
+    final creator = context.read<AuthProvider>().user?.id;
+    if (!_canResolve(outings, round, creator)) return;
+    final candidates = outings.tiedOptionsFor(id);
+    if (candidates.length < 2) return;
 
     setState(() => _breakingTie = true);
-    final candidates = outings.tiedOptionsFor(widget.outing.id);
-    final round = outings.roundNumberFor(widget.outing.id);
-    final confirmed = await AppAlert.confirm(
-      title: context.l10n.rollTheDice,
-      message: context.l10n.randomLocationPrompt,
-      confirmText: context.l10n.rollTheDice,
-      cancelText: context.l10n.cancel,
-    );
-    if (!mounted) return;
-    if (!confirmed) {
-      setState(() => _breakingTie = false);
-      return;
-    }
-    final winnerId = await outings.breakTieFor(widget.outing.id, round);
-    if (!mounted) return;
+    try {
+      final confirmed = await AppAlert.confirm(
+        title: context.l10n.rollTheDice,
+        message: context.l10n.randomLocationPrompt,
+        confirmText: context.l10n.rollTheDice,
+        cancelText: context.l10n.cancel,
+      );
+      if (!mounted || !confirmed || !_canResolve(outings, round, creator)) {
+        return;
+      }
 
-    if (winnerId == null ||
-        winnerId.isEmpty ||
-        !candidates.any((o) => o.placeId == winnerId)) {
-      setState(() => _breakingTie = false);
-      // Failure path already reported via AppErrorFeedback.
-      return;
-    }
-
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      barrierLabel: 'tie-break',
-      pageBuilder: (context, animation, secondary) {
-        return TieBreakRevealDialog(
+      final result = outings.breakTieFor(id, round);
+      await showGeneralDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        barrierLabel: context.l10n.rollTheDice,
+        transitionDuration: AppMotion.of(context, AppMotion.standard),
+        pageBuilder: (context, animation, secondary) => TieBreakRevealDialog(
+          outingId: id,
+          creatorId: creator!,
           candidates: candidates,
-          winningOptionId: winnerId,
-        );
-      },
-    );
-
-    if (mounted) setState(() => _breakingTie = false);
+          result: result,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _breakingTie = false);
+    }
   }
 
   Future<void> _startRevote() async {
     if (_breakingTie) return;
     final outings = context.read<OutingsProvider>();
-    final round = outings.roundNumberFor(widget.outing.id);
-    final options = outings.tiedOptionsFor(widget.outing.id);
+    final id = widget.outing.id;
+    final round = outings.roundNumberFor(id);
+    final creator = context.read<AuthProvider>().user?.id;
+    final options = outings.tiedOptionsFor(id);
+    if (!_canResolve(outings, round, creator) || options.length < 2) return;
+
     setState(() => _breakingTie = true);
-    await AppBottomSheet.show<void>(
-      context: context,
-      builder: (_) => RevoteBottomSheet(
-        options: options,
-        scheduledAt: widget.outing.scheduledAt,
-        onSubmit: (deadline) =>
-            outings.startRevoteFor(widget.outing.id, deadline, round),
-      ),
-    );
-    if (mounted) setState(() => _breakingTie = false);
+    try {
+      await AppBottomSheet.show<void>(
+        context: context,
+        builder: (_) => RevoteBottomSheet(
+          options: options,
+          scheduledAt: widget.outing.scheduledAt,
+          onSubmit: (deadline) async {
+            if (!_canResolve(outings, round, creator)) return false;
+            return outings.startRevoteFor(id, deadline, round);
+          },
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _breakingTie = false);
+    }
   }
 
   @override
@@ -183,8 +217,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
     final userId = context.watch<AuthProvider>().user?.id;
     final outing = outings.findById(widget.outing.id) ?? widget.outing;
     final options = outings.optionsFor(outing.id);
-    final optionSet =
-        '${outings.roundNumberFor(outing.id)}:${options.map((option) => option.placeId).join(',')}';
+    final optionSet = _optionsKey(outings, outing.id);
     if (_optionSet != optionSet) {
       _draftIndexes = null;
       _optionSet = optionSet;
@@ -195,38 +228,49 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
         outing.status == OutingStatus.voting &&
         showPlaces &&
         !outings.isTied(outing.id) &&
+        (options.length == 1 || !outings.isVoteExpired(outing.id)) &&
         outings.roundNumberFor(outing.id) == 1;
     final selectedIndexes = outings.voteIndexesFor(outing.id);
-    final isCreator =
-        outing.createdById != null && outing.createdById == userId;
+    final canResolve =
+        outings.canResolveTie(outing.id) &&
+        outing.createdById != null &&
+        outing.createdById == userId;
     final locked =
         outings.isVoteFinalized(outing.id) ||
         outing.status != OutingStatus.voting;
     final endsAt = outings.voteEndsAt(outing.id) ?? outing.voteEndsAt;
     final placesEnabled =
-        !locked && !_voting && outings.canSelectPlaces(outing.id, userId);
+        widget.canParticipate &&
+        !locked &&
+        !_voting &&
+        outings.canSelectPlaces(outing.id, userId);
     final totalMembers = math.max(
       outings.eligibleVoterCountFor(outing.id),
       outings.votedCountFor(outing.id),
     );
     final voted = outings.votedCountFor(outing.id).clamp(0, totalMembers);
+    final confirmVenueButton = CustomButton(
+      label: l10n.confirmVenue,
+      icon: Icons.place_outlined,
+      size: AppButtonSize.small,
+      onPressed: _voting || _breakingTie ? null : () => _chooseVenue(options),
+    );
 
-    if (outings.isTied(outing.id)) {
-      return AppCard(
-        child: TieResultsSection(
-          options: outings.tiedOptionsFor(outing.id),
-          round: outings.roundNumberFor(outing.id),
-          isCreator: isCreator,
-          busy: _breakingTie,
-          onRandom: _runTieBreak,
-          onRevote: _startRevote,
-        ),
+    if (outing.status == OutingStatus.voting && outings.isTied(outing.id)) {
+      return TieResultsSection(
+        key: widget.placeVotingKey,
+        options: outings.tiedOptionsFor(outing.id),
+        round: outings.roundNumberFor(outing.id),
+        canResolve: canResolve,
+        busy: _breakingTie || outings.isManaging(outing.id),
+        onRandom: _runTieBreak,
+        onRevote: _startRevote,
       );
     }
     if (options.length < 2 || outing.status != OutingStatus.voting) {
-      return const SizedBox.shrink();
+      return canConfirm ? confirmVenueButton : const SizedBox.shrink();
     }
-    return AppCard(
+    return OutingInfoPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -331,17 +375,7 @@ class _OutingVoteWidgetState extends State<OutingVoteWidget> {
                     : _submitBallot,
               ),
             ],
-            if (canConfirm) ...[
-              12.gapH,
-              CustomButton(
-                label: l10n.confirmVenue,
-                icon: Icons.place_outlined,
-                size: AppButtonSize.small,
-                onPressed: _voting || _breakingTie
-                    ? null
-                    : () => _chooseVenue(options),
-              ),
-            ],
+            if (canConfirm) ...[12.gapH, confirmVenueButton],
             if (endsAt != null) ...[
               12.gapH,
               VoteCountdownText(endsAt: endsAt, isClosed: locked),

@@ -16,6 +16,25 @@ import UserNotifications
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PlacesBackupPolicy") {
+      let channel = FlutterMethodChannel(name: "yalla5roga/places_backup", binaryMessenger: registrar.messenger())
+      channel.setMethodCallHandler { call, result in
+        guard call.method == "excludeDirectory", let path = call.arguments as? String else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        do {
+          var directory = URL(fileURLWithPath: path, isDirectory: true)
+          try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+          var values = URLResourceValues()
+          values.isExcludedFromBackup = true
+          try directory.setResourceValues(values)
+          result(nil)
+        } catch {
+          result(FlutterError(code: "backup_policy", message: nil, details: nil))
+        }
+      }
+    }
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "OutingChatActions") {
       let channel = FlutterMethodChannel(name: "yalla5roga/chat_notification_actions", binaryMessenger: registrar.messenger())
       chatActions = channel

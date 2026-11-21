@@ -155,7 +155,7 @@ import {
  *     tags: [Outings]
  *     summary: Update an outing
  *     description: >
- *       Allowed only for the outing creator (`created_by`).
+ *       Allowed only for the outing creator (`created_by`). The current deadline is locked after voting closes or a revote starts.
  *     operationId: updateOuting
  *     parameters:
  *       - $ref: "#/components/parameters/UuidId"
@@ -176,6 +176,8 @@ import {
  *         $ref: "#/components/responses/Forbidden"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
+ *       "409":
+ *         description: The outing, confirmed venue, or voting deadline is locked
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  *   delete:

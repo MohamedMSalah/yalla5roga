@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import notificationInboxRoutes from "./notification.inbox.routes.js";
 
@@ -7,6 +8,6 @@ api.use(authMiddleware);
 api.use(notificationInboxRoutes);
 
 const router = Router();
-router.use("/api/notifications", api);
+mountRoutes(router, "/api/notifications", api);
 
 export default router;

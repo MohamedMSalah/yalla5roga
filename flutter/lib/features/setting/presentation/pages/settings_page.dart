@@ -7,7 +7,6 @@ import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.d
 
 import '../pages/edit_profile_page.dart';
 import '../widgets/profile_header.dart';
-import '../widgets/profile_stats.dart';
 import '../widgets/sign_out_to_login.dart';
 import '../widgets/settings_account_section.dart';
 import '../widgets/settings_preferences_section.dart';
@@ -55,30 +54,34 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return SafeArea(
       bottom: false,
-      child: ListView(
-        padding: Responsive.pagePadding().add(
-          EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
-        ),
-        children: [
-          ProfileHeader(
-            user: user,
-            onLogout: () => _logout(context),
-            onEditProfile: () => Get.to(() => const EditProfilePage()),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+          child: ListView(
+            padding: Responsive.pagePadding().add(
+              EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+            ),
+            children: [
+              ProfileHeader(
+                user: user,
+                onLogout: () => _logout(context),
+                onEditProfile: () => Get.to(() => const EditProfilePage()),
+              ),
+
+              Responsive.spaceXl.gapH,
+              const SettingsAccountSection(),
+              12.gapH,
+              // SettingsGroup — notifications + LanguageChoice
+              const SettingsPreferencesSection(),
+              12.gapH,
+              // SettingsGroup — help, contact
+              const SettingsSupportSection(),
+              12.gapH,
+              // SettingsGroup — about, privacy, terms
+              const SettingsAboutSection(),
+            ],
           ),
-          Responsive.spaceMd.gapH,
-          const ProfileStats(),
-          Responsive.spaceXl.gapH,
-          const SettingsAccountSection(),
-          12.gapH,
-          // SettingsGroup — notifications + LanguageChoice
-          const SettingsPreferencesSection(),
-          12.gapH,
-          // SettingsGroup — help, contact
-          const SettingsSupportSection(),
-          12.gapH,
-          // SettingsGroup — about, privacy, terms
-          const SettingsAboutSection(),
-        ],
+        ),
       ),
     );
   }

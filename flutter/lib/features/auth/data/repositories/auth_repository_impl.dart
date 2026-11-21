@@ -5,6 +5,7 @@ import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/error_codes.dart';
 import 'package:yalla_5roga/core/error/exception_mapper.dart';
 import 'package:yalla_5roga/core/network/request_deduper.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_scope.dart';
 import 'package:dartz/dartz.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:yalla_5roga/core/error/exceptions.dart';
@@ -403,7 +404,6 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
       return getCachedUser();
     }
     try {
-      await firebaseAuth.idToken();
       final uid = firebaseAuth.currentUser?.uid;
       if (uid == null) return const Left(AuthFailure());
       final model = await remote.getProfile();
@@ -511,7 +511,10 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     String? imageUrl,
   }) => _accountSyncs.run(
     jsonEncode([firebaseAuth.currentUser?.uid, name, phone, imageUrl]),
-    () => _syncProfileToBackend(name: name, phone: phone, imageUrl: imageUrl),
+    () => RequestScope.run(
+      () => _syncProfileToBackend(name: name, phone: phone, imageUrl: imageUrl),
+      feature: 'Auth', origin: 'AuthRepositoryImpl', operation: 'syncProfile',
+    ),
     endpoint: '/api/users/sync',
     method: 'POST',
   );
@@ -527,8 +530,8 @@ class AuthRepositoryImpl extends AuthRepository with _AuthFirebaseMixin {
     try {
       final uid = firebaseAuth.currentUser?.uid;
       if (uid == null) return const Left(AuthFailure());
-      // Fresh identity claims after phone verification.
-      var token = await firebaseAuth.idToken(forceRefresh: true);
+      // Refresh claims only for a verified-phone change.
+      var token = await firebaseAuth.idToken(forceRefresh: phone != null);
       final phoneProof = firebaseAuth.pendingPhoneVerificationToken;
       final model = name == null && phone == null && imageUrl == null
           ? await remote.syncUser()

@@ -41,6 +41,8 @@ function assertOutingGroupOccasion(
 const optionalOutingImageUrl = optionalMediaImageUrlSchema;
 
 export const createVoteOptionBodySchema = z.object({
+  category_id: z.string().trim().max(64).optional(),
+  address: z.string().trim().max(500).optional(),
   place_id: z.uuid().optional().nullable(),
   label: z.string().trim().min(1).max(100),
   area: z.string().trim().max(100).optional(),
@@ -67,6 +69,8 @@ export const createOutingBodySchema = z
     guest_phones_whatsapp_opt_in: z.boolean().optional(),
     scheduled_at: z.coerce.date().optional().nullable(),
     ends_at: z.coerce.date().optional().nullable(),
+    location_category_id: z.string().trim().max(64).optional().nullable(),
+    location_address: z.string().trim().max(500).optional().nullable(),
     location_place_id: z.uuid().optional().nullable(),
     location_name: z.string().trim().max(100).optional().nullable(),
     location_area: z.string().trim().max(100).optional().nullable(),
@@ -77,6 +81,10 @@ export const createOutingBodySchema = z
   })
   .superRefine(assertOutingGroupOccasion)
   .superRefine((data, ctx) => {
+    if (data.location_place_id == null &&
+        (data.location_latitude == null) !== (data.location_longitude == null)) {
+      ctx.addIssue({ code: "custom", path: ["location_latitude"], message: "Location coordinates must be a pair" });
+    }
     try {
       resolveCreateVotingDeadline(data);
     } catch (error) {
@@ -93,6 +101,8 @@ export const updateOutingBodySchema = z.object({
   occasion: outingOccasionSchema.optional(),
   scheduled_at: z.coerce.date().optional().nullable(),
   ends_at: z.coerce.date().optional().nullable(),
+  location_category_id: z.string().trim().max(64).optional().nullable(),
+  location_address: z.string().trim().max(500).optional().nullable(),
   location_place_id: z.uuid().optional().nullable(),
   location_name: z.string().trim().max(100).optional().nullable(),
   location_area: z.string().trim().max(100).optional().nullable(),

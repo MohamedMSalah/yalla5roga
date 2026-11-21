@@ -1,4 +1,6 @@
 import type { Prisma } from "@prisma/client";
+import { setDependency } from "../../monitoring/health.js";
+import { logger } from "../../monitoring/logger.js";
 import { Client } from "pg";
 import { getChatIo } from "../../realtime/chat-emitter.js";
 
@@ -9,6 +11,7 @@ export async function notifyCatalogChanged(tx: Prisma.TransactionClient) {
 
 /** Dedicated direct session: PgBouncer transaction pooling cannot hold LISTEN. */
 export function startCatalogListener() {
+  setDependency("catalog_listener", "pending");
   let stopped = false,
     client: Client | undefined,
     timer: ReturnType<typeof setTimeout> | undefined,
@@ -46,6 +49,7 @@ export function startCatalogListener() {
     const disconnected = () => {
       if (client === session) {
         client = undefined;
+        if (!stopped) setDependency("catalog_listener", "degraded");
         void session.end().catch(() => {});
         reconnect();
       }
@@ -64,17 +68,17 @@ export function startCatalogListener() {
       }
       await session.query("LISTEN places_catalog_changed");
       attempt = 0;
+      setDependency("catalog_listener", "ready");
       getChatIo()?.emit("catalog:changed", {});
     } catch {
-      console.error(
-        "[places] Catalog listener disconnected; retrying. Reconnect revision checks remain available.",
-      );
+      if (attempt === 0 && !stopped) logger.warn("Catalog listener unavailable; retry scheduled");
       disconnected();
     }
   }
   void connect();
   return async () => {
     stopped = true;
+    setDependency("catalog_listener", "stopping");
     if (timer) clearTimeout(timer);
     await client?.end();
   };

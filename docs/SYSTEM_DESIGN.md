@@ -142,7 +142,7 @@ Display: `AppNetworkImage` resolves `media://` in batches through `/api/media/si
 
 ### Create outing (Group)
 
-1. Trigger: Owner submits create form (`CreateOutingPage`), optionally with multi-place voting via **Add places for voting** / Add place (same page as former suggest-places sheet).  
+1. Trigger: Owner submits create form (`CreateOutingPage`), with a fixed venue or multi-place voting based on how many places were added in Location. Details collects the conditional deadline and submits the form.
 2. Flutter: `CreateOutingProvider` → repository → `POST /api/outings` (with optional ordered `initial_vote_options` for group voting). The outing, initial candidates, and owner attendance commit together.
 3. Controller: `OutingController.create`.  
 4. Use case: `CreateOutingUseCase` validates type/deadline/window.  
@@ -432,6 +432,8 @@ The existing sequence is unchanged: backend preflight → Firebase SMS → isola
 
 Group invitation decisions serialize on the invitation row. Accept creates membership and records accepted status in the same transaction; decline records history without membership. A conflicting/repeated decision returns stored status. Verified identity linking does not accept invitations. Initial outing status is derived from options and venue. Creator cancel uses the existing notification fan-out, stable event keys and scoped realtime publication.
 
+The Groups tab banner opens a picker based on the cached current-user group list and hands the selected group ID to the existing consented phone invitation flow. The API checks active membership at submission.
+
 Draft recovery uses the existing Saved Outings repository/provider/cache. A client UUID in Idempotency-Key makes POST retries safe; If-Match carries the loaded updated_at for row-locked updates/deletes. Online writes update the server and cache; offline writes persist pending metadata. The existing AppSyncProvider runs one serialized recovery pass on reconnect/resume, preserves conflicts, and does not poll. Legacy clients omitting version headers retain their prior API behavior. No database schema change was made.
 
 ```mermaid
@@ -464,7 +466,7 @@ Special Event -> Information (image/title/occasion/optional group/guests/schedul
 
 ## Voting deadline selection/submission — 2026-11-14
 
-Information duration selection → provider/domain policy computes local preview and checks against schedule → Review retains duration → existing media upload finishes → datasource captures fresh now, computes UTC absolute deadline and validates → existing POST /outings → shared backend helper revalidates explicit/relative deadline → existing persistence stores vote_ends_at and duration metadata → canonical response timestamp is parsed and shown on the existing confirmation route. No communication/topology change; the existing create/voting diagrams remain applicable. Preview clock refreshes and schedule edits disable invalid Continue/Create actions; REST validation still owns acceptance.
+Details duration selection → provider/domain policy computes local preview and checks against schedule → Review retains duration and venue cover reference → datasource captures fresh now, computes UTC absolute deadline and validates → existing POST /outings → shared backend helper revalidates explicit/relative deadline → existing persistence stores vote_ends_at and duration metadata → canonical response timestamp is parsed and shown on the existing confirmation route. No communication/topology change; the existing create/voting diagrams remain applicable. Preview clock refreshes and schedule edits disable invalid Continue/Create actions; REST validation still owns acceptance.
 
 
 ## Unanswered RSVP and deadline display — 2026-11-14
@@ -522,7 +524,7 @@ Simple weekday schedules are parsed only when exactly representable by the exist
 
 ## Vector map viewport and selection workflow — 2026-11-14
 
-YallaMapView renders the provider-independent OpenMapTiles style through MapLibre. Native gestures settle for 350 ms after all pointers lift; PlaceCatalogProvider then debounces the bounds/filter query for 350 ms. Movement/filter changes cancel pending reads and reject stale generations. The existing repository/query cache and API snapshots supply 50-row pages (ten per viewport burst, then Load more). Only active, coordinate-valid database records enter the catalog GeoJSON source. Individual category pins replace numbered clusters; native symbol collision placement reduces density and selected records use a separate upper source. User-visible cards reuse the existing image cache.
+YallaMapView renders the existing OpenMapTiles style through MapLibre. A 350 ms native gesture settle triggers compact viewport pages. Text search is debounced separately. The provider retires superseded Dio requests, rejects stale responses, and caps the viewport at 128 results. At low zoom MapLibre clusters native GeoJSON and at higher zoom individual pins use the existing category styling and selection layer. User-visible cards reuse the existing image cache.
 
 Pin or card focus updates presentation selection and camera only. Create Outing's existing picker owns explicit single/multiple confirmation and custom geographic candidates. Catalog providers retain camera state across picker navigation. Explicit offline region downloads use the configured vector style and the native offline database with bounded area/tile/concurrency limits; ordinary tile viewing does not guarantee offline coverage. No backend lifecycle or notification workflow changed.
 
@@ -534,7 +536,7 @@ DiscoverMapProvider extends the shared catalog provider without a second API/cac
 
 ## Startup permissions and sole-owner leave — 2026-11-14
 
-The shell's first-frame permission sequence completes notification handling before requesting foreground location, independently of API hydration. FCM permission/token follow-up runs only when notification access is actually granted. Launch permission guards are process-scoped; explicit Settings notification enabling can retry after a skip. A location grant signals mounted Home to perform one deduplicated passive location/nearby load; without permission Home shows catalog exploration cards, without a location CTA.
+The shell's first-frame permission sequence completes notification handling before requesting foreground location, independently of API hydration. FCM permission/token follow-up runs only when notification access is actually granted. Launch permission guards are process-scoped; explicit Settings notification enabling can retry after a skip. A location grant lets mounted Home try a deduplicated nearby recommendation request. General recommendations remain available immediately and when location is unavailable.
 
 Confirmed Leave → fresh authorized group/roster GET without stale fallback → sole owner: existing DELETE /groups/:id; otherwise existing self-member DELETE. DELETE locks the group, rechecks caller ownership and active membership count, then preserves the no-outings guard before removal. A concurrent membership addition cannot turn a stale sole-owner selection into deletion of a populated group. Existing committed invalidation/cache/root navigation paths apply. Notification preference saves use optimistic UI with failure rollback and revision protection, then reconcile account-scoped system display; disabled push does not stop inbox synchronization.
 
@@ -566,6 +568,8 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 
 ## Location voting rounds — 2026-11-15
 
+The worker checks candidate count before taking its next batch. Socket.IO publishes named voting events with eligible and tied option IDs, the round ID, and the outing revision from one database snapshot. Outing invalidations continue through the existing reconnect journal. Flutter reads authoritative results on invalidation or reconnect.
+
 The existing 30-second deadline worker closes the current round even with no clients connected. One outing-row lock orders ballots, deadline closure, random selection and revote; frozen results determine tied candidates. A revote closes the pending round, inserts the next active round and its relational eligible options, then switches the outing pointer/deadline in the same transaction. It never deletes old votes or changes RSVP. Final confirmation retains the existing canonical location fields and transactional notification side effects.
 
 ```mermaid
@@ -583,3 +587,22 @@ flowchart TD
   N --> O
   O --> I[Post-commit outing invalidation and REST recovery]
 ```
+
+
+### Outing creation presentation — 2026-11-20
+
+```mermaid
+flowchart LR
+  Map[Location: shared MapLibre picker] -->|Confirm venue or ordered vote candidates| Details[Details: venue gallery, group and schedule]
+  Details -->|Validate details and deadline| Review[Review: gallery and summary]
+  Review -->|Edit locations| Map
+  Review -->|Edit details| Details
+  Review -->|Create| Create[Existing outing API]
+  Review -->|Save draft| Draft[Existing draft workflow]
+```
+
+The server retains voting deadlines, winner resolution and attendance authority. GPS verification remains tied to the existing eligible foreground route, venue and scheduled window.
+
+## Operational measurements
+
+HTTP, Prisma, job and Socket.IO observations share the server process. Prometheus scrapes the protected in-memory aggregates and Grafana reads that history. Flutter can attach request scope and upload sampled timing batches through a protected API. The [operator guide](development/OBSERVABILITY.md) defines timing boundaries, retention and dependency states.

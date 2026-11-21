@@ -1,74 +1,62 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-import 'package:yalla_5roga/core/theme/app_colors.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
-import 'package:yalla_5roga/core/widgets/app_icon_button.dart';
 import 'package:yalla_5roga/core/widgets/app_shimmer.dart';
-import 'package:yalla_5roga/core/widgets/filter_chip_row.dart';
-import 'package:yalla_5roga/core/widgets/notification_button.dart';
-import 'package:yalla_5roga/core/widgets/section_header.dart';
-import 'package:yalla_5roga/features/groups/presentation/pages/create_group_page.dart';
-import 'package:yalla_5roga/features/groups/presentation/widgets/cards/create_group_card.dart';
+import 'package:yalla_5roga/features/groups/presentation/widgets/groups_style.dart';
 
 class GroupsSkeleton extends StatelessWidget {
   const GroupsSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return SafeArea(
-      child: ListView(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: Responsive.pagePadding(),
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SectionHeader(
-                  title: l10n.groupsTitle,
-                  subtitle: l10n.activeGroupsFriends(0, 0),
-                ),
-              ),
-              const NotificationButton(),
-            ],
+  Widget build(BuildContext context) => AppShimmer(
+    child: SliverList.builder(
+      addSemanticIndexes: false,
+      itemCount: 4,
+      itemBuilder: (context, index) => Padding(
+        padding: EdgeInsets.only(top: index == 0 ? 0 : GroupsStyle.gap),
+        child: DecoratedBox(
+          decoration: GroupsStyle.panel(
+            context.palette,
+            GroupsStyle.cardRadius,
           ),
-          Responsive.spaceSm.gapH,
-          Row(
-            children: [
-              AppIconButton(icon: Icons.search, onTap: () {}),
-              Responsive.spaceSm.gapW,
-              AppIconButton(
-                icon: Icons.add,
-                background: AppColors.brand600,
-                foreground: Colors.white,
-                onTap: () => Get.to(() => const CreateGroupPage()),
-              ),
-            ],
-          ),
-          Responsive.spaceMd.gapH,
-          FilterChipRow(
-            labels: [l10n.allGroups, l10n.mostActive, l10n.recentlyAdded],
-            index: 0,
-            onChanged: (_) {},
-          ),
-          Responsive.spaceMd.gapH,
-          AppShimmer(
-            child: Column(
+          child: const Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: GroupsStyle.cardVerticalPadding,
+            ),
+            child: Row(
               children: [
-                const ShimmerFeaturedGroup(),
-                10.gapH,
-                const ShimmerGroupCard(),
-                10.gapH,
-                const ShimmerGroupCard(),
+                ShimmerBone(
+                  width: GroupsStyle.imageSize,
+                  height: GroupsStyle.imageSize,
+                  radius: 16,
+                ),
+                SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      FractionallySizedBox(
+                        widthFactor: .42,
+                        child: ShimmerBone(height: 16),
+                      ),
+                      SizedBox(height: 6),
+                      FractionallySizedBox(
+                        widthFactor: .32,
+                        child: ShimmerBone(height: 12),
+                      ),
+                      SizedBox(height: 8),
+                      FractionallySizedBox(
+                        widthFactor: .69,
+                        child: ShimmerBone(height: 12),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          Responsive.spaceSm.gapH,
-          CreateGroupCard(onTap: () => Get.to(() => const CreateGroupPage())),
-        ],
+        ),
       ),
-    );
-  }
+    ),
+  );
 }

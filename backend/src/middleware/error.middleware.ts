@@ -2,13 +2,17 @@ import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/errors.js";
+import { errorCode } from "../monitoring/logger.js";
+import { recordRequestError } from "../monitoring/http.js";
 
 export function errorMiddleware(
   err: unknown,
   _req: Request,
   res: Response,
-  _next: NextFunction,
+  next: NextFunction,
 ) {
+  recordRequestError(err instanceof AppError ? `http_${err.statusCode}` : errorCode(err));
+  if (res.headersSent) return next(err);
   if (err instanceof ZodError) return res.status(400).json({ success: false, message: "Invalid request header" });
 
   if (err instanceof AppError) {
@@ -34,7 +38,6 @@ export function errorMiddleware(
     }
   }
 
-  console.error(err);
   return res.status(500).json({
     success: false,
     message: "Internal server error",

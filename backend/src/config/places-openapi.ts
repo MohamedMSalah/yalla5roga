@@ -15,6 +15,28 @@ export function extendPlacesOpenApi(spec: any) {
       },
     },
   });
+  spec.paths["/api/places/changes"] = { get: {
+    tags: ["Places"], operationId: "listPlaceCatalogChanges", security: [],
+    summary: "Read a page of public place catalog changes",
+    description: "Omit cursor for bootstrap. Commit each page and cursor atomically. Records are current public values; null records are tombstones. A cursor with has_more=false is a checkpoint to resume on the next sync.",
+    parameters: [
+      { in: "query", name: "cursor", schema: { type: "string", maxLength: 256 } },
+      { in: "query", name: "limit", schema: { type: "integer", minimum: 1, maximum: 500, default: 250 } },
+    ],
+    responses: {
+      200: response({ type: "object", required: ["changes", "cursor", "has_more"], properties: {
+        changes: { type: "array", items: { type: "object", required: ["kind", "id", "record"], properties: {
+          kind: { type: "string", enum: ["place", "brand", "category", "vibe"] },
+          id: { type: "string" },
+          record: { type: "object", nullable: true, additionalProperties: true },
+        } } },
+        cursor: { type: "string" },
+        has_more: { type: "boolean" },
+      } }),
+      400: { description: "Invalid cursor or page size" },
+      429: { description: "Rate limit exceeded" },
+    },
+  } };
   const status = {
     type: "string",
     enum: ["active", "temporarily_closed", "permanently_closed", "unverified"],
@@ -124,6 +146,7 @@ export function extendPlacesOpenApi(spec: any) {
   list.parameters = [
     ...(list.parameters ?? []),
     ...Object.entries({
+      details: { type: "string", enum: ["true"], description: "Include image, hours and price details for each result." },
       search: { type: "string", maxLength: 120 },
       categories: {
         type: "string",
@@ -135,8 +158,9 @@ export function extendPlacesOpenApi(spec: any) {
       lat: { type: "number", minimum: -90, maximum: 90 },
       lng: { type: "number", minimum: -180, maximum: 180 },
       radiusKm: { type: "number", minimum: 0, maximum: 100 },
-      bbox: { type: "string", description: "west,south,east,north" },
-      sort: { type: "string", enum: ["updated", "name", "distance"] },
+      bbox: { type: "string", description: "west,south,east,north; west greater than east crosses the antimeridian" },
+      compact: { type: "string", enum: ["true"], description: "Return card and map fields only. Ignored with details=true." },
+      sort: { type: "string", enum: ["updated", "name", "distance", "id"], description: "Use id with next_cursor for complete geographic cache synchronization." },
       limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
       offset: { type: "integer", minimum: 0, default: 0 },
       cursor: { type: "string", description: "Opaque next_cursor for the same filters/sort" },
@@ -150,6 +174,28 @@ export function extendPlacesOpenApi(spec: any) {
   const unauthorized = { $ref: "#/components/responses/Unauthorized" },
     forbidden = { $ref: "#/components/responses/Forbidden" },
     bad = { $ref: "#/components/responses/BadRequest" };
+  spec.paths["/api/places/recommendations"] = { get: {
+    operationId: "listPlaceRecommendations", tags: ["Places"], security: [],
+    summary: "List a rotating sample of active places for Home",
+    parameters: [
+      { in: "query", name: "limit", schema: { type: "integer", minimum: 1, maximum: 24, default: 8 } },
+      { in: "query", name: "lat", description: "Optional nearby center. Supply both coordinates.", schema: { type: "number", minimum: -90, maximum: 90 } },
+      { in: "query", name: "lng", description: "Optional nearby center. Supply both coordinates.", schema: { type: "number", minimum: -180, maximum: 180 } },
+    ],
+    responses: {
+      "200": { description: "Lightweight recommendations", content: { "application/json": { schema: {
+        type: "object", required: ["success", "data"], properties: {
+          success: { type: "boolean" },
+          data: { type: "array", items: { type: "object", required: ["id", "name", "cover_image_url"], properties: {
+            id: { type: "string", format: "uuid" }, name: { type: "string" },
+            name_ar: { type: "string", nullable: true }, name_en: { type: "string", nullable: true },
+            area: { type: "string" }, vibe: { type: "string" }, cover_image_url: { type: "string" },
+          } } },
+        },
+      } } } },
+      "400": bad, "500": { $ref: "#/components/responses/InternalServerError" },
+    },
+  } };
   spec.paths["/api/places/geojson"] = { get: {
     operationId: "getPlacesGeoJson", tags: ["Places"], security: [],
     summary: "Bounded lightweight MapLibre GeoJSON points",

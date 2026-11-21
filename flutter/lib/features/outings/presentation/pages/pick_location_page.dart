@@ -1,3 +1,6 @@
+import 'package:yalla_5roga/features/discover/presentation/widgets/place_branch_picker.dart';
+import 'package:yalla_5roga/core/widgets/custom_button.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -8,6 +11,7 @@ import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/map_location.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_camera_manager.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_markers.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_place_selection.dart';
 import 'package:yalla_5roga/core/widgets/yalla_map_view.dart';
 import 'package:yalla_5roga/core/widgets/map_controls.dart';
@@ -25,6 +29,7 @@ class PickLocationPage extends StatelessWidget {
     this.initial,
     this.placeCatalog,
     this.selected = const [],
+    this.onConfirm,
     this.maxSelections = 1,
     this.location = const MapLocation(),
   });
@@ -34,6 +39,7 @@ class PickLocationPage extends StatelessWidget {
   final Place? initial;
   final List<Place> selected;
   final int maxSelections;
+  final ValueChanged<List<Place>>? onConfirm;
   final MapLocation location;
 
   @override
@@ -47,12 +53,13 @@ class PickLocationPage extends StatelessWidget {
       selected: selected,
       maxSelections: maxSelections,
     ),
-    child: _Picker(placeCatalog: placeCatalog),
+    child: _Picker(placeCatalog: placeCatalog, onConfirm: onConfirm),
   );
 }
 
 class _Picker extends StatefulWidget {
-  const _Picker({this.placeCatalog});
+  const _Picker({this.placeCatalog, this.onConfirm});
+  final ValueChanged<List<Place>>? onConfirm;
   final PlaceCatalogProvider? placeCatalog;
 
   @override
@@ -162,7 +169,9 @@ class _PickerState extends State<_Picker> {
   void _choose(Place place) {
     if (widget.placeCatalog == null) _query.clear();
     _collapse();
-    _picker.choose(place);
+    _picker.choose(
+      place.id.startsWith('private:') ? place.copyWith(id: '') : place,
+    );
     if (place.hasCoordinates) {
       _map.focusSelection(LatLng(place.latitude!, place.longitude!));
     }
@@ -172,12 +181,6 @@ class _PickerState extends State<_Picker> {
     final result = await _picker.locate();
     if (!mounted) return;
     if (result.point case final point?) {
-      widget.placeCatalog?.update(
-        widget.placeCatalog!.filters.copyWith(
-          latitude: point.latitude,
-          longitude: point.longitude,
-        ),
-      );
       _pin(point, focus: true);
       return;
     }
@@ -205,9 +208,17 @@ class _PickerState extends State<_Picker> {
   void _confirm() {
     final picker = _picker;
     if (picker.multiple) {
-      Navigator.of(context).pop(picker.selected);
+      _finish(picker.selected);
     } else if (picker.canUseCandidate) {
-      Navigator.of(context).pop([picker.candidate!]);
+      _finish([picker.candidate!]);
+    }
+  }
+
+  void _finish(List<Place> places) {
+    if (widget.onConfirm case final confirm?) {
+      confirm(places);
+    } else {
+      Navigator.of(context).pop(places);
     }
   }
 
@@ -220,15 +231,13 @@ class _PickerState extends State<_Picker> {
     _sheet.dispose();
     _sheetInset.dispose();
     if (widget.placeCatalog == null) _map.dispose();
-    widget.placeCatalog?.clearBounds();
+    if (widget.onConfirm == null) widget.placeCatalog?.clearBounds();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final picker = _picker;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
     final initial = picker.candidate ?? picker.selected.firstOrNull;
     // The first map viewport is fixed for the route. Camera changes use the controller.
     final center = _initialCenter ??= initial?.hasCoordinates == true
@@ -236,162 +245,168 @@ class _PickerState extends State<_Picker> {
         : cairoMapCenter;
     final reducedMotion = MediaQuery.disableAnimationsOf(context);
     final searching = _searchFocus.hasFocus;
-    return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (_height != constraints.maxHeight) {
-            _height = constraints.maxHeight;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _updateInset();
-            });
-          }
-          _collapsed = (242 / _height).clamp(.34, .69);
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              Consumer<PickLocationProvider>(
-                builder: (_, state, _) => YallaMapView(
-                  controller: _map,
-                  center: center,
-                  zoom: center == cairoMapCenter ? 12 : 15,
-                  selectionBottom: _height * _collapsed,
-                  onTap: (point) => _pin(point, focus: true),
-                  onUserMove: () {
-                    widget.placeCatalog?.cameraMoving();
-                    picker.startMoving();
-                  },
-                  onUserIdle: _pin,
-                  onBoundsChanged: widget.placeCatalog?.setBounds,
-                  categories: widget.placeCatalog?.categories ?? const [],
-                  places:
-                      widget.placeCatalog?.places
-                          .map((p) => p.toOutingPlace())
-                          .toList() ??
-                      picker.catalog,
-                  selection: YallaMapPlaceSelection(
-                    mode: picker.multiple
-                        ? YallaMapSelectionMode.multiple
-                        : YallaMapSelectionMode.single,
-                    focusedId: state.candidate?.id,
-                    selected: state.selected,
-                  ),
-                  onPlaceTap: _choose,
+    final embedded = widget.onConfirm != null;
+    final mapBody = LayoutBuilder(
+      builder: (context, constraints) {
+        if (_height != constraints.maxHeight) {
+          _height = constraints.maxHeight;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _updateInset();
+          });
+        }
+        _collapsed = (242 / _height).clamp(.34, embedded ? .58 : .69);
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            Consumer<PickLocationProvider>(
+              builder: (_, state, _) => YallaMapView(
+                controller: _map,
+                center: center,
+                zoom: center == cairoMapCenter ? 12 : 15,
+                selectionBottom: _height * _collapsed,
+                onTap: (point) => _pin(point, focus: true),
+                onUserMove: () {
+                  widget.placeCatalog?.cameraMoving();
+                  picker.startMoving();
+                },
+                onUserIdle: _pin,
+                onBoundsChanged: widget.placeCatalog?.setBounds,
+                categories: widget.placeCatalog?.categories ?? const [],
+                places:
+                    widget.placeCatalog?.places
+                        .where((p) => !p.id.startsWith('private:'))
+                        .map((p) => p.toOutingPlace())
+                        .toList() ??
+                    picker.catalog,
+                privatePlaces:
+                    widget.placeCatalog?.places
+                        .where((p) => p.id.startsWith('private:'))
+                        .map((p) => p.toOutingPlace())
+                        .toList() ??
+                    const [],
+                selection: YallaMapPlaceSelection(
+                  mode: picker.multiple
+                      ? YallaMapSelectionMode.multiple
+                      : YallaMapSelectionMode.single,
+                  focusedId: state.candidate?.id,
+                  selected: state.selected,
                 ),
+                onPlaceTap: _choose,
               ),
-              if (!searching)
-                Align(
-                  child: IgnorePointer(
-                    child: Selector<PickLocationProvider, bool>(
-                      selector: (_, picker) => picker.moving,
-                      builder: (_, moving, _) => Transform.translate(
-                        offset: Offset(0, -21 - _height * _collapsed / 2),
-                        child: AnimatedSlide(
-                          offset: moving ? const Offset(0, -.25) : Offset.zero,
-                          duration: reducedMotion
-                              ? Duration.zero
-                              : const Duration(milliseconds: 160),
-                          curve: Curves.easeOut,
-                          child: Icon(
-                            Icons.location_on,
-                            size: 44,
-                            color: scheme.primary,
-                            shadows: [
-                              Shadow(color: scheme.surface, blurRadius: 4),
-                            ],
-                          ),
+            ),
+            if (!searching)
+              Align(
+                child: IgnorePointer(
+                  child: Selector<PickLocationProvider, bool>(
+                    selector: (_, picker) => picker.moving,
+                    builder: (_, moving, _) => Transform.translate(
+                      offset: Offset(0, -21 - _height * _collapsed / 2),
+                      child: AnimatedSlide(
+                        offset: moving ? const Offset(0, -.25) : Offset.zero,
+                        duration: reducedMotion
+                            ? Duration.zero
+                            : const Duration(milliseconds: 160),
+                        curve: Curves.easeOut,
+                        child: Image.asset(
+                          '${YallaMapMarkers.assetPath}/temporary.png',
+                          width: 44,
+                          height: 44,
+                          excludeFromSemantics: true,
                         ),
                       ),
                     ),
                   ),
                 ),
-              if (!searching)
-                Align(
-                  alignment: AlignmentDirectional.bottomCenter,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: Responsive.contentMaxWidth,
-                    ),
-                    child: DraggableScrollableSheet(
-                      controller: _sheet,
-                      expand: false,
-                      initialChildSize: _collapsed,
-                      minChildSize: _collapsed,
-                      maxChildSize: .88,
-                      shouldCloseOnMinExtent: false,
-                      builder: (context, scrollController) => _Details(
-                        scrollController: scrollController,
-                        onConfirm: _confirm,
-                        onUseCenter: () => _pin(_map.selectionPoint),
-                        onAdd: () {
-                          if (picker.add()) {
-                            _collapse();
-                            _fit();
-                          }
-                        },
-                        onRemove: (index) {
-                          picker.remove(index);
+              ),
+            if (!searching)
+              Align(
+                alignment: AlignmentDirectional.bottomCenter,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: Responsive.contentMaxWidth,
+                  ),
+                  child: DraggableScrollableSheet(
+                    controller: _sheet,
+                    expand: false,
+                    initialChildSize: _collapsed,
+                    minChildSize: _collapsed,
+                    maxChildSize: .88,
+                    shouldCloseOnMinExtent: false,
+                    builder: (context, scrollController) => _Details(
+                      scrollController: scrollController,
+                      onConfirm: _confirm,
+                      wizard: embedded,
+                      onUseCenter: () => _pin(_map.selectionPoint),
+                      onAdd: () {
+                        if (picker.add()) {
                           _collapse();
                           _fit();
-                        },
-                        onFocusPlace: _choose,
-                      ),
-                    ),
-                  ),
-                ),
-              Align(
-                alignment: AlignmentDirectional.topCenter,
-                child: SafeArea(
-                  bottom: false,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: Responsive.contentMaxWidth,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          MapSearchBar(
-                            controller: _query,
-                            focusNode: _searchFocus,
-                            onChanged: (value) {
-                              picker.search(value);
-                              widget.placeCatalog?.update(
-                                widget.placeCatalog!.filters.copyWith(
-                                  search: value,
-                                ),
-                                debounce: true,
-                              );
-                            },
-                            leading: const BackButton(),
-                            trailing: Selector<PickLocationProvider, bool>(
-                              selector: (_, picker) => picker.locating,
-                              builder: (_, locating, _) =>
-                                  MapCurrentLocationButton(
-                                    busy: locating,
-                                    onPressed: _locate,
-                                  ),
-                            ),
-                          ),
-                          if (searching)
-                            Flexible(
-                              child: _SearchResults(
-                                onChoose: _choose,
-                                query: _query,
-                                catalog: widget.placeCatalog,
-                              ),
-                            ),
-                        ],
-                      ),
+                        }
+                      },
+                      onRemove: (index) {
+                        picker.remove(index);
+                        _collapse();
+                        _fit();
+                      },
+                      onFocusPlace: _choose,
                     ),
                   ),
                 ),
               ),
-            ],
-          );
-        },
-      ),
+            Align(
+              alignment: AlignmentDirectional.topCenter,
+              child: SafeArea(
+                bottom: false,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: Responsive.contentMaxWidth,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MapSearchBar(
+                          controller: _query,
+                          focusNode: _searchFocus,
+                          onChanged: (value) {
+                            picker.search(value);
+                            widget.placeCatalog?.update(
+                              widget.placeCatalog!.filters.copyWith(
+                                search: value,
+                              ),
+                              debounce: true,
+                            );
+                          },
+                          leading: embedded ? null : const BackButton(),
+                          trailing: Selector<PickLocationProvider, bool>(
+                            selector: (_, picker) => picker.locating,
+                            builder: (_, locating, _) =>
+                                MapCurrentLocationButton(
+                                  busy: locating,
+                                  onPressed: _locate,
+                                ),
+                          ),
+                        ),
+                        if (searching)
+                          Flexible(
+                            child: _SearchResults(
+                              onChoose: _choose,
+                              query: _query,
+                              catalog: widget.placeCatalog,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
+    return embedded ? mapBody : Scaffold(body: mapBody);
   }
 
   LatLng? _initialCenter;
@@ -478,9 +493,11 @@ class _Details extends StatelessWidget {
     required this.onAdd,
     required this.onRemove,
     required this.onFocusPlace,
+    required this.wizard,
   });
 
   final ScrollController scrollController;
+  final bool wizard;
   final VoidCallback onConfirm;
   final VoidCallback onUseCenter;
   final VoidCallback onAdd;
@@ -493,115 +510,166 @@ class _Details extends StatelessWidget {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final candidate = picker.candidate;
+    final canContinue = picker.multiple
+        ? !wizard ||
+              (picker.selected.length >= 2 &&
+                  picker.selected.every(_validSelection))
+        : picker.canUseCandidate &&
+              (!wizard || (candidate != null && _validSelection(candidate)));
+    final confirm = CustomButton(
+      label: wizard
+          ? l10n.continueToDetails
+          : picker.multiple
+          ? l10n.mapUsePlaces
+          : l10n.confirmLocation,
+      onPressed: canContinue ? onConfirm : null,
+    );
+    final content = ListView(
+      controller: scrollController,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        10,
+        16,
+        wizard ? 6 : 16 + MediaQuery.paddingOf(context).bottom,
+      ),
+      children: [
+        Center(
+          child: Container(
+            width: 32,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.outline,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          picker.multiple
+              ? l10n.placesSelectedMax(
+                  picker.selected.length,
+                  picker.maxSelections,
+                )
+              : l10n.pickLocation,
+          style: theme.textTheme.titleLarge,
+        ),
+        const SizedBox(height: 4),
+        if (picker.moving || candidate == null) ...[
+          Text(l10n.mapPinHint),
+          if (!picker.moving &&
+              (!picker.multiple ||
+                  picker.selected.length < picker.maxSelections))
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                onPressed: onUseCenter,
+                child: Text(l10n.mapUseCenter),
+              ),
+            ),
+        ] else if (candidate.id.isEmpty)
+          TextField(
+            controller: picker.nameController,
+            onChanged: picker.rename,
+            maxLength: 100,
+            buildCounter: (
+              _, {
+              required currentLength,
+              required isFocused,
+              maxLength,
+            }) => null,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: l10n.chooseLocation,
+              helperText: candidate.area.isEmpty ? null : candidate.area,
+              helperMaxLines: 2,
+            ),
+          )
+        else
+          MapSelectedLocationCard(
+            title: candidate.name,
+            subtitle: candidate.area,
+            imageUrl: candidate.imageUrl,
+            selected: true,
+            trailing: wizard && !picker.multiple
+                ? IconButton(
+                    tooltip: l10n.mapRemovePlace,
+                    onPressed: picker.clearCandidate,
+                    icon: const Icon(Icons.close),
+                  )
+                : null,
+          ),
+        if (wizard &&
+            candidate != null &&
+            candidate.brandId.isNotEmpty &&
+            candidate.branchCount > 1)
+          PlaceBranchesButton(
+            count: candidate.branchCount,
+            onPressed: () async {
+              final branch = await pickPlaceBranch(context, candidate);
+              if (context.mounted && branch != null) {
+                onFocusPlace(branch.toOutingPlace());
+              }
+            },
+          ),
+        if (wizard && !picker.multiple && candidate?.id.isEmpty == true)
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton(
+              onPressed: picker.clearCandidate,
+              child: Text(l10n.mapRemovePlace),
+            ),
+          ),
+        if (picker.lookingUp) ...[
+          const SizedBox(height: 4),
+          Semantics(liveRegion: true, child: Text(l10n.lookingUpLocation)),
+        ],
+        if (picker.lookupFailed) Text(l10n.mapLookupFailed),
+        if (picker.duplicate) Text(l10n.mapAlreadySelected),
+        const SizedBox(height: 8),
+        if (picker.multiple && candidate != null)
+          FilledButton.tonalIcon(
+            onPressed: picker.canUseCandidate ? onAdd : null,
+            icon: const Icon(Icons.add_location_alt_outlined),
+            label: Text(l10n.mapAddPlace),
+          ),
+        if (!wizard) confirm,
+        if (picker.attribution case final credit?)
+          Text(credit, style: theme.textTheme.labelSmall),
+        if (picker.multiple)
+          for (final (index, place) in picker.selected.indexed)
+            _SelectedPlace(
+              place: place,
+              index: index,
+              count: picker.selected.length,
+              onFocus: () => onFocusPlace(place),
+              onRemove: () => onRemove(index),
+              onMove: (delta) => picker.move(index, index + delta),
+            ),
+      ],
+    );
     return Material(
       color: theme.colorScheme.surface,
       elevation: 5,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       clipBehavior: Clip.antiAlias,
-      child: ListView(
-        controller: scrollController,
-        padding: EdgeInsets.fromLTRB(
-          16,
-          10,
-          16,
-          16 + MediaQuery.paddingOf(context).bottom,
-        ),
-        children: [
-          Center(
-            child: Container(
-              width: 32,
-              height: 4,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.outline,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            picker.multiple
-                ? l10n.placesSelectedMax(
-                    picker.selected.length,
-                    picker.maxSelections,
-                  )
-                : l10n.pickLocation,
-            style: theme.textTheme.titleLarge,
-          ),
-          const SizedBox(height: 4),
-          if (picker.moving || candidate == null) ...[
-            Text(l10n.mapPinHint),
-            if (!picker.moving &&
-                (!picker.multiple ||
-                    picker.selected.length < picker.maxSelections))
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton(
-                  onPressed: onUseCenter,
-                  child: Text(l10n.mapUseCenter),
+      child: wizard
+          ? Column(
+              children: [
+                Expanded(child: content),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                  child: confirm,
                 ),
-              ),
-          ] else if (candidate.id.isEmpty)
-            TextField(
-              controller: picker.nameController,
-              onChanged: picker.rename,
-              maxLength: 100,
-              buildCounter: (
-                _, {
-                required currentLength,
-                required isFocused,
-                maxLength,
-              }) => null,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                labelText: l10n.chooseLocation,
-                helperText: candidate.area.isEmpty ? null : candidate.area,
-                helperMaxLines: 2,
-              ),
+              ],
             )
-          else
-            MapSelectedLocationCard(
-              title: candidate.name,
-              subtitle: candidate.area,
-              imageUrl: candidate.imageUrl,
-              selected: true,
-            ),
-          if (picker.lookingUp) ...[
-            const SizedBox(height: 4),
-            Semantics(liveRegion: true, child: Text(l10n.lookingUpLocation)),
-          ],
-          if (picker.lookupFailed) Text(l10n.mapLookupFailed),
-          if (picker.duplicate) Text(l10n.mapAlreadySelected),
-          const SizedBox(height: 8),
-          if (picker.multiple && candidate != null)
-            FilledButton.tonalIcon(
-              onPressed: picker.canUseCandidate ? onAdd : null,
-              icon: const Icon(Icons.add_location_alt_outlined),
-              label: Text(l10n.mapAddPlace),
-            ),
-          FilledButton(
-            onPressed: picker.multiple || picker.canUseCandidate
-                ? onConfirm
-                : null,
-            child: Text(
-              picker.multiple ? l10n.mapUsePlaces : l10n.confirmLocation,
-            ),
-          ),
-          if (picker.attribution case final credit?)
-            Text(credit, style: theme.textTheme.labelSmall),
-          if (picker.multiple)
-            for (final (index, place) in picker.selected.indexed)
-              _SelectedPlace(
-                place: place,
-                index: index,
-                count: picker.selected.length,
-                onFocus: () => onFocusPlace(place),
-                onRemove: () => onRemove(index),
-                onMove: (delta) => picker.move(index, index + delta),
-              ),
-        ],
-      ),
+          : content,
     );
   }
+
+  bool _validSelection(Place place) =>
+      place.status != 'permanently_closed' &&
+      (place.id.isNotEmpty || place.hasCoordinates);
 }
 
 class _SelectedPlace extends StatelessWidget {

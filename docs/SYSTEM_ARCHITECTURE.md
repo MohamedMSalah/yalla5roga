@@ -21,6 +21,7 @@
 | Outing completion job | `backend/src/jobs/complete-outings.job.ts` | Marks confirmed → past |
 | Media storage | `backend/src/services/media/` | Presigned uploads, signed delivery, cleanup |
 | Cloudflare R2 / CDN | External | Image binaries + public place media |
+| Prometheus and Grafana | `backend/monitoring/` | Optional local metrics collection and dashboards |
 
 ## 2. Overall system architecture
 
@@ -44,6 +45,7 @@ flowchart TB
     Svc[Services]
     DS[Datasources / Prisma]
     Jobs[Interval jobs]
+    Observability[Request context and metrics]
   end
 
   subgraph Data
@@ -74,6 +76,12 @@ flowchart TB
   Svc --> FAuth
   Jobs --> FCM
   Jobs --> WA
+  Express --> Observability
+  DS --> Observability
+  IO --> Observability
+  Jobs --> Observability
+  Prometheus[Optional Prometheus] -->|Protected scrape| Observability
+  Grafana[Optional Grafana] --> Prometheus
 ```
 
 ## 3. Flutter ↔ backend communication
@@ -105,6 +113,8 @@ sequenceDiagram
   A-->>P: mapped entity
   P-->>W: notifyListeners
 ```
+
+The API propagates request and correlation IDs and returns server time up to headers. Sampled Flutter observations can reach the backend through an optional authenticated monitor. Metrics and logs stay outside the application database. See [observability and API verification](development/OBSERVABILITY.md).
 
 ## 4. Authentication flow
 
@@ -273,14 +283,15 @@ NOTIFY is a public catalog invalidation signal, not a second domain datastore/re
 
 ## Vector map rendering — 2026-11-14
 
-MapLibre is the free/open-source Flutter map engine. Free OpenFreeMap OpenMapTiles vector tiles/glyphs are the default basemap; production may supply self-hosted TileJSON/glyph/style/attribution URLs. This external geographic rendering service has no application-place authority. Real active places still flow Neon → existing Express/Prisma places API → Dio datasource → DiscoverRepository → PlaceCatalogProvider → shared YallaMapView. No new backend API, database or mandatory paid provider exists. Explicit bounded offline packs use the native map database; existing place snapshots/image caches remain separate.
+MapLibre is the free/open-source Flutter map engine. Free OpenFreeMap OpenMapTiles vector tiles/glyphs are the default basemap; production may supply self-hosted TileJSON/glyph/style/attribution URLs. This external geographic rendering service has no application-place authority. Real active places still flow Neon → existing Express/Prisma places API → Dio datasource → DiscoverRepository → PlaceCatalogProvider → shared YallaMapView. The public catalog change feed supplies a transaction-safe delta cursor. Flutter stores the public catalog in SQLite and reads it before fetching missing data. Bounded offline packs use the native map database and pin referenced public photos through the existing image-cache path.
 
 ```mermaid
 flowchart LR
   Tiles[Free or self-hosted vector tiles and glyphs] --> Map[YallaMapView / MapLibre]
   Neon[(Neon places)] --> API[Existing Express / Prisma API]
   API --> Data[Dio datasource / repository]
-  Data --> State[PlaceCatalogProvider]
+  Data --> Catalog[(Local SQLite catalog)]
+  Catalog --> State[Place providers]
   State --> Map
   Map --> Discover[Discover cards and focus]
   Map --> Picker[Outing picker explicit confirmation]

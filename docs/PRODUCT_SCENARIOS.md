@@ -305,12 +305,12 @@ The Flutter foundation uses a Modern Social violet design with complete light/da
 
 ## Phase 3 outing presentation — 2026-11-14
 
-The Outings tab shows active location ballots and upcoming plans with status, countdowns, New Outing and History actions. History classification still uses scheduled start or terminal status; it does not imply RSVP or arrival eligibility. Creation uses Information (cover/title/category/group/schedule/deadline), Locations (existing map picker and removable selections), and Review (summary and edit links). Group Details preselects its group. A single venue is displayed without a competition; multiple candidates support a submitted multi-selection ballot. Actual GPS arrival stays separate from Going/Maybe/Not Going. No winner or tie-break decision moves to Flutter.
+The Outings tab shows active location ballots and upcoming plans with status, countdowns, New Outing and History actions. History classification still uses scheduled start or terminal status; it does not imply RSVP or arrival eligibility. Creation uses Location (shared map and removable selections), Details (selected place artwork, title, group, schedule and deadline), and Review (gallery, summary, edit links, create and draft actions). Group Details preselects its group. A single venue is displayed without a competition; multiple candidates support a submitted multi-selection ballot. Actual GPS arrival stays separate from Going/Maybe/Not Going. No winner or tie-break decision moves to Flutter.
 
 
 ## Voting deadline selection — owner-approved 2026-11-14
 
-Create Outing Information offers Hours (1, 2, 3, 6, 12, 24) and Days (1, 2, 3, 5, 7), with one duration selected. Show the estimated local end date/time, disable choices that cannot finish before the outing starts, and block progression/submission while invalid. Preserve the duration between steps and in saved drafts. Review shows the estimate; the submitted duration starts at the actual request boundary after cover upload. Send the existing absolute vote_ends_at in UTC ISO-8601, with existing vote_deadline_hours metadata. Backend creation requires a future deadline strictly before scheduled_at when a start is supplied. The existing 1–72-hour metadata/check range expands to 1–168 hours without new columns/endpoints. Post-create confirmation shows the canonical deadline returned by the server.
+Details offers Hours (1, 2, 3, 6, 12, 24) and Days (1, 2, 3, 5, 7) when two or more places are selected, with one duration selected. Show the estimated local end date/time, disable durations that cannot finish before the outing starts and block submission while invalid. Preserve the duration between steps and in saved drafts. The submitted duration starts at the actual request boundary. Send the existing absolute vote_ends_at in UTC ISO-8601, with existing vote_deadline_hours metadata. Backend creation requires a future deadline strictly before scheduled_at when a start is supplied. The existing 1–72-hour metadata/check range expands to 1–168 hours without new columns/endpoints. Post-create confirmation shows the canonical deadline returned by the server.
 
 
 ## Unanswered RSVP and live voting time — owner-approved 2026-11-14
@@ -353,11 +353,13 @@ The existing Discover tab is entirely an interactive custom MapLibre map behind 
 
 ## Home, startup permissions, group leave and Settings — owner-approved 2026-11-14
 
-Home nearby cards show a random sample of actual active nearby database places; the Find places near me button is removed. Startup requests notification access, then foreground location access. Denial allows browsing, with real catalog cards under Places to explore when no nearby result is available. Samples remain stable through ordinary rebuilds.
+Home shows up to eight cached active place recommendations. After foreground location resolves, the app can display a random nearby sample from the backend. The general sample stays visible while location resolves and whenever nearby places are unavailable. Startup still requests notification access before foreground location. See All opens Discover.
 
-Group Info has no Delete Group button. Confirmed Leave refreshes the roster and calls the existing delete-group API when the current owner is the only active member. Other members use the existing leave API; a last owner with other members cannot leave. Backend deletion atomically requires sole ownership and no outings, preserving the existing historical-outing protection. Pending invitations are not active members.
+Group Info uses Leave Group for eligible members and a separately labeled Delete group action for the group’s sole owner when they are its only active member. Confirmation names the group. The client refreshes the roster before sending the confirmed operation. A last owner with other members cannot leave. The backend atomically checks sole membership, ownership and the absence of outings before deletion. Pending invitations do not count toward active membership.
 
 Settings removes the separate Change Photo and Account Information rows. Edit Profile/avatar editing remains. Notifications saves the existing per-account pushEnabled preference, with immediate pending feedback, failure rollback and OS permission handling for enabling. Dark mode shows a moon; light mode shows a sun. Turning off push does not delete notification history or disable inbox synchronization.
+
+**Settings contact and developer profile (owner-approved 2026-11-21).** All app communications use the official address configured in `AppConfig.contactEmail`. Contact Us supports general support, bug reports, feature suggestions, privacy and safety, account and data deletion, and Privacy Policy or Terms & Conditions enquiries. The form opens a prefilled draft in the user’s email app and offers an address copy action. About Developer is a localized personal introduction with the app’s story, configured professional links and the same email address.
 
 
 ## Notification action and arrival timing — owner-approved 2026-11-14

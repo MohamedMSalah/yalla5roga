@@ -5,7 +5,7 @@
 | Last verified | 2026-11-13 |
 | Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | All **21** repository migrations are applied (latest: [voting rounds deployment](audit/LOCATION_TIE_MIGRATION_DEPLOYMENT.json)), including special-event occasions, voting duration presets, Android notification metadata and places taxonomy/catalog synchronization. Current target/history/checksum verification and successful Prisma deployment check: [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json). Earlier deployment/backup evidence remains in [prior migration deployment](audit/NEON_GITHUB_SYNC_DEPLOYMENT.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json) and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
+| Configured Neon schema | **24** migrations applied as of 2026-11-21, with zero pending. The [catalog change migration](audit/PLACE_CATALOG_CHANGES_MIGRATION_DEPLOYMENT.json) followed the [read index deployment](audit/DATABASE_READ_PERFORMANCE.md#neon-deployment). Earlier release and backup evidence is in the [voting rounds deployment](audit/LOCATION_TIE_MIGRATION_DEPLOYMENT.json), [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json), and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -339,3 +339,16 @@ erDiagram
 `20261115010000_location_voting_rounds` adds `outings.current_voting_round`, `resolution_method`, `resolved_at`, plus `outing_voting_rounds` and `outing_voting_round_options`. Existing `outing_votes` gains default round 1 and a four-column primary key. Round options persist eligible option IDs, frozen counts and tied flags. Composite foreign keys prevent cross-outing/round votes; SQL checks, unique round numbers and a partial index enforce one active round. The current-round FK is deferred; insert triggers initialize round 1 and its candidates for existing creation paths. These SQL-only checks/triggers/partial index supplement the Prisma model.
 
 Existing outings/ballots are backfilled without changing original columns or historical confirmed locations. Deployment to the verified configured Neon branch passed backup/restore rehearsal for 37 tables / 200,478 rows; original application columns were unchanged, five initial rounds were backfilled and no orphan votes remain. Metadata evidence: [deployment](audit/LOCATION_TIE_MIGRATION_DEPLOYMENT.json). Private backup rows remain ignored under `backend/.database-backups/`. No historical zero-vote cancellations were reopened. Historical confirmed rows retain their original close metadata; new transitions populate resolution method/time.
+
+## Read-path indexes — 2026-11-20
+
+Current-round ballots use `(outing_id, round_number, user_id)` alongside the existing
+multi-place primary key. The notification inbox counts unread rows using
+`(user_id, is_read, created_at)` and retains the existing chronological index for normal paging.
+The default catalog uses `(status, is_active, updated_at DESC, id ASC)` for the first page
+and timestamp cursor bounds. Viewport and radius filters continue to use the coordinate indexes.
+
+The catalog index builds concurrently in a single-statement migration. The two other indexes
+build in a transaction with a five-second lock acquisition timeout. Both migrations were deployed
+to the configured Neon branch and all three indexes were verified. See the
+[database indexing audit](audit/DATABASE_READ_PERFORMANCE.md) for deployment, inventory and local evidence.

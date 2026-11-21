@@ -429,13 +429,14 @@ class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
                                       place.longitude != null) ||
                                   place.address.isNotEmpty
                               ? () async {
-                                  final opened = await AppLauncher.openMaps(
-                                    latitude: place.latitude,
-                                    longitude: place.longitude,
-                                    query: place.address.isEmpty
-                                        ? place.localizedName(l10n)
-                                        : place.address,
-                                  );
+                                  final opened =
+                                      await AppLauncher.openDirections(
+                                        latitude: place.latitude,
+                                        longitude: place.longitude,
+                                        query: place.address.isEmpty
+                                            ? place.localizedName(l10n)
+                                            : place.address,
+                                      );
                                   if (!opened && context.mounted) {
                                     AppSnackBar.showError(
                                       l10n.couldNotOpenLink,

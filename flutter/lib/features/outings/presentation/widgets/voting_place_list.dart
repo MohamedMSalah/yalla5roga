@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/discover/presentation/widgets/place_cover_image.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/place_card.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
@@ -30,14 +32,26 @@ class OutingVoteOptions extends StatelessWidget {
           if (i > 0) Responsive.spaceSm.gapH,
           PlaceCard.option(
             title: options[i].label,
-            subtitle: options[i].area,
-            leading: PlanningCover(
-              url: options[i].imageUrl,
-              art: PlanningCoverArt.outing,
-              width: 48,
-              height: 48,
-              radius: 8,
-            ),
+            subtitle: options[i].address.isEmpty
+                ? options[i].area
+                : options[i].address,
+            leading:
+                options[i].imageUrl.isEmpty && options[i].categoryId.isNotEmpty
+                ? PlaceCoverImage(
+                    url: '',
+                    categoryId: options[i].categoryId,
+                    vibe: OutingVibe.food,
+                    width: 48,
+                    height: 48,
+                    radius: 8,
+                  )
+                : PlanningCover(
+                    url: options[i].imageUrl,
+                    art: PlanningCoverArt.outing,
+                    width: 48,
+                    height: 48,
+                    radius: 8,
+                  ),
             selected: selectedIndexes.contains(i),
             progress: options[i].percent / 100,
             trailing: Text(

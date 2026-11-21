@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="410" height="104" viewBox="0 0 410 104">
+  <defs>
+    <linearGradient id="pyramid" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#a9619d"/><stop offset="1" stop-color="#e58db3"/>
+    </linearGradient>
+    <linearGradient id="moon" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#c590f9"/><stop offset="1" stop-color="#8e59db"/>
+    </linearGradient>
+    <linearGradient id="ground" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop stop-color="#151023"/><stop offset="1" stop-color="#191227" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="tower" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop stop-color="#7442a8"/><stop offset=".55" stop-color="#e7a3cc"/><stop offset="1" stop-color="#79479e"/>
+    </linearGradient>
+    <path id="palm" d="M11 23c1-5 2-13 2-17C7 4 4 9 1 10c1-5 5-8 10-8C8 0 5 0 2 1c3-4 8-4 12 0 1-4 6-5 10-4-4 1-5 3-7 5 6-1 10 2 12 6-4-2-8-3-11-2 4 2 5 5 5 8-2-3-4-5-7-7 0 7 1 11 2 16z"/>
+  </defs>
+  <circle cx="248" cy="27" r="10" fill="url(#moon)" opacity=".89"/>
+  <g fill="#ce96ff" opacity=".45">
+    <circle cx="197" cy="16" r=".5"/><circle cx="216" cy="27" r=".45"/><circle cx="233" cy="37" r=".5"/>
+    <circle cx="271" cy="12" r=".45"/><circle cx="276" cy="32" r=".5"/><circle cx="333" cy="23" r=".55"/>
+    <circle cx="346" cy="34" r=".45"/><circle cx="355" cy="39" r=".45"/><circle cx="383" cy="30" r=".5"/>
+  </g>
+  <path fill="url(#pyramid)" opacity=".53" d="M174 81l30-37 35 35 23 1-30-29-23 29z"/>
+  <path fill="url(#pyramid)" opacity=".82" d="M151 80l53-36 1 1-31 36z"/>
+  <path fill="none" stroke="#6a3b7d" stroke-opacity=".54" d="M185 57h13m-20 9h15m8-12h12m10 10h15m-29 5h11m-55 4h16"/>
+  <g fill="#1b132c">
+    <path d="M98 80v-8h9v8h12v-9l5-2 7 2v9h16v-8l4-1 4 1v8h30v-12h8v12h5v-14l11 2v12h10v-8h10v8h10V68l17-4 9 2v14h10V55l4-2 1-6 1 6 5 2v8l12-1 9 3v15h9v-7l14-4 6 1V61l20 5v14h10v-8l11-2 7 3v7z"/>
+    <use href="#palm" x="12" y="5" transform="translate(112 55) scale(.85)"/>
+    <use href="#palm" transform="translate(347 52) scale(1.18)"/>
+    <use href="#palm" transform="translate(373 71) scale(.72)"/>
+  </g>
+  <path stroke="#be79d6" stroke-width=".8" d="M305 29V7"/>
+  <path fill="url(#tower)" d="M301 72l1-40-1-4 2-5h4l2 5-1 4 1 40z"/>
+  <path fill="none" stroke="#663478" stroke-width=".65" d="M302 32l6 5-6 6 6 6-6 6 6 6-6 6m6-35-6 5 6 6-6 6 6 6-6 6 6 6m-6-43h6"/>
+  <path fill="#a75ca4" d="M249 70h1v2h-1z m4-2h1v2h-1z m5 0h1v2h-1z m-8 6h1v2h-1z m18-9h1v2h-1z m7-5h1v2h-1z m5-5h1v2h-1z m3 0h1v2h-1z m3 11h1v2h-1z m5-2h1v2h-1z m6 1h1v2h-1z m-11 7h1v2h-1z m6-2h1v2h-1z m6 0h1v2h-1z m19-5h1v2h-1z m4 0h1v2h-1z m4-2h1v2h-1z m4-1h1v2h-1z m-11 9h1v2h-1z m7-2h1v2h-1z m4-1h1v2h-1z m44 3h1v2h-1z"/>
+  <path fill="url(#ground)" d="M0 104c43 0 64-27 113-27 37 0 56-4 86-4 36 0 59 10 91 6 48-6 76-17 120 8v17z"/>
+</svg>

@@ -40,7 +40,8 @@ class OutingsRepositoryImpl implements OutingsRepository {
   final _snapshotCache = TtlCache<OutingSnapshot>(ttl: CachePolicy.outings);
 
   void _storeSnapshot(OutingSnapshot snapshot) {
-    _snapshotCache.set(_snapshotKey, snapshot);
+    // A targeted detail or socket update must not make a partial feed fresh.
+    _snapshotCache.updateExisting(_snapshotKey, (_) => snapshot);
   }
 
   @override

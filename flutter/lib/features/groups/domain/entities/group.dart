@@ -14,7 +14,9 @@ class Group {
     this.pendingMembers = const [],
     this.invitationHistory = const [],
     this.bio = '',
+    this.createdAt,
     this.listedMemberCount,
+    this.cachedAcceptedMemberIds = const [],
     this.cuserRole = GroupRole.member,
   });
 
@@ -30,9 +32,14 @@ class Group {
 
   /// Optional group description / bio from the API.
   final String bio;
+  final DateTime? createdAt;
 
   /// `member_count` from list/create payloads when the full members list is not loaded yet.
   final int? listedMemberCount;
+
+  // The Groups summary can use matching offline roster IDs without publishing
+  // cached member profiles or roles to group management.
+  final List<String> cachedAcceptedMemberIds;
 
   final GroupRole cuserRole;
 
@@ -44,6 +51,19 @@ class Group {
   }
 
   int get outingCount => outings;
+
+  int? get acceptedMemberCount {
+    if (listedMemberCount case final count?) return count;
+    final accepted = members
+        .where(
+          (member) =>
+              !member.isPending &&
+              member.id.isNotEmpty &&
+              !member.id.startsWith('preview_'),
+        )
+        .length;
+    return accepted > 0 ? accepted : null;
+  }
 
   List<String> get avatars => [
     for (final member in members)
@@ -90,6 +110,7 @@ class Group {
     List<GroupInvitationRecord>? invitationHistory,
     String? bio,
     int? listedMemberCount,
+    List<String>? cachedAcceptedMemberIds,
     String? lastMessage,
     int? unread,
     bool? featured,
@@ -105,7 +126,10 @@ class Group {
       pendingMembers: pendingMembers ?? this.pendingMembers,
       invitationHistory: invitationHistory ?? this.invitationHistory,
       bio: bio ?? this.bio,
+      createdAt: createdAt,
       listedMemberCount: listedMemberCount ?? this.listedMemberCount,
+      cachedAcceptedMemberIds:
+          cachedAcceptedMemberIds ?? this.cachedAcceptedMemberIds,
       cuserRole: cuserRole ?? this.cuserRole,
     );
   }
@@ -116,6 +140,7 @@ class Group {
     'outings': outings,
     'image': image,
     'bio': bio,
+    if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
     'cuserRole': cuserRole.name,
     'member_count': memberCount,
     'members': memberCount,
@@ -163,6 +188,7 @@ class Group {
       outings: _readInt(json['outings']),
       bio: json['bio'] as String? ?? json['description'] as String? ?? '',
       image: json['image'] as String? ?? json['coverUrl'] as String? ?? '',
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
       members: members,
       pendingMembers: [
         for (final item in json['pendingMembers'] as List? ?? const [])

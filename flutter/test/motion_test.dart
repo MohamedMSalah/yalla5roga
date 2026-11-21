@@ -56,10 +56,20 @@ void main() {
           tester.widget<Scaffold>(find.byType(Scaffold)).extendBody,
           isTrue,
         );
-        expect(
-          find.byType(BackdropFilter),
-          highContrast ? findsNothing : findsOneWidget,
-        );
+        final indicators = tester
+            .widgetList<AnimatedContainer>(
+              find.descendant(
+                of: find.byType(AppBottomNav),
+                matching: find.byType(AnimatedContainer),
+              ),
+            )
+            .where(
+              (item) =>
+                  item.decoration is BoxDecoration &&
+                  (item.decoration! as BoxDecoration).gradient ==
+                      AppPalette.selectedGradient,
+            );
+        expect(indicators, hasLength(highContrast ? 0 : 1));
         await tester.tap(find.text(labels[3]));
         expect(selected, 3);
         expect(tester.takeException(), isNull);

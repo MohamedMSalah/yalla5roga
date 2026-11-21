@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { measure } from "../../monitoring/context.js";
 
 const language = z.enum(["en", "ar"]);
 export const geocodingRequest = z.discriminatedUnion("kind", [
@@ -60,32 +61,34 @@ export function configuredGeocodingProvider(env = process.env): GeocodingProvide
   return {
     attribution,
     cacheSeconds,
-    async lookup(request, signal) {
-      const path = request.kind === "search" ? "autocomplete" : "reverse";
-      const url = new URL(`${base.href.replace(/\/$/, "")}/v1/${path}`);
-      url.searchParams.set("lang", request.language);
-      url.searchParams.set("size", request.kind === "search" ? "6" : "1");
-      if (request.kind === "search") {
-        url.searchParams.set("text", request.query);
-      } else {
-        url.searchParams.set("point.lat", String(request.latitude));
-        url.searchParams.set("point.lon", String(request.longitude));
-      }
-      if (env.GEOCODING_API_KEY) url.searchParams.set("api_key", env.GEOCODING_API_KEY);
-      const response = await fetch(url, { signal, redirect: "error" });
-      if (!response.ok) throw new Error("Geocoding upstream request failed");
-      const payload = z.object({ features: z.array(z.unknown()) }).parse(await response.json());
-      return payload.features.slice(0, request.kind === "search" ? 6 : 1).flatMap((item) => {
-        const parsed = feature.safeParse(item);
-        if (!parsed.success) return [];
-        const { geometry: { coordinates: [longitude, latitude] }, properties } = parsed.data;
-        return [{
-          id: properties.gid,
-          name: properties.name,
-          area: properties.locality ?? properties.region ?? properties.country ?? "",
-          latitude,
-          longitude,
-        }];
+    lookup(request, signal) {
+      return measure("externalMs", async () => {
+        const path = request.kind === "search" ? "autocomplete" : "reverse";
+        const url = new URL(`${base.href.replace(/\/$/, "")}/v1/${path}`);
+        url.searchParams.set("lang", request.language);
+        url.searchParams.set("size", request.kind === "search" ? "6" : "1");
+        if (request.kind === "search") {
+          url.searchParams.set("text", request.query);
+        } else {
+          url.searchParams.set("point.lat", String(request.latitude));
+          url.searchParams.set("point.lon", String(request.longitude));
+        }
+        if (env.GEOCODING_API_KEY) url.searchParams.set("api_key", env.GEOCODING_API_KEY);
+        const response = await fetch(url, { signal, redirect: "error" });
+        if (!response.ok) throw new Error("Geocoding upstream request failed");
+        const payload = z.object({ features: z.array(z.unknown()) }).parse(await response.json());
+        return payload.features.slice(0, request.kind === "search" ? 6 : 1).flatMap((item) => {
+          const parsed = feature.safeParse(item);
+          if (!parsed.success) return [];
+          const { geometry: { coordinates: [longitude, latitude] }, properties } = parsed.data;
+          return [{
+            id: properties.gid,
+            name: properties.name,
+            area: properties.locality ?? properties.region ?? properties.country ?? "",
+            latitude,
+            longitude,
+          }];
+        });
       });
     },
   };

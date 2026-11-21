@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 import 'package:yalla_5roga/core/maps/yalla_map_camera_manager.dart';
@@ -25,29 +26,44 @@ class YallaMapView extends StatefulWidget {
     this.center = cairoMapCenter,
     this.zoom = 12,
     this.places = const [],
+    this.privatePlaces = const [],
     this.categories = const [],
     this.selection = const YallaMapPlaceSelection(),
     this.onPlaceTap,
+    this.idleDebounce = const Duration(milliseconds: 400),
     this.onTap,
     this.onUserMove,
     this.onUserIdle,
     this.onBoundsChanged,
+    this.onViewportChanged,
+    this.regionPicker = false,
     this.selectionBottom = 0,
     this.userLocation,
+    this.userAccuracy,
+    this.userLocationApproximate = false,
+    this.darkBasemap,
+    this.customControls = false,
     this.controlsTop = 100,
     this.controlsBottom,
   });
+  final Duration idleDebounce;
   final YallaMapController controller;
   final LatLng center;
   final double zoom, selectionBottom;
-  final List<Place> places;
+  final List<Place> places, privatePlaces;
   final List<CatalogDefinition> categories;
   final YallaMapPlaceSelection selection;
   final ValueChanged<Place>? onPlaceTap;
   final ValueChanged<LatLng>? onTap, onUserIdle;
   final VoidCallback? onUserMove;
   final ValueChanged<String>? onBoundsChanged;
+  final void Function(String bounds, ml.CameraPosition position)?
+  onViewportChanged;
+  final bool regionPicker;
   final LatLng? userLocation;
+  final double? userAccuracy;
+  final bool userLocationApproximate, customControls;
+  final bool? darkBasemap;
   final double controlsTop;
   final double? controlsBottom;
   @override
@@ -56,13 +72,23 @@ class YallaMapView extends StatefulWidget {
 
 class _YallaMapViewState extends State<YallaMapView>
     with SingleTickerProviderStateMixin {
+  final _initialization = kDebugMode ? (Stopwatch()..start()) : null;
   final _markers = YallaMapMarkers();
   late final AnimationController _selectionAnimation = AnimationController(
     vsync: this,
     duration: AppMotion.standard,
+    value: 1,
   )..addListener(_animationFrame);
   ml.MapLibreMapController? _native;
   String _style = '', _language = 'en';
+  List<Place>? _mappedPlaces, _mappedPrivate;
+  Map<String, dynamic>? _privateData;
+  String? _privateKey, _privateLanguage;
+  String? _mappedLanguage;
+  Map<String, dynamic>? _mappedData;
+  String? _mappedKey;
+  (LatLng?, double?, bool)? _shownLocation;
+  bool _dark = false;
   Timer? _idle, _watchdog;
   Future<void> _work = Future.value();
   bool _ready = false,
@@ -72,11 +98,11 @@ class _YallaMapViewState extends State<YallaMapView>
       _userMoving = false,
       _animating = false;
   final _pointers = <int>{};
-  int _epoch = 0, _mapKey = 0;
+  int _epoch = 0, _mapKey = 0, _cameraRevision = 0, _styleLoads = 0;
   DateTime _lastFrame = DateTime.fromMillisecondsSinceEpoch(0);
   bool _active = true;
   Widget? _nativeSurface;
-  (String, int, double, double)? _surfaceKey;
+  (String, int, double, double, TextDirection, bool)? _surfaceKey;
 
   @override
   void didChangeDependencies() {
@@ -85,17 +111,29 @@ class _YallaMapViewState extends State<YallaMapView>
     if (active && !_active) _settled();
     _active = active;
     _language = context.l10n.locale.languageCode;
-    widget.controller.camera.reduceMotion = AppMotion.reduce(context);
-    final style = YallaMapStyle.resolve(
-      dark: Theme.of(context).brightness == Brightness.dark,
-      language: _language,
-    );
-    if (_style != style) {
+    final reduced = AppMotion.reduce(context);
+    final motionChanged = widget.controller.camera.reduceMotion != reduced;
+    widget.controller.camera.reduceMotion = reduced;
+    _resolveStyle();
+    if (motionChanged && reduced) {
+      _selectionAnimation.stop();
+      _queueLayers();
+    }
+  }
+
+  void _resolveStyle() {
+    final dark =
+        widget.darkBasemap ?? (Theme.of(context).brightness == Brightness.dark);
+    final style = YallaMapStyle.resolve(dark: dark, language: _language);
+    if (_style != style || _dark != dark) {
+      if (_style == style) _mapKey++;
+      _dark = dark;
       _style = style;
       _epoch++;
+      _pointers.clear();
+      _userMoving = false;
       _ready = false;
       _installed = false;
-      _markers.reset();
       widget.controller.ready = false;
       _startWatchdog();
     }
@@ -104,25 +142,21 @@ class _YallaMapViewState extends State<YallaMapView>
   @override
   void didUpdateWidget(covariant YallaMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.darkBasemap != widget.darkBasemap) _resolveStyle();
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.detach();
     }
     widget.controller.selectionBottom = widget.selectionBottom;
     if (!identical(oldWidget.places, widget.places) ||
+        !identical(oldWidget.privatePlaces, widget.privatePlaces) ||
         !identical(oldWidget.categories, widget.categories) ||
         oldWidget.selection.focusedId != widget.selection.focusedId ||
         oldWidget.selection.mode != widget.selection.mode ||
         !identical(oldWidget.selection.selected, widget.selection.selected) ||
-        oldWidget.userLocation != widget.userLocation) {
+        oldWidget.userLocation != widget.userLocation ||
+        oldWidget.userAccuracy != widget.userAccuracy ||
+        oldWidget.userLocationApproximate != widget.userLocationApproximate) {
       _queueLayers();
-    }
-    if (oldWidget.selection.focusedId != widget.selection.focusedId &&
-        widget.selection.focusedId != null) {
-      if (AppMotion.reduce(context)) {
-        _selectionAnimation.value = 1;
-      } else {
-        _selectionAnimation.forward(from: 0);
-      }
     }
   }
 
@@ -141,9 +175,11 @@ class _YallaMapViewState extends State<YallaMapView>
   void _loaded() {
     if (!mounted) return;
     _watchdog?.cancel();
+    _selectionAnimation.stop();
+    _styleLoads++;
     _ready = true;
     _installed = false;
-    _markers.reset();
+    widget.controller.ready = false;
     widget.controller.reportFailure(false);
     _queueLayers();
   }
@@ -152,144 +188,277 @@ class _YallaMapViewState extends State<YallaMapView>
     _dirty = true;
     if (!_ready || _queued) return;
     _queued = true;
-    final epoch = _epoch;
+    final generation = (_epoch, _styleLoads);
+    bool current() => mounted && _ready && generation == (_epoch, _styleLoads);
     final number = context.l10n.n;
     _work = _work
         .then((_) async {
-          while (_dirty && mounted && _ready && epoch == _epoch) {
+          while (_dirty && current()) {
             _dirty = false;
             final map = _native!;
-            final places = List<Place>.of(widget.places);
+            final places = widget.places;
             final selection = widget.selection;
-            final highlighted = YallaMapMarkers.highlighted(places, selection);
-            final highlightedIds = highlighted.map((p) => p.id).toSet();
-            final data = YallaMapMarkers.collection(
-              places.where((p) => !highlightedIds.contains(p.id)),
-              widget.categories,
-              language: _language,
-            );
+            final privatePlaces = widget.privatePlaces;
+            final highlighted = YallaMapMarkers.highlighted([
+              ...places,
+              ...privatePlaces,
+            ], selection);
+            if (!identical(privatePlaces, _mappedPrivate) ||
+                _privateLanguage != _language) {
+              _mappedPrivate = privatePlaces;
+              _privateLanguage = _language;
+              _privateData = YallaMapMarkers.collection(
+                privatePlaces,
+                language: _language,
+              );
+              _privateKey = jsonEncode(_privateData);
+            }
+            if (!identical(places, _mappedPlaces) ||
+                _language != _mappedLanguage) {
+              _mappedPlaces = places;
+              _mappedLanguage = _language;
+              _mappedData = YallaMapMarkers.collection(
+                places,
+                language: _language,
+              );
+              _mappedKey = jsonEncode(_mappedData);
+            }
+            final data = _mappedData!;
             final selected = YallaMapMarkers.collection(
               highlighted,
-              widget.categories,
               language: _language,
+              includeUnavailable: selection.showChecks,
             );
             final custom = <String, dynamic>{
               'type': 'FeatureCollection',
               'features': [
-                if (selection.mode != YallaMapSelectionMode.browse)
-                  for (final (index, place) in selection.selected.indexed)
-                    if (place.id.isEmpty && YallaMapMarkers.validPoint(place))
-                      {
-                        'type': 'Feature',
-                        'id': index,
-                        'geometry': {
-                          'type': 'Point',
-                          'coordinates': [place.longitude, place.latitude],
-                        },
-                        'properties': {
-                          'custom_index': index,
-                          'selection_order': number(index + 1),
-                        },
+                for (final (index, place) in selection.selected.indexed)
+                  if (place.id.isEmpty && YallaMapMarkers.validPoint(place))
+                    {
+                      'type': 'Feature',
+                      'id': index,
+                      'geometry': {
+                        'type': 'Point',
+                        'coordinates': [place.longitude, place.latitude],
                       },
+                      'properties': {
+                        'custom_index': index,
+                        'name': place.displayName(_language),
+                        if (selection.mode == YallaMapSelectionMode.multiple)
+                          'selection_order': number(index + 1),
+                      },
+                    },
               ],
             };
-            if (selection.mode == YallaMapSelectionMode.multiple) {
-              for (final feature in selected['features'] as List) {
-                final index = selection.selected.indexWhere(
-                  (p) => p.id == feature['properties']['place_id'],
-                );
-                if (index >= 0) {
-                  feature['properties']['selection_order'] = number(index + 1);
-                }
-              }
+            if (!_installed) {
+              _markers.reset();
+              _shownLocation = null;
             }
             await _markers.images(map, [
               ...places,
+              ...privatePlaces,
               ...highlighted,
-            ], widget.categories);
-            if (!mounted || epoch != _epoch) return;
+            ], dark: _dark);
+            if (!current()) return;
             if (!_installed) {
-              await YallaMapClusters.install(map, data);
-              await _markers.install(map);
+              await YallaMapClusters.install(map, dark: _dark);
+              await _markers.install(
+                map,
+                dark: _dark,
+                showChecks: selection.showChecks,
+              );
               await map.addGeoJsonSource('yalla-user', {
                 'type': 'FeatureCollection',
                 'features': [],
               });
-              await map.addCircleLayer(
+              await map.addFillLayer(
                 'yalla-user',
-                'yalla-user-dot',
-                const ml.CircleLayerProperties(
-                  circleColor: '#346AC7',
-                  circleRadius: 7,
-                  circleStrokeWidth: 3,
-                  circleStrokeColor: '#FFFFFF',
+                'yalla-user-accuracy',
+                const ml.FillLayerProperties(
+                  fillColor: '#347CFA',
+                  fillOpacity: .14,
+                  fillOutlineColor: '#4379CC',
                 ),
+                filter: [
+                  '==',
+                  ['geometry-type'],
+                  'Polygon',
+                ],
                 enableInteraction: false,
               );
-              if (!mounted || epoch != _epoch) return;
+              for (final (id, size, opacity) in [
+                ('halo', 23.0, .13),
+                ('ring', 15.0, .24),
+                ('dot', 7.0, 1.0),
+              ]) {
+                await map.addCircleLayer(
+                  'yalla-user',
+                  'yalla-user-$id',
+                  ml.CircleLayerProperties(
+                    circleRadius: size,
+                    circleColor: [
+                      'case',
+                      ['get', 'approximate'],
+                      '#7B90B5',
+                      '#3B87FF',
+                    ],
+                    circleOpacity: opacity,
+                    circleStrokeWidth: id == 'dot' ? 2.5 : 0,
+                    circleStrokeColor: '#F5F3FF',
+                  ),
+                  filter: [
+                    '==',
+                    ['geometry-type'],
+                    'Point',
+                  ],
+                  enableInteraction: false,
+                );
+              }
+              if (!current()) return;
+              if (_initialization?.isRunning == true) {
+                _initialization!.stop();
+                debugPrint(
+                  'Map initialization ${_initialization.elapsedMilliseconds} ms',
+                );
+              }
               _installed = true;
               widget.controller.attach();
               _settled();
             }
-            if (!mounted || epoch != _epoch) return;
+            if (!current()) return;
+            final markerTimer = kDebugMode ? (Stopwatch()..start()) : null;
             await _markers.update(
               map,
-              dataKey: jsonEncode(data),
+              dataKey: _mappedKey!,
+              privateKey: _privateKey!,
+              privateData: _privateData!,
               data: data,
-              selected: selected,
-              selectedKey: jsonEncode(selected),
               custom: custom,
               customKey: jsonEncode(custom),
             );
-            if (widget.userLocation case final location?) {
-              await map.setGeoJsonSource('yalla-user', {
-                'type': 'FeatureCollection',
-                'features': [
-                  {
-                    'type': 'Feature',
-                    'geometry': {
-                      'type': 'Point',
-                      'coordinates': [location.longitude, location.latitude],
-                    },
-                    'properties': <String, dynamic>{},
-                  },
-                ],
-              });
+            if (!current()) return;
+            final startAnimation = await _markers.updateSelection(
+              map,
+              selected,
+              animate: !widget.controller.camera.reduceMotion,
+              progress: AppMotion.settle.transform(_selectionAnimation.value),
+            );
+            if (startAnimation && current()) {
+              _selectionAnimation.forward(from: 0);
+            }
+            if (!current()) return;
+            if (kDebugMode) {
+              debugPrint(
+                'Map layers ${markerTimer!.elapsedMilliseconds} ms displayed=${places.length + privatePlaces.length}',
+              );
+            }
+            final location = (
+              widget.userLocation,
+              widget.userAccuracy,
+              widget.userLocationApproximate,
+            );
+            if (_shownLocation != location) {
+              await map.setGeoJsonSource('yalla-user', _locationData(location));
+              _shownLocation = location;
             }
           }
         })
         .catchError((Object error) {
-          if (mounted && epoch == _epoch) widget.controller.reportFailure(true);
+          if (current()) widget.controller.reportFailure(true);
         })
         .whenComplete(() {
           _queued = false;
-          if (_dirty && mounted && _ready && epoch != _epoch) _queueLayers();
+          if (_dirty && mounted && _ready) _queueLayers();
         });
   }
 
+  Map<String, dynamic> _locationData((LatLng?, double?, bool) data) {
+    final (point, accuracy, approximate) = data;
+    final ring = [
+      if (point != null &&
+          accuracy != null &&
+          accuracy.isFinite &&
+          accuracy > 0 &&
+          accuracy <= 5000)
+        for (var i = 0; i <= 48; i++)
+          const Distance().offset(point, accuracy, (i % 48) * 360 / 48),
+    ];
+    return {
+      'type': 'FeatureCollection',
+      'features': [
+        if (ring.isNotEmpty &&
+            ring.every(
+              (p) =>
+                  (p.longitude - point!.longitude).abs() < 180 &&
+                  p.latitude.abs() <= 85.051129,
+            ))
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Polygon',
+              'coordinates': [
+                [
+                  for (final p in ring) [p.longitude, p.latitude],
+                ],
+              ],
+            },
+            'properties': <String, dynamic>{},
+          },
+        if (point != null)
+          {
+            'type': 'Feature',
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [point.longitude, point.latitude],
+            },
+            'properties': {'approximate': approximate},
+          },
+      ],
+    };
+  }
+
   void _animationFrame() {
+    final value = _selectionAnimation.value;
     if (!_ready ||
         !_installed ||
         _animating ||
-        DateTime.now().difference(_lastFrame).inMilliseconds < 32) {
+        value == 0 ||
+        (value < 1 &&
+            DateTime.now().difference(_lastFrame).inMilliseconds < 30)) {
       return;
     }
     _animating = true;
-    _lastFrame = DateTime.now();
+    final generation = (_epoch, _styleLoads);
+    var progress = value;
     _work = _work
         .then((_) async {
-          if (mounted && _ready && _installed) {
+          if (mounted &&
+              _ready &&
+              _installed &&
+              generation == (_epoch, _styleLoads)) {
+            progress = _selectionAnimation.value;
+            _lastFrame = DateTime.now();
             await _markers.selectionFrame(
               _native!,
-              AppMotion.enter.transform(_selectionAnimation.value),
+              AppMotion.settle.transform(progress),
             );
           }
         })
         .catchError((Object _) {})
-        .whenComplete(() => _animating = false);
+        .whenComplete(() {
+          _animating = false;
+          // Always commit the last frame, even if the previous write was busy.
+          if (mounted &&
+              generation == (_epoch, _styleLoads) &&
+              progress < 1 &&
+              _selectionAnimation.isCompleted) {
+            _animationFrame();
+          }
+        });
   }
 
   void _moving(ml.CameraPosition position) {
+    _cameraRevision++;
     widget.controller.camera.position = position;
     _idle?.cancel();
     if (_pointers.isNotEmpty && !_userMoving) {
@@ -300,10 +469,7 @@ class _YallaMapViewState extends State<YallaMapView>
 
   void _settled() {
     _idle?.cancel();
-    _idle = Timer(
-      const Duration(milliseconds: 350),
-      () => unawaited(_publishViewport()),
-    );
+    _idle = Timer(widget.idleDebounce, () => unawaited(_publishViewport()));
   }
 
   Future<void> _publishViewport() async {
@@ -316,9 +482,13 @@ class _YallaMapViewState extends State<YallaMapView>
       return;
     }
     final epoch = _epoch;
+    final revision = _cameraRevision;
     try {
       final size = context.size;
-      final box = await native.getVisibleRegion();
+      final box =
+          widget.onBoundsChanged == null && widget.onViewportChanged == null
+          ? null
+          : await native.getVisibleRegion();
       final point = size == null
           ? native.cameraPosition!.target
           : await native.toLatLng(
@@ -327,25 +497,30 @@ class _YallaMapViewState extends State<YallaMapView>
                 (size.height - widget.controller.selectionBottom) / 2,
               ),
             );
-      if (!mounted || epoch != _epoch) return;
+      if (!mounted || epoch != _epoch || revision != _cameraRevision) return;
       final location = LatLng(point.latitude, point.longitude);
       widget.controller.selectionPoint = location;
       if (_userMoving) {
         _userMoving = false;
         widget.onUserIdle?.call(location);
       }
-      // Bound precision avoids a new query for sub-pixel camera drift.
-      final west = box.southwest.longitude.clamp(-180, 180);
-      final east = box.northeast.longitude.clamp(-180, 180);
-      if (west < east) {
-        widget.onBoundsChanged?.call(
-          [
-            west,
-            box.southwest.latitude.clamp(-85, 85),
-            east,
-            box.northeast.latitude.clamp(-85, 85),
-          ].map((n) => n.toStringAsFixed(4)).join(','),
-        );
+      // Use exact native bounds, including wrapped viewports.
+      if (box == null) return;
+      double longitude(double value) =>
+          value >= -180 && value <= 180 ? value : (value + 180) % 360 - 180;
+      final world =
+          (box.northeast.longitude - box.southwest.longitude).abs() >= 360;
+      final west = world ? -180.0 : longitude(box.southwest.longitude);
+      final east = world ? 180.0 : longitude(box.northeast.longitude);
+      final south = box.southwest.latitude.clamp(-90, 90);
+      final north = box.northeast.latitude.clamp(-90, 90);
+      if (west != east && south < north && !(west == 180 && east == -180)) {
+        final bounds = [west, south, east, north].join(',');
+        widget.onBoundsChanged?.call(bounds);
+        if (widget.controller.camera.position ?? native.cameraPosition
+            case final position?) {
+          widget.onViewportChanged?.call(bounds, position);
+        }
       }
     } catch (_) {
       if (mounted && epoch == _epoch) widget.controller.reportFailure(true);
@@ -355,24 +530,59 @@ class _YallaMapViewState extends State<YallaMapView>
   Future<void> _tap(math.Point<double> screen, ml.LatLng coordinates) async {
     if (!_installed) return;
     final native = _native!;
+    final generation = (_epoch, _styleLoads);
+    bool current() =>
+        mounted && _installed && generation == (_epoch, _styleLoads);
     try {
-      final features = await native.queryRenderedFeaturesInRect(
-        Rect.fromCenter(
-          center: Offset(screen.x, screen.y),
-          width: 48,
-          height: 48,
-        ),
-        [
-          YallaMapMarkers.selectedPins,
-          YallaMapMarkers.pins,
-          YallaMapMarkers.customPoints,
-        ],
-        null,
-      );
-      if (!mounted) return;
-      if (features.isNotEmpty) {
-        final feature = features.first as Map;
-        final properties = feature['properties'] as Map;
+      const layers = [
+        YallaMapMarkers.selectedPins,
+        YallaMapMarkers.pins,
+        YallaMapMarkers.privatePins,
+        YallaMapMarkers.customPoints,
+        YallaMapMarkers.customOrder,
+        YallaMapClusters.pins,
+      ];
+      final exact = await native.queryRenderedFeatures(screen, layers, null);
+      if (!current()) return;
+      final features = exact.isNotEmpty
+          ? exact
+          : await native.queryRenderedFeaturesInRect(
+              Rect.fromCenter(
+                center: Offset(screen.x, screen.y),
+                width: 36,
+                height: 36,
+              ),
+              layers,
+              null,
+            );
+      if (!current()) return;
+      for (final feature in features.whereType<Map>()) {
+        final properties = feature['properties'];
+        if (properties is! Map) continue;
+        if (properties['cluster_id'] case final num clusterId) {
+          final geometry = feature['geometry'];
+          final center = geometry is Map ? geometry['coordinates'] : null;
+          if (center case [final num lng, final num lat, ...]) {
+            final revision = _cameraRevision;
+            final zoom = await native.getClusterExpansionZoom(
+              YallaMapClusters.source,
+              clusterId.toInt(),
+            );
+            if (!current() || revision != _cameraRevision) {
+              return;
+            }
+            if (zoom > 0) {
+              widget.controller.focusSelection(
+                LatLng(lat.toDouble(), lng.toDouble()),
+                zoom: math.max(
+                  zoom.toDouble(),
+                  widget.controller.camera.position?.zoom ?? 0,
+                ),
+              );
+            }
+          }
+          return;
+        }
         if (properties['custom_index'] case final num index) {
           if (index.toInt() >= 0 &&
               index.toInt() < widget.selection.selected.length) {
@@ -381,30 +591,35 @@ class _YallaMapViewState extends State<YallaMapView>
           return;
         }
         final id = properties['place_id'];
-        final place = [
-          ...widget.places,
-          ...widget.selection.selected,
-        ].where((p) => p.id == id).firstOrNull;
-        if (place != null) {
-          widget.onPlaceTap?.call(place);
-          return;
+        if (id == null) continue;
+        for (final list in [
+          widget.privatePlaces,
+          widget.places,
+          widget.selection.selected,
+        ]) {
+          final place = list.where((p) => p.id == id).firstOrNull;
+          if (place != null) {
+            widget.onPlaceTap?.call(place);
+            return;
+          }
         }
       }
       widget.onTap?.call(LatLng(coordinates.latitude, coordinates.longitude));
     } catch (_) {
-      if (mounted) widget.controller.reportFailure(true);
+      if (current()) widget.controller.reportFailure(true);
     }
   }
 
   void _retry() {
     _epoch++;
+    _pointers.clear();
+    _userMoving = false;
     _ready = false;
     _installed = false;
     if (identical(widget.controller.camera.native, _native)) {
       widget.controller.detach();
     }
     widget.controller.reportFailure(false);
-    _markers.reset();
     _startWatchdog();
     setState(() => _mapKey++);
   }
@@ -427,11 +642,14 @@ class _YallaMapViewState extends State<YallaMapView>
   @override
   Widget build(BuildContext context) {
     final epoch = _epoch;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
     final key = (
       _style,
       _mapKey,
       MediaQuery.paddingOf(context).top,
       widget.controlsTop,
+      Directionality.of(context),
+      widget.customControls,
     );
     if (_surfaceKey != key) {
       _surfaceKey = key;
@@ -451,7 +669,7 @@ class _YallaMapViewState extends State<YallaMapView>
         },
         child: ml.MapLibreMap(
           key: ValueKey((_mapKey, _style)),
-          styleString: _style,
+          styleString: YallaMapOffline.instance.renderStyle(_style),
           initialCameraPosition:
               widget.controller.camera.position ??
               ml.CameraPosition(
@@ -477,11 +695,14 @@ class _YallaMapViewState extends State<YallaMapView>
             if (epoch == _epoch) unawaited(_tap(screen, point));
           },
           trackCameraPosition: true,
-          rotateGesturesEnabled: true,
-          tiltGesturesEnabled: true,
+          rotateGesturesEnabled: !widget.regionPicker,
+          tiltGesturesEnabled: !widget.regionPicker,
           featureTapsTriggersMapClick: true,
           minMaxZoomPreference: const ml.MinMaxZoomPreference(3, 20),
-          attributionButtonPosition: ml.AttributionButtonPosition.topRight,
+          compassEnabled: !widget.customControls,
+          attributionButtonPosition: rtl
+              ? ml.AttributionButtonPosition.topLeft
+              : ml.AttributionButtonPosition.topRight,
           attributionButtonMargins: math.Point(
             12,
             MediaQuery.paddingOf(context).top + widget.controlsTop + 112,
@@ -521,63 +742,17 @@ class _YallaMapViewState extends State<YallaMapView>
                 )
               : const SizedBox.shrink(),
         ),
-        PositionedDirectional(
-          start: 12,
-          top: widget.controlsBottom == null
-              ? MediaQuery.paddingOf(context).top + widget.controlsTop + 56
-              : null,
-          bottom: widget.controlsBottom,
-          child: IconButton.filledTonal(
-            tooltip: context.l10n.mapRetryTiles,
-            onPressed: _retry,
-            icon: const Icon(Icons.refresh),
-          ),
-        ),
-        if (YallaMapOffline.supported)
+        if (!widget.customControls)
           PositionedDirectional(
-            start: widget.controlsBottom == null ? 12 : 68,
+            start: 12,
             top: widget.controlsBottom == null
-                ? MediaQuery.paddingOf(context).top + widget.controlsTop
+                ? MediaQuery.paddingOf(context).top + widget.controlsTop + 56
                 : null,
             bottom: widget.controlsBottom,
-            child: AnimatedBuilder(
-              animation: YallaMapOffline.instance,
-              builder: (_, _) {
-                final cache = YallaMapOffline.instance;
-                return IconButton.filledTonal(
-                  tooltip: cache.failed
-                      ? context.l10n.mapOfflineFailed
-                      : cache.complete
-                      ? context.l10n.mapOfflineSaved
-                      : context.l10n.mapSaveOffline,
-                  onPressed: cache.busy
-                      ? null
-                      : () async {
-                          if (!_ready) return;
-                          try {
-                            final bounds = await _native!.getVisibleRegion();
-                            if (mounted) await cache.save(bounds, _style);
-                          } catch (_) {
-                            if (mounted) widget.controller.reportFailure(true);
-                          }
-                        },
-                  icon: cache.busy
-                      ? SizedBox.square(
-                          dimension: 22,
-                          child: CircularProgressIndicator(
-                            value: cache.progress > 0 ? cache.progress : null,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : Icon(
-                          cache.failed
-                              ? Icons.error_outline
-                              : cache.complete
-                              ? Icons.offline_pin_outlined
-                              : Icons.download_for_offline_outlined,
-                        ),
-                );
-              },
+            child: IconButton.filledTonal(
+              tooltip: context.l10n.mapRetryTiles,
+              onPressed: _retry,
+              icon: const Icon(Icons.refresh),
             ),
           ),
       ],

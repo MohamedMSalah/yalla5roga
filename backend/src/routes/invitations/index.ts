@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { UserInvitationsController } from "../../controllers/invitations/user-invitations.controller.js";
 import { validate } from "../../middleware/validate.middleware.js";
@@ -100,6 +101,6 @@ api.post(
 );
 
 const router = Router();
-router.use("/api/invitations", api);
+mountRoutes(router, "/api/invitations", api);
 
 export default router;

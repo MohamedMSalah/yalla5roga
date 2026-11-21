@@ -1,0 +1,12 @@
+name: yalla5roga-disposable
+services:
+  test-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: yalla_test_local
+      POSTGRES_USER: yalla_test
+      POSTGRES_PASSWORD: ${YALLA_TEST_DB_PASSWORD:-local-fixtures-only}
+    ports:
+      - "127.0.0.1:55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data

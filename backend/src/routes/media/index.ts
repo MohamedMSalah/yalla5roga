@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { getMediaConfig } from "../../config/media.js";
 import { getMockStorageAdapter } from "../../services/media/mock-storage.adapter.js";
@@ -57,6 +58,6 @@ api.use(authMiddleware);
 api.use(mediaRoutes);
 
 const router = Router();
-router.use("/api/media", api);
+mountRoutes(router, "/api/media", api);
 
 export default router;

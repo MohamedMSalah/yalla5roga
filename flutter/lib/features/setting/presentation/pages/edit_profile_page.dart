@@ -13,6 +13,7 @@ import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'package:yalla_5roga/core/widgets/image_source_sheet.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/pages/change_password_page.dart';
+import 'package:yalla_5roga/features/setting/presentation/pages/contact_us_page.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/edit_profile_avatar_section.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_edit_sheet.dart';
 import 'package:yalla_5roga/features/setting/presentation/widgets/profile_phone_sheet.dart';
@@ -191,6 +192,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 icon: Icons.delete_outline,
                 variant: AppButtonVariant.danger,
                 onPressed: busy ? null : () => confirmDeleteAccount(context),
+              ),
+              TextButton.icon(
+                onPressed: busy
+                    ? null
+                    : () => Get.to(
+                        () => const ContactUsPage(
+                          initialTopic: SupportTopic.deletion,
+                        ),
+                      ),
+                icon: const Icon(Icons.mail_outline),
+                label: Text(l10n.contactSupport),
               ),
             ],
           ),

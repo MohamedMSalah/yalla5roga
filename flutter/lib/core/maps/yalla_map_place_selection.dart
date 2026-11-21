@@ -7,10 +7,12 @@ class YallaMapPlaceSelection {
   const YallaMapPlaceSelection({
     this.mode = YallaMapSelectionMode.browse,
     this.focusedId,
+    this.showChecks = false,
     this.selected = const [],
   });
   final YallaMapSelectionMode mode;
   final String? focusedId;
+  final bool showChecks;
   final List<Place> selected;
   bool contains(Place place) => selected.any(place.matchesSelection);
 }

@@ -14,6 +14,7 @@ class OutingCard extends StatelessWidget {
     this.trailing,
     this.statusLabel,
     this.footer,
+    this.detailsFooter,
   });
 
   final String title;
@@ -22,7 +23,7 @@ class OutingCard extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailing;
   final String? statusLabel;
-  final Widget? footer;
+  final Widget? footer, detailsFooter;
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +50,10 @@ class OutingCard extends StatelessWidget {
                   color: context.palette.brandSoft,
                   textColor: context.palette.brandStrong,
                 ),
+              ],
+              if (detailsFooter != null) ...[
+                Responsive.spaceSm.gapH,
+                detailsFooter!,
               ],
             ],
           ),

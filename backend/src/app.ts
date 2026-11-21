@@ -1,26 +1,36 @@
 import express from "express";
 import cors from "cors";
 import { serve, setup, type JsonObject } from "swagger-ui-express";
-import { prisma } from "./config/database.js";
 import { swaggerSpec } from "./config/swagger.js";
 import routes from "./routes/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { corsOrigin } from "./config/cors.js";
 
 import { apiRateLimit } from "./middleware/api-rate-limit.middleware.js";
+import { databaseHealth, installHealth } from "./monitoring/health.js";
+import { requestMonitoring, observeRequestIdentity } from "./monitoring/http.js";
+import { registeredRoutes, compareSwagger } from "./monitoring/routes.js";
+import { logger, errorCode } from "./monitoring/logger.js";
+import { installMobileTelemetry } from "./monitoring/mobile.js";
 
 const app = express();
+app.use(requestMonitoring(() => routeInventory));
 
 app.use(
   cors({
     origin: corsOrigin,
     credentials: true,
-    allowedHeaders: ["Authorization", "Content-Type", "Accept", "If-Match", "Idempotency-Key"],
+    allowedHeaders: ["Authorization", "Content-Type", "Accept", "If-Match", "Idempotency-Key",
+      "X-Request-ID", "X-Correlation-ID", "X-Client-Source", "X-Request-Trigger"],
+    exposedHeaders: ["X-Request-ID", "X-Correlation-ID", "Server-Timing", "X-Cache-Status", "X-Route-Template"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   }),
 );
 app.use("/api", apiRateLimit);
+app.use("/monitoring/mobile", apiRateLimit);
+installMobileTelemetry(app, () => routeInventory);
 app.use(express.json());
+app.use(observeRequestIdentity);
 
 /**
  * @openapi
@@ -60,7 +70,7 @@ app.get("/", (_req, res) => {
  *   get:
  *     tags: [System]
  *     summary: Database health
- *     description: Runs a lightweight database query to verify connectivity.
+ *     description: Reports a recent lightweight database connectivity probe.
  *     operationId: getHealth
  *     security: []
  *     responses:
@@ -78,14 +88,13 @@ app.get("/", (_req, res) => {
  *               $ref: "#/components/schemas/HealthError"
  */
 app.get("/health", async (_req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
+  if ((await databaseHealth()).available) {
     res.json({
       success: true,
       message: "OK",
       database: "connected",
     });
-  } catch (error) {
+  } else {
     res.status(500).json({
       success: false,
       message: "Database connection failed",
@@ -94,6 +103,9 @@ app.get("/health", async (_req, res) => {
     });
   }
 });
+
+installHealth(app);
+app.get("/api-docs/openapi.json", (_req, res) => { res.json(swaggerSpec); });
 
 app.use(
   "/api-docs",
@@ -111,5 +123,14 @@ app.use((_req, res) => {
   res.status(404).json({ success: false, message: "Route not found" });
 });
 app.use(errorMiddleware);
+
+export const routeInventory = (() => {
+  try { return registeredRoutes(app); }
+  catch (error) {
+    logger.warn({ errorCode: errorCode(error) }, "Route inventory unavailable");
+    return [];
+  }
+})();
+export const swaggerCoverage = compareSwagger(routeInventory, swaggerSpec);
 
 export default app;

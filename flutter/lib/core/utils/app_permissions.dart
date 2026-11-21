@@ -1,4 +1,5 @@
 import 'package:geolocator/geolocator.dart';
+import 'package:yalla_5roga/core/utils/map_location.dart';
 import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
@@ -26,7 +27,7 @@ class AppPermissions {
       );
       if (!allowed) return;
       if (await Geolocator.checkPermission() == LocationPermission.denied) {
-        await Geolocator.requestPermission();
+        await MapLocation.requestPermissionOnce();
       }
     }
     if (await isLocationGranted) {

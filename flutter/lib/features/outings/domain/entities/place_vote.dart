@@ -7,11 +7,15 @@ class VoteOption {
     this.votes,
     this.percent, {
     this.area = '',
+    this.categoryId = '',
+    this.address = '',
     this.imageUrl = '',
+    this.catalogPlaceId,
   });
 
-  final String area;
+  final String area, categoryId, address;
   final String imageUrl;
+  final String? catalogPlaceId;
 
   final String placeId;
   final String label;
@@ -30,7 +34,10 @@ class VoteOption {
       votes ?? this.votes,
       percent ?? this.percent,
       area: area,
+      categoryId: categoryId,
+      address: address,
       imageUrl: imageUrl,
+      catalogPlaceId: catalogPlaceId,
     );
   }
 
@@ -40,7 +47,10 @@ class VoteOption {
     'votes': votes,
     'percent': percent,
     'area': area,
+    'category_id': categoryId,
+    'address': address,
     'imageUrl': imageUrl,
+    if (catalogPlaceId != null) 'catalogPlaceId': catalogPlaceId,
   };
 
   factory VoteOption.fromJson(Map<String, dynamic> json) {
@@ -49,8 +59,11 @@ class VoteOption {
       json['label'] as String? ?? '',
       json['votes'] as int? ?? 0,
       json['percent'] as int? ?? 0,
+      categoryId: json['category_id'] as String? ?? '',
+      address: json['address'] as String? ?? '',
       area: json['area'] as String? ?? '',
       imageUrl: json['imageUrl'] as String? ?? '',
+      catalogPlaceId: json['catalogPlaceId'] as String?,
     );
   }
 }
@@ -64,10 +77,12 @@ class PlaceVote {
     this.suggestedById,
     this.eligibleVoterCount = 0,
     this.votedCount = 0,
+    this.hasParticipationCounts = false,
     this.finalized = false,
     this.winningOptionId,
     this.roundNumber = 1,
     this.votingState = 'active',
+    this.canResolveTie = false,
     this.tiedOptionIds = const [],
   });
 
@@ -80,9 +95,11 @@ class PlaceVote {
   final String? winningOptionId;
   final int roundNumber;
   final String votingState;
+  final bool canResolveTie;
   final List<String> tiedOptionIds;
   final int eligibleVoterCount;
   final int votedCount;
+  final bool hasParticipationCounts;
 
   /// First selected option (legacy single-select helpers).
   String? get cuserOptionId =>
@@ -125,10 +142,12 @@ class PlaceVote {
       suggestedById: suggestedById,
       eligibleVoterCount: eligibleVoterCount,
       votedCount: votedCount,
+      hasParticipationCounts: hasParticipationCounts,
       finalized: finalized ?? this.finalized,
       winningOptionId: winningOptionId,
       roundNumber: roundNumber,
       votingState: votingState,
+      canResolveTie: canResolveTie,
       tiedOptionIds: tiedOptionIds,
     );
   }

@@ -2,13 +2,16 @@ import 'dart:convert';
 
 /// OpenMapTiles schema only; no provider-specific behavior in the map UI.
 abstract final class YallaMapStyle {
+  static const _defaultTiles = 'https://tiles.openfreemap.org/planet/latest';
+  static const _defaultGlyphs =
+      'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
   static const tileJsonUrl = String.fromEnvironment(
     'MAP_VECTOR_TILEJSON_URL',
-    defaultValue: 'https://tiles.openfreemap.org/planet/latest',
+    defaultValue: _defaultTiles,
   );
   static const glyphsUrl = String.fromEnvironment(
     'MAP_GLYPHS_URL',
-    defaultValue: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+    defaultValue: _defaultGlyphs,
   );
   static const attribution = String.fromEnvironment(
     'MAP_ATTRIBUTION',
@@ -22,11 +25,19 @@ abstract final class YallaMapStyle {
   static const darkStyleUrl = String.fromEnvironment('MAP_DARK_STYLE_URL');
   static const offlineAllowed = bool.fromEnvironment(
     'MAP_OFFLINE_ALLOWED',
-    defaultValue: true,
+    defaultValue:
+        tileJsonUrl == _defaultTiles &&
+        glyphsUrl == _defaultGlyphs &&
+        lightStyleUrl == '' &&
+        darkStyleUrl == '',
   );
   static const font = 'Noto Sans Regular';
 
-  static String resolve({required bool dark, required String language}) {
+  static final _styles = <(bool, String), String>{};
+  static String resolve({required bool dark, required String language}) =>
+      _styles.putIfAbsent((dark, language), () => _resolve(dark, language));
+
+  static String _resolve(bool dark, String language) {
     final override = dark ? darkStyleUrl : lightStyleUrl;
     return override.isNotEmpty
         ? override.replaceAll('{language}', language == 'ar' ? 'ar' : 'en')
@@ -37,14 +48,14 @@ abstract final class YallaMapStyle {
     required bool dark,
     required String language,
   }) {
-    final land = dark ? '#202628' : '#F7F8F4';
-    final water = dark ? '#285569' : '#A9DCEB';
-    final park = dark ? '#304B3E' : '#CFE8CF';
-    final grass = dark ? '#2B4034' : '#DDEDD6';
-    final building = dark ? '#383F40' : '#E8E9E6';
-    final outline = dark ? '#495151' : '#D5D8D4';
-    final ink = dark ? '#D6DEDA' : '#414D4C';
-    final halo = dark ? '#202628' : '#F7F8F4';
+    final land = dark ? '#0D1424' : '#F7F8F4';
+    final water = dark ? '#083D5B' : '#A9DCEB';
+    final park = dark ? '#102B29' : '#CFE8CF';
+    final grass = dark ? '#142925' : '#DDEDD6';
+    final building = dark ? '#1B2638' : '#E8E9E6';
+    final outline = dark ? '#29354B' : '#D5D8D4';
+    final ink = dark ? '#B9B8D7' : '#414D4C';
+    final halo = dark ? '#0D1424' : '#F7F8F4';
     dynamic name = '';
     for (final key in [
       'name:${language == 'ar' ? 'ar' : 'en'}',
@@ -122,6 +133,8 @@ abstract final class YallaMapStyle {
       dynamic filter,
       double minzoom = 0,
       bool road = false,
+      bool landmark = false,
+      String? color,
     }) => {
       'id': id,
       'type': 'symbol',
@@ -137,16 +150,30 @@ abstract final class YallaMapStyle {
         'text-max-width': 8,
         'text-allow-overlap': false,
         if (road) ...{'symbol-placement': 'line', 'symbol-spacing': 420},
+        if (landmark) ...{
+          'icon-image': [
+            'case',
+            classes(['university', 'college', 'school']),
+            'yalla-landmark_school',
+            'yalla-landmark_culture',
+          ],
+          'icon-size': .58,
+          'icon-optional': true,
+          'text-anchor': 'top',
+          'text-offset': [0, .75],
+        },
       },
       'paint': {
-        'text-color': ink,
+        'text-color': color ?? ink,
         'text-halo-color': halo,
         'text-halo-width': 1.4,
       },
     };
     final major = classes(['motorway', 'trunk', 'primary']);
     final secondary = classes(['secondary', 'tertiary']);
-    final minor = classes(['minor', 'service', 'track']);
+    final minor = classes(['service', 'track', 'path']);
+    final residential = classes(['minor']);
+    final highways = classes(['motorway', 'trunk']);
     return {
       'version': 8,
       'name': 'Yalla 5roga ${dark ? 'Night' : 'Day'} $language',
@@ -165,6 +192,18 @@ abstract final class YallaMapStyle {
           'type': 'background',
           'paint': {'background-color': land},
         },
+        if (dark)
+          fill(
+            'urban-blocks',
+            'landuse',
+            '#141D2E',
+            filter: classes([
+              'residential',
+              'commercial',
+              'industrial',
+              'retail',
+            ]),
+          ),
         fill(
           'green',
           'landcover',
@@ -181,42 +220,47 @@ abstract final class YallaMapStyle {
         fill(
           'sports',
           'landuse',
-          dark ? '#354B40' : '#D4E4D1',
+          dark ? '#19332E' : '#D4E4D1',
           filter: classes(['pitch', 'stadium']),
         ),
         fill(
           'parking',
           'landuse',
-          dark ? '#303638' : '#ECEEE9',
+          dark ? '#182232' : '#ECEEE9',
           filter: classes(['parking']),
           minzoom: 14,
         ),
         fill('water', 'water', water),
+        if (dark)
+          fill('deep-water', 'water', '#073451', filter: classes(['ocean'])),
         line('waterways', 'waterway', water, width(.5, 2, 6)),
         {
           ...fill('buildings', 'building', building, minzoom: 13),
           'paint': {
-            'fill-color': [
-              'case',
-              ['has', 'name'],
-              dark ? '#424949' : '#DDE0DA',
-              building,
-            ],
-            'fill-outline-color': outline,
+            'fill-color': building,
+            if (!dark) 'fill-outline-color': outline,
           },
         },
         line(
           'minor-roads',
           'transportation',
-          dark ? '#62696A' : '#FFFFFF',
-          width(0, 1.5, 8),
+          dark ? '#29354B' : '#FFFFFF',
+          dark ? width(0, .65, 4) : width(0, 1, 6),
           filter: minor,
           minzoom: 13,
         ),
         line(
+          'residential-roads',
+          'transportation',
+          dark ? '#354055' : '#FFFFFF',
+          width(0, .9, 6),
+          filter: residential,
+          minzoom: 12,
+        ),
+        line(
           'secondary-casing',
           'transportation',
-          dark ? '#424B4D' : '#DADDD6',
+          dark ? '#29354B' : '#DADDD6',
           width(.4, 4.5, 16),
           filter: secondary,
           minzoom: 9,
@@ -224,7 +268,7 @@ abstract final class YallaMapStyle {
         line(
           'secondary-roads',
           'transportation',
-          dark ? '#7D8584' : '#FFFFFF',
+          dark ? '#485269' : '#FFFFFF',
           width(.2, 3, 13),
           filter: secondary,
           minzoom: 9,
@@ -232,17 +276,25 @@ abstract final class YallaMapStyle {
         line(
           'main-casing',
           'transportation',
-          dark ? '#525453' : '#D8CDB6',
+          dark ? '#53505C' : '#D8CDB6',
           width(1, 7, 23),
           filter: major,
         ),
         line(
           'main-roads',
           'transportation',
-          dark ? '#BAAF91' : '#F6E6BF',
+          dark ? '#77705E' : '#F6E6BF',
           width(.6, 5, 19),
           filter: major,
         ),
+        if (dark)
+          line(
+            'highway-highlights',
+            'transportation',
+            '#8A7C60',
+            width(.45, 3.8, 16),
+            filter: highways,
+          ),
         line(
           'bridges-casing',
           'transportation',
@@ -261,7 +313,7 @@ abstract final class YallaMapStyle {
         line(
           'bridges',
           'transportation',
-          dark ? '#C5BCA6' : '#FFF4D9',
+          dark ? '#8A7C60' : '#FFF4D9',
           width(.7, 5.5, 20),
           filter: [
             'all',
@@ -316,8 +368,21 @@ abstract final class YallaMapStyle {
             'fill-extrusion-vertical-gradient': false,
           },
         },
-        label('nile-water-labels', 'water_name', 14, minzoom: 9),
-        label('nile-river-labels', 'waterway', 14, minzoom: 10, road: true),
+        label(
+          'water-labels',
+          'water_name',
+          14,
+          minzoom: 9,
+          color: dark ? '#7FB5DB' : null,
+        ),
+        label(
+          'river-labels',
+          'waterway',
+          14,
+          minzoom: 10,
+          road: true,
+          color: dark ? '#7FB5DB' : null,
+        ),
         label(
           'major-road-labels',
           'transportation_name',
@@ -352,8 +417,27 @@ abstract final class YallaMapStyle {
           'landmarks',
           'poi',
           12,
-          filter: classes(['monument', 'museum', 'attraction', 'castle']),
-          minzoom: 14,
+          filter: [
+            'any',
+            classes(['monument', 'museum', 'castle', 'university', 'college']),
+            [
+              'in',
+              ['get', 'subclass'],
+              [
+                'literal',
+                [
+                  'monument',
+                  'museum',
+                  'castle',
+                  'university',
+                  'college',
+                  'memorial',
+                ],
+              ],
+            ],
+          ],
+          minzoom: 13,
+          landmark: true,
         ),
       ],
     };

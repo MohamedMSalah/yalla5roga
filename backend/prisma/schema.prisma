@@ -150,8 +150,18 @@ model places {
   @@index([normalized_name], map: "idx_places_normalized_name")
   @@index([latitude, longitude], map: "idx_places_lat_lng")
   @@index([status, category_id], map: "idx_places_status_category")
+  @@index([status, is_active, updated_at(sort: Desc), id], map: "idx_places_catalog_updated")
   @@index([category_id], map: "idx_places_category")
   @@index([source_region, source], map: "idx_places_region_source")
+}
+
+model place_catalog_changes {
+  kind      String
+  entity_id String
+  revision  Unsupported("xid8") @default(dbgenerated("pg_current_xact_id()"))
+
+  @@id([kind, entity_id])
+  @@index([revision, kind, entity_id], map: "idx_place_catalog_changes_revision")
 }
 
 model place_brands {
@@ -344,6 +354,8 @@ model outings {
   scheduled_at                    DateTime?             @db.Timestamptz(6)
   ends_at                         DateTime?             @db.Timestamptz(6)
   location_place_id               String?               @db.Uuid
+  location_category_id            String?               @db.VarChar(64)
+  location_address                String?               @db.VarChar(500)
   location_name                   String?               @db.VarChar(100)
   location_area                   String?               @db.VarChar(100)
   location_latitude               Float?
@@ -430,6 +442,8 @@ model outing_vote_options {
   id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   outing_id    String         @db.Uuid
   place_id     String?        @db.Uuid
+  category_id  String?        @db.VarChar(64)
+  address      String?        @db.VarChar(500)
   label        String         @db.VarChar(100)
   area         String         @default("") @db.VarChar(100)
   image_url    String         @default("") @db.VarChar(2048)
@@ -462,6 +476,7 @@ model outing_votes {
   users               users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([outing_id, user_id, option_id, round_number])
+  @@index([outing_id, round_number, user_id], map: "idx_outing_votes_round_user")
   @@index([option_id], map: "idx_outing_votes_option")
   @@index([user_id], map: "idx_outing_votes_user")
 }
@@ -540,6 +555,7 @@ model notifications {
   users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([user_id, created_at(sort: Desc)], map: "idx_notifications_user_created")
+  @@index([user_id, is_read, created_at], map: "idx_notifications_user_read_created")
   @@index([outing_id], map: "idx_notifications_outing")
   @@index([group_id], map: "idx_notifications_group")
 }

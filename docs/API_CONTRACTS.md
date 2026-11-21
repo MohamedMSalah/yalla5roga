@@ -235,6 +235,7 @@ Chat POST accepts `clientMessageId` (UUID). PostgreSQL deduplicates `(outing_id,
 
 - `POST /api/places/geocoding` requires a Firebase bearer token. Supply `{kind:"search", query, language}` or `{kind:"reverse", latitude, longitude, language}`. Language is `en` or `ar`. The response envelope contains `data.available`, `data.results` (rows with `id`, `name`, `area`, `latitude`, `longitude`), and, when configured, `data.attribution` and `data.cache_seconds`. A disabled provider returns `available:false`. Invalid requests return 400, the process quota returns 429 with `Retry-After`, and upstream failure returns 502.
 - `POST /api/outings` accepts optional `initial_vote_options` with 2–5 options in array order for a group outing without a fixed venue. Each uses the existing option fields. Coordinates may be absent or a valid pair. The backend assigns zero-based `sort_order`, rejects duplicate identities, and commits the options, outing and owner attendance together. A valid retry with the same `create_request_key` for the same creator returns the original outing. The first successful request wins for that key. The older individual and replacement option routes remain available. Deploy the backend change before clients that send `initial_vote_options`.
+- Fixed custom venues can include `location_category_id` and `location_address`. Custom vote options can include `category_id` and `address`. Confirming a winning option copies its snapshot to the outing under the existing attendance, voting and outing-access rules. Device-local place identifiers are excluded from these requests.
 
 For chat history, Flutter sends `limit=40` and passes `next_cursor` as `before` when loading older messages. The API accepts page sizes from 1 to 100 and retains the legacy unpaged response when query parameters are omitted. REST history, send responses, and Socket.IO messages carry the sender’s `sender` display name and `avatar` fields. Existing message IDs and `client_message_id` remain the deduplication keys.
 
@@ -375,12 +376,25 @@ Arrival startup / mark-all presentation (2026-11-14): no API contract changes. F
 ## Current free-source catalog contracts — 2026-11-15
 
 These changes supersede the earlier OSM-only scheduler contract. Existing GET `/api/places` retains its array/envelope and offset pagination, adding all-four `minLat,minLng,maxLat,maxLng` bounds aliases, `category` as an alias for categories, and a filter/sort-bound opaque `cursor`. `pagination.next_cursor` uses stable keyset ordering, retaining PostgreSQL timestamp microseconds. Limits remain 1–100. Mixed incomplete/conflicting bounds and invalid/mismatched cursors return 400. Existing bbox/category/vibe/search/distance filters and public-read/curator-write rules remain.
+- Clients reconciling viewport caches use `bbox`, `compact=true`, and `sort=id` with each `next_cursor` until `has_more` is false. The UUID order stays stable across updates to a place's name and details.
 
 GET `/api/places/geojson` (`getPlacesGeoJson`) requires geographic bounds and returns `application/geo+json`: a FeatureCollection with Point [longitude,latitude], place_id/name/bilingual names/category/vibe IDs/icon, pagination and attribution. Marker responses exclude details/images and internal sync evidence. GET `/api/places/:id` additionally includes category, place_vibes, place_hours, licensed place_images and available place_prices. Missing price_level is nullable; missing photos use existing fallback behavior. Public catalog/details/saved-place projections exclude source_tags, curator flags, absence counters and administrative logs.
 
 GET `/api/places/licenses` (`getPlacesLicenses`) makes source license text/notices and attribution available; list/GeoJSON responses link it with rel=license. Overture source attribution is additive to OSM. Manual curator POST `/api/places/sync` accepts optional source=overture|osm, city=cairo|giza, dryRun and explicit limit. `/sync/status` reports automatic_sync_enabled=false, manual run history and lease status. The scheduled `/sync/worker` operation, worker secret and dueOnly option are removed. Sync history remains authenticated/curator-only. No automatic places schedule remains in this checkout.
 
 See [real served-Swagger checks and import evidence](audit/PLACES_INGESTION.md). Older zero-place verification statements are historical; use the current results for populated-data checks.
+
+## Home recommendations and Discover viewport
+
+Home uses public GET `/api/places/recommendations?limit=8`. The valid range is 1–24 and the default is 8. It returns a cached random sample of active records with names, area, vibe and one cover URL. Optional paired `lat` and `lng` sample nearby places within 5 km of a center rounded to two decimals. The server refresh window is configured with `PLACE_RECOMMENDATIONS_TTL_SECONDS` and defaults to 900 seconds.
+
+Discover uses `GET /api/places?bbox=…&compact=true` for card and pin fields and loads detail by place ID only when requested. Pagination and attribution stay available. A bbox with west greater than east crosses the antimeridian. Clients that omit `compact` continue to receive the original catalog fields.
+
+## Offline place catalog
+
+Public GET `/api/places/changes` returns `{success, data: {changes, cursor, has_more}}`. Omit the cursor to bootstrap, then replay the opaque cursor with each request. The default page size is 250 and the maximum is 500. Each change carries `kind`, `id`, and the current public record. A null record removes the entity from the browsing catalog. Kinds are place, brand, category, and vibe. Store each page and its cursor in one transaction. A finished page still returns a checkpoint for the next refresh. PostgreSQL transaction snapshots hold the watermark below uncommitted writers.
+
+GET `/api/places?bbox=…&details=true` adds image references, hours and prices for explicit offline-region downloads. The Flutter app uses this bounded route when downloading a region and uses demand-driven reads for ordinary browsing.
 
 ## Socket lifecycle compatibility — 2026-11-15
 
@@ -403,9 +417,17 @@ Equivalent existing routes are extended rather than duplicated:
 | Method | Route | Behavior |
 |---|---|---|
 | GET | `/api/outings/:id/voting-state` | Existing results plus `voting_state`, `current_round` (ID/number/deadline/status), eligible `options`/counts, `tiedOptionIds`, confirmed venue, `resolution_method`, creator-only `can_resolve_tie` |
-| POST | `/api/outings/:id/tie-break` | `{ method: "random", round_number }`; persisted `outing` and `winningOptionId`; creator only |
+| POST | `/api/outings/:id/tie-break` | `{ method: "random", round_number }`; persisted `outing`, `winningOptionId`, `confirmed_location`, and `confirmed_location_id` for catalog places |
 | POST | `/api/outings/:id/voting/revote` | `{ deadline: ISO8601, round_number: positive integer }`; new empty round in the same voting-state envelope |
 
-PUT/POST votes accept `round_number`; DELETE votes accepts the same query parameter. Missing guards mean initial round only. Revote requires the guard. Standard auth/error envelopes apply: 400 invalid deadline/options, 401 missing identity, 403 noncreator/unauthorized participant, 404 missing resource, 409 closed/expired/stale/conflicting operations. Results reads retain the existing authorized read scope. Historical closed counts use persisted snapshots. The database, not the animation, selects and saves the winner.
+PUT/POST votes, random resolution, and revote accept `round_number`. DELETE votes accepts it as a query parameter. Omission targets round 1. Resolution routes return 403 for participants other than the outing creator. Results and resolution routes return 404 for missing or inaccessible outings. Invalid input returns 400, missing authentication returns 401, and closed, expired, stale, or conflicting operations return 409. Closed-round tallies use persisted snapshots. The backend selects and saves the random winner before responding.
+
+Outing PATCH locks deadline fields once a round closes or a revote starts. Manual venue confirmation remains available for a single candidate. For multiple candidates, the manual action ends at the voting deadline.
 
 See [served Swagger HTTP verification](audit/LOCATION_TIE_OPENAPI_RESULTS.json). The verifier controls Firebase token verification and uses real route/controller/service/Prisma behavior against local disposable PostgreSQL/WASM. Production business mutations and live Firebase/FCM were not exercised.
+
+## Operational HTTP surfaces
+
+`GET /health/live` reports process liveness. `GET /health/ready` returns 200 or 503 based on initialized dependencies and the shared PostgreSQL probe. `GET /health` retains its legacy 200/500 envelope. `GET /metrics` and `GET /health/dependencies` require the private monitoring bearer. `POST /monitoring/mobile` is opt-in, authenticated with Firebase and limited by account, IP and batch size. OpenAPI JSON is served at `/api-docs/openapi.json`.
+
+The server accepts `X-Request-ID`, `X-Correlation-ID`, `X-Client-Source` and `X-Request-Trigger`. It exposes validated request and correlation IDs, the normalized route template and `Server-Timing` when observability is enabled. Existing application envelopes and route paths remain available. Swagger now documents the vote-option write 403 and the replacement options array. See the [route and Flutter consumer inventory](audit/API_CONSUMERS.md).

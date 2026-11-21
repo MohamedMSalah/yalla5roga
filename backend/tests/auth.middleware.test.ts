@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./support/isolated-database.js";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { describe, it } from "node:test";
@@ -273,7 +273,9 @@ describe("protected vs public HTTP routes", () => {
   it("rejects an invalid Firebase token with 401", async () => {
     await withServer(
       (app) => {
-        app.get("/protected", authMiddleware, (_req, res) => {
+        app.get("/protected", createAuthMiddleware(async () => {
+          throw Object.assign(new Error("Invalid token"), { code: "auth/argument-error" });
+        }), (_req, res) => {
           res.json({ success: true });
         });
       },

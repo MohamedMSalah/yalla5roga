@@ -60,7 +60,7 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### MEDIA-01 Upload and display images (profile, group, outing)
 
 - **Preconditions:** Authenticated; camera/gallery permission when taking or choosing a photo.
-- **Actions:** Pick a local image in Edit Profile, Create Group, Group cover change, or Create Outing. The app uploads it directly to storage, then saves the returned `media://` reference with the profile/group/outing. Images render from the persistent cache; previously viewed images remain visible offline.
+- **Actions:** Pick a local image in Edit Profile, Create Group, or Group cover change. The app uploads it directly to storage, then saves the returned `media://` reference with the profile/group/outing. Images render from the persistent cache; previously viewed images remain visible offline.
 - **Backend:** `POST /api/media/upload-url` → direct storage `PUT` → `POST /api/media/:id/confirm`; display via `POST /api/media/signed-urls` or `GET /api/media/:id/url`. Local paths and unsupported/oversized files are rejected.
 - **DB:** `media_assets` metadata only; entity `image_url` keeps the stable reference.
 - **Flutter:** `MediaUploadService`, `MediaUrlResolver`, `AppNetworkImage`; cache keys are stable per asset and account-scoped for private media. Logout/account switch clears private URL metadata and cached images. Missing media falls back to the existing default avatar/cover.
@@ -73,23 +73,23 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 ### OUT-01 Create Group Outing
 
 - **Preconditions:** Authenticated; group exists; user allowed.  
-- **Actions:** Enter title, schedule and an optional cover photo. In step 2, pick a single location or tap **Add places for voting** to select 2–5 places from the list, the map, or both. Set the deadline in Information, check it on Review, then submit.
+- **Actions:** Use Location to add one fixed venue or up to five voting candidates. In Details, review the photos and enter the title, group and schedule. Choose a deadline for a vote with two or more venues, then create the outing or save the draft.
 - **Backend:** `CreateOutingUseCase` — `type=group`, require deadline; owner attendance Going; `image_url` optional http(s) or `media://<uuid>`; vote options posted when multi-place.
 - **DB:** `outings`, `outing_attendance`, optional `outing_vote_options`.  
-- **Flutter:** Shared `CreateOutingPage` for create + suggest; sends selected `vote_deadline_hours` plus an absolute `vote_ends_at` calculated immediately before POST; uploads a picked local cover first and sends the stable `media://` reference.
+- **Flutter:** Shared `CreateOutingPage` for create and suggest. Multi-place creation sends the selected duration and an absolute deadline calculated immediately before POST. Fixed-location creation sends the deadline metadata required by the current API, using the shortest supported group duration and the existing three-hour special-event default. The form uses the selected venue image URL or `media://` reference when available.
 - **Status:** Implemented (API/tests); Flutter sends deadline fields  
 
-**Create Outing UI:** The form starts with a full-width optional photo cover, followed by the outing name and rounded category choices. The progress header and footer guide users through location and review. Group and outing screens use a local illustration when the cover photo is absent. Birthday and wedding events have distinct default covers.
+**Create Outing UI:** Location embeds the shared MapLibre view. Details shows the selected venue image or a swipeable gallery with one page per candidate. Missing photos use the existing cover artwork, including the occasion fallbacks.
 
 ### OUT-01b Suggest / multi-place vote (same page)
 
-- **Actions:** In step 2 of Create Outing, choose **Add places for voting**, select 2–5 catalog places and map pins. The full-screen picker opens with the current selection. Add and name pins, use the numbered list to remove or move places, then confirm the order. Back discards changes made in the picker. The Review step shows the selected places and lets the creator adjust the deadline before publishing.
+- **Actions:** Add 2–5 catalog places or custom map pins in Location. Place previews let users add, remove and reorder candidates. Opening Location from Details preserves the selection, search, map camera and entered values.
 - **Status:** Implemented (merged into create outing; no separate suggest sheet)  
 
 
 ### OUT-02 Create Special Event
 
-- Dedicated Special Event entry reuses the three-step wizard. Choose Birthday, Wedding, Celebration or Other, optional group, cover/title, future date/time, fixed location, then Review and confirm. Selected groups require accepted creator membership; independent events keep the existing guest invitation flow. `type=special_event` for every occasion, with or without a group.
+- The Special Event entry reuses Location and Details. Choose one fixed venue, then set the occasion, optional group, title, future schedule and guests in Details. Selected groups require accepted creator membership; independent events keep the existing guest invitation flow. `type=special_event` for every occasion, with or without a group.
 - **Status:** Implemented  
 
 ### OUT-03 Validation failures
@@ -101,12 +101,14 @@ Each scenario uses: Actor, Preconditions, Starting State, User Actions, Expected
 
 ## 14.4 Invitation and membership
 
-Group Details puts the group name, role, and Create outing action together. Group Outings links to individual outing details. The **Active Votes** section appears on the Outings tab. Start a new place vote from step 2 of Create Outing.
+Group Details puts the group name, role, and Create outing action together. Group Outings links to individual outing details. The **Active Votes** section appears on the Outings tab. Start a new place vote in the Location step of Create Outing.
+
+The Groups tab keeps search and the selected sort when switching tabs. Search matches names and descriptions. The default order follows the account's group list, Most active uses the available outing totals, and Recently created uses the stored creation dates.
 
 ### GRP-01 Create group — creator is first member
 
 - **API:** `POST /api/groups` → creator row in `group_members` with `role=owner`; response `member_count` starts at **1**
-- **Flutter:** The form opens with the same optional, full-width cover picker as Create Outing, with group artwork as the placeholder. A picked cover is uploaded before create and sent as a `media://` reference. After create, members are reloaded; Group Info / Details call `ensureGroupLoaded` so the creator card appears in the members list
+- **Flutter:** The group form includes its optional cover picker, with group artwork as the placeholder. A picked cover is uploaded before create and sent as a `media://` reference. After create, members are reloaded; Group Info / Details call `ensureGroupLoaded` so the creator card appears in the members list
 - **Status:** Implemented
 
 ### GRP-02 Edit group bio
@@ -122,6 +124,8 @@ The group owner can open Group Info and use **Edit bio** in the About card. Save
 
 ### INV-02 Add a group member by phone
 
+- **Groups tab:** Tap **Start a new circle**, then choose a group you belong to. The app opens the same phone and contacts invitation sheet used by Group Info, with the same WhatsApp consent requirement.
+
 - **Required consent:** Create Group and Group Info → Add people each require one unchecked-by-default checkbox confirming recipients agreed to WhatsApp invitations if they do not already use the app. Submission is disabled until checked; editing recipient numbers, calling code or contact selections clears it. The explicit value reaches the invitation API; no lookup infers consent. Existing verified users receive pending in-app invitations, while consented non-users can receive WhatsApp invitations when the sender is configured.
 
 - **Group phone entry (2026-11-14):** Create Group and Group Info → Add people show a country calling-code selector beside the national number, initially Egypt (`+20`). Manual numbers are normalized with the selected code; pasted `+`/`00` international numbers retain their explicit prefix. Arabic-Indic input is accepted. Group Info also opens the same multi-select device contacts page as Create Group, retains selected phones for review/removal, and submits deduplicated invitations through the existing provider. Changing recipients or the manual calling code clears WhatsApp consent so it can be reconfirmed. The add-people sheet scrolls above the keyboard.
@@ -131,7 +135,7 @@ The group owner can open Group Info and use **Edit bio** in the About card. Save
 - **Special events:** Choose device contacts in the guest picker. Confirm recipient opt-in before creating the event. Phone guests receive the title, time, venue, Google Calendar link and optional app link. When automatic delivery is unavailable, send the prefilled invitations from the new outing’s details. Phone invitees do not become app members.
 - **Status:** Implemented  
 
-Inviting a registered or unregistered phone creates a pending invitation. Verified signup/login/sync links identity only. The invitee opens Invitations and explicitly accepts or declines. Acceptance creates membership and refreshes groups; decline preserves history without membership. Before identity linking, pending unlinked rows are discoverable through the current Firebase-verified phone. Group Info shows a localized “Pending invitation” label and permits owner revocation.
+Inviting a registered or unregistered phone creates a pending invitation. Verified signup/login/sync links identity only. The invitee opens Invitations and explicitly accepts or declines. Acceptance creates membership and refreshes groups; decline preserves history without membership. Before identity linking, pending unlinked rows are discoverable through the current Firebase-verified phone. Group Info shows “Pending invitation” in the full member sheet and permits owner revocation there. The avatar preview shows accepted members.
 
 
 ### INV-03 Explicit accept outing invite
@@ -205,7 +209,7 @@ Inviting a registered or unregistered phone creates a pending invitation. Verifi
 | LIFE-09 | Member edit outing | No | Implemented |
 | LIFE-10 | confirmed → past | Job | Implemented |
 
-**Outing history:** At the scheduled start date and time, an outing leaves the Outings tab and appears under **Settings → Outing history**, alongside completed and cancelled outings. Outings earlier today are included. Open an outing from history to view its details or check in if eligible. The Outings tab shows Active Votes and plans whose scheduled start has yet to arrive, plus unscheduled plans. Settings keeps profile editing available through the profile avatar.
+**Outing history:** At the scheduled start date and time, an outing leaves the Outings tab and appears in **Outing history**, accessible from Outings and Settings, alongside completed and cancelled outings. Outings earlier today are included. Open an outing from history to view its details or check in if eligible. The Outings tab shows Active Votes and plans whose scheduled start has yet to arrive, plus unscheduled plans. Settings keeps profile editing available through the profile avatar.
 
 ---
 
@@ -350,7 +354,7 @@ Keep this file aligned with BUSINESS_LOGIC, SYSTEM_DESIGN, SYSTEM_ARCHITECTURE, 
 
 ### Home entry journey
 
-After shell data loads, Home presents the earliest future dated outing that is neither past nor cancelled, with a link to the outings tab. Undated outings remain available in the full list. Create outing is the primary action. Special event and New group use secondary tonal buttons. The Discover preview opens the Discover tab. The bottom bar uses a theme-tinted blur over scrolling content, with an opaque high-contrast mode. Existing Socket.IO invalidations and resume/reconnect synchronization update the dashboard automatically; an initial failure offers retry. The Home status does not infer outstanding attendance or voting actions from partially hydrated data. See `audit/UI_UX_AUDIT_AND_HOME_REDESIGN.md` for validation limits.
+After shell data loads, Home presents the earliest future dated outing that is neither past nor cancelled, with a link to the outings tab. Undated outings remain available in the full list. The planning banner and New outing tile open outing creation. New group and Special event open their existing flows. The profile avatar opens Edit profile and the bell opens Notifications. The Discover preview offers bookmarks and opens place details. Its See all action opens the Discover tab. The bottom bar floats over content on an outlined theme surface, with a violet capsule that marks the current tab. Existing Socket.IO invalidations and resume/reconnect synchronization update the dashboard automatically; an initial failure offers retry. The Home status does not infer outstanding attendance or voting actions from partially hydrated data. See `audit/UI_UX_AUDIT_AND_HOME_REDESIGN.md` for validation limits.
 
 ### Group outing feature updates
 
@@ -387,7 +391,7 @@ Recovery reuses signup’s six-digit OTP widget and submits the completed code a
 
 - Outing Details shows creators Edit and Cancel for open outings. Edit pre-fills title, cover, schedule and draft venue using existing controls/map picker; confirmed/voting venues are not exposed for editing. Save uses PATCH and merges refreshed outing state. Cancel requires confirmation, calls POST cancel, refreshes details and moves the outing to history. Backend permissions remain authoritative.
 - The creator manages invited participants in Outing Details. Removal requires confirmation and reloads the guest list. These are outing invitations, independent of group invitations. A pending outing invitee sees explicit Accept/Decline controls in Details; neither opening a page nor a deep link accepts it.
-- Group Info shows only Leave Group. After confirmation, the client refreshes the roster: if the current owner is the only active member it calls the existing DELETE group API; otherwise it uses the existing self-member leave API. The backend checks ownership and sole membership again under the group lock. Other active members or any outings prevent deletion (409); ordinary last-owner leave remains forbidden. Success removes the cached group and returns to Groups.
+- Group Info presents Leave Group for members who may leave and a distinct Delete group action for a sole owner. The last owner of a group with other members sees an explanation. After confirmation, the client rechecks the roster and sends the confirmed action through the existing self-member or group deletion API. The backend rechecks membership and ownership. Other active members or any outings prevent deletion (409). Success removes the cached group, reconciles the lists and returns to Groups.
 - Save Draft writes to the existing local cache first. Online recovery creates/updates the backend draft and updates the cache; offline changes remain pending after restart. Reconnect/resume performs serialized sync without polling. A stable UUID prevents response-loss duplicate creates; a changed server version preserves the pending copy and displays a conflict notice. Local phone-contact selections are retained on this device because the existing draft schema has no guest-phone column; see the implementation report's limitations.
 - The inbox retains its existing full-feed presentation while fetching bounded pages. Pending group invitation count excludes accepted/declined history returned by the API.
 
@@ -402,11 +406,11 @@ The existing five destinations remain Home, Groups, Outings, Discover and Settin
 ## Phase 2 dashboard and groups — 2026-11-13
 
 - Home retains the time-based greeting, profile avatar/name and unread notification bell. Its nearest future dated outing uses a full-cover feature card with a bottom readability scrim, title, optional group, localized schedule and a directional end-aligned Next Up badge; lifecycle status remains exposed to accessibility. The cover uses existing uploaded artwork or the bundled occasion fallback. Pink, blue and violet icon tiles open New Outing, New Group and Special Event in that order, adapting their colors to light/dark themes. Tiles stack for enlarged text or very narrow layouts. Home shows saved content with a local offline indicator and offers retry for initial failures.
-- Home samples up to six shuffled active database places from the existing nearby query after location is available; the sample stays stable across ordinary rebuilds. It has no Find places near me button or location-request hint. Without a successful location lookup, actual catalog cards use the Places to explore heading. See All opens Discover. Startup asks for notification access first, then location; denial leaves manual browsing available. Granted location refreshes Home automatically.
+- Home shows up to eight cached backend recommendations. If a foreground location is available, Home can switch to its nearby sample while keeping the general recommendations as a fallback. See All opens Discover. Startup requests notifications before foreground location and denial leaves general browsing available.
 - Groups searches names and offers All, Most active (outing-count order), and Created by me filters. GroupCard shows the bio, member count and outing activity. The existing Provider/Socket.IO path updates lists without manual refresh.
 - Create Group composes cover/name/bio and invitee widgets using shared controls. Camera/gallery, device contacts, international/manual phone entry and removable chips remain available. A typed phone is validated/added before submission. Submission locks the form; failed group creation retains selections. The existing create/invite APIs remain authoritative: only the creator is a member initially; invited phones remain pending until explicit acceptance.
-- Group Details is one scrollable page with cover/name/bio, Create Outing, Active Votes, Upcoming and Group Info navigation. Active/upcoming/history classification uses existing OutingsProvider getters; completed/cancelled outings move to the group-specific history route. There are no nested tabs or group chats.
-- Group Info offers owner-only name, cover and bio editing, roster role/status badges, and Add Members for active group members using the existing invitation endpoint. Removing/revoking and deleting remain owner-authorized; leave/delete retain confirmation and backend rules. Separate group-specific invitation and outing history routes read only that group's data.
+- Group Details shows the group photo or illustration, name, role, counts, Create an outing, and group-scoped voting and upcoming previews. The app bar menu opens Group Info. Active votes has a contextual empty card. Upcoming appears when the group has upcoming outings. See all opens the matching group list when there are additional results. Completed and cancelled outings appear in group-specific history under the existing lifecycle rules.
+- Group Info shows the compact hero followed by About, Members, History and Group actions. Owners can edit the name, cover and bio and manage the roster through the existing controls. Accepted members can invite through Add people and open group-specific invitation and outing history. The roster sheet keeps role and invitation status badges and existing removal and revocation controls.
 - Invitations remains accessible from Settings, group-invitation notifications and invite deep links. It displays All/Pending/Accepted/Declined filters, group artwork/name, inviter and localized invitation date. Only pending records have Accept/Decline actions. Successful decisions remain in history; decline stays on the page, and accept opens Group Details using the existing concrete page route. Loading/error/empty states use shared widgets. Account/load generations prevent realtime reads from cancelling decisions or leaving mutation loading stuck.
 
 Static verification and runtime limits are recorded in [the Phase 2 report](audit/PHASE_2_UI_UX.md). No Flutter/device/emulator/UI tests or app launch were performed. The reported grey-screen symptom has not been reproduced or visually signed off.
@@ -414,7 +418,7 @@ Static verification and runtime limits are recorded in [the Phase 2 report](audi
 
 ## Phase 3 outing journeys — 2026-11-14
 
-- **Outings:** New Outing, Active Votes, Upcoming and History reuse shared cards and existing lifecycle classification. Countdown labels reflect the server deadline; loading skeletons, empty states, retryable error feedback and an opt-in offline indicator preserve readable snapshots. Existing Socket.IO invalidations rehydrate the provider; no new socket client is created.
+- **Outings:** Create an outing and Outing history link to the existing destinations. Each populated section shows up to two cards and a count that opens the full filtered list. Active vote cards show the server deadline and cached place options. Tapping a card or an option opens voting in Outing Details. Upcoming cards show the localized date and time, status, available place imagery and cached Going attendees. Loading skeletons, retryable errors and the offline indicator preserve access to cached plans.
 - **Create:** Information owns optional cover, title, category, group, date/time and voting deadline. Group Details supplies a locked, preselected group. Locations reuses the full-screen searchable map and its current catalog/nearby pins, single/multiple selection and removable selected list. Review shows the full summary and explicit links to Information/Locations. System Back moves to the preceding step. Provider-held values persist, and successful create opens the canonical outing.
 - **Details:** Separate overview, RSVP, voting, location, GPS arrival and management widgets. Overview shows group/date/time/status. A fixed or server-confirmed venue uses a single place card; multi-location ballots display selected checkboxes, vote tallies/progress/deadline and an explicit submit action. Unsaved ballot edits do not send partial selections. Candidate-set changes discard stale checkbox indexes. Creator Edit/Cancel and Save/Unsave keep their existing providers and API authorization.
 - **RSVP:** Going/Maybe/Not Going are available after creation once attendance hydrates, independent of voting; selected chips, counts, avatars and participant roster are visible. The creator stays Going. No offline write queue is added.
@@ -453,7 +457,9 @@ Notifications offers All/Unread, unread count, read surfaces, event titles/icons
 - First run: branded introduction for groups, outing planning/voting and nearby discovery. Next advances through three localized steps; Skip or Get Started saves completion and opens Login. Subsequent signed-out starts open Login. A restored authenticated session opens Home directly.
 - Signup: full name, phone, password/confirmation, optional camera/gallery photo, existing terms consent and Firebase OTP. Registration never bypasses the Firebase proof. The optional photo uploads after successful registration; a photo error is shown without discarding the created account.
 - Login and recovery: existing phone/password login, Sign Up and Forgot Password links; recovery retains phone → Firebase OTP proof → new password/confirmation → Login. Existing loading, validation, network/timeout/error and resend handling remain active.
-- Settings: profile name/phone/avatar/logout; real groups, total outings and server-completed outing counts; Account (edit profile/phone proof/member date/delete account), Preferences (Saved, History, theme, notifications, invitations, language), Support and About (including Developer). Completed count is not a physical-attendance count.
+- Settings: profile name/phone/avatar/logout; real groups, total outings and server-completed outing counts; Account (edit profile/phone proof/member date), Preferences (Saved, History, theme, notifications, invitations, language), Support and About (including Developer). Completed count is not a physical-attendance count.
+- Contact Us: choose a support topic, write a message and optionally edit the subject. Open email app prefills the official recipient, subject, category and message. Send the draft from the email app, or copy the support address to use another email service. Privacy Policy, Terms & Conditions and Edit Profile each open Contact Us with the relevant topic selected.
+- About Developer opens a dedicated page with Mohamed Mohamed Salah’s introduction, the story behind Yalla 5roga and configured external links. Email opens a draft with the same official address and offers copy fallback.
 - Delete Account: destructive confirmation calls existing DELETE `/api/users/cuser`. Only success runs the existing logout/provider/cache cleanup and opens Login. Server errors, including referenced-profile conflicts, retain the session and show normal localized failure feedback. This existing endpoint deletes the Neon profile, not the Firebase identity.
 - Saved: bookmarks open their existing details; drafts resume editing. Shared cards provide loading/empty/error/retry feedback. History retains existing started/completed/cancelled entries and detail navigation. Completed chats continue to open read-only under the existing backend/client closure rules.
 
@@ -487,9 +493,9 @@ SAVE-04/05: Discover result/featured/nearby cards now expose shared bookmark con
 
 ## MapLibre Discover and outing selection — 2026-11-14
 
-Discover fills its existing tab behind floating search, horizontally scrolling backend category/vibe chips, map controls, a snapping horizontal place carousel and the unchanged floating navigation. All/Clear Filters remove category/vibe selections while retaining search and geographic context. Map bounds load active Neon pages. Name search in Arabic/English spans the catalog with the same filters; selecting a floating result focuses its pin and carousel card. One Provider selectedPlaceId synchronizes pin/card taps and centered-card swipes. Selection camera movement preserves the result set and avoids scroll/camera loops; deliberate panning resumes bounds queries. Clearing search uses the current visible bounds. Cards show image, name, category, available distance and vibes, bookmarks and details. The selected card pins an explicit Create Outing Here action outside its scrolling details; it opens the existing wizard with suggestedPlace, leaving group selection, details, scheduling, voting, review and publication explicit. Previously loaded places/images remain available through existing caches. There is no draggable Discover results sheet.
+Discover places bilingual search and category/vibe chips above the map. The place panel overlays the lower map, previews the next card and can expand from its handle when space allows. All and Clear Filters retain search and geographic context. Bounds still load active catalog pages. A search result or map pin focuses its matching card, and a settled card swipe highlights the corresponding pin. Selected places retain their category artwork and grow above neighboring pins. In Outing Creation, all confirmed places stay highlighted. Tapping a selected pin reveals its card, and a deliberate swipe through the chosen places centers the corresponding pin. Tapping a stacked cluster zooms to where its places split. Deliberate panning resumes bounds queries. Cards show actual names, available location and straight-line distance, category, cached photos, favorites and details. The selected card also opens the existing Create Outing wizard with the place preselected. Day/night style selection and resetting map orientation use the shared MapLibre map. Device interaction and visual verification are pending.
 
-Create Outing opens the same YallaMapView in single or multiple mode. Catalog search/filter state and camera position survive returning to the wizard and reopening its picker. Existing selected catalog locations remain highlighted above other pins with localized names; the selection list and explicit custom annotations retain ordering. Choose a database place or use the existing custom-location/geocoder/center-reticle flow; confirm explicitly, add/remove/reorder in multiple mode, or back out without committing. Place voting, RSVP and actual arrival rules do not change.
+Create Outing uses the same YallaMapView. The route retains catalog search, filters, camera and ordered selections when returning to Location. Selected venues keep native check markers and localized labels. Open a catalog or private place preview, search for a custom location or tap the map to name a custom point, then add it explicitly. Place voting, RSVP and actual arrival still use their existing backend rules.
 
 Both themes/locales use the same centralized vector style with translation fallback, restrained buildings/roads/greenery/Nile, native pointed category pins with localized place-name labels. Collision placement suppresses overlapping ordinary labels; focused place labels stay visible. The offline download control on Android/iOS saves a bounded current area; it reports progress/failure and requires a smaller area when limits are exceeded. Web has no native region-download control. Native rendered behavior across phone/wide/foldable, large text, light/dark and Arabic/English is NOT RUN under the owner's no-Flutter/emulator/device-test instruction. The read-only API verification target currently returns zero active catalog places; no fake pins/imports were added.
 
@@ -535,9 +541,11 @@ Discover place details presents a swipeable cover gallery above a rounded detail
 
 ## Location tie/revote journey — 2026-11-15
 
-At the backend deadline, members see the frozen tied places, images/counts and round number. Zero-vote results explain that every eligible place remains available. Members see a waiting message; only the outing creator sees Roll the Dice and Revote. Random requires confirmation, persists the backend winner, then reveals it for about 2.4 seconds. Reduced motion immediately reveals it. Reopening the screen shows the confirmed venue without replaying the reveal.
+At the backend deadline, members see the frozen tied places, images/counts and round number. Zero-vote results explain that every eligible place remains available. Members see a waiting message; only the outing creator sees Roll the Dice and Revote. Random requires confirmation and starts a short dice animation while the server resolves the tie. The screen waits for the returned winner, then shows the venue and a Place Details action for a catalog venue until the creator dismisses the result. Reduced motion removes the animation. Reopening the screen shows the confirmed venue directly.
 
 Revote opens a bounded shared bottom sheet with tied candidates and a localized date/time picker. It validates a future deadline before outing start and within seven days. A fresh round starts at zero; members can select/change/remove multiple locations again. Historic ballots and RSVP remain intact. Timeouts trigger canonical REST recovery. The final venue uses the existing location section/map action and winning place image.
+
+Tie and winner notifications open the voting and location area of Outing Details. The gallery carries the outing status. The venue card links to Place Details and the live map when those destinations are available. Members can swipe the gallery, open the photo viewer, see eligible RSVP counts, and expand the arrival roster once it loads at the scheduled start. RSVP, chat and GPS eligibility follow their existing rules.
 
 ```mermaid
 stateDiagram-v2

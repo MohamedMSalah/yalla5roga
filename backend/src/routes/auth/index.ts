@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import { AuthController } from "../../controllers/auth/auth.controller.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
@@ -198,7 +199,7 @@ export function createAuthRouter(controller = new AuthController()) {
   api.post("/recovery/reset", controller.recoveryLimit, validate({ body: resetPasswordBodySchema }), controller.recoveryResetHandler);
 
   const router = Router();
-  router.use("/api/auth", api);
+  mountRoutes(router, "/api/auth", api);
 
   return router;
 }

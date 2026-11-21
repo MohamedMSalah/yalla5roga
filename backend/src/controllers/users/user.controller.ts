@@ -1,3 +1,4 @@
+import { errorCode, logger } from "../../monitoring/logger.js";
 import type { NextFunction, Request, Response } from "express";
 import {
   toPublicUser,
@@ -119,7 +120,7 @@ export class UserController {
           select: { group_id: true },
         }).then((groups) => Promise.all(groups.map(({ group_id }) =>
           publishGroupChange(group_id, "group"),
-        ))).catch((error: unknown) => console.error("[realtime] profile audience", error));
+        ))).catch((error: unknown) => logger.warn({ errorCode: errorCode(error) }, "Profile invalidation delivery failed"));
       }
       res.json({ success: true, data: toPublicUser(user) });
     } catch (error) {

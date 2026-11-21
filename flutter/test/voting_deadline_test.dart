@@ -12,6 +12,7 @@ import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/outings/data/datasources/outings_remote_datasource.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/voting_deadline.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/create_outing_provider.dart';
 
@@ -112,7 +113,12 @@ void main() {
     first.setDate(reference().add(const Duration(days: 10)));
     first.setDeadlineUnit(VotingDeadlineUnit.days);
     first.setVoteDeadlineHours(168);
+    first.replaceMapSelection(const [
+      Place(id: 'venue', name: 'Venue', area: 'Cairo'),
+      Place(id: 'other', name: 'Other venue', area: 'Giza'),
+    ]);
     expect(first.next(l10n), isNull);
+    expect(first.step, 1);
     first.back();
     expect(first.voteDeadlineHours, 168);
     expect(first.deadlineUnit, VotingDeadlineUnit.days);

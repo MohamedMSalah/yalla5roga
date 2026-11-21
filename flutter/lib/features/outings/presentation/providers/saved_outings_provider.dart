@@ -138,12 +138,15 @@ class SavedOutingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> saveDraft(OutingDraft draft) async {
+  Future<OutingDraft?> saveDraft(OutingDraft draft) async {
     final epoch = _epoch;
     final result = await repository.saveDraft(draft);
-    if (epoch != _epoch) return;
-    result.fold((_) {}, (items) => _drafts = List.of(items));
-    notifyListeners();
+    if (epoch != _epoch) return null;
+    return result.fold((_) => null, (items) {
+      _drafts = List.of(items);
+      notifyListeners();
+      return _drafts.where((item) => item.id == draft.id).firstOrNull;
+    });
   }
 
   Future<void> removeDraft(String id) async {

@@ -1,3 +1,4 @@
+import { errorCode, logger } from "../../monitoring/logger.js";
 import { getMediaConfig, type MediaConfig } from "../../config/media.js";
 import type { MediaAsset, MediaPurpose, MediaDeliveryUrl } from "../../types/media/media.types.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../utils/errors.js";
@@ -344,13 +345,13 @@ export class MediaService {
       try {
         await this.storage().delete(asset.object_key);
       } catch (error) {
-        console.error(`[media] failed to delete object ${asset.object_key}`, error);
+        logger.warn({ errorCode: errorCode(error) }, "Media object cleanup failed");
       }
       try {
         await this.media.delete(asset.id);
         removed += 1;
       } catch (error) {
-        console.error(`[media] failed to delete asset row ${asset.id}`, error);
+        logger.warn({ errorCode: errorCode(error) }, "Media metadata cleanup failed");
       }
     }
     return { removed };

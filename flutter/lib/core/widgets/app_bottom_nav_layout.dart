@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/theme/app_palette.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_bottom_nav.dart';
 
@@ -44,10 +45,15 @@ class AppBottomNavLayout extends StatelessWidget {
           child: _TabSwap(index: currentIndex, pages: pages),
         ),
       ),
-      bottomNavigationBar: AppBottomNav(
-        items: items,
-        currentIndex: currentIndex,
-        onChanged: onChanged,
+      bottomNavigationBar: Theme(
+        data: currentIndex == 3
+            ? AppPalette.discoverTheme(Theme.of(context))
+            : Theme.of(context),
+        child: AppBottomNav(
+          items: items,
+          currentIndex: currentIndex,
+          onChanged: onChanged,
+        ),
       ),
     );
   }

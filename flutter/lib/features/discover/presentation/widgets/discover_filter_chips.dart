@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/core/theme/app_motion.dart';
+import 'package:yalla_5roga/core/theme/app_palette.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
@@ -11,47 +13,58 @@ class DiscoverFilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filters = catalog.filters;
-    final all = filters.categories.isEmpty && filters.vibes.isEmpty;
+    final all =
+        !catalog.privateOnly &&
+        filters.categories.isEmpty &&
+        filters.vibes.isEmpty;
+    void clearFilters() {
+      if (!all) {
+        catalog.privateOnly = false;
+        catalog.update(
+          filters.copyWith(categories: {}, vibes: {}),
+          debounce: true,
+        );
+      }
+    }
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 6),
       child: Row(
+        spacing: 8,
         children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(end: 6),
-            child: FilterChip(
-              label: Text(context.l10n.discoverAllPlaces),
-              selected: all,
-              onSelected: (_) {
-                if (!all)
-                  catalog.update(
-                    filters.copyWith(categories: {}, vibes: {}),
-                    debounce: true,
-                  );
+          _CategoryChip(
+            label: context.l10n.discoverAllPlaces,
+            icon: Icons.grid_view_rounded,
+            selected: all,
+            onTap: clearFilters,
+          ),
+          if (catalog.privateOwner != null)
+            _CategoryChip(
+              label: context.l10n.myPrivatePlaces,
+              icon: Icons.lock_outline,
+              selected: catalog.privateOnly,
+              onTap: () {
+                catalog.privateOnly = !catalog.privateOnly;
+                catalog.update(filters, retainPlaces: false);
               },
             ),
-          ),
           if (!all)
-            ActionChip(
-              avatar: const Icon(Icons.filter_alt_off_outlined, size: 20),
-              label: Text(context.l10n.catalogClearFilters),
-              onPressed: () => catalog.update(
-                filters.copyWith(categories: {}, vibes: {}),
-                debounce: true,
-              ),
+            _CategoryChip(
+              label: context.l10n.catalogClearFilters,
+              icon: Icons.filter_alt_off_outlined,
+              onTap: clearFilters,
             ),
           for (final (items, vibe) in [
             (catalog.categories, false),
             (catalog.vibes, true),
           ])
-            for (final item in items)
-              Padding(
-                padding: const EdgeInsetsDirectional.only(end: 6),
-                child: _chip(context, item, vibe),
-              ),
+            for (final item in items) _chip(context, item, vibe),
           if (catalog.taxonomyFailed)
-            ActionChip(
-              label: Text(context.l10n.catalogRetryCategories),
-              onPressed: () => catalog.loadDefinitions(force: true),
+            _CategoryChip(
+              label: context.l10n.catalogRetryCategories,
+              icon: Icons.refresh,
+              onTap: () => catalog.loadDefinitions(force: true),
             ),
         ],
       ),
@@ -62,15 +75,13 @@ class DiscoverFilterChips extends StatelessWidget {
     final filters = catalog.filters;
     final ids = vibe ? filters.vibes : filters.categories;
     final selected = ids.contains(item.id);
-    return FilterChip(
-      label: Text(item.label(context.l10n.locale.languageCode)),
-      avatar: Icon(catalogIcon(item.icon, selected), size: 20),
+    return _CategoryChip(
+      label: item.label(context.l10n.locale.languageCode),
+      icon: catalogIcon(item.icon, false),
       selected: selected,
-      showCheckmark: false,
-      materialTapTargetSize: MaterialTapTargetSize.padded,
-      onSelected: (value) {
+      onTap: () {
         final next = {...ids};
-        value ? next.add(item.id) : next.remove(item.id);
+        selected ? next.remove(item.id) : next.add(item.id);
         catalog.update(
           vibe
               ? filters.copyWith(vibes: next)
@@ -78,6 +89,103 @@ class DiscoverFilterChips extends StatelessWidget {
           debounce: true,
         );
       },
+    );
+  }
+}
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final highContrast = MediaQuery.highContrastOf(context);
+    final color = selected ? AppPalette.gradientText : palette.textSecondary;
+    return Semantics(
+      selected: selected,
+      button: true,
+      child: AnimatedContainer(
+        duration: AppMotion.of(context, AppMotion.standard),
+        decoration: ShapeDecoration(
+          color: selected
+              ? (highContrast ? palette.chipActive : null)
+              : palette.surface,
+          gradient: selected && !highContrast
+              ? AppPalette.selectedGradient
+              : null,
+          shape: StadiumBorder(
+            side: BorderSide(
+              color: selected ? AppPalette.selectionHighlight : palette.border,
+            ),
+          ),
+          shadows: selected && palette.isDark && !highContrast
+              ? [
+                  BoxShadow(
+                    color: AppPalette.selectionHighlight.withValues(alpha: .20),
+                    blurRadius: 10,
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            customBorder: const StadiumBorder(),
+            onTap: onTap,
+            child: Stack(
+              alignment: Alignment.bottomCenter,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 48),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 9,
+                      children: [
+                        Icon(
+                          icon,
+                          size: 20,
+                          color: highContrast && selected
+                              ? palette.chipActiveText
+                              : color,
+                        ),
+                        Text(
+                          label,
+                          style: context.texts.labelLarge?.copyWith(
+                            color: highContrast && selected
+                                ? palette.chipActiveText
+                                : color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (selected && !highContrast)
+                  const SizedBox(
+                    width: 30,
+                    height: 2,
+                    child: ColoredBox(color: AppPalette.selectionHighlight),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

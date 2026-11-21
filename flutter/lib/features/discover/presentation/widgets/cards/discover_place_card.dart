@@ -33,7 +33,10 @@ class DiscoverPlaceCard extends StatelessWidget {
       title: place.localizedName(l10n),
       subtitle: showPriceLevel
           ? place.localizedSummary(l10n)
-          : place.localizedArea(l10n),
+          : [
+              l10n.vibeLabel(place.vibe.name),
+              place.localizedArea(l10n),
+            ].where((value) => value.isNotEmpty).join(' · '),
       compact: compact,
       onTap: onTap,
       cover: AppHero(

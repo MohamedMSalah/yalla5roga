@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/core/widgets/app_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -22,6 +23,9 @@ class ActiveVoteCard extends StatelessWidget {
     final group = context.watch<GroupsProvider>().findById(
       outing.groupId ?? '',
     );
+    final options = store.optionsFor(outing.id);
+    final voted = store.votedCountFor(outing.id);
+    final eligible = store.eligibleVoterCountFor(outing.id);
     return SizedBox(
       width: width,
       child: Column(
@@ -29,25 +33,68 @@ class ActiveVoteCard extends StatelessWidget {
         children: [
           OutingCard(
             title: outing.title,
-            footer: endsAt == null
-                ? null
-                : VoteCountdownText(
+            footer: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (options.isNotEmpty)
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final option in options)
+                        AppBadge(
+                          label: option.label,
+                          color: context.palette.surfaceSoft,
+                          textColor: context.palette.textPrimary,
+                        ),
+                    ],
+                  ),
+                if (endsAt != null) ...[
+                  Responsive.spaceSm.gapH,
+                  VoteCountdownText(
                     endsAt: endsAt,
                     isClosed: store.isVoteFinalized(outing.id),
                   ),
+                ],
+                if (eligible > 0) ...[
+                  Responsive.spaceSm.gapH,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: LinearProgressIndicator(
+                            value: (voted / eligible).clamp(0.0, 1.0),
+                            minHeight: 7,
+                            backgroundColor: context.palette.surfaceSoft,
+                            semanticsLabel: context.l10n.votedCount(
+                              voted,
+                              eligible,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          context.l10n.votedCount(voted, eligible),
+                          style: context.texts.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
             subtitle: [
               if (group != null) group.name,
               outing.localizedWhen(context.l10n),
-              context.l10n.votedCount(
-                store.votedCountFor(outing.id),
-                store.eligibleVoterCountFor(outing.id),
-              ),
             ].join(' · '),
             cover: PlanningCover(
               url: outing.image,
               art: outing.occasion.coverArt,
-              width: 56.w,
-              height: 56.w,
+              width: 80.w,
+              height: 86.w,
             ),
             statusLabel: store.hasVoted(outing.id)
                 ? context.l10n.youVoted

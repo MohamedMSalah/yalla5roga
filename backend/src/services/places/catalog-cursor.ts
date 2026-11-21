@@ -17,5 +17,25 @@ export function decodeCatalogCursor(q: CatalogQuery): { id: string; value: strin
   } catch { throw new ValidationError("Invalid cursor or changed query filters"); }
 }
 export function encodeCatalogCursor(q: CatalogQuery, row: any): string {
-  return Buffer.from(JSON.stringify({ scope: scope(q), id: row.id, value: q.sort === "distance" ? Number(row.distance_km) : q.sort === "name" ? row.name : row.cursor_updated_at ?? new Date(row.updated_at).toISOString() })).toString("base64url");
+  return Buffer.from(JSON.stringify({ scope: scope(q), id: row.id, value: q.sort === "id" ? row.id : q.sort === "distance" ? Number(row.distance_km) : q.sort === "name" ? row.name : row.cursor_updated_at ?? new Date(row.updated_at).toISOString() })).toString("base64url");
+}
+
+export type ChangeCursor = { revision: string; kind: string; id: string };
+const start: ChangeCursor = { revision: "0", kind: "", id: "" };
+
+export function encodeChangeCursor(cursor: ChangeCursor) {
+  return Buffer.from(JSON.stringify(cursor)).toString("base64url");
+}
+
+export function decodeChangeCursor(token: string | undefined): ChangeCursor {
+  if (!token) return start;
+  const value = JSON.parse(Buffer.from(token, "base64url").toString("utf8"));
+  if (!value || typeof value.revision !== "string" ||
+      !/^\d{1,20}$/.test(value.revision) ||
+      BigInt(value.revision) > 18446744073709551615n ||
+      !["", "place", "brand", "category", "vibe"].includes(value.kind) ||
+      typeof value.id !== "string" || !/^[a-zA-Z0-9_-]{0,64}$/.test(value.id)) {
+    throw new Error("Invalid catalog cursor");
+  }
+  return value;
 }

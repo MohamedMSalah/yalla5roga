@@ -9,12 +9,9 @@ import { emitDataChange } from "../../realtime/data-changes.js";
 interface InvitationWithRelations {
   id: string;
   group_id: string;
-  invited_by_user_id: string;
   invited_phone: string;
-  user_id: string | null;
   status: string;
   created_at: Date;
-  updated_at: Date;
   groups: { name: string; image_url: string } | null;
   inviter: { name: string } | null;
 }
@@ -55,7 +52,12 @@ export class UserInvitationsController {
           ],
         },
         orderBy: [{ created_at: "desc" }, { id: "desc" }],
-        include: {
+        select: {
+          id: true,
+          group_id: true,
+          invited_phone: true,
+          status: true,
+          created_at: true,
           groups: { select: { name: true, image_url: true } },
           inviter: { select: { name: true } },
         },

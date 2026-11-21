@@ -1,3 +1,4 @@
+import { isolatedDatabase } from "./support/isolated-database.js";
 import assert from "node:assert/strict";
 import { randomInt, randomUUID } from "node:crypto";
 import test from "node:test";
@@ -21,7 +22,7 @@ async function seedUser(suffix: string) {
   return id;
 }
 
-test("concurrent votes upsert to one row per user", async () => {
+test("concurrent votes deduplicate each option within the current round", { skip: !isolatedDatabase }, async () => {
   const owner = await seedUser("owner");
   const voter = await seedUser("voter");
   let outingId = "";
@@ -70,7 +71,9 @@ test("concurrent votes upsert to one row per user", async () => {
     const votes = await prisma.outing_votes.findMany({
       where: { outing_id: outing.id, user_id: voter },
     });
-    assert.equal(votes.length, 1);
+    assert.deepEqual(new Set(votes.map(vote => vote.option_id)), new Set([a.id, b.id]));
+    assert.equal(votes.length, 2);
+    assert.ok(votes.every(vote => vote.round_number === 1));
   } finally {
     if (outingId) await prisma.outings.deleteMany({ where: { id: outingId } });
     if (groupId) await prisma.groups.deleteMany({ where: { id: groupId } });
@@ -78,7 +81,7 @@ test("concurrent votes upsert to one row per user", async () => {
   }
 });
 
-test("parallel deadline close and dual tie-break are idempotent", async () => {
+test("parallel deadline close and dual tie-break are idempotent", { skip: !isolatedDatabase }, async () => {
   const owner = await seedUser("own");
   const m1 = await seedUser("m1");
   const m2 = await seedUser("m2");
@@ -152,7 +155,7 @@ test("parallel deadline close and dual tie-break are idempotent", async () => {
   }
 });
 
-test("replace vote options clears prior votes atomically", async () => {
+test("replace vote options clears prior votes atomically", { skip: !isolatedDatabase }, async () => {
   const owner = await seedUser("rep");
   const voter = await seedUser("vot");
   let outingId = "";

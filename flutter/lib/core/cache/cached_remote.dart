@@ -1,10 +1,10 @@
 import 'package:dartz/dartz.dart';
-import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/cache/ttl_cache.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/error/failures.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_scope.dart';
 import 'package:yalla_5roga/core/network/remote_guard.dart';
 import 'package:yalla_5roga/core/network/request_deduper.dart';
 
@@ -36,10 +36,11 @@ Future<Either<Failure, T>> cachedRemote<T>({
   final diagnostics = RequestDiagnostics.instance;
   final endpoint = reason ?? key;
 
+  final clock = Stopwatch()..start();
   if (!forceRefresh) {
     final fresh = cache.get(key);
     if (fresh != null) {
-      if (kDebugMode) {
+      if (RequestDiagnostics.enabled) {
         diagnostics.recordLocal(
           method: 'GET',
           endpoint: endpoint,
@@ -47,33 +48,71 @@ Future<Either<Failure, T>> cachedRemote<T>({
           feature: feature,
           source: source ?? 'cachedRemote',
           operation: reason,
+          durationMs: clock.elapsedMilliseconds,
         );
       }
       return Right(fresh);
     }
   }
 
+  final revision = cache.revision;
+  final expired = !forceRefresh && cache.getStale(key) != null;
+  diagnostics.recordLocal(
+    method: 'GET',
+    endpoint: endpoint,
+    outcome: RequestOutcome.cacheMiss,
+    source: source,
+    feature: feature,
+    operation: reason,
+    durationMs: clock.elapsedMilliseconds,
+  );
   final activeDeduper = deduper ?? cachedRemoteDeduper;
   final dedupeKey = RequestDeduper.keyFor(
     method: 'GET',
-    path: 'cache:$key',
+    path: 'cache:${cache.identity}:$revision:$key',
   );
 
   return activeDeduper.run<Either<Failure, T>>(
     dedupeKey,
     () async {
-      final result = await guardRemote(networkInfo, fetch, reason: reason, offlineRead: offlineRead);
+      final result = await RequestScope.run(
+        () => guardRemote(
+          networkInfo,
+          fetch,
+          reason: reason,
+          offlineRead: offlineRead,
+        ),
+        origin: source,
+        feature: feature,
+        trigger: expired && RequestScope.current?.trigger == null
+            ? 'cache_expired'
+            : null,
+      );
       return result.fold(
         (failure) {
-          if (allowStaleOnError && (!offlineRead ||
-              failure is NetworkFailure || (failure.statusCode ?? 0) >= 500)) {
+          if (revision == cache.revision &&
+              allowStaleOnError &&
+              (!offlineRead ||
+                  failure is NetworkFailure ||
+                  (failure.statusCode ?? 0) >= 500)) {
             final stale = cache.getStale(key);
-            if (stale != null) return Right(stale);
+            if (stale != null) {
+              diagnostics.recordLocal(
+                method: 'GET',
+                endpoint: endpoint,
+                outcome: RequestOutcome.stale,
+                source: source,
+                feature: feature,
+                operation: reason,
+                durationMs: clock.elapsedMilliseconds,
+              );
+              return Right(stale);
+            }
           }
           return Left(failure);
         },
         (value) {
-          cache.set(key, value);
+          if (cache.revision == revision) cache.set(key, value);
           return Right(value);
         },
       );

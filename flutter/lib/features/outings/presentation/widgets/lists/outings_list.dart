@@ -1,3 +1,7 @@
+import 'package:intl/intl.dart';
+import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/core/widgets/section_header.dart';
+import 'package:yalla_5roga/core/widgets/avatar_stack.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -34,14 +38,16 @@ class OutingsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final outings = this.items ?? context.watch<OutingsProvider>().outings;
+    final store = context.watch<OutingsProvider>();
+    final groups = context.watch<GroupsProvider>();
+    final outings = this.items ?? store.outings;
     final items = limit == null ? outings : outings.take(limit!).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null) ...[
-          Text(title!, style: context.texts.titleMedium),
+          SectionHeader(title: title!, icon: Icons.calendar_month_outlined),
           Responsive.spaceSm.gapH,
         ],
         if (items.isEmpty)
@@ -58,6 +64,16 @@ class OutingsList extends StatelessWidget {
             itemCount: items.length,
             itemBuilder: (context, index) {
               final outing = items[index];
+              final group = groups.findById(outing.groupId ?? '');
+              final date = outing.scheduledAt?.toLocal();
+              final locale = l10n.locale.languageCode;
+              final going = store.goingCountFor(outing.id);
+              final avatars = [
+                for (final member in store.membersForOuting(outing))
+                  if (store.attendanceFor(outing.id, member.id) ==
+                      AttendanceStatus.going)
+                    member.avatar,
+              ].take(3).toList();
               final heroTag = HeroTags.outingCover(heroSurface, outing.id);
               return Padding(
                 padding: EdgeInsets.only(
@@ -66,7 +82,21 @@ class OutingsList extends StatelessWidget {
                 child: OutingListTile(
                   title: outing.title,
                   statusLabel: outing.statusLabel(l10n),
+                  dateLabel: date == null
+                      ? null
+                      : [
+                          DateFormat.E(locale).format(date),
+                          l10n.n(date.day),
+                          DateFormat.MMM(locale).format(date),
+                        ].join('\n'),
+                  detailsFooter: avatars.isEmpty
+                      ? null
+                      : AvatarStack(
+                          urls: avatars,
+                          extra: (going - avatars.length).clamp(0, 99),
+                        ),
                   subtitle: [
+                    if (group != null) group.name,
                     outing.localizedWhen(l10n),
                     if (outing.status == OutingStatus.past)
                       l10n.completedOuting

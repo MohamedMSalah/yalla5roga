@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:yalla_5roga/core/media/media_reference.dart';
+import 'package:yalla_5roga/core/maps/yalla_offline_images.dart';
 import 'package:yalla_5roga/core/media/media_url_resolver.dart';
 import 'package:yalla_5roga/core/media/media_url_store.dart';
 import 'package:yalla_5roga/core/theme/app_colors.dart';
@@ -117,7 +118,20 @@ class AppNetworkImage extends StatelessWidget {
     final memW = _decodePx(layoutWidth, dpr);
     final memH = memW == null ? _decodePx(layoutHeight, dpr) : null;
 
-    final image = url.trim().isEmpty
+    final pinned = _isRemote || _isMedia
+        ? YallaOfflineImages.instance.pathFor(url.trim())
+        : null;
+    final image = pinned != null
+        ? Image.file(
+            File(pinned),
+            width: width,
+            height: height,
+            fit: fit,
+            cacheWidth: memW,
+            cacheHeight: memH,
+            errorBuilder: (_, _, _) => fallback,
+          )
+        : url.trim().isEmpty
         ? fallback
         : _isMedia
         ? _MediaNetworkImage(

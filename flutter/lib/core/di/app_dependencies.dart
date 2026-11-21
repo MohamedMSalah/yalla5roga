@@ -13,6 +13,7 @@ import 'package:yalla_5roga/core/cache/cached_remote.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/di/repository_factory.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
+import 'package:yalla_5roga/core/maps/yalla_map_offline.dart';
 import 'package:yalla_5roga/core/media/media_upload_service.dart';
 import 'package:yalla_5roga/core/media/media_url_resolver.dart';
 import 'package:yalla_5roga/core/media/media_url_store.dart';
@@ -21,7 +22,7 @@ import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics_interceptor.dart';
 import 'package:yalla_5roga/core/network/dio_interceptors.dart';
 import 'package:yalla_5roga/core/network/network_info.dart';
-import 'package:yalla_5roga/core/network/performance_interceptor.dart';
+import 'package:yalla_5roga/core/network/diagnostics/mobile_telemetry.dart';
 import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/member_display_name.dart';
 import 'package:yalla_5roga/features/auth/data/datasources/firebase_auth_service.dart';
@@ -99,6 +100,11 @@ class AppDependencies {
     final appConfig = config ?? AppConfig.instance;
     final prefs = await SharedPreferences.getInstance();
     final networkInfo = NetworkInfoImpl(Connectivity());
+    final offlineMaps = YallaMapOffline.instance
+        .initialize(prefs, networkInfo)
+        .catchError((Object _) {
+          // The interactive map can still use the inline style.
+        });
 
     final firebaseAuth = FirebaseAuthService();
     String? uid() => firebaseAuth.currentUser?.uid;
@@ -124,10 +130,11 @@ class AppDependencies {
     );
     authInterceptor.bind(dio);
     dio.interceptors.addAll([
+      RequestDiagnosticsInterceptor(
+        currentUserId: uid,
+        telemetry: MobileTelemetry(dio, uid),
+      ),
       authInterceptor,
-      AppLogInterceptor(),
-      if (kDebugMode) RequestDiagnosticsInterceptor(),
-      PerformanceInterceptor(),
       ErrorInterceptor(),
     ]);
     if (kDebugMode) {
@@ -297,7 +304,7 @@ class AppDependencies {
       if (next != null) unawaited(fcm.refreshToken());
     });
     sync = AppSyncProvider(
-      onCatalogRecovery:discoverRepository.checkCatalogVersion,
+      onCatalogRecovery: discoverRepository.checkCatalogVersion,
       chat: outingChat,
       savedOutings: savedOutings,
       auth: auth,
@@ -314,6 +321,7 @@ class AppDependencies {
       onNotificationRecovery: notificationActions.retryPending,
     );
     activeSync = sync;
+    await offlineMaps;
     return AppDependencies(
       sync: sync,
       config: appConfig,

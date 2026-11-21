@@ -46,16 +46,27 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   final ApiClient _client;
 
   @override
-  Future<void> deleteGroup(String id) async {
+  Future<void> deleteGroup(String id) =>
+      _removeGroupAccess(id, ApiConstants.group(id));
+
+  Future<void> _removeGroupAccess(String groupId, String path) async {
     final store = _client.snapshots;
-    final key = store?.keyFor(ApiConstants.group(id), null);
     final uid = store?.userId();
-    await _client.delete(ApiConstants.group(id));
-    if (store != null && store.userId() == uid) {
+    final generation = store?.generation;
+    final key = store?.keyFor(ApiConstants.group(groupId), null);
+    await _client.delete(path);
+    if (store != null &&
+        key != null &&
+        store.userId() == uid &&
+        store.generation == generation) {
       await store.mergeCollectionItem(ApiConstants.groupsCuser, {
-        'id': id,
+        'id': groupId,
       }, remove: true);
-      if (key != null) await store.removeResource(key);
+      try {
+        await store.removeResource(key);
+      } catch (_) {
+        // The server has already confirmed the change. Reconcile the live list.
+      }
     }
   }
 
@@ -72,10 +83,33 @@ class GroupsRemoteDataSource implements GroupsDataSource {
         response.data,
         aliases: const ['groups', 'items'],
       );
-      return [for (final item in items) _groupFromJson(item)];
+      return [
+        for (final item in items) _withCachedRoster(_groupFromJson(item)),
+      ];
     } on DioException catch (error) {
       throw _unwrap(error);
     }
+  }
+
+  Group _withCachedRoster(Group group) {
+    final store = _client.snapshots;
+    final uid = store?.userId();
+    final count = group.listedMemberCount;
+    if (store == null || uid == null || count == null || count < 1) {
+      return group;
+    }
+    final key = store.keyFor(ApiConstants.groupMembers(group.id), null);
+    final cached = store.read<Map<String, dynamic>>(key);
+    if (cached == null) return group;
+    final rows = apiObjectList(cached, aliases: const ['items', 'members']);
+    if (rows.length != count) return group;
+    final ids = {
+      for (final row in rows) ?apiString(row['user_id'] ?? row['id']),
+    };
+    if (ids.length != count || !ids.contains(uid)) {
+      return group;
+    }
+    return group.copyWith(cachedAcceptedMemberIds: List.unmodifiable(ids));
   }
 
   @override
@@ -188,7 +222,8 @@ class GroupsRemoteDataSource implements GroupsDataSource {
   Future<void> leaveGroup(String groupId, String userId) async {
     try {
       // Phase A: no dedicated leave route — DELETE self as member.
-      await _client.delete<Map<String, dynamic>>(
+      await _removeGroupAccess(
+        groupId,
         ApiConstants.groupMember(groupId, userId),
       );
     } on DioException catch (error) {
@@ -304,8 +339,6 @@ class GroupsRemoteDataSource implements GroupsDataSource {
       'unread': apiInt(json['unread']),
       'featured': apiBool(json['featured']),
       'decision': apiString(json['decision']),
-      if (json['member_count'] != null)
-        'member_count': apiInt(json['member_count']),
       'cuserRole':
           apiString(json['cuserRole']) ??
           apiString(json['myRole']) ??

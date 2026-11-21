@@ -10,10 +10,14 @@ class VoteCountdownText extends StatefulWidget {
     required this.endsAt,
     this.style,
     this.isClosed = false,
+    this.compact = false,
+    this.clock = DateTime.now,
   });
   final DateTime endsAt;
   final TextStyle? style;
   final bool isClosed;
+  final bool compact;
+  final DateTime Function() clock;
   @override
   State<VoteCountdownText> createState() => _VoteCountdownTextState();
 }
@@ -21,7 +25,7 @@ class VoteCountdownText extends StatefulWidget {
 class _VoteCountdownTextState extends State<VoteCountdownText>
     with WidgetsBindingObserver {
   Timer? _timer;
-  DateTime _now = DateTime.now();
+  late DateTime _now = widget.clock();
   bool _visible = false;
   bool _foreground = true;
   @override
@@ -35,7 +39,9 @@ class _VoteCountdownTextState extends State<VoteCountdownText>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _visible = TickerMode.valuesOf(context).enabled;
+    _visible =
+        TickerMode.valuesOf(context).enabled &&
+        (ModalRoute.isCurrentOf(context) ?? true);
     _restart();
   }
 
@@ -56,20 +62,24 @@ class _VoteCountdownTextState extends State<VoteCountdownText>
 
   void _restart() {
     _timer?.cancel();
-    _now = DateTime.now();
+    _now = widget.clock();
     if (!_visible ||
         !_foreground ||
         widget.isClosed ||
         !widget.endsAt.isAfter(_now)) {
       return;
     }
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
-      setState(() => _now = DateTime.now());
-      if (!widget.endsAt.isAfter(_now)) timer.cancel();
+    final remaining = widget.endsAt.difference(_now);
+    final untilNext = widget.compact
+        ? Duration(
+            microseconds:
+                ((remaining.inMicroseconds - 1) %
+                    Duration.microsecondsPerMinute) +
+                1,
+          )
+        : const Duration(seconds: 1);
+    _timer = Timer(untilNext, () {
+      if (mounted) setState(_restart);
     });
   }
 
@@ -87,8 +97,13 @@ class _VoteCountdownTextState extends State<VoteCountdownText>
       now: _now,
       isClosed: widget.isClosed,
     );
+    final minutes =
+        (value.totalSeconds + Duration.secondsPerMinute - 1) ~/
+        Duration.secondsPerMinute;
     final label = value.ended
         ? context.l10n.voteEnded
+        : widget.compact
+        ? context.l10n.outingVoteTimeLeft(minutes)
         : context.l10n.voteCountdown(
             value.days,
             value.hours,
@@ -98,8 +113,12 @@ class _VoteCountdownTextState extends State<VoteCountdownText>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.timer_outlined, size: 18, color: context.palette.warning),
-        Responsive.spaceXs.gapW,
+        Icon(
+          widget.compact ? Icons.schedule_outlined : Icons.timer_outlined,
+          size: widget.compact ? 14 : 18,
+          color: widget.style?.color ?? context.palette.warning,
+        ),
+        SizedBox(width: widget.compact ? 4 : Responsive.spaceXs),
         Flexible(
           child: Text(
             label,

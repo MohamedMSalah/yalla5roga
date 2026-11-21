@@ -13,6 +13,8 @@ import {
   validateResponse,
 } from "../src/services/places/osm.js";
 import { catalogQuerySchema } from "../src/validators/places/catalog.validator.js";
+import { CatalogRepository } from "../src/repositories/places/catalog.repository.js";
+import { CatalogUseCase } from "../src/usecases/places/catalog.usecase.js";
 test("taxonomy has stable unique IDs, distinct cafes/retail coffee and complete bilingual labels", () => {
   assert.equal(new Set(categories.map((c) => c[0])).size, categories.length);
   assert.equal(new Set(vibes.map((v) => v[0])).size, vibes.length);
@@ -141,10 +143,44 @@ test("catalog query supports combined filtering and rejects malformed spatial re
   assert.equal(q.status, "active");
   for (const input of [
     { lat: "30" },
-    { bbox: "31,30,29,32" },
+    { bbox: "31,30,31,32" },
+    { bbox: "181,30,-179,32" },
+    { bbox: "180,30,-180,32" },
+    { bbox: "30,32,31,30" },
+    { bbox: ",30,31,32" },
     { limit: "101" },
     { categories: "x' OR true" },
     { sort: "distance" },
   ])
     assert.equal(catalogQuerySchema.safeParse(input).success, false);
+});
+
+test("catalog accepts an antimeridian viewport and compact cards together", () => {
+  const filters = catalogQuerySchema.parse({ bbox: "175,-10,-175,10", compact: "true" });
+  assert.deepEqual(filters.bbox, [175, -10, -175, 10]);
+  assert.equal(filters.compact, "true");
+});
+
+test("Home recommendation reads share one bounded sample across concurrent limits", async () => {
+  let requests = 0;
+  class TestCatalog extends CatalogRepository {
+    override async recommendations(limit: number) {
+      requests++;
+      assert.equal(limit, 24);
+      return Array.from({length: limit}, (_, id) => ({ id }));
+    }
+  }
+  const catalog = new CatalogUseCase(new TestCatalog());
+  const [eight, four] = await Promise.all([catalog.recommendations(8), catalog.recommendations(4)]);
+  assert.equal(eight.length, 8);
+  assert.deepEqual(four, eight.slice(0, 4));
+  assert.deepEqual(await catalog.recommendations(8), eight);
+  assert.equal(requests, 1);
+});
+
+test("geographic keyset cursor is accepted without changing legacy sort defaults", () => {
+  const q = catalogQuerySchema.parse({ bbox: "31,29,32,30", compact: "true", sort: "id" });
+  assert.equal(q.sort, "id");
+  assert.equal(catalogQuerySchema.parse({}).sort, "updated");
+  assert.equal(catalogQuerySchema.safeParse({ ...q, bbox: "31,29,32,30", categories: "", vibes: "", cursor: "cursor", offset: 1 }).success, false);
 });

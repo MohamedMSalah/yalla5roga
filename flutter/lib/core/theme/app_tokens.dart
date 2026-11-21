@@ -14,7 +14,7 @@ abstract final class AppSpacing {
 abstract final class AppRadii {
   static const small = 10.0;
   static const control = 14.0;
-  static const card = 16.0;
+  static const card = 17.0;
   static const sheet = 24.0;
   static const pill = 999.0;
 }
@@ -23,11 +23,13 @@ abstract final class AppSizes {
   static const touchTarget = 48.0;
   static const button = 52.0;
   static const icon = 20.0;
-  static const navItem = 56.0;
+  static const navItem = 54.0;
+  static const navIcon = 23.0;
 }
 
 abstract final class AppTypography {
-  static const navigationLabel = 10.0;
+  static const navigationLabel = 12.0;
+  static const compactNavigationLabel = 11.0;
   static const caption = 12.0;
   static const body = 14.0;
   static const title = 16.0;

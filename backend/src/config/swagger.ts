@@ -1125,6 +1125,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               nullable: true,
               description: "Must be later than scheduled_at. Defaults to scheduled_at + 6h for completion.",
             },
+            location_category_id: { type: 'string', maxLength: 64, nullable:true },
+            location_address: { type:'string',maxLength:500,nullable:true },
             location_place_id: { ...uuid, nullable: true },
             location_name: { type: "string", maxLength: 100, nullable: true },
             location_area: { type: "string", maxLength: 100, nullable: true },
@@ -1156,6 +1158,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               nullable: true,
               description: "Must be later than scheduled_at.",
             },
+            location_category_id: { type: 'string', maxLength: 64, nullable:true },
+            location_address: { type:'string',maxLength:500,nullable:true },
             location_place_id: { ...uuid, nullable: true },
             location_name: { type: "string", maxLength: 100, nullable: true },
             location_area: { type: "string", maxLength: 100, nullable: true },
@@ -1179,6 +1183,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             occasion: { type: "string", enum: occasionEnum },
             scheduled_at: { ...dateTime, nullable: true },
             ends_at: { ...dateTime, nullable: true },
+            location_category_id: { type: 'string', maxLength: 64, nullable:true },
+            location_address: { type:'string',maxLength:500,nullable:true },
             location_place_id: { ...uuid, nullable: true },
             location_name: { type: "string", nullable: true },
             location_area: { type: "string", nullable: true },
@@ -1289,6 +1295,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           properties: {
             place_id: { ...uuid, nullable: true },
             label: { type: "string", minLength: 1, maxLength: 100 },
+            category_id: {type:'string',maxLength:64},
+            address: {type:'string',maxLength:500},
             area: { type: "string", maxLength: 100 },
             image_url: { type: "string", format: "uri", maxLength: 2048 },
             vibe: { type: "string", enum: vibeEnum },
@@ -1304,6 +1312,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             outing_id: uuid,
             place_id: { ...uuid, nullable: true },
             label: { type: "string" },
+            category_id: {type:'string',nullable:true},
+            address: {type:'string',nullable:true},
             area: { type: "string" },
             image_url: { type: "string" },
             vibe: { type: "string", enum: vibeEnum },
@@ -1338,6 +1348,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             outcome: { type: "string", enum: ["confirmed", "tie", "cancelled", "still_open"],
             },
             winningOptionId: uuid,
+            outing_id: uuid,
+            confirmed_location_id: { ...uuid, nullable: true, description: "Catalog location ID when available; winningOptionId is the outing option ID" },
             voting_state: { type: "string", enum: ["confirmed"] },
             resolution_method: { type: "string", nullable: true },
             confirmed_location: ref("VoteOption"),
@@ -1365,9 +1377,10 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         }),
         VotingStateResponse: envelope({
           type: "object",
-          required: ["outing", "options", "votes", "tiedOptionIds", "isTied", "isClosed", "my_option_ids", "voted_count",
+          required: ["outing_id", "outing", "voting_state", "current_round", "can_resolve_tie", "options", "votes", "tiedOptionIds", "isTied", "isClosed", "my_option_ids", "voted_count",
           ],
           properties: {
+            outing_id: uuid,
             outing: ref("Outing"),
             voting_state: { type: "string", enum: ["active", "tie_pending", "revote_active", "confirmed", "cancelled"] },
             can_resolve_tie: { type: "boolean" },
@@ -1848,8 +1861,24 @@ export const swaggerSpec = swaggerJsdoc(swaggerOptions);
 extendPlacesOpenApi(swaggerSpec);
 
 // Shared /api middleware applies this response to every HTTP API operation.
-const generated = swaggerSpec as { paths?: Record<string, Record<string, { responses?: Record<string, unknown> }>>;
-};
+const generated = swaggerSpec as { paths?: Record<string, Record<string, { responses?: Record<string, unknown> }>> };
+
+const probeResponse = (description: string, status: string) => ({
+  description,
+  content: { "application/json": { schema: {
+    type: "object", required: ["success", "status"],
+    properties: { success: { type: "boolean" }, status: { type: "string", example: status } },
+  } } },
+});
+Object.assign(generated.paths ?? {}, {
+  "/health/live": { get: { tags: ["System"], operationId: "getLiveness", security: [],
+    summary: "Check process liveness", responses: { "200": probeResponse("API process is listening", "live") } } },
+  "/health/ready": { get: { tags: ["System"], operationId: "getReadiness", security: [],
+    summary: "Check API readiness", responses: {
+      "200": probeResponse("API dependencies are ready", "ready"),
+      "503": probeResponse("The API is temporarily unavailable", "unavailable"),
+    } } },
+});
 for (const [route, item] of Object.entries(generated.paths ?? {})) {
   if (!route.startsWith("/api/")) continue;
   for (const [method, operation] of Object.entries(item)) {

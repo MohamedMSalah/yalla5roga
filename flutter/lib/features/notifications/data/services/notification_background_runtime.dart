@@ -4,6 +4,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_diagnostics_interceptor.dart';
+import 'package:yalla_5roga/core/network/diagnostics/request_scope.dart';
 import 'package:yalla_5roga/core/network/dio_interceptors.dart';
 import 'package:yalla_5roga/firebase_options.dart';
 import 'package:yalla_5roga/features/notifications/data/services/interactive_notification_handler.dart';
@@ -17,10 +19,11 @@ class NotificationBackgroundRuntime {
   final NotificationActionDispatcher actions;
 
   static Future<NotificationBackgroundRuntime> create() async {
-    if (Firebase.apps.isEmpty)
+    if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+    }
     final auth = FirebaseAuth.instance;
     await auth.authStateChanges().first.timeout(const Duration(seconds: 5));
     final config = AppConfig.fromEnvironment();
@@ -38,7 +41,14 @@ class NotificationBackgroundRuntime {
           auth.currentUser?.getIdToken(forceRefresh),
     );
     interceptor.bind(dio);
-    dio.interceptors.addAll([interceptor, ErrorInterceptor()]);
+    dio.interceptors.addAll([
+      RequestDiagnosticsInterceptor(
+        currentUserId: () => auth.currentUser?.uid,
+        firebase: false,
+      ),
+      interceptor,
+      ErrorInterceptor(),
+    ]);
     final client = ApiClient(dio);
     final local = LocalNotificationsService(
       client: client,
@@ -62,7 +72,13 @@ Future<void> notificationActionBackgroundHandler(
   final runtime = await NotificationBackgroundRuntime.create();
   try {
     final payload = LocalNotificationsService.decodeResponse(response);
-    if (payload != null) await runtime.actions.dispatch(payload);
+    if (payload != null) {
+      await RequestScope.run(
+        () => runtime.actions.dispatch(payload),
+        origin: 'NotificationBackgroundRuntime',
+        trigger: 'background_sync',
+      );
+    }
   } finally {
     runtime.client.dio.close();
   }

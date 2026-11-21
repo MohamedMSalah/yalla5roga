@@ -12,8 +12,11 @@ class AppIconButton extends StatelessWidget {
     this.background,
     this.foreground,
     this.badge,
+    this.badgeColor,
     this.size = 40,
     this.isLoading = false,
+    this.visualSize,
+    this.borderColor,
     this.tooltip,
   });
 
@@ -22,7 +25,10 @@ class AppIconButton extends StatelessWidget {
   final Color? background;
   final Color? foreground;
   final String? badge;
+  final Color? badgeColor;
   final double size;
+  final double? visualSize;
+  final Color? borderColor;
   final bool isLoading;
   final String? tooltip;
 
@@ -30,6 +36,7 @@ class AppIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final side = size.w.clamp(48.0, double.infinity);
+    final face = (visualSize ?? side).clamp(0.0, side);
     final iconColor = foreground ?? palette.textSecondary;
     final reduce = AppMotion.reduce(context);
 
@@ -72,18 +79,23 @@ class AppIconButton extends StatelessWidget {
         InkWell(
           onTap: isLoading ? null : onTap,
           borderRadius: BorderRadius.circular(12.r),
-          child: AnimatedContainer(
-            duration: AppMotion.of(context, AppMotion.standard),
-            curve: AppMotion.settle,
-            width: side,
-            height: side,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: background ?? palette.surface,
-              borderRadius: BorderRadius.circular(12.r),
-              border: Border.all(color: palette.border),
+          child: SizedBox.square(
+            dimension: side,
+            child: Center(
+              child: AnimatedContainer(
+                duration: AppMotion.of(context, AppMotion.standard),
+                curve: AppMotion.settle,
+                width: face,
+                height: face,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: background ?? palette.surface,
+                  borderRadius: BorderRadius.circular(12.r),
+                  border: Border.all(color: borderColor ?? palette.border),
+                ),
+                child: glyph,
+              ),
             ),
-            child: glyph,
           ),
         ),
         if (badge != null)
@@ -93,7 +105,7 @@ class AppIconButton extends StatelessWidget {
             child: Container(
               padding: Responsive.padding(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.rose500,
+                color: badgeColor ?? AppColors.rose500,
                 borderRadius: BorderRadius.circular(999.r),
                 border: Border.all(color: palette.background, width: 2.w),
               ),

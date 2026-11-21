@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { mountRoutes } from "../../monitoring/routes.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import groupCrudRoutes from "./group.crud.routes.js";
 import groupInvitationsRoutes from "./group.invitations.routes.js";
@@ -13,6 +14,6 @@ api.use(groupInvitationsRoutes);
 api.use(groupMembersRoutes);
 
 const router = Router();
-router.use("/api/groups", api);
+mountRoutes(router, "/api/groups", api);
 
 export default router;

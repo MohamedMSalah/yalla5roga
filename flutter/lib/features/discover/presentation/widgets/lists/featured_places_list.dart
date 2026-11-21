@@ -80,6 +80,7 @@ class FeaturedPlacesList extends StatelessWidget {
                     onTap: () => Get.to(
                       () => DiscoverPlaceDetailsPage(
                         placeId: place.id,
+                        initialPlace: place,
                         coverHeroTag: heroTag,
                         coverUrl: place.coverImageUrl,
                       ),

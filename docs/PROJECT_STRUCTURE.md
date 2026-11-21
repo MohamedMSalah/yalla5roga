@@ -104,11 +104,12 @@ flutter/lib/
 | TTL cache helpers | `lib/core/cache/` |
 | API paths | `lib/core/constants/api_constants.dart` |
 | Profile editing | `features/setting/presentation/pages/edit_profile_page.dart`, `change_password_page.dart`, and profile sheets |
+| Contact and developer | `features/setting/presentation/pages/contact_us_page.dart`, `about_developer_page.dart`; shared email actions in `features/setting/presentation/widgets/support_email.dart`; address and links in `core/config/app_config.dart` |
 | Shared map infrastructure | `flutter/lib/core/widgets/yalla_map_view.dart`, `flutter/lib/core/maps/yalla_map_*.dart`, `flutter/lib/core/utils/map_location.dart` |
 | Outing map selection | `flutter/lib/features/outings/presentation/pages/pick_location_page.dart` and its route-local provider |
 | Nearby map | `features/discover/presentation/pages/discover_page.dart` → Discover provider/repository → `backend/src/services/places/nearby-search-bounds.ts` |
-| Active Votes | `features/outings/presentation/widgets/lists/active_votes_list.dart` → Outings tab |
-| Outing history | Settings → `features/outings/presentation/pages/outing_history_page.dart` → current-user outing snapshot |
+| Outings feed | `features/outings/presentation/pages/outings_page.dart` → Active Votes and Upcoming previews and filtered lists |
+| Outing history | Outings or Settings → `features/outings/presentation/pages/outing_history_page.dart` → current-user outing snapshot |
 | Default group and outing artwork | `flutter/assets/covers/`, `lib/core/widgets/planning_cover.dart` |
 | Outing API | `features/outings/data/datasources/outings_remote_datasource.dart` |
 | API request audit | `docs/audit/FLUTTER_API_REQUEST_OPTIMIZATION_REPORT.md` |
@@ -116,8 +117,10 @@ flutter/lib/
 | Attendance UI | `…/outing_attendance_widget.dart` |
 | Physical arrival | `OutingArrivalsSection` owns route lifecycle. `OutingArrivalService` verifies GPS via `backend/src/usecases/outings/arrivals.usecase.ts`. The existing Socket.IO transport invalidates the roster. |
 | Special-event invite copy | `backend/src/services/whatsapp/special-event-invitation.ts` |
-| Create outing (+ multi-place suggest) | `…/pages/create_outing_page.dart`, `…/providers/create_outing_provider.dart` |
+| Create outing and multi-place voting | `…/pages/create_outing_page.dart`, `…/providers/create_outing_provider.dart`, `…/widgets/create_outing_{location_step,basics_step,step_header}.dart` |
 | Create group | `features/groups/presentation/pages/create_group_page.dart` |
+| Groups tab | `features/groups/presentation/pages/groups_page.dart`, `presentation/widgets/groups_controls.dart`, `presentation/widgets/lists/groups_list.dart`, `presentation/widgets/invite_friends_banner.dart`, `flutter/assets/groups/` |
+| Group Details / Group Info | `features/groups/presentation/pages/group_details_page.dart`, `group_info_page.dart`, `group_history_page.dart`; shared `presentation/widgets/group_page_chrome.dart`, `group_hero_card.dart` and scoped outing and member previews |
 | Pending group invitations | `features/invitations/` (`presentation/pages/invitations_page.dart`, `presentation/providers/invitations_provider.dart`, repository/remote datasource). Opened from Settings, group-invite push and deep links. Accept/Decline via `/api/invitations/*` |
 | Device contacts picker | `features/groups/presentation/pages/pick_device_contacts_page.dart` |
 | Remote image_url helper | `lib/core/utils/remote_image_url.dart` (accepts http(s) + `media://`) |
@@ -252,7 +255,7 @@ Outing feature verification uses `backend/scripts/backend-full-integration.ts`. 
 ## Phase 2 dashboard/group presentation — 2026-11-13
 
 - `flutter/lib/features/home/presentation/widgets/home_nearby_section.dart`: real nearby preview, permission guidance and catalog fallback using existing services.
-- `flutter/lib/features/groups/presentation/widgets/{create_group_fields,group_invitee_picker,group_details_header,group_name_editor,group_history_links,group_invitation_history}.dart`: focused group presentation.
+- `flutter/lib/features/groups/presentation/widgets/{create_group_fields,group_invitee_picker,group_name_editor,group_history_links,group_invitation_history}.dart`: focused group presentation.
 - `flutter/lib/features/groups/presentation/pages/group_history_page.dart`: group-scoped invitation and outing history.
 - `flutter/lib/features/groups/domain/entities/group_invitation_record.dart`: additive group roster history projection.
 - `flutter/lib/features/invitations/presentation/widgets/invitations_list.dart` and `presentation/invitation_l10n.dart`: status filtering and localized history labels.
@@ -383,6 +386,8 @@ Added discover/presentation/widgets/save_place_button.dart and saved_places_list
 
 ## Discover map-first composition — 2026-11-14
 
+- `flutter/assets/map/pins/` contains the 128×128 runtime PNGs keyed by Neon category ID, plus fallback, private and temporary markers. `flutter/tool/generate_map_pins.py` regenerates the PNGs, category registry and editable SVGs under `flutter/tool/map_pin_sources/`. It uses Pillow and an outline color emoji font. `flutter/assets/map/landmarks/` contains the two basemap landmark symbols.
+- `discover_places_bottom_panel.dart` overlays the existing carousel. Discover and the outing picker use the shared `YallaMapStyle`, `YallaMapMarkers` and native location layers.
 - `flutter/lib/features/discover/presentation/providers/discover_map_provider.dart`: Discover selection, location, current-bounds/search policy over existing PlaceCatalogProvider/repository.
 - `flutter/lib/features/discover/presentation/widgets/discover_{map_view,floating_search_bar,filter_chips,place_carousel,place_card,map_controls,selected_place_action}.dart`: seven focused map-first components. The older DiscoverMapPanel adapter remains compatible; DiscoverPage now composes DiscoverMapView directly.
 - `backend/scripts/discover-map-openapi-verification.ts`: read-only served Swagger/OpenAPI verification; `docs/audit/DISCOVER_MAP_{FIRST.md,OPENAPI_RESULTS.json}` records implementation and API evidence.
@@ -448,3 +453,20 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 - `backend/scripts/location-tie-openapi-verification.ts`, `deploy-location-tie.ts`: disposable local served HTTP verification and exact-target Neon backup/rehearsal/deployment.
 - `flutter/lib/features/outings/presentation/widgets/{voting_place_list,tie_results_section,revote_bottom_sheet,dice_roll_animation}.dart`: focused existing-widget composition. Existing OutingVoteWidget, OutingLocationSection, Provider/repository/datasource and PlaceVote carry integration.
 - `docs/audit/LOCATION_TIE_RESOLUTION.md`, `LOCATION_TIE_*.json`: implementation, verification limits and deployed migration metadata.
+
+
+## Reference redesign — 2026-11-20
+
+- `flutter/lib/core/widgets/illustrated_header.dart` paints reusable Cairo, group and calendar motifs.
+- `flutter/lib/features/shell/presentation/shell_route_navigation.dart` shares tab definitions with the shell and group routes.
+- `flutter/lib/features/outings/presentation/pages/pick_location_page.dart` is the wizard's first step and remains available as a standalone picker.
+- `flutter/lib/features/outings/presentation/pages/event_page.dart` composes Outing Info with route-owned realtime and the existing outing Providers. `outing_info_style.dart` and `outing_info_l10n.dart` scope its styling and copy.
+- `flutter/lib/features/outings/presentation/widgets/outing_place_gallery.dart` renders cached venue artwork in the creation wizard and Outing Info. Outing Info enables the full-screen viewer.
+
+## Observability and API verification
+
+- `backend/src/monitoring/` owns request context, Prisma observation, metrics, health, job and Socket.IO instrumentation.
+- `backend/monitoring/` contains optional Compose profiles, Grafana provisioning and k6 workflows.
+- `backend/tests/observability*.test.ts` and `backend/scripts/benchmark-*.ts` verify HTTP boundaries and measure isolated workflows.
+- `flutter/lib/core/network/diagnostics/` owns Dio correlation, the bounded developer buffer and optional telemetry.
+- `docs/development/OBSERVABILITY.md` describes operation and verification, with evidence in `docs/audit/`.

@@ -20,7 +20,7 @@ class DiscoverPlaceCarousel extends StatefulWidget {
 }
 
 class _DiscoverPlaceCarouselState extends State<DiscoverPlaceCarousel> {
-  final _pages = PageController(viewportFraction: .88);
+  final _pages = PageController(viewportFraction: .92);
   String? _scrollTarget;
   String? _centeredId;
   int _scrollRevision = 0;
@@ -42,11 +42,12 @@ class _DiscoverPlaceCarouselState extends State<DiscoverPlaceCarousel> {
     final index = widget.catalog.places.indexWhere((p) => p.id == selected);
     if (index < 0) return;
     // A swipe already owns snapping. Do not start another scroll animation
-    // while its onPageChanged notification updates the shared selection.
+    // while its final scroll notification updates the shared selection.
     if (selected == _centeredId &&
         _pages.hasClients &&
-        _pages.page?.round() == index)
+        _pages.page?.round() == index) {
       return;
+    }
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _focus(index, selected!),
     );
@@ -57,20 +58,24 @@ class _DiscoverPlaceCarouselState extends State<DiscoverPlaceCarousel> {
         !_pages.hasClients ||
         _scrollTarget == id ||
         widget.catalog.selectedPlaceId != id ||
-        (_pages.page! - index).abs() < .01)
+        _pages.page?.round() == index) {
       return;
+    }
     final revision = ++_scrollRevision;
     _scrollTarget = id;
-    if (AppMotion.reduce(context)) {
-      _pages.jumpToPage(index);
-    } else {
-      await _pages.animateToPage(
-        index,
-        duration: AppMotion.standard,
-        curve: AppMotion.enter,
-      );
+    try {
+      if (AppMotion.reduce(context)) {
+        _pages.jumpToPage(index);
+      } else {
+        await _pages.animateToPage(
+          index,
+          duration: AppMotion.standard,
+          curve: AppMotion.enter,
+        );
+      }
+    } finally {
+      if (mounted && revision == _scrollRevision) _scrollTarget = null;
     }
-    if (mounted && revision == _scrollRevision) _scrollTarget = null;
   }
 
   @override
@@ -84,22 +89,31 @@ class _DiscoverPlaceCarouselState extends State<DiscoverPlaceCarousel> {
   Widget build(BuildContext context) {
     final catalog = widget.catalog;
     final places = catalog.places;
-    return NotificationListener<ScrollStartNotification>(
+    return NotificationListener<ScrollNotification>(
       onNotification: (event) {
-        if (event.dragDetails != null) {
+        if (event.depth != 0 || event.metrics.axis != Axis.horizontal) {
+          return false;
+        }
+        if (event is ScrollUpdateNotification &&
+            event.dragDetails != null &&
+            _scrollTarget != null) {
           _scrollRevision++;
           _scrollTarget = null;
+        }
+        if (event is ScrollEndNotification && _scrollTarget == null) {
+          final index = _pages.page?.round();
+          if (index != null && index >= 0 && index < places.length) {
+            _centeredId = places[index].id;
+            catalog.select(places[index]);
+          }
         }
         return false;
       },
       child: PageView.builder(
         controller: _pages,
+        padEnds: false,
         itemCount: places.length + (catalog.hasMore ? 1 : 0),
         onPageChanged: (index) {
-          if (_scrollTarget == null && index < places.length) {
-            _centeredId = places[index].id;
-            catalog.select(places[index]);
-          }
           if (index >= places.length - 4 &&
               catalog.hasMore &&
               !catalog.loading &&
@@ -133,12 +147,10 @@ class _DiscoverPlaceCarouselState extends State<DiscoverPlaceCarousel> {
               .join(' · ');
           return Padding(
             key: ValueKey(place.id),
-            padding: const EdgeInsetsDirectional.only(end: 8),
+            padding: const EdgeInsetsDirectional.only(start: 14, bottom: 3),
             child: DiscoverPlaceCard(
               place: place,
-              category:
-                  category?.label(language) ??
-                  place.localizedArea(context.l10n),
+              category: category,
               vibes: vibes,
               distanceKm: catalog.distanceKm(place),
               selected: catalog.selectedPlaceId == place.id,
