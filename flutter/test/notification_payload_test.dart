@@ -12,11 +12,11 @@ void main() {
     'place_vote': NotificationDestination.placeVoting,
     'attendance_vote': NotificationDestination.attendance,
     'attendance_changed': NotificationDestination.attendance,
-    'member_joined': NotificationDestination.groupMembers,
-    'member_left': NotificationDestination.groupMembers,
+    'member_joined': NotificationDestination.group,
+    'member_left': NotificationDestination.group,
     'outing_reminder': NotificationDestination.outing,
-    'outing_invite': NotificationDestination.outing,
-    'group_invite': NotificationDestination.group,
+    'outing_invite': NotificationDestination.invitation,
+    'group_invite': NotificationDestination.invitation,
     'winner_selected': NotificationDestination.placeVoting,
   };
   for (final entry in destinations.entries) {
@@ -51,6 +51,18 @@ void main() {
       );
     });
   }
+
+  test(
+    'an explicit event ID takes precedence over inbox and transport IDs',
+    () {
+      final payload = PushNotificationPayload.fromLocalData({
+        'eventId': 'event-id',
+        'notificationId': 'inbox-id',
+        'pushId': 'transport-id',
+      });
+      expect(payload.deduplicationId, 'event-id');
+    },
+  );
 
   test('legacy push uses snake case and separates transport from chat ID', () {
     final payload = PushNotificationPayload.fromRemoteMessage(

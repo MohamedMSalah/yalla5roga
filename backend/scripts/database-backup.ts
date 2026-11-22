@@ -9,7 +9,9 @@ const digest = (value: string) => createHash("sha256").update(value).digest("hex
 const connection = new URL(process.env.DATABASE_URL!);
 connection.hostname = connection.hostname.replace("-pooler.", ".");
 connection.searchParams.delete("channel_binding");
-connection.searchParams.set("sslmode","verify-full");
+if (!["127.0.0.1","localhost","[::1]"].includes(connection.hostname)) {
+  connection.searchParams.set("sslmode","verify-full");
+}
 const db = new Client({connectionString:connection.toString()});
 const mode = process.argv[2];
 const directory = path.resolve(process.argv[3] ?? `.database-backups/${new Date().toISOString().replaceAll(':','-')}`);
@@ -24,6 +26,7 @@ try {
   await db.connect();
   if (mode === 'backup') {
     await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+    const timeZone = (await db.query("SELECT current_setting('TimeZone') AS value")).rows[0]?.value;
     const catalog = JSON.parse(await readFile(path.resolve(process.argv[4]!), 'utf8'));
     const target = (await db.query(`SELECT current_database() AS database,
       current_setting('neon.project_id',true) AS project_id,current_setting('neon.branch_id',true) AS branch_id`)).rows[0];
@@ -58,12 +61,31 @@ try {
     const backing = new Set(pre.map((constraint:any) => constraint.name));
     for (const index of catalog.indexes.filter((index:any) => !backing.has(index.name))) after.push(index.definition.replace(' ON public.',' ON ')+";");
     for (const constraint of post) after.push(`ALTER TABLE ${quote(constraint.table_name)} ADD CONSTRAINT ${quote(constraint.name)} ${constraint.definition};`);
-    if(catalog.triggers.length) throw Error('Custom triggers require explicit backup support before proceeding');
+    if (catalog.triggers.length) {
+      // Custom catalog triggers are restored after their tables and saved rows.
+      const { rows: functions } = await db.query(`
+        SELECT pg_get_functiondef(p.oid) AS definition
+        FROM pg_proc p
+        WHERE p.pronamespace='public'::regnamespace
+          AND p.prokind='f'
+          AND p.proname IN ('mark_place_catalog_change', 'record_place_catalog_change',
+            'initialize_outing_round_option', 'initialize_outing_voting_round', 'normalize_place_fields')
+        ORDER BY p.proname
+      `);
+      if (functions.length !== 5 || catalog.triggers.some((trigger: { definition: string }) =>
+        !/ EXECUTE FUNCTION (?:public\.)?(?:record_place_catalog_change|initialize_outing_round_option|initialize_outing_voting_round|normalize_place_fields)\(/.test(trigger.definition))) {
+        throw Error('Unrecognized database triggers require explicit backup support');
+      }
+      for (const { definition } of functions) after.push(definition.replace('FUNCTION public.', 'FUNCTION ') + ';');
+      for (const trigger of catalog.triggers) {
+        after.push(trigger.definition.replace(' ON public.', ' ON ').replace('FUNCTION public.', 'FUNCTION ') + ';');
+      }
+    }
     const beforeSql=schema.join('\n'); const afterSql=after.join('\n');
     await writeFile(path.join(directory,'schema-before-data.sql'),beforeSql,{mode:0o600});
     await writeFile(path.join(directory,'schema-after-data.sql'),afterSql,{mode:0o600});
     await writeFile(path.join(directory,'catalog.json'),JSON.stringify(catalog,null,2),{mode:0o600});
-    await writeFile(path.join(directory,'manifest.json'),JSON.stringify({createdAt:new Date().toISOString(),target,endpoint:connection.hostname,files,schemaBeforeSha256:digest(beforeSql),schemaAfterSha256:digest(afterSql)},null,2),{mode:0o600});
+    await writeFile(path.join(directory,'manifest.json'),JSON.stringify({createdAt:new Date().toISOString(),target,timeZone,endpoint:connection.hostname,files,schemaBeforeSha256:digest(beforeSql),schemaAfterSha256:digest(afterSql)},null,2),{mode:0o600});
     await db.query('COMMIT');
     console.log(JSON.stringify({mode,directory,target,tables:files.length,rows:files.reduce((sum,file) => sum+file.rows,0),checksums:'sha256 per table and schema file'}));
   } else {
@@ -81,6 +103,8 @@ try {
     const restoreSchema='audit_restore_'+randomUUID().replaceAll('-','');
     await db.query('BEGIN');
     try {
+      const timeZone = (await db.query("SELECT current_setting('TimeZone') AS value")).rows[0]?.value;
+      await db.query("SELECT set_config('TimeZone', $1, true)", [manifest.timeZone ?? timeZone]);
       await db.query(`CREATE SCHEMA ${quote(restoreSchema)}`);
       await db.query(`SET LOCAL search_path TO ${quote(restoreSchema)},pg_catalog`);
       await db.query(before);

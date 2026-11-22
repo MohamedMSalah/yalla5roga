@@ -104,7 +104,7 @@ Group creation, accepted membership, joins/departures, outing creation/transitio
 | Terminated | Firebase initial message or local notification launch details |
 | In-app inbox | Selected notification row |
 
-The client holds taps until the authenticated shell is mounted. It checks the intended recipient when present, deduplicates push opens, and pushes onto the existing route stack. It marks the selected inbox item read and validates the destination through the authenticated API. Deleted and inaccessible content shows localized feedback on the current screen. Chat and mention notifications open the existing chat and fetch/focus/highlight the referenced authorized nondeleted message; inaccessible messages show localized feedback. This supersedes the earlier ordinary-chat-only tap policy.
+The client holds taps until the authenticated shell is mounted. It checks the intended recipient when present, deduplicates push opens using the event ID, inbox notification ID or transport ID in that order, and pushes onto the existing route stack. It marks the selected inbox item read and validates the destination through the authenticated API. Deleted and inaccessible content shows localized feedback on the current screen. Chat and mention notifications open the existing chat and fetch/focus/highlight the referenced authorized nondeleted message; inaccessible messages show localized feedback. This supersedes the earlier ordinary-chat-only tap policy.
 
 ## Idempotency
 

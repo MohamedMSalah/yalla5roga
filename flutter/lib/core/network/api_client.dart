@@ -140,6 +140,7 @@ class ApiClient {
   }
 
   Options? _writeOptions(Options? options) {
+    if (options?.extra?[expectedUserIdKey] != null) return options;
     final uid = snapshots?.userId();
     return uid == null
         ? options

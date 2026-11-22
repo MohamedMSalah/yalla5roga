@@ -206,7 +206,7 @@ that an MCP connection or hook is authenticated/enabled.
   writes or unnecessary database operations. Do not hot reload for this audit.
 - Use read-only/unauthenticated HTTP checks when no authorized disposable session
   exists; report authenticated and realtime/device behavior as unverified.
-- Never run deployment/start scripts blindly: `backend` start deploys migrations.
+- Keep server startup separate from the target-checked `pnpm db:deploy` release step.
   Import the Express app for isolated HTTP contract checks without starting jobs.
 - Distinguish source evidence, analyzer output, HTTP results and runtime proof.
 

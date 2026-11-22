@@ -1,11 +1,13 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/media/media_reference.dart';
 import 'package:yalla_5roga/core/media/media_url_store.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
+import 'package:yalla_5roga/core/network/dio_interceptors.dart';
 
 /// Resolves `media://<uuid>` references to short-lived delivery URLs.
 ///
@@ -40,6 +42,7 @@ class MediaUrlResolver extends ChangeNotifier {
   final Map<String, Future<MediaUrlEntry?>> _inflight = {};
   final Map<String, _PendingRequest> _pending = {};
   bool _flushScheduled = false;
+  int _accountGeneration = 0;
 
   String? get currentUserId => uidProvider();
 
@@ -66,7 +69,9 @@ class MediaUrlResolver extends ChangeNotifier {
     final uid = uidProvider();
     if (uid == null || assetId.isEmpty) return null;
 
+    final generation = _accountGeneration;
     await store.entriesFor(uid);
+    if (!_isCurrent(uid, generation)) return null;
     final cached = store.peek(uid, assetId);
     if (cached != null) {
       if (cached.isExpired(clock())) {
@@ -82,7 +87,9 @@ class MediaUrlResolver extends ChangeNotifier {
   Future<MediaUrlEntry?> revalidate(String assetId) async {
     final uid = uidProvider();
     if (uid == null) return null;
+    final generation = _accountGeneration;
     await store.remove(uid, assetId);
+    if (!_isCurrent(uid, generation)) return null;
     return _fetch(uid, assetId);
   }
 
@@ -115,6 +122,7 @@ class MediaUrlResolver extends ChangeNotifier {
   /// Clears URL metadata and cached private images for [uid]. Called on
   /// logout and account switches; public cache entries are left intact.
   Future<void> clearForAccount(String uid) async {
+    _accountGeneration++;
     final removed = await store.clearAccount(uid);
     for (final item in removed) {
       // Never block logout/account switching on a disk-cache eviction; key
@@ -125,14 +133,12 @@ class MediaUrlResolver extends ChangeNotifier {
   }
 
   Future<void> _evict(String uid, String assetId, MediaUrlEntry entry) async {
-    final key = cacheKeyFor(
-      assetId,
-      entry.visibility,
-      uidOverride: uid,
-    );
+    final key = cacheKeyFor(assetId, entry.visibility, uidOverride: uid);
     try {
-      await CachedNetworkImage.evictFromCache(entry.url, cacheKey: key)
-          .timeout(const Duration(seconds: 3));
+      await CachedNetworkImage.evictFromCache(
+        entry.url,
+        cacheKey: key,
+      ).timeout(const Duration(seconds: 3));
     } catch (_) {
       // Eviction is best effort; key isolation still prevents cross-account
       // rendering even if a file cannot be removed.
@@ -140,12 +146,18 @@ class MediaUrlResolver extends ChangeNotifier {
   }
 
   Future<MediaUrlEntry?> _fetch(String uid, String assetId) {
-    final key = '$uid:$assetId';
+    final generation = _accountGeneration;
+    final key = '$generation:$uid:$assetId';
     final existing = _inflight[key];
     if (existing != null) return existing;
 
     final completer = Completer<MediaUrlEntry?>();
-    _pending[key] = (uid: uid, assetId: assetId, completer: completer);
+    _pending[key] = (
+      uid: uid,
+      generation: generation,
+      assetId: assetId,
+      completer: completer,
+    );
     if (!_flushScheduled) {
       _flushScheduled = true;
       scheduleMicrotask(_flush);
@@ -165,23 +177,40 @@ class MediaUrlResolver extends ChangeNotifier {
 
     final byUid = <String, List<_PendingRequest>>{};
     for (final request in pending.values) {
+      if (!_isCurrent(request.uid, request.generation)) {
+        request.completer.complete(null);
+        continue;
+      }
       byUid.putIfAbsent(request.uid, () => []).add(request);
     }
     for (final item in byUid.entries) {
-      unawaited(_sendBatch(item.key, item.value));
+      const limit = 50;
+      final requests = item.value;
+      for (var start = 0; start < requests.length; start += limit) {
+        unawaited(
+          _sendBatch(item.key, requests.skip(start).take(limit).toList()),
+        );
+      }
     }
   }
 
   Future<void> _sendBatch(String uid, List<_PendingRequest> requests) async {
-    final ids = <String>{
-      for (final request in requests) request.assetId,
-    }.toList(growable: false);
+    final generation = requests.first.generation;
+    final ids = <String>{for (final request in requests) request.assetId}
+        .toList(growable: false);
 
     try {
       final response = await apiClient.post<Map<String, dynamic>>(
         ApiConstants.mediaSignedUrls,
         data: {'media_ids': ids},
+        options: Options(extra: {expectedUserIdKey: uid}),
       );
+      if (!_isCurrent(uid, generation)) {
+        for (final request in requests) {
+          request.completer.complete(null);
+        }
+        return;
+      }
       final body = response.data;
       final raw = body?['data'];
       final entries = <String, MediaUrlEntry>{};
@@ -198,18 +227,24 @@ class MediaUrlResolver extends ChangeNotifier {
       }
 
       await store.putAll(uid, entries);
+      final current = _isCurrent(uid, generation);
       for (final request in requests) {
-        request.completer.complete(entries[request.assetId]);
+        request.completer.complete(current ? entries[request.assetId] : null);
       }
-      if (entries.isNotEmpty) notifyListeners();
+      if (current && entries.isNotEmpty) notifyListeners();
     } catch (_) {
       // Offline / server failure: keep persisted URLs so the disk image cache
       // can still render the asset.
       for (final request in requests) {
-        request.completer.complete(store.peek(uid, request.assetId));
+        request.completer.complete(
+          _isCurrent(uid, generation) ? store.peek(uid, request.assetId) : null,
+        );
       }
     }
   }
+
+  bool _isCurrent(String uid, int generation) =>
+      uid == uidProvider() && generation == _accountGeneration;
 
   static MediaUrlEntry? _entryFromJson(Map<String, dynamic> json) {
     final url = json['url'];
@@ -227,6 +262,7 @@ class MediaUrlResolver extends ChangeNotifier {
 
 typedef _PendingRequest = ({
   String uid,
+  int generation,
   String assetId,
   Completer<MediaUrlEntry?> completer,
 });

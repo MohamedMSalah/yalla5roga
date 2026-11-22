@@ -352,3 +352,9 @@ The catalog index builds concurrently in a single-statement migration. The two o
 build in a transaction with a five-second lock acquisition timeout. Both migrations were deployed
 to the configured Neon branch and all three indexes were verified. See the
 [database indexing audit](audit/DATABASE_READ_PERFORMANCE.md) for deployment, inventory and local evidence.
+
+## Outing location snapshot — 2026-11-22
+
+`20261121000000_outing_location_snapshot` adds nullable address and category snapshots to confirmed outings and vote options. Old rows remain valid. The application may be rolled back independently of these columns. The Prisma model maps the installed voting-round keys and the referential actions on vote options, recoveries and place brands. The current-round foreign key's deferrability is defined in SQL.
+
+The migration was applied after restoring and checksumming the verified Neon branch backup on disposable PostgreSQL. Readback confirmed all 25 migration records, four new columns and no Prisma-detectable difference. See the [production readiness report](audit/PRODUCTION_READINESS.md).

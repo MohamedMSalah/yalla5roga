@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { getFirebaseAuth } from "../config/firebase.js";
-import { UnauthorizedError } from "../utils/errors.js";
+import { AppError, UnauthorizedError } from "../utils/errors.js";
 import { measure } from "../monitoring/context.js";
 
 type FirebaseDecodedToken = {
@@ -55,7 +55,7 @@ export function extractBearerToken(
 }
 
 export async function verifyAppSession(token: string): Promise<FirebaseDecodedToken> {
-  const decoded = await getFirebaseAuth().verifyIdToken(token);
+  const decoded = await getFirebaseAuth().verifyIdToken(token, process.env.NODE_ENV === "production");
   if (!["custom", "phone"].includes(decoded.firebase.sign_in_provider)) {
     throw new UnauthorizedError("Sign in with your verified phone");
   }
@@ -107,6 +107,10 @@ export function createAuthMiddleware(
       }
 
       if (isFirebaseAuthError(error)) {
+        const { code } = error as { code?: string };
+        if (code === "auth/internal-error" || code === "auth/network-request-failed") {
+          return next(new AppError(503, "Authentication service unavailable"));
+        }
         return next(new UnauthorizedError("Invalid or expired Firebase token"));
       }
       return next(error);

@@ -117,3 +117,23 @@ test("private metrics and telemetry reject unauthenticated callers, and labels s
     assert.ok(routeInventory.some(route => route.path === "/monitoring/mobile"));
   });
 });
+
+test("the JSON boundary rejects oversized, malformed and unsupported requests", async () => {
+  await withApi(app, async base => {
+    const endpoint = base + "/api/auth/login";
+    const cases = [
+      { status: 400, body: "{", message: "Invalid JSON body" },
+      { status: 413, body: JSON.stringify({ value: "x".repeat(103_000) }), message: "Request body is too large" },
+      { status: 415, body: "{}", encoding: "invalid", message: "Unsupported request body encoding" },
+    ];
+    for (const { status, body, encoding, message } of cases) {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (encoding) headers["Content-Encoding"] = encoding;
+      const response = await fetch(endpoint, { method: "POST", headers, body });
+      assert.equal(response.status, status);
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.equal(response.headers.get("x-powered-by"), null);
+      assert.deepEqual(await response.json(), { success: false, message });
+    }
+  });
+});

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:yalla_5roga/core/constants/asset_constants.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/responsive/responsive.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
@@ -58,7 +58,14 @@ void main() {
           await tester.tap(find.text('Show'));
           await tester.pump();
           await tester.pump(const Duration(milliseconds: 300));
-          expect(find.byType(SvgPicture), findsOneWidget);
+          expect(
+            find.byWidgetPredicate((widget) {
+              return widget is Image &&
+                  widget.image is AssetImage &&
+                  (widget.image as AssetImage).assetName == AssetConstants.logo;
+            }),
+            findsOneWidget,
+          );
           expect(find.text(l10n.recoveryUnavailable), findsOneWidget);
           expect(tester.takeException(), isNull);
           await tester.tap(find.text(l10n.openAppSettings));

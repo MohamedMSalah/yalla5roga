@@ -14,7 +14,14 @@ import { logger, errorCode } from "./monitoring/logger.js";
 import { installMobileTelemetry } from "./monitoring/mobile.js";
 
 const app = express();
+app.disable("x-powered-by");
+const trustedProxies = process.env.TRUST_PROXY?.trim();
+if (trustedProxies) app.set("trust proxy", trustedProxies);
 app.use(requestMonitoring(() => routeInventory));
+app.use((_req, res, next) => {
+  res.set({ "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" });
+  next();
+});
 
 app.use(
   cors({
@@ -105,18 +112,13 @@ app.get("/health", async (_req, res) => {
 });
 
 installHealth(app);
-app.get("/api-docs/openapi.json", (_req, res) => { res.json(swaggerSpec); });
-
-app.use(
-  "/api-docs",
-  serve,
-  setup(swaggerSpec as JsonObject, {
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api-docs/openapi.json", (_req, res) => { res.json(swaggerSpec); });
+  app.use("/api-docs", serve, setup(swaggerSpec as JsonObject, {
     customSiteTitle: "Yalla 5roga API",
-    swaggerOptions: {
-      persistAuthorization: true,
-    },
-  }),
-);
+    swaggerOptions: { persistAuthorization: false },
+  }));
+}
 
 app.use(routes);
 app.use((_req, res) => {

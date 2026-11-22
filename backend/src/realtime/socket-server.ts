@@ -7,7 +7,7 @@ import { registerChatGateway } from "./chat.gateway.js";
 import { registerGroupGateway } from "./group.gateway.js";
 import { authenticateSocket } from "./socket-auth.js";
 import { userRealtimeRoom } from "./rooms.js";
-import { corsOrigin } from "../config/cors.js";
+import { corsOrigin, isAllowedOrigin } from "../config/cors.js";
 import { reconcileDataChanges } from "./data-changes.js";
 
 /**
@@ -22,6 +22,7 @@ import { reconcileDataChanges } from "./data-changes.js";
 export function attachRealtime(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     path: "/socket.io",
+    allowRequest: (request, callback) => callback(null, isAllowedOrigin(request.headers.origin)),
     cors: {
       origin: corsOrigin,
       credentials: true,

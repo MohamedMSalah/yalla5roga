@@ -53,8 +53,12 @@ class _Socket extends Fake implements OutingChatSocketClient {
   int get sessionGeneration => 2;
   @override
   void setNetworkAvailable(bool online) {}
+  @override
+  void setForeground(bool foreground) {}
   Completer<bool>? reconcileGate;
   bool connected = true;
+  @override
+  bool get hasDemand => true;
   final connections = StreamController<bool>.broadcast();
   final changes = StreamController<RealtimeChange>.broadcast();
   @override
@@ -250,6 +254,8 @@ void main() {
       expect(outings.details, ['vote']);
       expect(outings.requests, 1);
       expect(groups.requests, 1);
+      sync.dispose();
+      disposed = true;
     },
   );
 
@@ -381,6 +387,8 @@ void main() {
       expect(groups.details, ['new-group']);
       expect(outings.requests, listRequests);
       expect(groups.requests, groupRequests);
+      sync.dispose();
+      disposed = true;
     },
   );
 

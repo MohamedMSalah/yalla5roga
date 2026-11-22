@@ -74,7 +74,7 @@ class PushNotificationPayload {
   final NotificationActionType? actionType;
   final String? replyText;
 
-  String? get deduplicationId => eventId ?? pushId ?? notificationId;
+  String? get deduplicationId => eventId ?? notificationId ?? pushId;
   String? get clientMessageId => data['clientMessageId'];
   DateTime? get createdAt => DateTime.tryParse(data['createdAt'] ?? '');
   bool get isMention => data['mention'] == 'true';

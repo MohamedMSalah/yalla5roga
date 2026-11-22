@@ -21,11 +21,6 @@ export function extractSocketToken(socket: Socket): string | null {
         : null;
   if (fromAuth && fromAuth.trim()) return fromAuth.trim();
 
-  const queryToken = socket.handshake.query.token;
-  if (typeof queryToken === "string" && queryToken.trim()) {
-    return queryToken.trim();
-  }
-
   return extractBearerToken(socket.handshake.headers.authorization);
 }
 

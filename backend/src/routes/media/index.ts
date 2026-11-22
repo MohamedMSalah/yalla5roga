@@ -51,7 +51,7 @@ function createMockStorageRoutes(): Router {
 }
 
 const api = Router();
-if (getMediaConfig().provider === "mock") {
+if (process.env.NODE_ENV !== "production" && getMediaConfig().provider === "mock") {
   api.use(createMockStorageRoutes());
 }
 api.use(authMiddleware);

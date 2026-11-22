@@ -147,7 +147,7 @@ async function start() {
   const whatsApp = hasAutomaticWhatsApp() ? "configured" : "disabled";
   const report = {
     environment, bind: `${host}:${address.port}`, localUrl, lan,
-    swagger: `${localUrl}/api-docs/`, database: dbKind, orm: "Prisma",
+    swagger: environment === "production" ? "disabled" : `${localUrl}/api-docs/`, database: dbKind, orm: "Prisma",
     environmentValidated: true, databaseConnected: probe.available, firebaseReady, firebaseClientConfigured,
     socketReady: Boolean(realtime), backgroundComponentsStarted: jobs,
     catalogListener: dependencyState("catalog_listener"), media, whatsApp,

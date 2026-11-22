@@ -1884,6 +1884,10 @@ for (const [route, item] of Object.entries(generated.paths ?? {})) {
   for (const [method, operation] of Object.entries(item)) {
     if (!["get", "post", "put", "patch", "delete"].includes(method)) continue;
     operation.responses ??= {};
+    if (method !== "get" && method !== "delete") {
+      operation.responses["413"] ??= { description: "Request body exceeds the configured limit" };
+      operation.responses["415"] ??= { description: "Unsupported request body encoding" };
+    }
     operation.responses["429"] ??= { $ref: "#/components/responses/TooManyRequests",
     };
   }

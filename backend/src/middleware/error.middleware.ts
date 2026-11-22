@@ -25,6 +25,17 @@ export function errorMiddleware(
   if (err instanceof SyntaxError && "type" in err && err.type === "entity.parse.failed") {
     return res.status(400).json({ success: false, message: "Invalid JSON body" });
   }
+  if (err instanceof Error && "type" in err) {
+    if (err.type === "entity.too.large") {
+      return res.status(413).json({ success: false, message: "Request body is too large" });
+    }
+    if (err.type === "encoding.unsupported" || err.type === "charset.unsupported") {
+      return res.status(415).json({ success: false, message: "Unsupported request body encoding" });
+    }
+    if (err.type === "request.size.invalid" || err.type === "request.aborted") {
+      return res.status(400).json({ success: false, message: "Incomplete request body" });
+    }
+  }
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {

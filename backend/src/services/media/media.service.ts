@@ -1,7 +1,7 @@
 import { errorCode, logger } from "../../monitoring/logger.js";
 import { getMediaConfig, type MediaConfig } from "../../config/media.js";
 import type { MediaAsset, MediaPurpose, MediaDeliveryUrl } from "../../types/media/media.types.js";
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../utils/errors.js";
+import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../utils/errors.js";
 import type { IMediaRepository } from "../../repositories/media/i-media.repository.js";
 import { MediaRepository } from "../../repositories/media/media.repository.js";
 import { isPlaceCurator } from "../auth/place-curator.js";
@@ -80,6 +80,7 @@ export class MediaService {
       if (this.config.provider === "r2") {
         this.adapter = new R2StorageAdapter();
       } else {
+        if (process.env.NODE_ENV === "production") throw new AppError(503, "Media storage unavailable");
         this.adapter = new MockStorageAdapter(this.config.mockBaseUrl);
       }
     }

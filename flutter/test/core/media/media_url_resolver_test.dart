@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -7,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/media/media_url_resolver.dart';
 import 'package:yalla_5roga/core/media/media_url_store.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
+import 'package:yalla_5roga/core/network/dio_interceptors.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -160,6 +162,61 @@ void main() {
       'https://signed.example.com/one.jpg',
     );
     expect(await resolver.resolveReference(''), isNull);
+  });
+
+  test('a late private response is discarded after account cleanup', () async {
+    final started = Completer<RequestOptions>();
+    final response = Completer<ResponseBody>();
+    final resolver = resolverFor(
+      clientWith((options) {
+        started.complete(options);
+        return response.future;
+      }),
+    );
+    final resolving = resolver.resolve(assetId);
+    expect((await started.future).extra[expectedUserIdKey], uid);
+
+    // A later session can restore the same UID, so an identity check alone
+    // cannot distinguish the new session from this in-flight response.
+    await resolver.clearForAccount(uid);
+    response.complete(
+      ResponseBody.fromString(
+        jsonEncode({
+          'data': [
+            {
+              'media_id': assetId,
+              'url': 'https://signed.example.com/previous-session.jpg',
+              'visibility': 'private',
+            },
+          ],
+        }),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      ),
+    );
+    expect(await resolving, isNull);
+    expect(store.peek(uid, assetId), isNull);
+  });
+
+  test('splits pending signed URL requests at the API batch limit', () async {
+    final sizes = <int>[];
+    final resolver = resolverFor(
+      clientWith((options) async {
+        final body = options.data as Map<String, dynamic>;
+        sizes.add((body['media_ids'] as List).length);
+        return ResponseBody.fromString(
+          '{"data":[]}',
+          200,
+          headers: {
+            Headers.contentTypeHeader: [Headers.jsonContentType],
+          },
+        );
+      }),
+    );
+    await Future.wait(List.generate(51, (i) => resolver.resolve('fixture-$i')));
+    expect(sizes, unorderedEquals([50, 1]));
   });
 
   test('clearing an account removes its metadata', () async {

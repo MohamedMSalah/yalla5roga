@@ -7,7 +7,7 @@ From `backend`, configure the normal database and Firebase environment and run `
 | Surface | Local URL | Access |
 | --- | --- | --- |
 | Swagger UI | [localhost:3000/api-docs/](http://localhost:3000/api-docs/) | Firebase auth applies when executing protected API operations |
-| OpenAPI JSON | [localhost:3000/api-docs/openapi.json](http://localhost:3000/api-docs/openapi.json) | Public contract |
+| OpenAPI JSON | [localhost:3000/api-docs/openapi.json](http://localhost:3000/api-docs/openapi.json) | Available in development and test |
 | Grafana | [localhost:3300](http://localhost:3300) | `admin` and the configured local password |
 | Prometheus | [localhost:9090](http://localhost:9090) | Bound to loopback in Compose |
 | Liveness | [localhost:3000/health/live](http://localhost:3000/health/live) | Public process state |

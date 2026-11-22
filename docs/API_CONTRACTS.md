@@ -428,6 +428,8 @@ See [served Swagger HTTP verification](audit/LOCATION_TIE_OPENAPI_RESULTS.json).
 
 ## Operational HTTP surfaces
 
-`GET /health/live` reports process liveness. `GET /health/ready` returns 200 or 503 based on initialized dependencies and the shared PostgreSQL probe. `GET /health` retains its legacy 200/500 envelope. `GET /metrics` and `GET /health/dependencies` require the private monitoring bearer. `POST /monitoring/mobile` is opt-in, authenticated with Firebase and limited by account, IP and batch size. OpenAPI JSON is served at `/api-docs/openapi.json`.
+`GET /health/live` reports process liveness. `GET /health/ready` returns 200 or 503 based on initialized dependencies and the shared PostgreSQL probe. `GET /health` retains its legacy 200/500 envelope. `GET /metrics` and `GET /health/dependencies` require the private monitoring bearer. `POST /monitoring/mobile` is opt-in, authenticated with Firebase and limited by account, IP and batch size. OpenAPI JSON is served at `/api-docs/openapi.json` in development and test.
+
+JSON parsing returns the standard error envelope with 400 for malformed bodies, 413 for oversized bodies and 415 for unsupported encodings or charsets. Production authentication can return 503 when Firebase is unavailable. Production has no mock media routes and reports 503 when a media operation needs unavailable storage.
 
 The server accepts `X-Request-ID`, `X-Correlation-ID`, `X-Client-Source` and `X-Request-Trigger`. It exposes validated request and correlation IDs, the normalized route template and `Server-Timing` when observability is enabled. Existing application envelopes and route paths remain available. Swagger now documents the vote-option write 403 and the replacement options array. See the [route and Flutter consumer inventory](audit/API_CONSUMERS.md).

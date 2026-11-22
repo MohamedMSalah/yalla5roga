@@ -318,3 +318,6 @@ Outing updates check venue and deadline locks after acquiring the same row lock 
 ## Request observability
 
 Express installs one completion recorder before CORS and parsing. AsyncLocalStorage associates measured Prisma Client operations and selected service, authorization and external spans. Prisma engine events aggregate SQL counts and timings. Pino sends structured JSON in production and pretty output in development. Health/readiness use a shared lightweight probe. Protected metrics, route inventory and the optional Prometheus/Grafana profile are described in the [operator guide](development/OBSERVABILITY.md).
+## Production operations
+
+See [Public backend deployment](development/PRODUCTION_DEPLOYMENT.md) for independent startup and migration commands, proxy trust, media storage isolation and health checks.
