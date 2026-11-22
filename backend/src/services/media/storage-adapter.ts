@@ -44,6 +44,8 @@ export interface MediaStorageAdapter {
   }): Promise<PresignedGet>;
   /** Head the object; `null` means it does not exist (upload failed/aborted). */
   stat(key: string): Promise<StoredObject | null>;
+  read(key: string, maxBytes: number): Promise<Buffer | null>;
+  write(key: string, bytes: Buffer, mimeType: string): Promise<void>;
   /** Permanently delete the object. Deleting a missing key is not an error. */
   delete(key: string): Promise<void>;
 }

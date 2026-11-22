@@ -188,12 +188,12 @@ Entity image fields are strings: absolute http(s) URLs (legacy/external) or stab
 
 Upload flow (`MediaUploadService`):
 
-1. `POST /api/media/upload-url` (purpose + MIME + size, optional entity id).
-2. `PUT` bytes directly to R2/mock storage — bypasses the API and Neon.
-3. `POST /api/media/:id/confirm`; only then is the reference sent on create/update.
-4. A failed upload triggers a best-effort `DELETE` for the pending asset.
+1. Decode and optimize the picked image on a Dart isolate. Apply orientation, preserve aspect ratio and alpha, strip metadata and prefer WebP.
+2. `POST /api/media/upload-url` with the optimized MIME and size, then `PUT` bytes directly to private R2 staging or the device mock.
+3. `POST /api/media/:id/confirm` to validate and promote the object. The client sends the stable reference on create/update only after confirmation.
+4. A failed transfer triggers best-effort pending asset cleanup. Compression, transfer and confirmation share a progress indicator.
 
-MIME (`jpeg/png/webp/gif`) and size limits are checked client-side before networking. `remote_image_url.dart` accepts http(s) or `media://`, so local paths are never sent. Profile (settings), group create/cover change, outing create/suggest are wired; place media remains backend/admin-managed.
+The shared pipeline covers signup and profile photos, group create/replacement, and outing or draft images. Place media uses the curator backend pipeline. Entity payloads preserve legacy HTTP(S) and `media://` references. Image outputs stay in memory until upload.
 
 Display and caching (`AppNetworkImage` + `MediaUrlResolver`):
 
@@ -321,6 +321,8 @@ This phase changes the foundation and adapters, not feature workflows or the exi
 ## Phase 2 feature composition — 2026-11-13
 
 Home composes HomeHeader, FeaturedOutingCard (core OutingCard adapter), QuickActions and HomeNearbySection. Nearby uses MapLocation plus DiscoverProvider/repository, not a second location/network/cache service. Groups composes core header/search/filter/state components and domain GroupCard adapters. CreateGroupFields and GroupInviteePicker render the existing GroupsProvider form state; GroupNameEditor is route-local form state for the existing PATCH API.
+
+HomeHeader sizes its profile photo from the available header width with LayoutBuilder: 24% of the inner width, bounded to 42–67.2dp. The maximum is 60% larger than the original 42dp photo; the circular crop and placeholder scale together, while the tap target remains at least 48dp. The greeting keeps flexible remaining space. Targeted analysis reports no issues; device, theme, RTL and enlarged-text rendering remain unverified. No diagrams or product flows changed.
 
 Group Details and Group Info share the page background, app bar and painted hero. The bounded group outing previews use the existing OutingsProvider lifecycle projections. See all opens the existing group-scoped list with the matching lifecycle filter. GroupHistoryLinks opens GroupHistoryPage for invitation or outing history. The invitation history still comes from the account-scoped roster response. Group routes use existing realtime ownership and roster caching. Successful leave or deletion evicts that group’s saved detail and roster and schedules existing list reconciliation.
 
@@ -495,5 +497,7 @@ The mounted Groups tab uses a single sliver scroll view and reuses Home's notifi
 The invitation banner adds a group picker before the existing phone invitation sheet. Tab selection reuses the mounted Groups state and normal session sync. The change adds no API, schema, dependencies, or realtime subscriptions.
 
 ## Request observability
+
+The shared media resolver evicts private account image keys on logout and clears stale private images when an authenticated API response omits their IDs. Offline transport errors keep the account's cached image available. Shared public cache files remain reusable.
 
 The shared Dio client records each attempt, including cancellation, timeout and the bounded credential retry. RequestScope propagates feature, origin and trigger across async repository work. A retry retains its correlation ID and gets a new request ID. Repository cache events are measured separately. Detail navigation uses repository TTL, and list patches retain the original expiration. Account-scoped cache invalidation prevents an older in-flight response from repopulating an evicted entry. Firebase Performance keeps one HTTP metric per attempt. Optional sampled metrics and device verification are documented in the [operator guide](development/OBSERVABILITY.md).

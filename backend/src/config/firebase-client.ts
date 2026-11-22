@@ -1,12 +1,12 @@
 import { measure } from "../monitoring/context.js";
 import { randomUUID } from "node:crypto";
-import { deleteApp, initializeApp, type FirebaseApp } from "firebase/app";
+import { deleteApp, initializeApp, type FirebaseApp } from "@firebase/app";
 import {
   inMemoryPersistence,
   initializeAuth,
   signInWithCustomToken,
   type Auth,
-} from "firebase/auth";
+} from "@firebase/auth";
 
 export type FirebaseClientConfig = {
   apiKey: string;

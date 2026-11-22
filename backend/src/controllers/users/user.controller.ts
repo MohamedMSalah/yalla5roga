@@ -131,8 +131,8 @@ export class UserController {
   deleteCuser = async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
-      const user = await this.deleteUser.execute(req.user.uid);
-      res.json({ success: true, data: toPublicUser(user) });
+      await this.deleteUser.execute(req.user.uid);
+      res.status(202).json({ success: true, data: { status: "accepted" } });
     } catch (error) {
       next(error);
     }
@@ -142,8 +142,8 @@ export class UserController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       if (req.user.uid !== req.params.id) throw new ForbiddenError();
-      const user = await this.deleteUser.execute(req.params.id as string);
-      res.json({ success: true, data: toPublicUser(user) });
+      await this.deleteUser.execute(req.user.uid);
+      res.status(202).json({ success: true, data: { status: "accepted" } });
     } catch (error) {
       next(error);
     }

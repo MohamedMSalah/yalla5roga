@@ -13,9 +13,12 @@ class CrashlyticsService {
 
   Future<void> initialize() async {
     if (_ready) return;
-    // Collection on in release; keep enabled in debug so QA can verify wiring.
-    await _crashlytics.setCrashlyticsCollectionEnabled(true);
-    _ready = true;
+    const collect = bool.fromEnvironment(
+      'FIREBASE_TELEMETRY_ENABLED',
+      defaultValue: true,
+    );
+    await _crashlytics.setCrashlyticsCollectionEnabled(collect);
+    _ready = collect;
   }
 
   Future<void> setUserId(String? userId) async {
@@ -48,7 +51,7 @@ class CrashlyticsService {
     if (kDebugMode) {
       debugPrint(
         '[Crashlytics] ${fatal ? 'FATAL' : 'non-fatal'}: '
-        '${reason ?? error.runtimeType} → $error',
+        '${reason ?? error.runtimeType}',
       );
     }
     if (!_ready) return;

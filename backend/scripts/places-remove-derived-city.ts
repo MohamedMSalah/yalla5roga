@@ -1,5 +1,4 @@
 /** Remove only import-derived city fallbacks: administrative region != verified venue city. */
-import "dotenv/config";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { prisma } from "../src/config/database.js";
 import { verifyPlacesTarget } from "../src/services/places/places-sync.js";

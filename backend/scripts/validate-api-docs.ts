@@ -1,4 +1,3 @@
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { swaggerSpec } from "../src/config/swagger.js";

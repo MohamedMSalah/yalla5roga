@@ -26,7 +26,13 @@ Future<void> main() async {
       );
 
       // Crashlytics stays on the pre-frame path so startup crashes are reported.
-      await CrashlyticsService.instance.initialize();
+      try {
+        await CrashlyticsService.instance.initialize().timeout(
+          const Duration(seconds: 3),
+        );
+      } catch (_) {
+        if (kDebugMode) debugPrint('[Startup] Crashlytics unavailable');
+      }
 
       FlutterError.onError = (details) {
         FlutterError.presentError(details);
@@ -61,7 +67,7 @@ Future<void> main() async {
       runApp(App(deps: deps));
     },
     (error, stack) {
-      debugPrint('[ZonedError] $error\n$stack');
+      if (kDebugMode) debugPrint('[ZonedError] ${error.runtimeType}');
       unawaited(
         CrashlyticsService.instance.recordError(
           error,
@@ -81,8 +87,8 @@ Future<void> _startMonitoring(String? userId) async {
       PerformanceService.instance.initialize(),
     ]);
     await AnalyticsService.instance.setUserId(userId);
-  } catch (error, stack) {
-    debugPrint('[Startup] monitoring init failed: $error\n$stack');
+  } catch (_) {
+    if (kDebugMode) debugPrint('[Startup] monitoring init failed');
   }
   StartupTrace.mark('monitoring_ready');
 }

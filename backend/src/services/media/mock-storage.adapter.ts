@@ -19,7 +19,7 @@ export class MockStorageAdapter implements MediaStorageAdapter {
     string,
     { bytes: Uint8Array; contentType: string | null; lastModified: Date }
   >();
-  private readonly issuedKeys = new Set<string>();
+  private readonly issuedKeys = new Map<string, { expiresAt: number; length?: number; type: string }>();
 
   constructor(
     private readonly baseUrl: string,
@@ -41,8 +41,8 @@ export class MockStorageAdapter implements MediaStorageAdapter {
     contentLength?: number;
     ttlSeconds: number;
   }): Promise<PresignedPut> {
-    this.issuedKeys.add(input.key);
     const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000);
+    this.issuedKeys.set(input.key, { expiresAt: expiresAt.getTime(), length: input.contentLength, type: input.contentType });
     return {
       url: `${this.baseUrl}/api/media/mock-upload/${encodeURIComponent(input.key)}`,
       expiresAt,
@@ -64,10 +64,17 @@ export class MockStorageAdapter implements MediaStorageAdapter {
 
   /** Mock upload route entry point: stores the bytes locally. */
   store(key: string, bytes: Uint8Array, contentType: string | null): void {
-    if (!this.issuedKeys.has(key)) {
-      throw new Error(`Object key ${key} was never issued for upload`);
+    const intent = this.issuedKeys.get(key);
+    if (!intent || intent.expiresAt <= Date.now() || intent.type !== contentType ||
+      (intent.length !== undefined && intent.length !== bytes.byteLength)) {
+      throw new Error("Invalid or expired mock upload");
     }
-    if (bytes.byteLength > this.maxTotalBytes) {
+    this.save(key, bytes, contentType);
+  }
+
+  private save(key: string, bytes: Uint8Array, contentType: string | null): void {
+    const previous = this.objects.get(key)?.bytes.byteLength ?? 0;
+    if (MockStorageAdapter.usedBytes(this.objects) - previous + bytes.byteLength > this.maxTotalBytes) {
       throw new Error("Mock object exceeds the local byte budget");
     }
     this.objects.set(key, {
@@ -77,8 +84,18 @@ export class MockStorageAdapter implements MediaStorageAdapter {
     });
   }
 
+  async read(key: string, maxBytes: number): Promise<Buffer | null> {
+    const object = this.objects.get(key);
+    return object && object.bytes.length <= maxBytes ? Buffer.from(object.bytes) : null;
+  }
+
+  async write(key: string, bytes: Buffer, mimeType: string): Promise<void> {
+    this.save(key, bytes, mimeType);
+  }
+
   /** Mock download route entry point. */
   load(key: string): { bytes: Uint8Array; contentType: string | null } | null {
+    if (key.startsWith("uploads/")) return null;
     const entry = this.objects.get(key);
     if (!entry) return null;
     return { bytes: entry.bytes, contentType: entry.contentType };

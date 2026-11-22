@@ -145,7 +145,7 @@ Rules:
 1. The uploader owns the asset (`owner_id` = Bearer UID). Confirm/delete by another user returns `404`.
 2. An asset becomes usable only after `confirm` verifies the object in storage. The reference must match the entity purpose (`profile`/`group`/`outing`/`place`/`chat`) before it can be attached.
 3. Group covers can be uploaded before group creation. The Flutter outing creation flow uses the selected venue image. Existing media attachment authorization continues to apply when create or update persists a reference.
-4. Visibility is fixed by purpose: `place` → public; all others → private. Private media is delivered only through short-lived signed GET URLs after participation/ownership checks. Profile avatars are viewable by authenticated users; group/outing/chat media requires membership/participant eligibility.
+4. Place uploads may use a separate public catalog bucket. Other uploads stay in the private bucket. Signed GET URLs require authorization and last at most five minutes. Linked avatars are viewable by authenticated users. Unattached images are owner-only and group/outing/chat images follow current participant access.
 5. Abandoned pending intents and failed uploads are cleaned up (storage object + row). Presigned URL expiry does not create a ready asset.
 6. Flutter uploads before create/update and never sends local paths. Image cache identity is the stable asset id (`media_private_<uid>_<id>` for private), not the rotating signed URL. Logout/account switch clears that account's private URL metadata and cached images.
 7. When storage/CDN is unavailable or the object is missing, the UI falls back to the existing default avatar/cover artwork. Offline devices render previously cached images.

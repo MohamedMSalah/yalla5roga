@@ -2,7 +2,7 @@
 
 ## Backend and dashboards
 
-From `backend`, configure the normal database and Firebase environment and run `pnpm dev`. The startup report includes the actual listener address, detected LAN addresses, runtime route counts, dependency initialization, database probing and process memory. The optional dashboards use the same process. The API can start with private monitoring absent or with `OBSERVABILITY_ENABLED=0`.
+Configure the isolated [device profile](ENVIRONMENT_CONFIGURATION.md) and run `pnpm dev:device` from the repository root or backend. The startup report includes the actual listener, LAN addresses, routes, initialization, database probing and memory. Prometheus and Grafana are optional. Private metrics remain disabled without their own token.
 
 | Surface | Local URL | Access |
 | --- | --- | --- |
@@ -14,14 +14,11 @@ From `backend`, configure the normal database and Firebase environment and run `
 | Readiness | [localhost:3000/health/ready](http://localhost:3000/health/ready) | Public coarse dependency state |
 | Dependencies and metrics | `/health/dependencies` and `/metrics` | Separate monitoring bearer credential, 24+ characters |
 
-In PowerShell from `backend`, generate local credentials and bring up the optional stack before starting the API from the same shell.
+Set a private `MONITORING_TOKEN` and `GRAFANA_ADMIN_PASSWORD` in the device profile. From the repository root, start the optional stack with the same bearer used by the API:
 
 ```powershell
-$env:MONITORING_TOKEN = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-$env:GRAFANA_ADMIN_PASSWORD = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24))
-Set-Content -LiteralPath monitoring/monitoring-token.local -Value $env:MONITORING_TOKEN -NoNewline
-docker compose -f monitoring/compose.yml --profile monitoring up -d
-pnpm dev
+pnpm monitoring:device
+pnpm dev:device
 ```
 
 Prometheus uses the host API port 3000 from Docker. Edit `monitoring/prometheus.yml` if the API uses another port. On Docker Desktop, the host API must listen on an address reachable by the container. The scraper uses the credential file and retains up to seven days or 750 MB of samples. Each hosting platform controls retention for Pino stdout separately. Keep private monitoring behind an internal ingress or TLS and rotate the monitoring credential independently of Firebase credentials.
@@ -36,7 +33,7 @@ Prometheus uses the host API port 3000 from Docker. Edit `monitoring/prometheus.
 - Potential duplicates group equivalent account-scoped requests by method, endpoint, target and query within a bounded monotonic window. Retry, explicit refresh, search, viewport and pagination triggers are excluded from generic alerts. Detection is advisory. Existing stable idempotency keys protect supported writes such as outing creation, draft creation and chat sends.
 - Production defaults to JSON and logs anomalous HTTP completions. Set `OBS_HTTP_LOG_SAMPLE` for routine completion sampling. `OBS_DUPLICATE_WINDOW_MS` defaults to 2000. API request bands start at 250, 500 and 1000 ms. Threshold overrides use `OBS_ENDPOINT_THRESHOLDS` keyed by method and actual route template. `OBS_DB_WARN_MS` and `OBS_DB_CRITICAL_MS` default to 100/500 ms.
 - Grafana exposes environment, endpoint, method, status and time selection. The latency panel requires 50 selected-range samples for P50/P95 and 200 for P99. Histogram percentiles are estimates. Compare startup and the first database connection separately from warmed measurements.
-- Firebase Performance reuses a single metric per Dio attempt on the normalized URL. Repository timings remain available locally via `API_DIAGNOSTICS` and `API_DIAGNOSTICS_LOG` Dart defines. Both default off for release builds. For local Grafana mobile comparisons, configure backend `OBS_MOBILE_TELEMETRY=1` and build with `--dart-define=API_TELEMETRY_SAMPLE=0.01`. The authenticated receiver permits only known method/route templates, strict numeric samples and batches of at most 12. It caps submissions per account and IP. No device or account identifiers enter metric labels.
+- Firebase Performance reuses a single metric per Dio attempt on the normalized URL. Repository timings are available via client `API_DIAGNOSTICS` and `API_DIAGNOSTICS_LOG`. Both default off for release. For Grafana comparisons set `OBS_MOBILE_TELEMETRY=1` and `API_TELEMETRY_SAMPLE=0.01` in the selected profile before building. The authenticated receiver permits only known route templates, strict numeric samples and at most 12 samples per batch. It caps submissions per account and IP. Metric labels omit device and account identifiers.
 
 ## Isolated API tests and workloads
 
@@ -50,9 +47,11 @@ pnpm audit:routes
 
 The default run skips database-dependent assertions. For the full suite, start the disposable database or supply a separate loopback PostgreSQL instance and a fresh database named `yalla_test*`. The test guard refuses remote targets and overrides Prisma's default environment inputs before fixtures run.
 
+Replace `<test-user>` and `<test-password>` with the credentials for that disposable local database, as configured in `monitoring/compose.test.yml`; never use shared cloud credentials here.
+
 ```powershell
 docker compose -f monitoring/compose.test.yml up -d
-$env:YALLA_TEST_DATABASE_URL = 'postgresql://yalla_test:local-fixtures-only@127.0.0.1:55432/yalla_test_local?sslmode=disable'
+$env:YALLA_TEST_DATABASE_URL = 'postgresql://<test-user>:<test-password>@127.0.0.1:55432/yalla_test_local?sslmode=disable'
 $env:DATABASE_URL = $env:YALLA_TEST_DATABASE_URL
 $env:DIRECT_URL = $env:YALLA_TEST_DATABASE_URL
 pnpm exec prisma migrate deploy
@@ -64,6 +63,17 @@ pnpm benchmark:database
 Run `pnpm benchmark:http` with `NODE_ENV=production` and `OBS_HTTP_LOG_SAMPLE=0` to compare warmed no-database paths. Repeat with `OBSERVABILITY_ENABLED=0` for a monitoring-overhead check. The live rate limit is kept intact, so the benchmark uses 45 samples per path.
 
 With k6 on PATH or specified by `K6_EXECUTABLE`, `pnpm load:local` starts an ephemeral HTTP server against the disposable PostgreSQL fixture. It seeds group memberships, an outing and catalog records. It substitutes synthetic Firebase session verification in that process. It prints latency percentiles per exercised endpoint, request throughput, CPU, RSS and database statement count. `LOAD_SCENARIO` supports `baseline`, `concurrent`, `load`, `stress`, `spike`, and `sustained`. For constant workloads, use `VUS` of 1, 10, 25, 50 or 100 and optional `DURATION`. Set `WRITE_FIXTURES=1` to exercise chat writes. Direct `k6 run monitoring/load/workflows.js` requires fixture IDs and tokens, `ALLOW_DISPOSABLE_LOAD=1`, a local API and its monitoring credential. The `authentication` profile additionally uses synthetic login credentials from a dedicated Firebase test environment and honors the credential rate limit. The API must attest to `OBS_ISOLATED_LOAD_TEST=1` and a loopback test database before any workload starts.
+
+Use the following matrix one scenario at a time against disposable loopback PostgreSQL. Obtain explicit approval before any significant load against a shared or hosted environment.
+
+| Virtual users | Command from backend |
+| --- | --- |
+| 1 | `LOAD_SCENARIO=baseline VUS=1 DURATION=45s pnpm load:local` |
+| 10 | `LOAD_SCENARIO=concurrent VUS=10 DURATION=1m pnpm load:local` |
+| 25 | `LOAD_SCENARIO=load VUS=25 DURATION=3m pnpm load:local` |
+| 50 | `LOAD_SCENARIO=sustained VUS=50 DURATION=3m pnpm load:local` |
+
+In PowerShell set each variable with `$env:LOAD_SCENARIO`, `$env:VUS` and `$env:DURATION` before invoking `pnpm load:local`.
 
 ## Manual mobile verification
 

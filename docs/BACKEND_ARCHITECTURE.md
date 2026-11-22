@@ -1,5 +1,7 @@
 # Yalla 5roga — Backend Architecture
 
+The single process loads account deletion digests before listening and runs the restart-safe deletion worker alongside existing jobs. Express requires explicit production resource targets. Socket.IO independently rechecks Firebase revocation during established connections. [Deployment and readiness](development/PRODUCTION_DEPLOYMENT.md)
+
 | Metadata | Value |
 |----------|-------|
 | Last verified | 2026-11-08 |
@@ -42,7 +44,7 @@ backend/tests/           # lifecycle, authz, concurrency, etc.
 
 `server.ts`:
 
-1. `dotenv/config`
+1. Explicit root profile selection before loading Express
 2. `prisma.$connect()`
 3. `http.createServer(app)` + `attachRealtime(httpServer)` (Socket.IO on `/socket.io`)
 4. `httpServer.listen(PORT, HOST)` (default `0.0.0.0:3000`)
@@ -181,7 +183,7 @@ Required production env: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_
 ## 15. Logging / env
 
 - `console.log` / `console.error` with tagged prefixes (`[Firebase Auth]`, `[notifications]`, …).
-- Env via `dotenv` (`DATABASE_URL`, `FIREBASE_*`, `PORT`, notification config, `CORS_ORIGINS`, `R2_*`). Production startup rejects an empty CORS allowlist and `WHATSAPP_PROVIDER=stub`.
+- [Root environment profiles](development/ENVIRONMENT_CONFIGURATION.md) select the API, database, Firebase and R2 settings. Production validates its resource targets and keeps readiness unavailable when the private bucket is unreachable.
 - OpenAPI at `/api-docs` from `config/swagger.ts`.
 
 ## 16. Response conventions

@@ -125,7 +125,7 @@ void main() {
       shouldRequestPermission: () => true,
     );
 
-    expect(await verify(), ArrivalVerification.unavailable);
+    expect(await verify(), ArrivalVerification.permissionDenied);
     expect(reads, 0);
     enabled = false;
     permission = LocationPermission.whileInUse;
@@ -137,7 +137,7 @@ void main() {
     fix = _position(mocked: true);
     expect(await verify(), ArrivalVerification.unavailable);
     fix = _position(latitude: 30.001);
-    expect(await verify(), ArrivalVerification.unverified);
+    expect(await verify(), ArrivalVerification.outsideRadius);
     expect(writes, isEmpty);
 
     fix = _position(latitude: 30.00085);
@@ -229,7 +229,8 @@ void main() {
       await advance();
       expect(requests, 1);
       expect(checks, 1);
-      expect(find.text('Location unavailable'), findsOneWidget);
+      const l10n = L10n(Locale('en'));
+      expect(find.text(l10n.arrivalPermissionDenied), findsOneWidget);
       expect(find.byType(SwitchListTile), findsNothing);
       binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump(const Duration(minutes: 2));
@@ -239,7 +240,7 @@ void main() {
       binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await advance();
       expect(checks, 2);
-      expect(find.text('Not yet verified'), findsOneWidget);
+      expect(find.text(l10n.arrivalOutsideRadius), findsOneWidget);
 
       arrived = true;
       final previousRequests = requests;
@@ -247,7 +248,10 @@ void main() {
       await tester.pump();
       await advance();
       expect(requests, previousRequests + 1);
-      expect(find.textContaining('Arrived ·'), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, l10n.arrivalVerified),
+        findsOneWidget,
+      );
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );

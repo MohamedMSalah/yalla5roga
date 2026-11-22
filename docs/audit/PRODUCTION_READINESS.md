@@ -1,6 +1,55 @@
 # Yalla 5roga production readiness
 
-**NOT READY FOR DEPLOYMENT** · 22 November 2026
+**Candidate for isolated staging. Public production remains blocked.** · 22 November 2026
+
+## Remediation since a90c360
+
+**Isolated staging verdict.** The backend and Flutter changes are ready for an isolated staging rollout after an operator provisions and verifies the expected Firebase, PostgreSQL, R2 and ingress targets. Local verification used disposable loopback PostgreSQL, Firebase fixture identities, synthetic R2 signing credentials and host Flutter tests.
+
+**Public production verdict.** Hold release until staging demonstrates live Firebase session revocation and deletion, R2 anonymous access denial and catalog delivery, trusted HTTPS and WebSocket ingress, Linux signal handling, and signed mobile builds on physical devices. Public deployment also requires approval of shared-history retention and review of the four residual dependency advisories.
+
+| Release blocker | Current status | Evidence and remaining work |
+| --- | --- | --- |
+| Flutter host failures | Resolved locally | The rerun reproduced 11 of the 12 reported failures. Chat now prefers the caller's current name over stale message metadata. Image eviction targets the private account key, keeps shared public cache files and drops an inaccessible private image when the authenticated API omits it. Corrected GPS status and button expectations, scrolled before selecting an occasion, exercised the actual bio and roster controls, tested invitation acceptance on the real group details route, and aligned diagnostics with actual request IDs and duplicate attribution. Native location, storage and rendering are staged device checks. |
+| High dependency advisories | Resolved in the lockfile | All five high advisories cleared in both full and production audits. See the reachability review below. |
+| Account deletion | Verified with disposable identities and database fixtures | A self-scoped 202 records an atomic cleanup, revokes application access, closes open sockets and schedules Firebase/R2 work. Tests cover ownership transfer, shared history, invitation and inbox cleanup, UID resurrection guard, separate provider failures, retries and completion. Provider deletion and backup/retention review remain staging gates. |
+| Firebase and realtime | Verified at the SDK boundary and over loopback transports | Production REST requests and all handshakes check Firebase revocation. Established sockets recheck every 30 seconds with a five-second limit and close at expiry. Tests cover invalidation, rejection, refreshed reconnect, role joins and room cleanup. Live identity and TLS proxy behavior remain unverified. |
+| R2 privacy | Application boundary verified | Separate bucket selection, curator-only catalog delivery, cross-account access and object-scoped GET/PUT signing passed locally. Only canonical place keys in the configured public catalog bucket get CDN URLs. Live bucket policies, signed URL enforcement, response headers, and legacy catalog backfill remain unverified. |
+| Authenticated API coverage | Expanded | Served OpenAPI and disposable PostgreSQL now cover authenticated group, invitation, vote, RSVP, arrival, chat and notification writes, plus negative ownership cases and account deletion. Some operations still have boundary-only evidence. [Coverage matrix](PRODUCTION_API_COVERAGE.md) |
+| Staging configuration, ingress and lifecycle | Local verification passed | Production startup rejects mismatched targets. A loopback HTTP test proves separate client buckets through a trusted proxy and rejects spoofed forwarding from an untrusted hop. Health and monitoring checks passed on the compiled artifact. External ingress, provider health, and Linux shutdown remain staging gates. [Exact staging verification steps](../development/PRODUCTION_DEPLOYMENT.md#staging-verification-and-android-release) |
+
+### Remediation verification
+
+| Check | Result |
+| --- | --- |
+| Backend frozen lockfile install, type check, production build | Passed. Prisma generation was also run explicitly. |
+| Complete backend suite | 330 passed, 0 failed, 0 skipped, in 28 suites. |
+| Backend contract target | 144 passed, 0 failed, 0 skipped, including the 114-operation boundary sweep and the authenticated workflows. |
+| Flutter host suite | 203 passed, 0 failed. |
+| Flutter analysis | 0 errors, 0 warnings, 37 pre-existing info-level findings. |
+| Prisma | Schema validation passed. All 26 migrations applied to fresh loopback PostgreSQL and schema drift check passed. |
+| Dependency audit, full and production | 0 critical, 0 high, 3 moderate, 1 low. |
+| Compiled production-mode smoke | Six background components started on loopback. Liveness, readiness, protected diagnostics and metrics passed. Triggering the signal handler shut down with Socket.IO closed, Prisma disconnected and zero failed cleanup tasks. Actual Linux signal delivery and ingress drain remain staging checks. |
+
+### Dependency reachability
+
+| Original high finding | Production reachability and disposition |
+| --- | --- |
+| `effect` GHSA-38f7-945m-qr2g | Prisma CLI configuration dependency. The vulnerable Effect RPC path had no caller in the HTTP/Socket.IO runtime. Production audit included the CLI through the Prisma client peer. Scoped override pins 3.22.1. [Advisory](https://github.com/advisories/GHSA-38f7-945m-qr2g) |
+| `effect` GHSA-7589-6fvf-x4pw | Same Prisma chain. No application import or user-supplied Effect schema compiler. Scoped override pins 3.22.1. [Advisory](https://github.com/advisories/GHSA-7589-6fvf-x4pw) |
+| `deepmerge-ts` GHSA-ggr8-5vv4-36mx | The Prisma config loader can run during generation and migrations with repository-controlled input. Scoped override pins 8.0.0. Build, generation and migration rehearsal exercise this path. [Advisory](https://github.com/advisories/GHSA-ggr8-5vv4-36mx) |
+| `@grpc/grpc-js` GHSA-m9gg-hp2v-232j | The affected version came through the Firebase client Firestore bundle. Source uses Firebase Auth and Firebase Admin only. Removed the umbrella package in favor of its pinned App/Auth components. The Admin dependency graph still has a patched gRPC release. [Advisory](https://github.com/advisories/GHSA-m9gg-hp2v-232j) |
+| `re2js` GHSA-gg6h-894w-4m9c | The affected library came through client Firestore. Removed with the Firebase umbrella package. A fixture exercises concurrent custom-session exchange through the narrower SDK and verifies cleanup of the ephemeral apps. [Advisory](https://github.com/advisories/GHSA-gg6h-894w-4m9c) |
+
+Moderate `glob` and `minimatch` remain through Swagger generation and optional Firebase Admin Firestore dependencies. Swagger initializes from repository-controlled file patterns in production, so that installed path still executes at startup. Moderate `uuid` and low `fast-xml-parser` remain through Firebase Admin's optional Google Cloud Storage graph. Application object traffic uses the AWS R2 client. Treat the installed optional graph as a residual supply-chain risk. Recheck it on release and before adding any Firestore/Cloud Storage use or configurable Swagger file patterns. [glob](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4) · [minimatch](https://github.com/advisories/GHSA-g3hv-75wg-m249) · [uuid](https://github.com/advisories/GHSA-w5hq-g745-h8pq) · [fast-xml-parser](https://github.com/advisories/GHSA-474x-hrwr-fgx4)
+
+### Open staging and public release checks
+
+- Verify the provider boundary against separately provisioned resources. Use disposable Firebase identities and R2 objects, run the trusted-ingress and shutdown checks on the staging host, and capture results and build revisions. Confirm that pre-existing signed upload windows have elapsed before counting deletion of legacy objects as complete. [Staging runbook](../development/PRODUCTION_DEPLOYMENT.md)
+- Sign the staging mobile build with the approved key and run the physical-device checklist below when authorized. Verify push, app links, real GPS, localization, offline cache behavior and release permissions.
+- Review privacy and retention for shared outing details, backups, third-party delivery and copies held by other users. The deletion journal retains an account digest and timestamps to prevent replay. No live provider or hosting changes were made during remediation.
+
+## Historical baseline at a90c360
 
 The audit started on `main` at `fd8876a21ad873cddaf5f5d4f07c04bbc9652cfd`. GitHub reported that same branch tip before review. The worktree already had changes to the Home header, Flutter architecture and setup documentation, Flutter README, an Android Gradle report and untracked Kotlin build state. Those are excluded from the audit changes.
 

@@ -1,5 +1,4 @@
 /** Served Swagger HTTP verification, disposable local PostgreSQL only. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync,readdirSync,writeFileSync } from "node:fs";

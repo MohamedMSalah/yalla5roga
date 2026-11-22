@@ -15,9 +15,8 @@ import {
  *     summary: Request a direct-to-R2 upload URL
  *     description: >
  *       Creates a `pending` media asset and returns a short-lived presigned PUT
- *       URL. The client uploads the file bytes directly to Cloudflare R2 (or the
- *       local mock storage routes while R2 credentials are not configured) —
- *       binaries never pass through the API or Neon. When `media_id` is sent the
+ *       URL for a private staging key. The client uploads the file bytes
+ *       directly to Cloudflare R2 or local mock storage. When `media_id` is sent the
  *       upload URL is re-issued for that still-pending asset (expired URL retry);
  *       the re-issued intent keeps the stored purpose, so a place asset cannot
  *       be refreshed under another purpose. `place` intents require the caller's
@@ -79,9 +78,9 @@ import {
  *     tags: [Media]
  *     summary: Confirm a direct upload
  *     description: >
- *       Heads the object in R2 and marks the asset `ready` only when the object
- *       exists with a non-zero size. A missing object marks the asset `failed`
- *       (retry by requesting a new upload URL). Only the owner may confirm.
+ *       Checks the actual bytes, image format, dimensions and size, then
+ *       publishes the validated image to a new server-owned delivery key.
+ *       Invalid uploads are rejected and discarded. Only the owner may confirm.
  *       Place-purpose assets additionally require a curator account (403).
  *     operationId: confirmMediaUpload
  *     parameters:
@@ -93,6 +92,8 @@ import {
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/MediaAssetResponse"
+ *       "400":
+ *         $ref: "#/components/responses/BadRequest"
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  *       "403":
@@ -105,6 +106,8 @@ import {
  *           application/json:
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
+ *       "503":
+ *         description: Image validation or storage temporarily unavailable
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
  * /api/media/{id}/url:

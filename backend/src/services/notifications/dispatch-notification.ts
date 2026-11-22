@@ -6,6 +6,7 @@ import type { NotificationChannelSender } from "./channels/notification-channel.
 import { PushChannel } from "./channels/push.channel.js";
 import { WhatsAppChannel } from "./channels/whatsapp.channel.js";
 import { notificationTarget } from "./notification-target.js";
+import { isDeletedAccount } from "../users/account-deletion-access.js";
 
 function backoffMs(attempt: number): number {
   // 10s, 30s, 90s, 270s, ... capped at 15 minutes
@@ -39,6 +40,7 @@ export class NotificationDispatcher {
   private async processOne(
     event: NotificationEvent,
     now: Date): Promise<void> {
+    if (event.recipient_user_id && isDeletedAccount(event.recipient_user_id)) return;
     const channel = this.channels.find((item) => item.channel === event.channel,
     );
     if (!channel) {

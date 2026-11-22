@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { getApp, getApps } from "firebase-admin/app";
 import { getFirebaseAuth } from "../src/config/firebase.js";
 

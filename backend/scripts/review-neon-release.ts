@@ -1,5 +1,4 @@
 /** Deployment check for an already migrated Neon target; refuses any pending SQL. */
-import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';

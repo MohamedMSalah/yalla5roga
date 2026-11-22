@@ -11,7 +11,7 @@ import 'package:yalla_5roga/features/groups/presentation/widgets/group_members_s
 
 void main() {
   const phone = '+201001234567';
-  const active = GroupMember(id: 'member-id', name: 'Member', avatar: '');
+  const active = GroupMember(id: 'member-id', name: 'Nour', avatar: '');
   const pending = GroupMember(
     id: 'association-id',
     name: '',
@@ -125,8 +125,8 @@ void main() {
       final pendingCard = find.byWidgetPredicate(
         (widget) => widget is GroupMemberCard && widget.member.isPending,
       );
-      expect(find.text('Member'), findsOneWidget);
-      expect(find.text(l10n.pendingGroupRegistration), findsOneWidget);
+      expect(find.text(active.name), findsOneWidget);
+      expect(find.text(l10n.pendingInvitationStatus), findsOneWidget);
       expect(find.text(l10n.digits(phone)), findsOneWidget);
       await tester.tap(
         find.descendant(

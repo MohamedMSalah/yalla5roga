@@ -1,12 +1,12 @@
-# Secrets. Example env files stay tracked.
+# Application dotenv files and signing material
 .env
 .env.*
-!.env.example
-
-# Backend environment secrets
-/backend/.env
-/backend/.env.*
-!/backend/.env.example
+!/.env.example
+/.configuration-backups/
+/flutter/android/app/src/device/google-services.json
+/flutter/android/app/src/production/google-services.json
+/flutter/android/app/src/debug/google-services.json
+/flutter/android/app/src/release/google-services.json
 
 *.pem
 *.p12

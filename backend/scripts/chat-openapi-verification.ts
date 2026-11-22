@@ -2,7 +2,6 @@
  * No workers, sockets, Flutter, service unit tests or existing-user mutations.
  * Direct database calls are limited to disposable fixture setup and cleanup.
  */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";

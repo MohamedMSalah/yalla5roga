@@ -124,7 +124,9 @@ class App extends StatelessWidget {
                     ),
                   ),
                   child: _PushBootstrap(
-                    child: child ?? const SizedBox.shrink(),
+                    child: _MediaProgress(
+                      child: child ?? const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               );
@@ -132,6 +134,47 @@ class App extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _MediaProgress extends StatelessWidget {
+  const _MediaProgress({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<MediaUploadProgress?>(
+      valueListenable: context.read<MediaUploadService>().progress,
+      child: child,
+      builder: (context, progress, child) {
+        final l10n = context.l10n;
+        final label = switch (progress?.stage) {
+          MediaUploadStage.compressing => l10n.imageCompressing,
+          MediaUploadStage.uploading => l10n.imageUploading,
+          MediaUploadStage.verifying => l10n.imageVerifying,
+          null => null,
+        };
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            child!,
+            if (progress != null)
+              PositionedDirectional(
+                top: MediaQuery.paddingOf(context).top,
+                start: 0,
+                end: 0,
+                child: IgnorePointer(
+                  child: LinearProgressIndicator(
+                    semanticsLabel: label,
+                    value: progress.fraction,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

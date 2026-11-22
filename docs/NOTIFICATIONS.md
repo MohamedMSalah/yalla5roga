@@ -1,5 +1,7 @@
 # Yalla 5roga — Notifications
 
+Account deletion removes the departing recipient's inbox, push registrations and matching outbox events. It deactivates notifications for removed invitations and redacts copied chat previews in other recipients' inboxes while preserving their history. Delivery already accepted by a provider follows that provider's retention.
+
 FCM registration upserts on the globally unique token. The same device token can move between accounts in one write. The user lookup index supports push delivery. Inbox history and delivery attempts persist separately in Neon.
 
 | Metadata | Value |

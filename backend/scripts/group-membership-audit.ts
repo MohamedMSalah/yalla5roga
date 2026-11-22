@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { prisma } from '../src/config/database.js';
 import { getFirebaseAuth } from '../src/config/firebase.js';
 import { tryNormalizePhoneNumber } from '../src/services/phone/normalize-phone.js';

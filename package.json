@@ -1,0 +1,18 @@
+{
+  "name": "yalla5roga",
+  "private": true,
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build:device": "node scripts/flutter-android.mjs device apk",
+    "build:production": "node scripts/flutter-android.mjs production apk",
+    "check:environments": "node scripts/check-environments.mjs",
+    "dev:device": "pnpm --dir backend dev:device",
+    "start:production": "pnpm --dir backend start:production",
+    "test": "pnpm --dir backend test",
+    "build:apk:device": "node scripts/flutter-android.mjs device apk",
+    "build:apk:production": "node scripts/flutter-android.mjs production apk",
+    "run:android:device": "node scripts/flutter-android.mjs device run",
+    "monitoring:device": "node scripts/monitoring-local.mjs",
+    "project": "node scripts/project-command.mjs"
+  }
+}

@@ -12,8 +12,12 @@ class PerformanceService {
 
   Future<void> initialize() async {
     if (_ready) return;
-    await _performance.setPerformanceCollectionEnabled(true);
-    _ready = true;
+    const collect = bool.fromEnvironment(
+      'FIREBASE_TELEMETRY_ENABLED',
+      defaultValue: true,
+    );
+    await _performance.setPerformanceCollectionEnabled(collect);
+    _ready = collect;
   }
 
   /// Runs [action] inside a named custom trace. Errors propagate unchanged.

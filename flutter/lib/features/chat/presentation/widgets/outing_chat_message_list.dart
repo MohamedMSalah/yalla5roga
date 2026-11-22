@@ -143,10 +143,11 @@ class _OutingChatMessageListState extends State<OutingChatMessageList> {
             widget.currentUserId != null &&
             message.senderId == widget.currentUserId;
         final member = byId[message.senderId];
-        final name = message.sender.trim().isNotEmpty
+        final currentName = widget.currentUserName?.trim();
+        final name = mine && currentName?.isNotEmpty == true
+            ? currentName!
+            : message.sender.trim().isNotEmpty
             ? message.sender.trim()
-            : mine && widget.currentUserName?.isNotEmpty == true
-            ? widget.currentUserName!
             : member != null
             ? MemberDisplayName.resolve(member)
             : context.l10n.chatUnknownSender;

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import sharp from "sharp";
 import { getMediaConfig, type MediaConfig } from "../src/config/media.js";
 import type { IMediaRepository } from "../src/repositories/media/i-media.repository.js";
 import {
@@ -9,12 +10,14 @@ import {
   parseMediaReference,
 } from "../src/services/media/media.service.js";
 import { MockStorageAdapter } from "../src/services/media/mock-storage.adapter.js";
+import { R2StorageAdapter } from "../src/services/media/r2-storage.adapter.js";
 import type { MediaAsset } from "../src/types/media/media.types.js";
 import { optionalMediaImageUrlSchema } from "../src/validators/media/image-url.validator.js";
 
 // Place catalog media is curator-gated. This process is isolated per test file,
 // so user-1 is the catalog curator and user-2 is an ordinary member.
 process.env.PLACES_CURATOR_UIDS = "user-1";
+const photo = await sharp({ create: { width: 48, height: 24, channels: 3, background: "#34c981" } }).jpeg().toBuffer();
 
 function memoryRepository(): IMediaRepository & { rows: Map<string, MediaAsset> } {
   const rows = new Map<string, MediaAsset>();
@@ -53,12 +56,12 @@ function memoryRepository(): IMediaRepository & { rows: Map<string, MediaAsset> 
       row.status = "pending";
       return clone(row);
     },
-    async markVerified(id, size, verifiedAt) {
+    async markVerified(id, object, verifiedAt) {
       const row = rows.get(id)!;
       row.status = "ready";
-      row.file_size = size;
-      row.verified_at = verifiedAt;
+      Object.assign(row, object);
       row.upload_expires_at = null;
+      row.verified_at = verifiedAt;
       return clone(row);
     },
     async markFailed(id) {
@@ -132,19 +135,22 @@ test("direct upload: request → store object → confirm marks ready", async ()
     uid: "user-1",
     purpose: "profile",
     mimeType: "image/jpeg",
-    fileSize: 512,
+    fileSize: photo.length,
   });
 
   assert.equal(intent.asset.status, "pending");
   assert.equal(intent.asset.visibility, "private");
-  assert.match(intent.asset.object_key, /^profiles\/\d{4}-\d{2}\/.+\.jpg$/);
+  assert.match(intent.asset.object_key, /^uploads\/profiles\/\d{4}-\d{2}\/.+\.jpg$/);
   assert.match(intent.upload_url, /\/api\/media\/mock-upload\//);
 
-  adapter.store(intent.asset.object_key, new Uint8Array(512), "image/jpeg");
+  adapter.store(intent.asset.object_key, photo, "image/jpeg");
   const confirmed = await service.confirmUpload({ uid: "user-1", mediaId: intent.asset.id });
 
   assert.equal(confirmed.status, "ready");
-  assert.equal(confirmed.file_size, 512);
+  assert.equal(confirmed.file_size, (await adapter.stat(confirmed.object_key))?.size);
+  assert.equal(confirmed.mime_type, "image/webp");
+  assert.notEqual(confirmed.object_key, intent.asset.object_key);
+  assert.equal(await adapter.stat(intent.asset.object_key), null);
   assert.ok(confirmed.verified_at);
   assert.equal(repo.rows.get(confirmed.id)?.status, "ready");
 });
@@ -165,6 +171,29 @@ test("confirm without an uploaded object marks the asset failed", async () => {
 
   const rows = repo.rows.get(intent.asset.id);
   assert.equal(rows?.status, "failed");
+});
+
+test("matching headers cannot finalize a malformed image or replace verified content", async () => {
+  const { adapter, service } = makeService();
+  const broken = Buffer.alloc(photo.length, 0);
+  const request = () => service.requestUpload({
+    uid: "user-1", purpose: "profile", mimeType: "image/jpeg", fileSize: photo.length,
+  });
+  const invalid = await request();
+  adapter.store(invalid.asset.object_key, broken, "image/jpeg");
+  assert.equal(adapter.load(invalid.asset.object_key), null);
+  await assert.rejects(service.confirmUpload({ uid: "user-1", mediaId: invalid.asset.id }), /declared size or format/);
+  await assert.rejects(service.getDeliveryUrl({ uid: "user-1", mediaId: invalid.asset.id }), /not found/i);
+  assert.equal(await adapter.stat(invalid.asset.object_key), null);
+
+  const valid = await request();
+  adapter.store(valid.asset.object_key, photo, "image/jpeg");
+  const confirm = () => service.confirmUpload({ uid: "user-1", mediaId: valid.asset.id });
+  const [one, two] = await Promise.all([confirm(), confirm()]);
+  assert.equal(one.object_key, two.object_key);
+  assert.throws(() => adapter.store(one.object_key, broken, "image/jpeg"), /mock upload/);
+  const ready = await adapter.read(one.object_key, 1024);
+  assert.equal((await sharp(ready!).metadata()).format, "webp");
 });
 
 test("upload policy rejects unsupported types and oversized files", async () => {
@@ -293,15 +322,15 @@ test("place assets cannot be confirmed or deleted by a non-curator owner", async
 });
 
 test("profile delivery URL is signed/short-lived, place media is public", async () => {
-  const { adapter, service } = makeService();
+  const { repo, adapter, service } = makeService();
 
   const profileIntent = await service.requestUpload({
     uid: "user-1",
     purpose: "profile",
     mimeType: "image/jpeg",
-    fileSize: 64,
+    fileSize: photo.length,
   });
-  adapter.store(profileIntent.asset.object_key, new Uint8Array(64), "image/jpeg");
+  adapter.store(profileIntent.asset.object_key, photo, "image/jpeg");
   await service.confirmUpload({ uid: "user-1", mediaId: profileIntent.asset.id });
 
   const profileUrl = await service.getDeliveryUrl({
@@ -312,7 +341,14 @@ test("profile delivery URL is signed/short-lived, place media is public", async 
   assert.ok(profileUrl.expires_at);
   assert.equal(profileUrl.visibility, "private");
 
-  // Another authenticated user may view profile avatars (product behavior).
+  await assert.rejects(() => service.getDeliveryUrl({
+    uid: null, mediaId: profileIntent.asset.id,
+  }), /do not have access/);
+  await assert.rejects(() => service.getDeliveryUrl({
+    uid: "user-2", mediaId: profileIntent.asset.id,
+  }), /do not have access/);
+  // Linked avatars can render for other signed-in members.
+  await repo.linkToEntity(profileIntent.asset.id, { user_id: "user-1" });
   const otherUserUrl = await service.getDeliveryUrl({
     uid: "user-2",
     mediaId: profileIntent.asset.id,
@@ -327,11 +363,12 @@ test("public place delivery uses the CDN only when R2 and the CDN domain are con
       uid: "user-1",
       purpose: "place",
       mimeType: "image/jpeg",
-      fileSize: 64,
+      fileSize: photo.length,
     });
-    made.adapter.store(intent.asset.object_key, new Uint8Array(64), "image/jpeg");
-    await made.service.confirmUpload({ uid: "user-1", mediaId: intent.asset.id });
-    return { ...made, asset: intent.asset };
+    made.adapter.store(intent.asset.object_key, photo, "image/jpeg");
+    const asset = await made.service.confirmUpload({ uid: "user-1", mediaId: intent.asset.id });
+    assert.equal(intent.asset.bucket, overrides?.r2?.bucket ?? "mock-bucket");
+    return { ...made, asset };
   }
 
   const mock = await readyPlaceAsset({});
@@ -356,6 +393,7 @@ test("public place delivery uses the CDN only when R2 and the CDN domain are con
 
   const r2Cdn = await readyPlaceAsset({
     provider: "r2",
+    r2: { ...getMediaConfig().r2, bucket: "private", publicBucket: "catalog" },
     publicBaseUrl: "https://cdn.yalla.test",
     publicBaseUrlConfigured: true,
   });
@@ -382,13 +420,13 @@ test("resolveEntityImage links owned ready assets and rejects mismatched purpose
     uid: "user-1",
     purpose: "group",
     mimeType: "image/jpeg",
-    fileSize: 128,
+    fileSize: photo.length,
     entityId: null,
   });
   assert.equal(groupIntent.asset.status, "pending");
   assert.equal(groupIntent.asset.visibility, "private");
 
-  adapter.store(groupIntent.asset.object_key, new Uint8Array(128), "image/jpeg");
+  adapter.store(groupIntent.asset.object_key, photo, "image/jpeg");
   await service.confirmUpload({ uid: "user-1", mediaId: groupIntent.asset.id });
 
   const linked = await service.resolveEntityImage({
@@ -403,9 +441,9 @@ test("resolveEntityImage links owned ready assets and rejects mismatched purpose
     uid: "user-1",
     purpose: "profile",
     mimeType: "image/jpeg",
-    fileSize: 128,
+    fileSize: photo.length,
   });
-  adapter.store(profileIntent.asset.object_key, new Uint8Array(128), "image/jpeg");
+  adapter.store(profileIntent.asset.object_key, photo, "image/jpeg");
   await service.confirmUpload({ uid: "user-1", mediaId: profileIntent.asset.id });
 
   const stored = await service.resolveEntityImage({
@@ -450,7 +488,7 @@ test("existing http(s) image URLs pass through unchanged", async () => {
   );
 });
 
-test("cleanup removes expired pending and failed rows plus objects", async () => {
+test("cleanup removes expired pending and failed rows after upload capabilities expire", async () => {
   const { repo, service } = makeService();
   const pending = await service.requestUpload({
     uid: "user-1",
@@ -468,7 +506,51 @@ test("cleanup removes expired pending and failed rows plus objects", async () =>
   });
   await service.confirmUpload({ uid: "user-1", mediaId: failed.asset.id }).catch(() => null);
 
-  const { removed } = await service.cleanupExpired();
-  assert.equal(removed, 2);
+  assert.equal((await service.cleanupExpired()).removed, 1);
+  assert.ok(repo.rows.has(failed.asset.id));
+  repo.rows.get(failed.asset.id)!.upload_expires_at = new Date(Date.now() - 1000);
+  assert.equal((await service.cleanupExpired()).removed, 1);
   assert.equal(repo.rows.size, 0);
+});
+
+test("R2 capabilities target only the intended bucket and CDN paths are catalog-only", async () => {
+  const config = getMediaConfig({
+    R2_ACCOUNT_ID: "fixture", R2_ACCESS_KEY_ID: "fixture", R2_SECRET_ACCESS_KEY: "fixture",
+    R2_BUCKET_NAME: "private-fixture", R2_PUBLIC_BUCKET_NAME: "catalog-fixture",
+    R2_PUBLIC_BASE_URL: "https://cdn.yalla.test", MEDIA_UPLOAD_URL_TTL_SECONDS: "9999",
+    MEDIA_SIGNED_URL_TTL_SECONDS: "9999",
+  });
+  const repo = memoryRepository();
+  const service = new MediaService(repo, config);
+  const profile = await service.requestUpload({ uid: "user-1", purpose: "profile", mimeType: "image/png", fileSize: 8 });
+  const place = await service.requestUpload({ uid: "user-1", purpose: "place", mimeType: "image/png", fileSize: 8 });
+  const assertScope = (url: URL, bucket: string, key: string) => {
+    assert.equal(url.hostname, "fixture.r2.cloudflarestorage.com");
+    assert.equal(url.pathname, `/${bucket}/${key}`);
+  };
+  const put = new URL(profile.upload_url);
+  assertScope(put, "private-fixture", profile.asset.object_key);
+  assert.equal(put.searchParams.get("X-Amz-Expires"), "900");
+  assert.match(put.searchParams.get("X-Amz-SignedHeaders") ?? "", /content-length;content-type/);
+  assertScope(new URL(place.upload_url), "private-fixture", place.asset.object_key);
+  const privateRow = repo.rows.get(profile.asset.id)!;
+  privateRow.status = "ready";
+  privateRow.object_key = "profiles/2026-11/verified.webp";
+  const get = new URL((await service.getDeliveryUrl({ uid: "user-1", mediaId: privateRow.id })).url);
+  assertScope(get, "private-fixture", privateRow.object_key);
+  assert.equal(get.searchParams.get("X-Amz-Expires"), "300");
+  assert.equal(get.searchParams.get("response-cache-control"), "private, no-store");
+  assert.notEqual(get.searchParams.get("X-Amz-Signature"), put.searchParams.get("X-Amz-Signature"));
+  assert.equal(service.storageReferenceFor(privateRow), buildMediaReference(privateRow.id));
+  await assert.rejects(service.getDeliveryUrl({ uid: null, mediaId: privateRow.id }), /do not have access/);
+  assert.deepEqual(await service.getDeliveryUrls({ uid: "user-2", mediaIds: [privateRow.id] }), []);
+  const legacyPlaceRow = { ...place.asset, bucket: "private-fixture" };
+  assert.equal(service.storageReferenceFor(legacyPlaceRow), buildMediaReference(legacyPlaceRow.id));
+  const wrongKey = { ...place.asset, bucket: "catalog-fixture", object_key: privateRow.object_key };
+  await assert.rejects(service.deliveryUrlFor(wrongKey), /not found/i);
+  const direct = new R2StorageAdapter({
+    accountId: "fixture", accessKeyId: "fixture", secretAccessKey: "fixture",
+    bucket: "private-fixture",
+  });
+  assert.ok(await direct.createPresignedGetUrl({ key: profile.asset.object_key, ttlSeconds: 1 }));
 });

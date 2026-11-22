@@ -2,12 +2,14 @@ import type { NextFunction, Request, Response } from "express";
 import { getFirebaseAuth } from "../config/firebase.js";
 import { AppError, UnauthorizedError } from "../utils/errors.js";
 import { measure } from "../monitoring/context.js";
+import { isDeletedAccount } from "../services/users/account-deletion-access.js";
 
 type FirebaseDecodedToken = {
   uid: string;
   email?: string;
   name?: string;
   phone_number?: string;
+  exp?: number;
   firebase?: { sign_in_provider?: string };
 };
 
@@ -54,11 +56,15 @@ export function extractBearerToken(
   return token.length > 0 ? token : null;
 }
 
-export async function verifyAppSession(token: string): Promise<FirebaseDecodedToken> {
-  const decoded = await getFirebaseAuth().verifyIdToken(token, process.env.NODE_ENV === "production");
+export async function verifyAppSession(
+  token: string,
+  checkRevoked = process.env.NODE_ENV === "production",
+): Promise<FirebaseDecodedToken> {
+  const decoded = await getFirebaseAuth().verifyIdToken(token, checkRevoked);
   if (!["custom", "phone"].includes(decoded.firebase.sign_in_provider)) {
     throw new UnauthorizedError("Sign in with your verified phone");
   }
+  if (isDeletedAccount(decoded.uid)) throw new UnauthorizedError("Account deleted");
   return decoded;
 }
 

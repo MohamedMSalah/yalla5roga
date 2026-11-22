@@ -227,8 +227,8 @@ export function validateResponse(body: any): OsmElement[] {
 let nextRequestAt = 0;
 export async function fetchOverpass(query: string): Promise<OsmElement[]> {
   const endpoints = (
-    process.env.OSM_OVERPASS_URLS ??
-    process.env.OSM_OVERPASS_URL ??
+    process.env.OSM_OVERPASS_URLS?.trim() ||
+    process.env.OSM_OVERPASS_URL?.trim() ||
     "https://overpass-api.de/api/interpreter,https://overpass.private.coffee/api/interpreter"
   )
     .split(",")
@@ -259,7 +259,7 @@ export async function fetchOverpass(query: string): Promise<OsmElement[]> {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": process.env.OSM_USER_AGENT ?? "Yalla5roga-Places/1.0",
+          "User-Agent": process.env.OSM_USER_AGENT?.trim() || "Yalla5roga-Places/1.0",
         },
         body: new URLSearchParams({ data: query }),
         signal: AbortSignal.timeout(150_000),

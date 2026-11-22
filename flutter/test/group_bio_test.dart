@@ -28,7 +28,9 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text('Existing bio'), findsOneWidget);
-    expect(find.text(l10n.editGroupBio), findsNothing);
+    await tester.tap(find.text(l10n.groupBio));
+    await tester.pumpAndSettle();
+    expect(find.byType(TextFormField), findsNothing);
   });
 
   testWidgets(
@@ -58,7 +60,7 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.editGroupBio));
+      await tester.tap(find.text(l10n.groupBio));
       await tester.pumpAndSettle();
       expect(find.text('Existing bio'), findsOneWidget);
       await tester.enterText(find.byType(TextFormField), '  New bio  ');

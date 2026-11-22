@@ -1,5 +1,4 @@
 /** Phase 2: OpenAPI-driven, read-only HTTP contract verification. No workers or fixtures. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";

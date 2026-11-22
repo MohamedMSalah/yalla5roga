@@ -1,4 +1,3 @@
-import { FirebaseError } from "firebase/app";
 import {
   AppError,
   ConflictError,
@@ -7,13 +6,11 @@ import {
 } from "../../utils/errors.js";
 
 export function mapFirebaseAuthError(error: unknown): Error {
-  if (!(error instanceof FirebaseError) && !isAuthCodedError(error)) {
+  if (!isAuthCodedError(error)) {
     return error instanceof Error ? error : new Error(String(error));
   }
 
-  const code = readCode(error);
-
-  switch (code) {
+  switch (error.code) {
     case "auth/email-already-in-use":
     case "auth/email-already-exists":
       return new ConflictError("An account with this email already exists");
@@ -51,8 +48,4 @@ function isAuthCodedError(
     typeof (error as { code: unknown }).code === "string" &&
     (error as { code: string }).code.startsWith("auth/")
   );
-}
-
-function readCode(error: { code: string } | FirebaseError): string {
-  return error.code;
 }

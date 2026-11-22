@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart'
 import 'package:yalla_5roga/core/config/app_config.dart';
 
 /// Platform Firebase options. Client identifiers come from [AppConfig]
-/// (`--dart-define-from-file=.env`). Do not hardcode API keys here.
+/// through the repository's allowlisted Dart define build commands.
 ///
 /// Native builds still need `google-services.json` / `GoogleService-Info.plist`.
 class DefaultFirebaseOptions {

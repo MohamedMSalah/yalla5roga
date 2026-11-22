@@ -6,6 +6,10 @@
 | Documentation version | 1.0.0 |
 | Needs verification | Production deployment topology; distributed rate limiting; CDN/image hosting |
 
+## Environment and Android release workflow (2026-11-23)
+
+The two primary root profiles, `.env.device` and `.env.production`, deliberately share cloud-service credentials and monitoring settings. Device selects the LAN API; production requires its deployed HTTPS API for APK builds. The launchers warn on shared development and suppress automatic mutation/cleanup workers there; explicit API actions can still change live data. Production retains its normal workers. Startup never deploys migrations. Android device/production flavors share the existing Firebase application ID and release signer; only device permits HTTP. Build scripts pass a temporary allowlisted client JSON, never the backend profile, and generate independent Release ABI splits. See [environment configuration](development/ENVIRONMENT_CONFIGURATION.md) for the current missing credentials and verification limits. The component topology diagrams are unchanged.
+
 ## 1. Major components
 
 | Component | Location | Role |
@@ -56,6 +60,7 @@ flowchart TB
     FAuth[Firebase Auth]
     FCM[FCM]
     WA[WhatsApp API]
+    R2[Private media and public catalog R2 buckets]
   end
 
   UI --> Providers --> Repos --> Dio --> Express
@@ -76,6 +81,8 @@ flowchart TB
   Svc --> FAuth
   Jobs --> FCM
   Jobs --> WA
+  Jobs -->|Account media deletion| R2
+  Svc -->|Presign object operations| R2
   Express --> Observability
   DS --> Observability
   IO --> Observability
@@ -203,7 +210,7 @@ Neon holds all durable application state. See [`DATABASE_ARCHITECTURE.md`](DATAB
 | Firebase Auth | Sign-in, ID tokens | App domain data |
 | FCM | Push delivery | Business decisions |
 | WhatsApp | Group invite messages (when configured) | Chat |
-| Cloudflare R2 + CDN | Image binaries, presigned PUT/GET, public place images | Application data (Neon remains authoritative) |
+| Cloudflare R2 + CDN | Private staged uploads and private signed delivery. Verified curator place images can use a separate public bucket and CDN. | Application data (Neon remains authoritative) |
 | OSM tiles and optional geocoder | Shared Flutter map loads OSM tiles. The backend brokers configured autocomplete and reverse lookup. | Cached catalog search and manual pins remain available |
 
 ## 9. Dependencies Flutter ↔ Backend

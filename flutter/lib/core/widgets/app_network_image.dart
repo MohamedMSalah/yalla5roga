@@ -251,8 +251,10 @@ class _MediaNetworkImageState extends State<_MediaNetworkImage> {
       setState(() => _entry = cached);
     }
     final entry = await resolver.resolve(assetId);
-    if (!mounted || resolver.currentUserId != uid) return;
-    if (entry != null && entry.url != _entry?.url) {
+    if (!mounted || resolver.currentUserId != uid || _assetId != assetId) {
+      return;
+    }
+    if (entry?.url != _entry?.url) {
       setState(() => _entry = entry);
     }
   }
@@ -273,7 +275,7 @@ class _MediaNetworkImageState extends State<_MediaNetworkImage> {
       return;
     }
     final entry = resolver.peek(assetId);
-    if (entry != null && entry.url != _entry?.url) {
+    if (entry?.url != _entry?.url) {
       setState(() => _entry = entry);
     }
   }
@@ -284,9 +286,12 @@ class _MediaNetworkImageState extends State<_MediaNetworkImage> {
     final resolver = _resolver;
     final assetId = _assetId;
     if (resolver == null || assetId == null) return;
+    final uid = resolver.currentUserId;
     unawaited(() async {
       final entry = await resolver.revalidate(assetId);
-      if (!mounted || entry == null) return;
+      if (!mounted || _assetId != assetId || resolver.currentUserId != uid) {
+        return;
+      }
       setState(() => _entry = entry);
     }());
   }

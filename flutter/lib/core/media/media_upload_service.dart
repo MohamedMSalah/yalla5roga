@@ -1,25 +1,21 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
+import 'package:yalla_5roga/core/media/image_optimizer.dart';
 import 'package:yalla_5roga/core/media/media_reference.dart';
 import 'package:yalla_5roga/core/media/media_url_store.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
 
+export 'package:yalla_5roga/core/media/image_optimizer.dart'
+    show MediaUploadException;
+
 /// Backend media purposes. The wire value is the enum name.
 enum MediaPurpose { profile, group, outing, place, chat }
 
-/// Raised when a local image cannot be uploaded (unsupported type, too large,
-/// network failure, or a failed confirm).
-class MediaUploadException implements Exception {
-  const MediaUploadException(this.message);
+enum MediaUploadStage { compressing, uploading, verifying }
 
-  final String message;
-
-  @override
-  String toString() => 'MediaUploadException: $message';
-}
+typedef MediaUploadProgress = ({MediaUploadStage stage, double? fraction});
 
 /// Result of a successful direct upload.
 class UploadedMedia {
@@ -35,12 +31,13 @@ class UploadedMedia {
 }
 
 /// Uploads local image files directly to Cloudflare R2 (or the backend mock
-/// storage in local development), bypassing the API/Neon for bytes.
+/// storage in local development). The API validates the staged object before
+/// making its stable reference available to the app.
 ///
 /// Flow per file:
 /// 1. `POST /api/media/upload-url` → pending asset + presigned PUT URL.
 /// 2. `PUT` the bytes straight to object storage (no Firebase header).
-/// 3. `POST /api/media/:id/confirm` → backend HEADs the object before `ready`.
+/// 3. `POST /api/media/:id/confirm` → validate and publish a server-owned object.
 /// 4. Return the stable `media://<id>` reference to persist on the entity.
 class MediaUploadService {
   MediaUploadService({
@@ -48,7 +45,17 @@ class MediaUploadService {
     Dio? storageDio,
     this.apiBaseUrl,
     this.maxUploadBytes = 10 * 1024 * 1024,
-  }) : _storageDio = storageDio ?? Dio();
+    this.optimizer = const ImageOptimizer(),
+  }) : _storageDio =
+           storageDio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 10),
+               sendTimeout: const Duration(seconds: 30),
+               receiveTimeout: const Duration(seconds: 15),
+               followRedirects: false,
+             ),
+           );
 
   static const Set<String> supportedMimeTypes = {
     'image/jpeg',
@@ -61,6 +68,19 @@ class MediaUploadService {
   final Dio _storageDio;
   final String? apiBaseUrl;
   final int maxUploadBytes;
+  final ImageOptimizer optimizer;
+  final _progress = ValueNotifier<MediaUploadProgress?>(null);
+  ValueListenable<MediaUploadProgress?> get progress => _progress;
+  final _operations = <Object, MediaUploadProgress>{};
+
+  void _setProgress(
+    Object operation,
+    MediaUploadStage stage, [
+    double? fraction,
+  ]) {
+    _operations[operation] = (stage: stage, fraction: fraction);
+    _progress.value = _operations.values.last;
+  }
 
   /// Uploads [path] and returns the media reference to send on create/update.
   ///
@@ -73,39 +93,38 @@ class MediaUploadService {
     String? entityId,
     String? mediaId,
   }) async {
-    final file = File(path);
-    if (!await file.exists()) {
-      throw const MediaUploadException('Selected image no longer exists');
-    }
-    final size = await file.length();
-    if (size <= 0) {
-      throw const MediaUploadException('Selected image is empty');
-    }
-    if (size > maxUploadBytes) {
-      throw const MediaUploadException('Selected image is too large');
-    }
-    final mimeType = mediaMimeTypeForPath(path);
-    if (mimeType == null || !supportedMimeTypes.contains(mimeType)) {
-      throw const MediaUploadException('Unsupported image format');
-    }
-
+    final operation = Object();
     String? assetId = mediaId;
     var confirmed = false;
     try {
+      _setProgress(operation, MediaUploadStage.compressing);
+      final optimized = await optimizer.optimize(
+        path,
+        maxBytes: maxUploadBytes,
+      );
+      final bytes = optimized.bytes;
+      final mimeType = optimized.mimeType;
+      _setProgress(operation, MediaUploadStage.uploading, 0);
       final intent = await _requestUpload(
         purpose: purpose,
         mimeType: mimeType,
-        fileSize: size,
+        fileSize: bytes.length,
         entityId: entityId,
         mediaId: mediaId,
       );
       assetId = intent.mediaId;
       final uploadUrl = _reachableStorageUrl(intent.uploadUrl);
 
-      final bytes = await file.readAsBytes();
       final uploadResponse = await _storageDio.put<void>(
         uploadUrl,
         data: bytes,
+        onSendProgress: (sent, total) {
+          _setProgress(
+            operation,
+            MediaUploadStage.uploading,
+            total > 0 ? sent / total : null,
+          );
+        },
         options: Options(
           headers: {
             Headers.contentTypeHeader: mimeType,
@@ -121,6 +140,7 @@ class MediaUploadService {
         throw const MediaUploadException('Storage rejected the upload');
       }
 
+      _setProgress(operation, MediaUploadStage.verifying);
       final confirmedAsset = await _confirmUpload(assetId);
       confirmed = true;
       final visibility =
@@ -135,9 +155,11 @@ class MediaUploadService {
       rethrow;
     } on DioException catch (error) {
       throw MediaUploadException(_dioMessage(error));
-    } catch (error) {
-      throw MediaUploadException('$error');
+    } catch (_) {
+      throw const MediaUploadException('Image upload could not be completed');
     } finally {
+      _operations.remove(operation);
+      _progress.value = _operations.values.lastOrNull;
       // Orphan cleanup: a failed upload must not leave a pending row behind.
       if (!confirmed && assetId != null) {
         await _bestEffortDelete(assetId);

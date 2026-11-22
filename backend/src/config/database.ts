@@ -31,6 +31,9 @@ function connectionString(raw: string | undefined): string | undefined {
   if (!params.has("sslmode")) {
     params.set("sslmode", "require");
   }
+  if (!params.has("connection_limit")) params.set("connection_limit", "5");
+  if (!params.has("connect_timeout")) params.set("connect_timeout", "10");
+  if (!params.has("pool_timeout")) params.set("pool_timeout", "10");
 
   const query = params.toString();
   return query.length > 0 ? `${base}?${query}` : base;

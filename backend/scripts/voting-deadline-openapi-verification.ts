@@ -1,5 +1,4 @@
 /** HTTP/OpenAPI only; disposable PostgreSQL schema and controlled Firebase verifier. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {readFileSync,readdirSync,writeFileSync} from "node:fs";

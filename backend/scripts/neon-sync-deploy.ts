@@ -1,5 +1,4 @@
 /** Verify the configured Neon target; --apply deploys only reviewed, row-preserving migrations. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { Client } from "pg";
 import { createHash, randomUUID } from "node:crypto";

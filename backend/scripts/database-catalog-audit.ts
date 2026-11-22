@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { Client } from "pg";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";

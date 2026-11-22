@@ -141,10 +141,9 @@ Tests: `flutter/test/` (execution depends on task restrictions). Root `AGENTS.md
 
 | Concern | Path |
 |---------|------|
-| Emulator env (default) | `flutter/.env` via `--dart-define-from-file=.env` (`API_BASE_URL=http://10.0.2.2:3000`) |
-| Device env (gitignored) | `flutter/.env.device` — generated; use launch config **Yalla 5roga (physical device)** |
-| Device env example | `flutter/.env.device.example` |
-| Root IDE launch | `.vscode/launch.json` — **Yalla 5roga (dev)** / **(physical device)**; must pass `--dart-define-from-file` (do not use a bare `flutter` launch) |
+| Device configuration | Ignored repository-root `.env.device`. Use `pnpm dev:device` and `pnpm build:apk:device`. |
+| Production configuration | Ignored repository-root `.env.production`. Use `pnpm start:production` and `pnpm build:apk:production`. |
+| Configuration guide | [Environment variables](development/ENVIRONMENT_CONFIGURATION.md) and [service setup](SERVICE_SETUP_GUIDE.md). |
 | Flutter IDE launch | `flutter/.vscode/launch.json` — same configs when the Flutter folder is the workspace |
 | LAN IP helper | `scripts/dev-physical-android.ps1` (`-PrepareOnly` or full `flutter run`) |
 | Debug cleartext HTTP | `flutter/android/app/src/debug/AndroidManifest.xml` (`usesCleartextTraffic`) |

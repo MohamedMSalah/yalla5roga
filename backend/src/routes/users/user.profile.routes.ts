@@ -58,27 +58,29 @@ import {
  *   delete:
  *     tags: [Users]
  *     summary: Delete the authenticated user
- *     description: Deletes the profile that belongs to the Firebase UID on the Bearer token.
+ *     description: Removes the caller's profile and queues Firebase and object cleanup.
  *     operationId: deleteCurrentUser
  *     responses:
- *       "200":
- *         description: Deleted profile
+ *       "202":
+ *         description: Account deletion accepted
  *         content:
  *           application/json:
  *             schema:
- *               $ref: "#/components/schemas/UserResponse"
+ *               type: object
+ *               required: [success, data]
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   required: [status]
+ *                   properties:
+ *                     status: { type: string, enum: [accepted] }
  *       "401":
  *         $ref: "#/components/responses/Unauthorized"
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "500":
  *         $ref: "#/components/responses/InternalServerError"
- *       "409":
- *         description: The profile is still referenced by application records
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
  * /api/users:
  *   get:
  *     tags: [Users]
@@ -159,12 +161,20 @@ import {
  *     parameters:
  *       - $ref: "#/components/parameters/UserId"
  *     responses:
- *       "200":
- *         description: Deleted profile
+ *       "202":
+ *         description: Account deletion accepted
  *         content:
  *           application/json:
  *             schema:
- *               $ref: "#/components/schemas/UserResponse"
+ *               type: object
+ *               required: [success, data]
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   required: [status]
+ *                   properties:
+ *                     status: { type: string, enum: [accepted] }
  *       "400":
  *         $ref: "#/components/responses/BadRequest"
  *       "401":

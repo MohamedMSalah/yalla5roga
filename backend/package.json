@@ -4,21 +4,23 @@
   "description": "Yalla 5roga Express API",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "pnpm dev:device",
     "postinstall": "prisma generate",
     "build": "prisma generate && tsc",
-    "start": "node dist/server.js",
+    "start": "pnpm start:production",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "prisma:migrate": "node ../scripts/project-command.mjs device prisma migrate dev",
+    "db:deploy": "node ../scripts/project-command.mjs production prisma migrate deploy",
     "test": "tsx --test --import ./tests/support/isolated-database.ts tests/*.test.ts",
-    "test:contract": "tsx --test tests/observability*.test.ts",
+    "test:contract": "tsx --test --import ./tests/support/isolated-database.ts tests/observability*.test.ts tests/production-boundaries.test.ts tests/release-boundaries.test.ts tests/account-deletion.test.ts tests/media.service.test.ts",
     "benchmark:http": "tsx scripts/benchmark-http.ts",
     "benchmark:database": "tsx scripts/benchmark-outing-access.ts",
     "load:local": "tsx scripts/run-local-load.ts",
     "audit:routes": "tsx scripts/audit-api-consumers.ts",
-    "places:sync": "tsx src/cli/places-sync.ts"
+    "places:sync": "node ../scripts/project-command.mjs device tsx src/cli/places-sync.ts",
+    "dev:device": "node --import ../scripts/device-environment.mjs node_modules/tsx/dist/cli.mjs watch src/server.ts",
+    "start:production": "node --import ../scripts/production-environment.mjs dist/server.js"
   },
   "keywords": [],
   "author": "Yalla 5roga",
@@ -35,14 +37,14 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1166.0",
     "@aws-sdk/s3-request-presigner": "^3.1166.0",
+    "@firebase/app": "0.16.2",
+    "@firebase/auth": "1.13.6",
     "@prisma/client": "^6.19.1",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
-    "dotenv": "^18.0.3",
     "express": "^5.2.1",
     "express-validator": "^7.3.2",
-    "firebase": "^12.19.0",
     "firebase-admin": "^14.5.0",
     "joi": "^18.3.1",
     "jsonwebtoken": "^9.0.3",
@@ -50,6 +52,7 @@
     "pg": "^8.23.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
+    "sharp": "0.35.5",
     "socket.io": "^4.8.4",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
@@ -71,5 +74,8 @@
     "socket.io-client": "^4.8.4",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

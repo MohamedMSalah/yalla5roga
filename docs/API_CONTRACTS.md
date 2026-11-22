@@ -1,5 +1,9 @@
 # Yalla 5roga — API Contracts
 
+## Account deletion
+
+`DELETE /api/users/cuser` and self-scoped `DELETE /api/users/:id` return HTTP 202 with `{"success":true,"data":{"status":"accepted"}}` after the database transaction commits. The path UID must match the Bearer UID. After acceptance, old credentials receive 401 and overlapping valid requests cannot create a second job. An unknown profile returns 404. The app signs out on acceptance while the server finishes Firebase and R2 cleanup independently. [Retention and retry details](SYSTEM_DESIGN.md#coordinated-account-deletion)
+
 | Metadata | Value |
 |----------|-------|
 | Last verified | 2026-11-09 |
@@ -172,7 +176,7 @@ All routes require `Authorization: Bearer <Firebase ID token>`. Binaries never p
 | Method | Path | Auth | Purpose |
 |--------|------|------|---------|
 | POST | `/api/media/upload-url` | Yes | Create or re-issue an upload intent. Body: `purpose` (`profile`\|`group`\|`outing`\|`place`\|`chat`), `mime_type`, `file_size`, optional `entity_id`, optional `media_id` (pending retry). Returns `media_id`, `object_key`, `visibility`, `status`, `upload_url`, `upload_expires_at`. |
-| POST | `/api/media/:id/confirm` | Yes | Verify the object exists in storage (HEAD) and mark the asset `ready`. Missing object → `409`, asset marked `failed`. |
+| POST | `/api/media/:id/confirm` | Yes | Validate the private staging object's contents, then publish a server-owned delivery key and mark the asset `ready`. Missing or expired upload → `409`. Invalid image → `400`. |
 | POST | `/api/media/signed-urls` | Yes | Batch resolve up to 50 ids. Body `{ media_ids: [...] }`. Returns `data: [{ media_id, url, visibility, expires_at }]` for assets the caller may view. |
 | GET | `/api/media/:id/url` | Yes | Resolve one asset to a delivery URL after the same access check. |
 | DELETE | `/api/media/:id` | Yes | Delete an owned asset (also used to clean up a failed upload). |
@@ -183,7 +187,7 @@ Delivery policy:
 - `profile`, `group`, `outing`, `chat` → `visibility=private`. Delivery uses a short-lived signed GET URL (`expires_at` set); the client must never persist it as the entity value or as the image-cache identity.
 - View authorization: profile avatars are visible to any authenticated user; group/outing/chat media require membership/participant checks; public assets require authentication. Ownership mismatch returns `404` for confirm/delete to avoid leaking asset existence.
 - Upload authorization: `profile` = self; `group`/`outing` with `entity_id` = group owner/outing creator (entity-less covers are allowed before creation and authorized when attached); `chat` requires an outing id and participant eligibility; `place` mutations are gated by the catalog APIs.
-- Failed uploads, expired presigned URLs, and abandoned pending rows are handled by confirm failure + `media-cleanup.job.ts` (deletes storage object and row). The cleanup job also removes failed assets.
+- Failed uploads are removed after rejection and the cleanup job reaps expired or abandoned rows and objects. An R2 lifecycle rule on the private `uploads/` prefix catches any staged object replayed within a valid PUT window. The ready key is outside the staging prefix.
 - Entity integration: create/update payloads accept `image_url` as an absolute http(s) URL or `media://<uuid>`; local file paths are rejected. The Flutter client uploads first, then sends the reference. Response fields remain plain strings for backward compatibility.
 
 Flutter: `ApiConstants.mediaUploadUrl`, `mediaSignedUrls`, `mediaConfirm`, `mediaAssetUrl`, `mediaDelete`; `core/media/` owns reference parsing, upload, URL resolution/caching and account-scoped eviction.

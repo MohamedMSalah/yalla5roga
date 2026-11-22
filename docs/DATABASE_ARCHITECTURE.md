@@ -16,7 +16,7 @@ Neon PostgreSQL is the **only** application data store. Firebase is not an app d
 erDiagram
   users {
     string id PK "Firebase UID"
-    string phone UK "Required E.164 number"
+    string phone UK "E.164 for real accounts"
   }
   users ||--o{ password_recoveries : authorizes_reset
   users ||--o{ groups : creates
@@ -49,6 +49,7 @@ erDiagram
   places ||--o{ place_prices : prices
   places ||--o{ place_hours : hours
   notification_events ||--o{ notification_delivery_logs : logs
+  account_deletions ||--o{ account_deletion_media : queues
 ```
 
 ## 2. Tables
@@ -65,6 +66,10 @@ The stable Firebase UID is the primary key. The unique E.164 phone is the lookup
 | `password_hash` | `VarChar(255)?` | bcrypt credential for phone/password login. A legacy row may have no hash. |
 | `image_url` | `VarChar(2048)?` | |
 | `created_at` / `updated_at` | timestamptz | defaults / `@updatedAt` |
+
+### Account deletion journal
+
+`account_deletions` is keyed by the SHA-256 digest of the UID. It tracks the pending Firebase UID, disable time, retry schedule and completion. `account_deletion_media` stores pending object keys, buckets and purge deadlines and references the journal. A PostgreSQL trigger prevents a deleted UID from being reinserted. The single historical identity uses reserved phone `+0` and has no credential. Real profiles still require an E.164 number.
 
 ### `groups`
 

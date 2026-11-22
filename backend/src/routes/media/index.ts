@@ -1,8 +1,9 @@
-import { Router } from "express";
+import { raw, Router } from "express";
 import { mountRoutes } from "../../monitoring/routes.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { getMediaConfig } from "../../config/media.js";
 import { getMockStorageAdapter } from "../../services/media/mock-storage.adapter.js";
+import { imageMimeTypes } from "../../services/media/image-optimization.js";
 import { NotFoundError, ValidationError } from "../../utils/errors.js";
 import mediaRoutes from "./media.routes.js";
 
@@ -18,25 +19,20 @@ function createMockStorageRoutes(): Router {
   const adapter = getMockStorageAdapter(getMediaConfig().mockBaseUrl);
   const mockRoutes = Router();
 
-  mockRoutes.put("/mock-upload/:key", (req, res, next) => {
-    const chunks: Buffer[] = [];
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => {
-      try {
-        const key = decodeURIComponent(req.params.key as string);
-        const bytes = new Uint8Array(Buffer.concat(chunks));
-        adapter.store(key, bytes, (req.headers["content-type"] as string) ?? null);
-        res.status(200).json({ success: true, data: { key, size: bytes.byteLength } });
-      } catch (error) {
-        next(new ValidationError((error as Error).message));
-      }
-    });
-    req.on("error", next);
+  mockRoutes.put("/mock-upload/:key", raw({ type: imageMimeTypes, limit: getMediaConfig().maxUploadBytes, inflate: false }), (req, res, next) => {
+    try {
+      if (!Buffer.isBuffer(req.body)) throw new Error();
+      const key = req.params.key as string;
+      adapter.store(key, req.body, req.get("Content-Type") ?? null);
+      res.status(200).json({ success: true, data: { key, size: req.body.byteLength } });
+    } catch {
+      next(new ValidationError("Invalid or expired image upload"));
+    }
   });
 
   mockRoutes.get("/mock-download/:key", (req, res, next) => {
     try {
-      const key = decodeURIComponent(req.params.key as string);
+      const key = req.params.key as string;
       const object = adapter.load(key);
       if (!object) throw new NotFoundError("Media object");
       res.setHeader("Content-Type", object.contentType ?? "application/octet-stream");

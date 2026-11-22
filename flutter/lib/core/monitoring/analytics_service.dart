@@ -24,8 +24,12 @@ class AnalyticsService {
 
   Future<void> initialize() async {
     if (_ready) return;
-    await _analytics.setAnalyticsCollectionEnabled(true);
-    _ready = true;
+    const collect = bool.fromEnvironment(
+      'FIREBASE_TELEMETRY_ENABLED',
+      defaultValue: true,
+    );
+    await _analytics.setAnalyticsCollectionEnabled(collect);
+    _ready = collect;
   }
 
   Future<void> setUserId(String? userId) async {

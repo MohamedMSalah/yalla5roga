@@ -1,5 +1,4 @@
 /** OpenAPI-driven HTTP verification. No fixtures, credentials, workers or data mutations. */
-import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import app from "../src/app.js";

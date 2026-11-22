@@ -2,9 +2,8 @@ import 'package:flutter/foundation.dart';
 
 /// Compile-time client configuration.
 ///
-/// Values come from `--dart-define` / `--dart-define-from-file`, not from
-/// runtime `.env` parsing. That is convenient for **non-secret** settings
-/// (API host, timeouts, feature flags) and Firebase *client* identifiers.
+/// Repository build commands pass only allowlisted, compile-time Dart defines.
+/// These contain non-secret settings and Firebase client identifiers.
 /// It is **not** secure storage: anything compiled into the app can be
 /// extracted from the binary.
 ///
@@ -45,7 +44,7 @@ enum AppEnvironment {
   }
 }
 
-/// Firebase *client* identifiers loaded from dart-define / `.env`.
+/// Firebase client identifiers loaded from individual Dart defines.
 ///
 /// These are not Admin SDK secrets, but they still must not be committed.
 /// Restrict them by app + SHA/bundle ID in Google Cloud.
@@ -107,8 +106,8 @@ class FirebaseClientConfig {
   static void _require(String name, String value) {
     if (value.trim().isEmpty) {
       throw AppConfigException(
-        '$name is required. Set it in .env and pass '
-        '--dart-define-from-file=.env.',
+        '$name is required. Set it in the selected root environment file '
+        'and use the repository build command.',
       );
     }
   }
@@ -188,7 +187,7 @@ class AppConfig {
     );
   }
 
-  /// Reads `--dart-define` / `--dart-define-from-file` values.
+  /// Reads individual compile-time Dart defines.
   factory AppConfig.fromEnvironment({bool debugMode = kDebugMode}) {
     const rawEnv = String.fromEnvironment('APP_ENV');
     const rawApiBaseUrl = String.fromEnvironment('API_BASE_URL');
@@ -232,7 +231,7 @@ class AppConfig {
     if (rawEnv.isEmpty && !debugMode) {
       throw const AppConfigException(
         'APP_ENV is required outside debug builds. '
-        'Pass --dart-define-from-file=.env or --dart-define=APP_ENV=production.',
+        'Use the repository build command for the selected environment.',
       );
     }
 
@@ -255,8 +254,8 @@ class AppConfig {
       osmTileUrlTemplate: rawOsmTileUrl.trim().isEmpty
           ? defaultOsmTileUrlTemplate
           : rawOsmTileUrl.trim(),
-      osmDarkTileUrlTemplate: darkCredit.trim().isEmpty ||
-              !darkTiles.startsWith('https://')
+      osmDarkTileUrlTemplate:
+          darkCredit.trim().isEmpty || !darkTiles.startsWith('https://')
           ? null
           : darkTiles.trim(),
       osmDarkTileAttribution: darkCredit.trim(),
@@ -309,7 +308,7 @@ class AppConfig {
     if (url.isEmpty) {
       throw const AppConfigException(
         'API_BASE_URL is required. '
-        'Set it in .env and pass --dart-define-from-file=.env.',
+        'Set it in the selected root environment file.',
       );
     }
 

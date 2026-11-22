@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Application, RequestHandler } from "express";
 import { prisma } from "../config/database.js";
-import { enabled, healthTtlMs, isolatedTestTarget } from "./config.js";
+import { enabled, environment, healthTtlMs, isolatedTestTarget } from "./config.js";
 import { jobHealth } from "./jobs.js";
 import { collect, metricsText } from "./metrics.js";
 
@@ -65,7 +65,9 @@ export function installHealth(app: Application) {
   });
   app.get("/health/ready", async (_req, res) => {
     const runtimeReady = dependencies.server === "ready" && dependencies.firebase === "ready" &&
-      dependencies.firebase_client === "ready" && dependencies.socket === "ready";
+      dependencies.firebase_client === "ready" && dependencies.socket === "ready" &&
+      dependencies.jobs === "ready" &&
+      (environment !== "production" || dependencies.r2_private === "ready");
     // Bound the HTTP wait without issuing a second query while the probe is pending.
     const dbReady = runtimeReady && await new Promise<boolean>(resolve => {
       const timeout = setTimeout(() => resolve(false), 2500);

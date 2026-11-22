@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database.js";
+import type { VerifiedMediaObject } from "../../repositories/media/i-media.repository.js";
 import type {
   CreateUploadInput,
   MediaAsset,
@@ -28,17 +29,17 @@ export class MediaDatasource {
    */
   refreshUploadExpiry(id: string, uploadExpiresAt: Date): Promise<MediaAsset> {
     return prisma.media_assets.update({
-      where: { id },
+      where: { id, status: "pending" },
       data: { upload_expires_at: uploadExpiresAt, status: "pending" },
     });
   }
 
-  markVerified(id: string, fileSize: number, verifiedAt: Date): Promise<MediaAsset> {
+  markVerified(id: string, object: VerifiedMediaObject, verifiedAt: Date): Promise<MediaAsset> {
     return prisma.media_assets.update({
-      where: { id },
+      where: { id, status: "pending", upload_expires_at: { gt: verifiedAt } },
       data: {
+        ...object,
         status: "ready",
-        file_size: fileSize,
         verified_at: verifiedAt,
         upload_expires_at: null,
       },
@@ -47,8 +48,8 @@ export class MediaDatasource {
 
   markFailed(id: string): Promise<MediaAsset> {
     return prisma.media_assets.update({
-      where: { id },
-      data: { status: "failed", upload_expires_at: null },
+      where: { id, status: "pending" },
+      data: { status: "failed" },
     });
   }
 
@@ -87,7 +88,7 @@ export class MediaDatasource {
   /** Failed rows ready for object + row cleanup. */
   findFailed(limit: number): Promise<MediaAsset[]> {
     return prisma.media_assets.findMany({
-      where: { status: "failed" },
+      where: { status: "failed", OR: [{ upload_expires_at: null }, { upload_expires_at: { lt: new Date() } }] },
       take: limit,
       orderBy: { updated_at: "asc" },
     });

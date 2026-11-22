@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { prisma } from "../config/database.js";
 import {
   synchronizePlaces,

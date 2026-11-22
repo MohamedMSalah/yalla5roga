@@ -1,14 +1,18 @@
-import type { IUserRepository } from "../../repositories/users/i-user.repository.js";
-import { UserRepository } from "../../repositories/users/user.repository.js";
-import type { User } from "../../types/users/user.types.js";
-import { NotFoundError } from "../../utils/errors.js";
+import { recordAccountDeletion } from "../../datasources/users/account-deletion.datasource.js";
+import { rememberDeletedAccounts } from "../../services/users/account-deletion-access.js";
+import { getChatIo } from "../../realtime/chat-emitter.js";
+import { publishGroupChange, publishOutingChange } from "../../realtime/data-changes.js";
+import { userRealtimeRoom } from "../../realtime/rooms.js";
+import { errorCode, logger } from "../../monitoring/logger.js";
 
 export class DeleteUserUseCase {
-  constructor(private readonly users: IUserRepository = new UserRepository()) {}
-
-  async execute(id: string): Promise<User> {
-    const existing = await this.users.findById(id);
-    if (!existing) throw new NotFoundError("User");
-    return this.users.delete(id);
+  async execute(uid: string): Promise<void> {
+    const { accountKey, groups, outings } = await recordAccountDeletion(uid);
+    rememberDeletedAccounts([accountKey]);
+    getChatIo()?.in(userRealtimeRoom(uid)).disconnectSockets(true);
+    void Promise.all([
+      ...groups.map(id => publishGroupChange(id, "membership")),
+      ...outings.map(id => publishOutingChange(id)),
+    ]).catch(error => logger.warn({ errorCode: errorCode(error) }, "Account deletion invalidation failed"));
   }
 }

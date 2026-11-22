@@ -4,7 +4,6 @@
 import { createServer } from "node:http";
 import { io, type Socket } from "socket.io-client";
 import { attachRealtime } from "../src/realtime/socket-server.js";
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomUUID, randomInt } from "node:crypto";
 import { writeFileSync } from "node:fs";

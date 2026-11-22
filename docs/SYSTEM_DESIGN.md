@@ -1,5 +1,30 @@
 # Yalla 5roga — System Design
 
+## Coordinated account deletion
+
+```mermaid
+sequenceDiagram
+  participant Client as Flutter
+  participant API as Express REST and Socket.IO
+  participant DB as PostgreSQL
+  participant Worker as Account deletion job
+  participant Firebase as Firebase Auth
+  participant R2 as Cloudflare R2
+  Client->>API: Delete own account
+  API->>DB: Atomically redact history, remove profile, record cleanup
+  DB-->>API: Committed
+  API->>API: Deny old UID and disconnect sockets
+  API-->>Client: 202 accepted
+  Worker->>Firebase: Disable identity
+  Worker->>R2: Remove queued objects after upload expiry
+  Worker->>Firebase: Delete identity after custom-token expiry
+  Worker->>DB: Clear provider handles and record completion
+```
+
+Shared groups pass to the oldest remaining active member. A sole-owner group with outings is retained under a credential-free historical identity. A sole-owner group with no outings is removed. Active outings created by the account are cancelled. Historical outings, message IDs, timestamps and other members' content remain readable under their existing authorization rules. The departing user's message text and copied inbox previews are removed. Incoming invitations and pending invitations sent by the account are removed. Other invitees' decided history remains under the historical identity. Published place assets linked to the catalog remain.
+
+Private object deletion waits for upload capabilities to expire. Firebase is disabled first and deleted after a 65-minute hold for outstanding custom tokens. A transient provider failure leaves that step pending with a five-minute retry delay. After both providers finish, the journal retains the UID digest and timestamps to prevent replay. Provider messages already delivered, third-party URLs, backups and participants' independent copies follow their own retention. [Staging verification](development/PRODUCTION_DEPLOYMENT.md#firebase-deletion-and-media-sign-off)
+
 | Metadata | Value |
 |----------|-------|
 | Last verified | 2026-11-07 |
@@ -128,7 +153,7 @@ Saved outing use cases + place bookmark endpoints; Neon composite PKs.
 
 ### Media / images
 
-Flutter picks a local image → `POST /api/media/upload-url` (backend creates a `pending` `media_assets` row and returns a presigned PUT) → client `PUT`s bytes directly to R2/mock storage → `POST /api/media/:id/confirm` performs a HEAD check and marks the asset `ready` → the create/update payload persists `media://<asset-id>` (or the asset is linked after row creation). The API and Neon never receive bytes.
+Flutter compresses the source image in an isolate and requests an authorized PUT for a private staging key. It sends optimized bytes to R2 or development mock storage. Confirmation reads a bounded copy from staging, checks the actual format, dimensions and byte count, strips metadata when encoding and writes a new delivery key. Only curator place images can enter the public catalog bucket after verification. The client persists the stable `media://<asset-id>` reference and the entity flow links ready media. PostgreSQL stores metadata.
 
 Display: `AppNetworkImage` resolves `media://` in batches through `/api/media/signed-urls`. Public place media returns the CDN URL when `R2_PUBLIC_BASE_URL` is configured; private media returns a short-lived signed URL after ownership/participant checks. URL metadata is persisted per account and image-cache keys use the stable asset id, so expiry rotation does not re-download and account switches cannot render another account's private image. Failed uploads are deleted best effort; `media-cleanup.job.ts` reaps expired pending intents and failed assets.
 

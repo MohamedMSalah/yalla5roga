@@ -5,7 +5,7 @@ const results: any[] = existsSync(file)
   ? JSON.parse(readFileSync(file, "utf8"))
   : [];
 for (const endpoint of (
-  process.env.OSM_HEALTH_ENDPOINTS ??
+  process.env.OSM_HEALTH_ENDPOINTS?.trim() ||
   "https://overpass-api.de/api/interpreter,https://overpass.private.coffee/api/interpreter,https://overpass.kumi.systems/api/interpreter"
 ).split(",")) {
   const url = new URL(endpoint);

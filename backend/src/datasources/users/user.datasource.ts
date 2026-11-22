@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database.js";
+import { deletedAccountPlaceholder } from "../../services/users/account-deletion-access.js";
 import type {
   CreateUserInput,
   UpdateUserInput,
@@ -7,6 +8,7 @@ import type {
 
 export class UserDatasource {
   findById(id: string): Promise<User | null> {
+    if (id === deletedAccountPlaceholder) return Promise.resolve(null);
     return prisma.users.findUnique({ where: { id } });
   }
 
@@ -41,13 +43,16 @@ export class UserDatasource {
   }
 
   findMany(): Promise<User[]> {
-    return prisma.users.findMany({ orderBy: { created_at: "desc" } });
+    return prisma.users.findMany({
+      where: { id: { not: deletedAccountPlaceholder } },
+      orderBy: { created_at: "desc" },
+    });
   }
 
   findManyByIds(ids: string[]): Promise<User[]> {
     if (ids.length === 0) return Promise.resolve([]);
     return prisma.users.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids, not: deletedAccountPlaceholder } },
       orderBy: { created_at: "desc" },
     });
   }

@@ -5,10 +5,12 @@ import { AppError, ConflictError, ForbiddenError, NotFoundError, ValidationError
 import type { IMediaRepository } from "../../repositories/media/i-media.repository.js";
 import { MediaRepository } from "../../repositories/media/media.repository.js";
 import { isPlaceCurator } from "../auth/place-curator.js";
-import { MockStorageAdapter } from "./mock-storage.adapter.js";
+import { getMockStorageAdapter } from "./mock-storage.adapter.js";
 import { R2StorageAdapter } from "./r2-storage.adapter.js";
 import type { MediaStorageAdapter } from "./storage-adapter.js";
 import { assertCanUploadPurpose, assertCanViewMedia } from "./media-access.js";
+import { imageMimeTypes, optimizeImage } from "./image-optimization.js";
+import { downloadCatalogImage } from "./catalog-image-source.js";
 
 /** Stable reference scheme clients store in entity image fields. */
 const MEDIA_REF_PATTERN = /^media:\/\/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$/;
@@ -44,6 +46,11 @@ const PURPOSE_KEY_PREFIX: Record<MediaPurpose, string> = {
   chat: "chat",
 };
 
+// Rules apply to stored rows too, including older metadata and imports.
+const PLACE_OBJECT_KEY = /^places\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp|gif)$/;
+const UPLOAD_PREFIX = "uploads/";
+const verifying = new Map<string, Promise<MediaAsset>>();
+
 function extensionFor(mimeType: string): string {
   switch (mimeType) {
     case "image/jpeg":
@@ -62,8 +69,8 @@ function extensionFor(mimeType: string): string {
 /**
  * Media Storage Service — single entry point for the upload lifecycle,
  * delivery URLs and cleanup. Storage itself is pluggable
- * (`MediaStorageAdapter`); binaries never pass through this process in R2
- * mode and never touch PostgreSQL.
+ * (`MediaStorageAdapter`); clients PUT directly to storage. The API only reads
+ * bounded staging bytes to verify them and write a server-owned delivery key.
  */
 export class MediaService {
   constructor(
@@ -72,24 +79,47 @@ export class MediaService {
     private readonly adapterOverride?: MediaStorageAdapter,
   ) {}
 
-  private adapter?: MediaStorageAdapter;
+  private readonly adapters = new Map<string, MediaStorageAdapter>();
 
-  storage(): MediaStorageAdapter {
+  storage(bucket = this.config.r2.bucket ?? "mock-bucket"): MediaStorageAdapter {
     if (this.adapterOverride) return this.adapterOverride;
-    if (!this.adapter) {
+    let adapter = this.adapters.get(bucket);
+    if (!adapter) {
       if (this.config.provider === "r2") {
-        this.adapter = new R2StorageAdapter();
+        const { accountId, accessKeyId, secretAccessKey, endpoint, publicBucket } = this.config.r2;
+        if (!accountId || !accessKeyId || !secretAccessKey ||
+          (bucket !== this.config.r2.bucket && bucket !== publicBucket)) {
+          throw new AppError(503, "Media storage unavailable");
+        }
+        adapter = new R2StorageAdapter({
+          accountId, accessKeyId, secretAccessKey, endpoint, bucket, privateReads: bucket !== publicBucket,
+        });
       } else {
         if (process.env.NODE_ENV === "production") throw new AppError(503, "Media storage unavailable");
-        this.adapter = new MockStorageAdapter(this.config.mockBaseUrl);
+        adapter = getMockStorageAdapter(this.config.mockBaseUrl);
       }
+      this.adapters.set(bucket, adapter);
     }
-    return this.adapter;
+    return adapter;
   }
 
-  /** Public delivery URL for public objects (Cloudflare CDN custom domain). */
-  publicUrl(objectKey: string): string {
-    return `${this.config.publicBaseUrl}/${objectKey}`;
+  private usesPublicBucket(asset: Pick<MediaAsset, "purpose" | "visibility" | "object_key" | "bucket">): boolean {
+    return Boolean(this.config.r2.publicBucket && asset.bucket === this.config.r2.publicBucket &&
+      asset.bucket !== this.config.r2.bucket && asset.purpose === "place" &&
+      asset.visibility === "public" && PLACE_OBJECT_KEY.test(asset.object_key));
+  }
+
+  private storageFor(asset: Pick<MediaAsset, "purpose" | "visibility" | "object_key" | "bucket">) {
+    if (asset.bucket === this.config.r2.publicBucket && !this.usesPublicBucket(asset)) {
+      throw new NotFoundError("Media asset");
+    }
+    return this.storage(asset.bucket);
+  }
+
+  private publicUrl(asset: MediaAsset): string | null {
+    return this.config.provider === "r2" && this.config.publicBaseUrlConfigured && this.usesPublicBucket(asset)
+      ? `${this.config.publicBaseUrl}/${asset.object_key}`
+      : null;
   }
 
   /**
@@ -98,14 +128,7 @@ export class MediaService {
    * mode still resolves through the backend.
    */
   storageReferenceFor(asset: MediaAsset): string {
-    if (
-      asset.visibility === "public" &&
-      this.config.provider === "r2" &&
-      this.config.publicBaseUrlConfigured
-    ) {
-      return this.publicUrl(asset.object_key);
-    }
-    return buildMediaReference(asset.id);
+    return this.publicUrl(asset) ?? buildMediaReference(asset.id);
   }
 
   /**
@@ -124,10 +147,10 @@ export class MediaService {
   }): Promise<{ asset: MediaAsset; upload_url: string; upload_expires_at: Date }> {
     const { uid, purpose, entityId = null } = input;
 
-    if (!this.config.allowedMimeTypes.includes(input.mimeType)) {
+    if (!imageMimeTypes.includes(input.mimeType) || !this.config.allowedMimeTypes.includes(input.mimeType)) {
       throw new ValidationError(`Unsupported media type ${input.mimeType}`);
     }
-    if (!Number.isFinite(input.fileSize) || input.fileSize <= 0) {
+    if (!Number.isSafeInteger(input.fileSize) || input.fileSize <= 0) {
       throw new ValidationError("fileSize must be a positive number");
     }
     if (input.fileSize > this.config.maxUploadBytes) {
@@ -137,8 +160,6 @@ export class MediaService {
     }
 
     await assertCanUploadPurpose({ purpose, entityId, uid });
-
-    const adapter = this.storage();
 
     let asset: MediaAsset;
     if (input.mediaId) {
@@ -156,15 +177,21 @@ export class MediaService {
           `Media asset purpose mismatch: stored ${existing.purpose}, requested ${purpose}`,
         );
       }
+      this.stagingStorage(existing);
+      if (existing.file_size !== input.fileSize || existing.mime_type !== input.mimeType) {
+        throw new ValidationError("Refreshed uploads must match the original file size and type");
+      }
       asset = await this.media.refreshUploadExpiry(
         existing.id,
         new Date(Date.now() + this.config.uploadUrlTtlSeconds * 1000),
       );
     } else {
-      const key = this.buildObjectKey(purpose, input.mimeType);
+      const key = UPLOAD_PREFIX + this.buildObjectKey(purpose, input.mimeType);
+      const bucket = this.config.r2.bucket ?? "mock-bucket";
+      this.storage(bucket);
       asset = await this.media.create({
         object_key: key,
-        bucket: this.config.r2.bucket ?? "mock-bucket",
+        bucket,
         mime_type: input.mimeType,
         file_size: input.fileSize,
         visibility: PURPOSE_VISIBILITY[purpose],
@@ -174,7 +201,7 @@ export class MediaService {
       });
     }
 
-    const presigned = await adapter.createPresignedPutUrl({
+    const presigned = await this.stagingStorage(asset).createPresignedPutUrl({
       key: asset.object_key,
       contentType: asset.mime_type,
       contentLength: input.fileSize,
@@ -185,9 +212,8 @@ export class MediaService {
   }
 
   /**
-   * Step 2: verify the object actually landed in storage (HEAD) before the
-   * asset becomes `ready`. Missing objects mark the asset `failed` so the
-   * cleanup job can remove the orphan row and any partial state.
+   * Step 2: verify and promote a snapshot of private staging bytes. A PUT URL
+   * can be replayed until expiry, but it can never overwrite the delivery key.
    */
   async confirmUpload(input: { uid: string; mediaId: string }): Promise<MediaAsset> {
     const asset = await this.getOwnedAssetOrNotFound(input.uid, input.mediaId);
@@ -198,22 +224,101 @@ export class MediaService {
       throw new ConflictError("Upload already failed; request a new upload URL");
     }
 
-    const stat = await this.storage().stat(asset.object_key);
-    if (!stat || stat.size <= 0) {
-      await this.media.markFailed(asset.id);
-      throw new ConflictError("Uploaded object was not found in storage");
+    const existing = verifying.get(asset.id);
+    if (existing) return existing;
+    if (verifying.size >= 2) throw new AppError(503, "Image validation busy; try again");
+    const work = this.promoteUpload(asset).finally(() => verifying.delete(asset.id));
+    verifying.set(asset.id, work);
+    return work;
+  }
+
+  private stagingStorage(asset: MediaAsset): MediaStorageAdapter {
+    if (!asset.object_key.startsWith(UPLOAD_PREFIX) || asset.bucket !== (this.config.r2.bucket ?? "mock-bucket")) {
+      throw new ConflictError("Request a new upload URL for this legacy upload");
     }
-    return await this.media.markVerified(asset.id, stat.size, new Date());
+    return this.storage(asset.bucket);
+  }
+
+  private async promoteUpload(asset: MediaAsset): Promise<MediaAsset> {
+    const staging = this.stagingStorage(asset);
+    if (!asset.upload_expires_at || Date.now() >= asset.upload_expires_at.getTime()) {
+      throw new ConflictError("Upload window expired; request a new upload URL");
+    }
+    const stat = await staging.stat(asset.object_key);
+    if (!stat || stat.size !== asset.file_size || stat.contentType !== asset.mime_type) {
+      await this.rejectUpload(asset, staging);
+      throw new ConflictError("Uploaded object was not found in storage or did not match the upload intent");
+    }
+    const bytes = await staging.read(asset.object_key, Math.min(asset.file_size, this.config.maxUploadBytes));
+    if (!bytes || bytes.length !== asset.file_size) {
+      await this.rejectUpload(asset, staging);
+      throw new ValidationError("Uploaded image size does not match the upload intent");
+    }
+    let optimized: Awaited<ReturnType<typeof optimizeImage>>;
+    try {
+      optimized = await optimizeImage(bytes, asset.mime_type, this.config.maxUploadBytes);
+    } catch (error) {
+      if (error instanceof ValidationError) await this.rejectUpload(asset, staging);
+      throw error;
+    }
+    const bucket = (asset.purpose === "place" ? this.config.r2.publicBucket : null) ?? asset.bucket;
+    const object = {
+      bucket, object_key: this.buildObjectKey(asset.purpose, optimized.mimeType),
+      mime_type: optimized.mimeType, file_size: optimized.bytes.length,
+    };
+    const storage = this.storageFor({ ...asset, ...object });
+    try {
+      await storage.write(object.object_key, optimized.bytes, optimized.mimeType);
+    } catch (error) {
+      await this.removeStaging(storage, object.object_key);
+      throw error;
+    }
+    let result: MediaAsset;
+    try {
+      result = await this.media.markVerified(asset.id, object, new Date());
+    } catch (error) {
+      // If the write outcome is ambiguous, keep its object until readback.
+      const current = await this.media.findById(asset.id);
+      if (current?.object_key === object.object_key) return current;
+      await this.removeStaging(storage, object.object_key);
+      if (current?.status === "ready") return current;
+      throw error;
+    }
+    await this.removeStaging(staging, asset.object_key);
+    return result;
+  }
+
+  private async rejectUpload(asset: MediaAsset, staging: MediaStorageAdapter): Promise<void> {
+    await this.media.markFailed(asset.id);
+    await this.removeStaging(staging, asset.object_key);
+  }
+
+  private async removeStaging(storage: MediaStorageAdapter, key: string): Promise<void> {
+    try { await storage.delete(key); }
+    catch (error) { logger.warn({ errorCode: errorCode(error) }, "Media object cleanup deferred"); }
+  }
+
+  async importCatalogImage(uid: string, source: string): Promise<MediaAsset> {
+    await assertCanUploadPurpose({ uid, purpose: "place", entityId: null });
+    if (this.config.provider !== "r2") throw new AppError(503, "Configure R2 before importing catalog images");
+    const download = await downloadCatalogImage(source, this.config.maxUploadBytes);
+    const image = await optimizeImage(download.bytes, download.mimeType, this.config.maxUploadBytes);
+    const { asset } = await this.requestUpload({
+      uid, purpose: "place", mimeType: image.mimeType, fileSize: image.bytes.length,
+    });
+    const storage = this.stagingStorage(asset);
+    await storage.write(asset.object_key, image.bytes, image.mimeType);
+    return this.confirmUpload({ uid, mediaId: asset.id });
   }
 
   async deleteAsset(input: { uid: string; mediaId: string }): Promise<void> {
     const asset = await this.getOwnedAssetOrNotFound(input.uid, input.mediaId);
     this.assertCatalogWriteAccess(asset, input.uid);
-    try {
-      await this.storage().delete(asset.object_key);
-    } finally {
-      await this.media.delete(asset.id);
+    if (asset.upload_expires_at && asset.upload_expires_at.getTime() > Date.now()) {
+      throw new ConflictError("Wait for the upload URL to expire before deleting this media");
     }
+    await this.storageFor(asset).delete(asset.object_key);
+    await this.media.delete(asset.id);
   }
 
   /** Single delivery URL after an access check (private → short-lived signed). */
@@ -235,8 +340,9 @@ export class MediaService {
     for (const mediaId of unique) {
       try {
         results.push(await this.getDeliveryUrl({ uid: input.uid, mediaId }));
-      } catch {
+      } catch (error) {
         // Skip missing/inaccessible assets instead of failing the whole batch.
+        if (!(error instanceof NotFoundError || error instanceof ForbiddenError)) throw error;
       }
     }
     return results;
@@ -248,20 +354,17 @@ export class MediaService {
    * R2 presigned URL or the mock download route in development.
    */
   async deliveryUrlFor(asset: MediaAsset): Promise<MediaDeliveryUrl> {
-    if (
-      asset.visibility === "public" &&
-      this.config.provider === "r2" &&
-      this.config.publicBaseUrlConfigured
-    ) {
+    const publicUrl = this.publicUrl(asset);
+    if (publicUrl) {
       return {
         media_id: asset.id,
         object_key: asset.object_key,
-        url: this.publicUrl(asset.object_key),
+        url: publicUrl,
         visibility: "public",
         expires_at: null,
       };
     }
-    const presigned = await this.storage().createPresignedGetUrl({
+    const presigned = await this.storageFor(asset).createPresignedGetUrl({
       key: asset.object_key,
       ttlSeconds: this.config.signedGetUrlTtlSeconds,
     });
@@ -290,7 +393,14 @@ export class MediaService {
     const raw = input.imageValue;
     if (raw == null || raw === "") return raw;
     const assetId = parseMediaReference(raw);
-    if (!assetId) return raw; // Existing http(s) URLs and defaults are untouched.
+    if (!assetId) {
+      const url = URL.parse(raw);
+      if (url && (url.hostname === URL.parse(this.config.r2.endpoint ?? "")?.hostname ||
+        url.searchParams.has("X-Amz-Signature"))) {
+        throw new ValidationError("Use a media reference for signed storage images");
+      }
+      return raw;
+    }
 
     // Defense in depth: the place catalog routes are curator-gated, but the
     // attach path must never let a non-curator link a place-purpose asset.
@@ -329,7 +439,7 @@ export class MediaService {
     const assetId = parseMediaReference(input.imageValue);
     if (!assetId) return;
     const asset = await this.media.findById(assetId);
-    if (!asset || asset.owner_id !== input.uid) return;
+    if (!asset || asset.owner_id !== input.uid || asset.status !== "ready") return;
     await this.media.linkToEntity(asset.id, input.link);
   }
 
@@ -343,10 +453,12 @@ export class MediaService {
     let removed = 0;
 
     for (const asset of [...expired, ...failed]) {
+      if (asset.upload_expires_at && asset.upload_expires_at.getTime() > Date.now()) continue;
       try {
-        await this.storage().delete(asset.object_key);
+        await this.storageFor(asset).delete(asset.object_key);
       } catch (error) {
         logger.warn({ errorCode: errorCode(error) }, "Media object cleanup failed");
+        continue;
       }
       try {
         await this.media.delete(asset.id);
@@ -356,6 +468,10 @@ export class MediaService {
       }
     }
     return { removed };
+  }
+
+  async purgeObject(asset: Pick<MediaAsset, "purpose" | "visibility" | "object_key" | "bucket">): Promise<void> {
+    await this.storageFor(asset).delete(asset.object_key);
   }
 
   private buildObjectKey(purpose: MediaPurpose, mimeType: string): string {

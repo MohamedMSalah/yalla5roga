@@ -1,5 +1,4 @@
 // Read-only contract check. Import Express directly to avoid deployment and jobs.
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import app from "../src/app.js";

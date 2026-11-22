@@ -1,5 +1,4 @@
 /** Private logical backup + rollback-only restore before Phase 3 migration deployment. */
-import "dotenv/config";
 import {Client} from "pg";
 import {createHash,randomUUID} from "node:crypto";
 import {mkdirSync,writeFileSync,readFileSync} from "node:fs";

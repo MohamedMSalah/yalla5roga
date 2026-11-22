@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/media/media_reference.dart';
 import 'package:yalla_5roga/core/media/media_url_store.dart';
@@ -28,7 +29,9 @@ class MediaUrlResolver extends ChangeNotifier {
     required this.store,
     required this.uidProvider,
     DateTime Function()? clock,
-  }) : clock = clock ?? DateTime.now;
+    Future<bool> Function(String url, {String? cacheKey})? evictCachedImage,
+  }) : clock = clock ?? DateTime.now,
+       _evictCachedImage = evictCachedImage ?? _removeCachedImage;
 
   /// Process-wide resolver used by leaf image widgets that do not depend on
   /// Provider context. Configured once in `AppDependencies.create`.
@@ -38,6 +41,7 @@ class MediaUrlResolver extends ChangeNotifier {
   final MediaUrlStore store;
   final String? Function() uidProvider;
   final DateTime Function() clock;
+  final Future<bool> Function(String url, {String? cacheKey}) _evictCachedImage;
 
   final Map<String, Future<MediaUrlEntry?>> _inflight = {};
   final Map<String, _PendingRequest> _pending = {};
@@ -83,13 +87,10 @@ class MediaUrlResolver extends ChangeNotifier {
     return _fetch(uid, assetId);
   }
 
-  /// Forces a fresh signed URL, discarding persisted metadata first.
+  /// Refreshes the capability while retaining the offline fallback.
   Future<MediaUrlEntry?> revalidate(String assetId) async {
     final uid = uidProvider();
     if (uid == null) return null;
-    final generation = _accountGeneration;
-    await store.remove(uid, assetId);
-    if (!_isCurrent(uid, generation)) return null;
     return _fetch(uid, assetId);
   }
 
@@ -125,6 +126,7 @@ class MediaUrlResolver extends ChangeNotifier {
     _accountGeneration++;
     final removed = await store.clearAccount(uid);
     for (final item in removed) {
+      if (item.value.visibility == MediaVisibility.public) continue;
       // Never block logout/account switching on a disk-cache eviction; key
       // isolation already prevents cross-account rendering.
       unawaited(_evict(uid, item.key, item.value));
@@ -135,7 +137,7 @@ class MediaUrlResolver extends ChangeNotifier {
   Future<void> _evict(String uid, String assetId, MediaUrlEntry entry) async {
     final key = cacheKeyFor(assetId, entry.visibility, uidOverride: uid);
     try {
-      await CachedNetworkImage.evictFromCache(
+      await _evictCachedImage(
         entry.url,
         cacheKey: key,
       ).timeout(const Duration(seconds: 3));
@@ -143,6 +145,13 @@ class MediaUrlResolver extends ChangeNotifier {
       // Eviction is best effort; key isolation still prevents cross-account
       // rendering even if a file cannot be removed.
     }
+  }
+
+  static Future<bool> _removeCachedImage(String url, {String? cacheKey}) async {
+    final provider = CachedNetworkImageProvider(url, cacheKey: cacheKey);
+    final inMemory = await provider.evict();
+    await DefaultCacheManager().removeFile(cacheKey ?? url);
+    return inMemory;
   }
 
   Future<MediaUrlEntry?> _fetch(String uid, String assetId) {
@@ -214,24 +223,37 @@ class MediaUrlResolver extends ChangeNotifier {
       final body = response.data;
       final raw = body?['data'];
       final entries = <String, MediaUrlEntry>{};
-      if (raw is List) {
-        for (final item in raw) {
-          if (item is! Map) continue;
-          final json = Map<String, dynamic>.from(item);
-          final mediaId = '${json['media_id'] ?? ''}';
-          final entry = _entryFromJson(json);
-          if (mediaId.isNotEmpty && entry != null) {
-            entries[mediaId] = entry;
-          }
+      if (raw is! List) throw const FormatException('Invalid media batch');
+      for (final item in raw) {
+        if (item is! Map) throw const FormatException('Invalid media result');
+        final json = Map<String, dynamic>.from(item);
+        final mediaId = '${json['media_id'] ?? ''}';
+        final entry = _entryFromJson(json);
+        if (!ids.contains(mediaId) || entry == null) {
+          throw const FormatException('Invalid media result');
         }
+        entries[mediaId] = entry;
       }
 
       await store.putAll(uid, entries);
+      var removed = false;
+      for (final id in ids) {
+        if (!_isCurrent(uid, generation)) break;
+        final previous = store.peek(uid, id);
+        if (entries.containsKey(id) ||
+            previous == null ||
+            previous.visibility != MediaVisibility.private) {
+          continue;
+        }
+        await store.remove(uid, id);
+        unawaited(_evict(uid, id, previous));
+        removed = true;
+      }
       final current = _isCurrent(uid, generation);
       for (final request in requests) {
         request.completer.complete(current ? entries[request.assetId] : null);
       }
-      if (current && entries.isNotEmpty) notifyListeners();
+      if (current && (entries.isNotEmpty || removed)) notifyListeners();
     } catch (_) {
       // Offline / server failure: keep persisted URLs so the disk image cache
       // can still render the asset.

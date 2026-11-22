@@ -2,6 +2,7 @@ import { getFirebaseAuth } from "../../config/firebase.js";
 import { tryNormalizePhoneNumber } from "./normalize-phone.js";
 import { UnauthorizedError } from "../../utils/errors.js";
 import type { Auth } from "firebase-admin/auth";
+import { isDeletedAccount } from "../users/account-deletion-access.js";
 
 export type PhoneProof = { uid: string; phone: string };
 
@@ -21,7 +22,8 @@ export class FirebasePhoneIdentity {
       const decoded = await this.auth().verifyIdToken(token, true);
       const phone = tryNormalizePhoneNumber(decoded.phone_number ?? "");
       const age = this.now() / 1000 - decoded.auth_time;
-      if (!phone || decoded.firebase.sign_in_provider !== "phone" || !Number.isFinite(age) || age < -60 || age > 600) {
+      if (!phone || isDeletedAccount(decoded.uid) || decoded.firebase.sign_in_provider !== "phone" ||
+        !Number.isFinite(age) || age < -60 || age > 600) {
         throw new Error("A recent phone sign-in is required");
       }
       // A token for a phone removed from an identity is no longer proof.

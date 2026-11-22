@@ -16,7 +16,7 @@ import { assertEligibleVoter } from "../outings/outing-participants.js";
  *
  * View authorization (who may receive a URL):
  * - public assets → any authenticated caller (public ones also live on the CDN)
- * - profile       → any authenticated caller (avatars render for other users)
+ * - linked profile avatar → authenticated callers
  * - group/outing/chat → participants of the linked entity
  * - otherwise → the owner only
  */
@@ -85,11 +85,10 @@ export async function canViewMedia(
   uid: string | null,
 ): Promise<boolean> {
   if (asset.owner_id === uid) return true;
-  if (asset.visibility === "public") return uid !== null;
+  if (asset.visibility === "public") return asset.purpose === "place" && uid !== null;
   if (!uid) return false;
 
-  if (asset.purpose === "profile") return true;
-  if (asset.purpose === "place") return true;
+  if (asset.purpose === "profile") return asset.user_id === asset.owner_id;
 
   if (asset.group_id) {
     const membership = await prisma.group_members.findUnique({

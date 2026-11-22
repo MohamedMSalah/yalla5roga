@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 
 function shape(raw: string, direct: boolean) {

@@ -1,5 +1,7 @@
 # Yalla 5roga — User Scenarios
 
+In Settings → Edit Profile → Delete account, a signed-in user confirms permanent removal. The app signs out once deletion is accepted. The backend cancels that user's active outings, transfers shared group ownership, and retains shared history with redacted attribution. [Account deletion behavior](SYSTEM_DESIGN.md#coordinated-account-deletion)
+
 | Metadata | Value |
 |----------|-------|
 | Last verified | 2026-11-08 (AUTH-07 settings profile / password) |

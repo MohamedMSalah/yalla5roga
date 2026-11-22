@@ -1,5 +1,4 @@
 /** Read-only confirmation after normal Prisma Migrate deployment. */
-import "dotenv/config";
 import {Client} from "pg";
 import {createHash} from "node:crypto";
 import {readFileSync,writeFileSync} from "node:fs";

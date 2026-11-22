@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { Client } from "pg";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -6,14 +5,23 @@ import path from "node:path";
 
 const quote = (value: string) => '"' + value.replaceAll('"','""') + '"';
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
-const connection = new URL(process.env.DATABASE_URL!);
+const mode = process.argv[2];
+const connection = URL.parse((mode === "verify" ? process.env.YALLA_TEST_DATABASE_URL : process.env.DIRECT_URL)
+  || process.env.DATABASE_URL || "");
+if (!connection || !["postgres:", "postgresql:"].includes(connection.protocol) ||
+    [...connection.searchParams.keys()].some(key => ["host", "hostaddr"].includes(key.toLowerCase()))) {
+  throw new Error("A valid database target is required");
+}
+if (mode === "verify" && (!["127.0.0.1", "localhost", "[::1]"].includes(connection.hostname) ||
+  !/^\/yalla_test[a-z0-9_]*$/.test(connection.pathname))) {
+  throw new Error("Backup restore verification requires a disposable loopback yalla_test* database");
+}
 connection.hostname = connection.hostname.replace("-pooler.", ".");
 connection.searchParams.delete("channel_binding");
 if (!["127.0.0.1","localhost","[::1]"].includes(connection.hostname)) {
   connection.searchParams.set("sslmode","verify-full");
 }
 const db = new Client({connectionString:connection.toString()});
-const mode = process.argv[2];
 const directory = path.resolve(process.argv[3] ?? `.database-backups/${new Date().toISOString().replaceAll(':','-')}`);
 if (mode === 'backup' && !process.argv[4]) {
   throw Error("Use database-backup.ts backup <private backup directory> <fresh catalog JSON>");
@@ -62,18 +70,21 @@ try {
     for (const index of catalog.indexes.filter((index:any) => !backing.has(index.name))) after.push(index.definition.replace(' ON public.',' ON ')+";");
     for (const constraint of post) after.push(`ALTER TABLE ${quote(constraint.table_name)} ADD CONSTRAINT ${quote(constraint.name)} ${constraint.definition};`);
     if (catalog.triggers.length) {
-      // Custom catalog triggers are restored after their tables and saved rows.
+      // Restore application triggers after their tables and saved rows.
       const { rows: functions } = await db.query(`
         SELECT pg_get_functiondef(p.oid) AS definition
         FROM pg_proc p
         WHERE p.pronamespace='public'::regnamespace
           AND p.prokind='f'
           AND p.proname IN ('mark_place_catalog_change', 'record_place_catalog_change',
-            'initialize_outing_round_option', 'initialize_outing_voting_round', 'normalize_place_fields')
+            'initialize_outing_round_option', 'initialize_outing_voting_round', 'normalize_place_fields',
+            'reject_deleted_account')
         ORDER BY p.proname
       `);
-      if (functions.length !== 5 || catalog.triggers.some((trigger: { definition: string }) =>
-        !/ EXECUTE FUNCTION (?:public\.)?(?:record_place_catalog_change|initialize_outing_round_option|initialize_outing_voting_round|normalize_place_fields)\(/.test(trigger.definition))) {
+      const triggers = catalog.triggers as { definition: string }[];
+      const expectedFunctions = triggers.some(trigger => / EXECUTE FUNCTION (?:public\.)?reject_deleted_account\(/.test(trigger.definition)) ? 6 : 5;
+      if (functions.length !== expectedFunctions || triggers.some(trigger =>
+        !/ EXECUTE FUNCTION (?:public\.)?(?:record_place_catalog_change|initialize_outing_round_option|initialize_outing_voting_round|normalize_place_fields|reject_deleted_account)\(/.test(trigger.definition))) {
         throw Error('Unrecognized database triggers require explicit backup support');
       }
       for (const { definition } of functions) after.push(definition.replace('FUNCTION public.', 'FUNCTION ') + ';');

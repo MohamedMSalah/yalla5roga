@@ -167,7 +167,9 @@ Editing/deletion require the existing Firebase bearer identity, current chat par
 
 Phone/password login, Firebase signup OTP proof, Neon synchronization, recovery request/proof/reset tokens and Firebase session restoration retain their existing contracts. Password confirmation adds local validation only. Optional signup media is uploaded after verified registration under the authenticated profile purpose and synced using the existing profile operation. No local image path is sent as profile data.
 
-The previously signout-only Delete Account UI now invokes the existing self-scoped DELETE `/api/users/cuser` through AuthProvider → AuthRepository → AuthRemoteDataSource. Logout/account cache cleanup occurs only after API success. Foreign-key conflicts remain server-owned and preserve the session. The endpoint removes the application profile; Firebase identity deletion/revocation is outside this existing contract and was not added. First-run onboarding completion is a local presentation preference, never an authentication or authorization signal. Restored authenticated users bypass onboarding.
+Delete Account invokes self-scoped DELETE `/api/users/cuser`. After a durable 202 response, Flutter clears the session and account cache. The backend blocks the UID as soon as the deletion transaction commits and disconnects its sockets. A worker disables the Firebase identity, waits out outstanding custom tokens, and then deletes it. An already-absent identity completes that phase successfully. First-run onboarding remains a local presentation preference. [Deletion flow and retention](SYSTEM_DESIGN.md#coordinated-account-deletion)
+
+Production REST and all Socket.IO handshakes use Firebase Admin revocation checks. Established socket sessions recheck every 30 seconds with a five-second limit, and close at the token's expiry. A failed check closes the transport and its rooms. Reconnection must present a usable token. [Firebase session management](https://firebase.google.com/docs/auth/admin/manage-sessions)
 
 
 ## Android notification actions and account isolation — 2026-11-14

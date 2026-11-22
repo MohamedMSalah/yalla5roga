@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { prisma } from "../src/config/database.js";

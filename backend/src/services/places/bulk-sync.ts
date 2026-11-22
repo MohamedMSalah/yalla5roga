@@ -43,7 +43,7 @@ async function sha256(path: string) {
 }
 async function acquire(options: SyncOptions) {
   if (options.manifest) return resolve(options.manifest);
-  const python = process.env.PLACES_PYTHON ?? resolve(ROOT, process.platform === "win32" ? ".places-data/venv/Scripts/python.exe" : ".places-data/venv/bin/python");
+  const python = process.env.PLACES_PYTHON?.trim() || resolve(ROOT, process.platform === "win32" ? ".places-data/venv/Scripts/python.exe" : ".places-data/venv/bin/python");
   const child = spawn(python, [resolve(ROOT, "scripts/places_sources.py"), "--source", options.source ?? "overture", "--city", options.city ?? "all", ...(options.reuse ? ["--reuse"] : [])],
     { cwd: ROOT, stdio: ["ignore", "pipe", "inherit"], signal: options.signal });
   let result = ""; child.stdout.on("data", (chunk) => { result = (result + chunk).slice(-16000); });
@@ -61,10 +61,10 @@ async function seedTaxonomy() {
 }
 export async function synchronizePlaces(options: SyncOptions = {}) {
   const source = options.source ?? "overture";
-  const batchSize = options.batchSize ?? Number(process.env.PLACES_BATCH_SIZE ?? 200);
-  const minConfidence = Number(process.env.PLACES_MIN_CONFIDENCE ?? .7);
-  const maxDistance = Number(process.env.PLACES_DUPLICATE_DISTANCE_METERS ?? 60);
-  const absenceThreshold = Number(process.env.PLACES_ABSENCE_THRESHOLD ?? 3);
+  const batchSize = options.batchSize ?? Number(process.env.PLACES_BATCH_SIZE?.trim() || 200);
+  const minConfidence = Number(process.env.PLACES_MIN_CONFIDENCE?.trim() || .7);
+  const maxDistance = Number(process.env.PLACES_DUPLICATE_DISTANCE_METERS?.trim() || 60);
+  const absenceThreshold = Number(process.env.PLACES_ABSENCE_THRESHOLD?.trim() || 3);
   if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 1000 ||
       options.limit !== undefined && (!Number.isSafeInteger(options.limit) || options.limit < 1) ||
       !Number.isFinite(minConfidence) || minConfidence < 0 || minConfidence > 1 ||

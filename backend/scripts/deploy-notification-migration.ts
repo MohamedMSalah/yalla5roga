@@ -1,5 +1,4 @@
 /** Target-checked, backed-up deployment of the additive notification migration. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";

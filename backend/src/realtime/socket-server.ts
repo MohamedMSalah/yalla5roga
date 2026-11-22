@@ -9,6 +9,7 @@ import { authenticateSocket } from "./socket-auth.js";
 import { userRealtimeRoom } from "./rooms.js";
 import { corsOrigin, isAllowedOrigin } from "../config/cors.js";
 import { reconcileDataChanges } from "./data-changes.js";
+import { isDeletedAccount } from "../services/users/account-deletion-access.js";
 
 /**
  * Attaches Socket.IO to the existing HTTP server (same port as Express).
@@ -19,7 +20,7 @@ import { reconcileDataChanges } from "./data-changes.js";
  * persistent WebSocket connections are incompatible without a different
  * topology.
  */
-export function attachRealtime(httpServer: HttpServer): Server {
+export function attachRealtime(httpServer: HttpServer, sessionRecheckMs?: number): Server {
   const io = new Server(httpServer, {
     path: "/socket.io",
     allowRequest: (request, callback) => callback(null, isAllowedOrigin(request.headers.origin)),
@@ -36,7 +37,7 @@ export function attachRealtime(httpServer: HttpServer): Server {
     void authenticateSocket(socket, error => {
       if (error) increment("socket_auth_failures_total");
       next(error);
-    });
+    }, sessionRecheckMs);
   });
 
   watchSocketServer(io);
@@ -45,6 +46,10 @@ export function attachRealtime(httpServer: HttpServer): Server {
   bindChatEmitter(io);
 
   io.on("connection", (socket) => {
+    if (isDeletedAccount(socket.data.uid)) {
+      socket.disconnect(true);
+      return;
+    }
     void socket.join(userRealtimeRoom(socket.data.uid));
     socket.on("data:reconcile", (cursor: unknown, ack: unknown) => {
       observeSocketAck("data:reconcile", ack)?.(reconcileDataChanges(socket.data.uid, cursor));

@@ -1,5 +1,4 @@
 /** Read-only application-schema verification selected from the served OpenAPI. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";

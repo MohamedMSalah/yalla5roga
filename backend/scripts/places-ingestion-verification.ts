@@ -1,5 +1,4 @@
 /** Real Prisma/HTTP verification; fixtures exist only in this uniquely named disposable schema. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { randomUUID, createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";

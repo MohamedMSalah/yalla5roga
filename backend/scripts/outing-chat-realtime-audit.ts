@@ -3,8 +3,6 @@
  * Marks realtime PASS only when B receives A's message over the socket
  * without an extra REST GET.
  */
-import "dotenv/config";
-import fs from "node:fs";
 import { io, type Socket } from "socket.io-client";
 import { prisma } from "../src/config/database.js";
 import { getFirebaseAuth } from "../src/config/firebase.js";
@@ -13,13 +11,8 @@ const UID_A = "chat-rt-audit-a";
 const UID_B = "chat-rt-audit-b";
 const UID_STRANGER = "chat-rt-audit-stranger";
 
-const flutterEnv = fs.readFileSync("../flutter/.env", "utf8");
-const apiKey = flutterEnv
-  .split(/\r?\n/)
-  .find((line) => line.startsWith("FIREBASE_ANDROID_API_KEY="))
-  ?.split("=")[1]
-  ?.trim();
-if (!apiKey) throw new Error("missing FIREBASE_ANDROID_API_KEY in flutter/.env");
+const apiKey = process.env.FIREBASE_ANDROID_API_KEY?.trim();
+if (!apiKey) throw new Error("Set FIREBASE_ANDROID_API_KEY in the selected profile");
 
 const base = "http://127.0.0.1:3000";
 const auth = getFirebaseAuth();

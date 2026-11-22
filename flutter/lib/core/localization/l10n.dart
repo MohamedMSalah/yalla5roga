@@ -2121,8 +2121,8 @@ class L10n {
   String get deleteAccount => _t('Delete account', 'حذف الحساب');
   String get deleteAccountTitle => _t('Delete account?', 'حذف الحساب؟');
   String get deleteAccountBody => _t(
-    'Permanently delete your Yalla 5roga profile? This cannot be undone. Profiles linked to existing records may require help from support.',
-    'هل تريد حذف حساب يلا خروجة نهائيًا؟ لا يمكن التراجع. قد تحتاج الحسابات المرتبطة بسجلات موجودة إلى مساعدة الدعم.',
+    'Your profile will be removed and you’ll be signed out. Your scheduled outings will be cancelled. Shared history can remain after your account is removed. This cannot be undone.',
+    'سيتم حذف ملفك الشخصي وتسجيل خروجك وإلغاء خروجاتك المجدولة. قد يظل السجل المشترك متاحًا بعد حذف حسابك. لا يمكن التراجع عن هذا الإجراء.',
   );
   String get accountDeleted => _t('Account deleted', 'تم حذف الحساب');
   String get aboutDeveloper => _t('About Developer', 'عن المطوّر');
@@ -2164,6 +2164,10 @@ class L10n {
       _t('Upload photo from device', 'رفع صورة من الجهاز');
   String get chooseFromGallery => _t('Choose from gallery', 'اختيار من المعرض');
   String get takePhoto => _t('Take a photo', 'التقاط صورة');
+  String get imageCompressing => _t('Compressing image', 'جارٍ ضغط الصورة');
+  String get imageUploading => _t('Uploading image', 'جارٍ رفع الصورة');
+  String get imageVerifying => _t('Verifying image', 'جارٍ التحقق من الصورة');
+
   String get imageUploadFailed => _t(
     'Could not upload the image. Check your connection and try again.',
     'تعذّر رفع الصورة. تحقّق من اتصالك وحاول مرة أخرى.',

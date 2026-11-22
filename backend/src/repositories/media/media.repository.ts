@@ -24,8 +24,8 @@ export class MediaRepository implements IMediaRepository {
     return this.datasource.refreshUploadExpiry(id, uploadExpiresAt);
   }
 
-  markVerified(id: string, fileSize: number, verifiedAt: Date): Promise<MediaAsset> {
-    return this.datasource.markVerified(id, fileSize, verifiedAt);
+  markVerified(id: string, object: Parameters<IMediaRepository["markVerified"]>[1], verifiedAt: Date): Promise<MediaAsset> {
+    return this.datasource.markVerified(id, object, verifiedAt);
   }
 
   markFailed(id: string): Promise<MediaAsset> {

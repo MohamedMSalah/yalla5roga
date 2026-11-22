@@ -1,5 +1,4 @@
 /** Read-only HTTP verification, selected exclusively from served Swagger/OpenAPI. */
-import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import app from '../src/app.js';

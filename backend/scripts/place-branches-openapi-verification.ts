@@ -1,6 +1,5 @@
 /** Served Swagger/HTTP verification. All writes stay in a generated disposable
  * schema. Only Firebase verification and official artifact acquisition are controlled. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";

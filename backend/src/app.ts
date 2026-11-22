@@ -5,6 +5,7 @@ import { swaggerSpec } from "./config/swagger.js";
 import routes from "./routes/index.js";
 import { errorMiddleware } from "./middleware/error.middleware.js";
 import { corsOrigin } from "./config/cors.js";
+import { trustedProxyAddresses } from "./config/deployment.js";
 
 import { apiRateLimit } from "./middleware/api-rate-limit.middleware.js";
 import { databaseHealth, installHealth } from "./monitoring/health.js";
@@ -15,8 +16,8 @@ import { installMobileTelemetry } from "./monitoring/mobile.js";
 
 const app = express();
 app.disable("x-powered-by");
-const trustedProxies = process.env.TRUST_PROXY?.trim();
-if (trustedProxies) app.set("trust proxy", trustedProxies);
+const trustedProxies = trustedProxyAddresses();
+if (trustedProxies.length) app.set("trust proxy", trustedProxies);
 app.use(requestMonitoring(() => routeInventory));
 app.use((_req, res, next) => {
   res.set({ "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" });

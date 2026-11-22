@@ -1,5 +1,7 @@
 import type { MediaAsset } from "../../types/media/media.types.js";
 
+export type VerifiedMediaObject = Pick<MediaAsset, "object_key" | "bucket" | "mime_type" | "file_size">;
+
 /**
  * Persistence contract for media asset metadata. Pure CRUD + lifecycle
  * transitions; policy (ownership, access) lives in the media service.
@@ -18,7 +20,7 @@ export interface IMediaRepository {
   findById(id: string): Promise<MediaAsset | null>;
   findByObjectKey(objectKey: string): Promise<MediaAsset | null>;
   refreshUploadExpiry(id: string, uploadExpiresAt: Date): Promise<MediaAsset>;
-  markVerified(id: string, fileSize: number, verifiedAt: Date): Promise<MediaAsset>;
+  markVerified(id: string, object: VerifiedMediaObject, verifiedAt: Date): Promise<MediaAsset>;
   markFailed(id: string): Promise<MediaAsset>;
   linkToEntity(
     id: string,

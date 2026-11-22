@@ -31,6 +31,7 @@ void main() {
         outcome: RequestOutcome.network,
         feature: 'outings',
         statusCode: 200,
+        requestId: 'first',
       ),
     );
     diag.recordLocal(
@@ -49,6 +50,8 @@ void main() {
         outcome: RequestOutcome.network,
         feature: 'outings',
         statusCode: 200,
+        requestId: 'second',
+        duplicateCount: 2,
       ),
     );
 

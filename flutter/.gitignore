@@ -46,10 +46,3 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
-
-# Local compile-time configuration (--dart-define-from-file).
-# Includes Firebase client identifiers. Do not commit this file.
-.env
-.env.*
-!.env.example
-!.env.device.example

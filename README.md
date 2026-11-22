@@ -46,4 +46,4 @@ git commit -m "Describe the root change."
 
 ## Local files that stay untracked
 
-Do not commit `.env` files, Firebase client options, signing keys, keystores, or service-account credentials. Copy those files into the matching directory on each machine. `.env.example` is the committed template for the backend.
+Keep `.env.device` and `.env.production` at the repository root and untracked. See the [environment reference](docs/development/ENVIRONMENT_CONFIGURATION.md) and [service setup guide](docs/SERVICE_SETUP_GUIDE.md) for host, Firebase and build configuration.

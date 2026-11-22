@@ -1,15 +1,8 @@
-import "dotenv/config";
-import fs from "node:fs";
 import { getApp } from "firebase-admin/app";
 import { getFirebaseAuth } from "../src/config/firebase.js";
 
-const flutterEnv = fs.readFileSync("../flutter/.env", "utf8");
-const apiKey = flutterEnv
-  .split(/\r?\n/)
-  .find((line) => line.startsWith("FIREBASE_ANDROID_API_KEY="))
-  ?.split("=")[1]
-  ?.trim();
-if (!apiKey) throw new Error("missing android api key");
+const apiKey = process.env.FIREBASE_ANDROID_API_KEY?.trim();
+if (!apiKey) throw new Error("Set FIREBASE_ANDROID_API_KEY in the selected profile");
 
 const auth = getFirebaseAuth();
 const uid = "swagger-auth-check";

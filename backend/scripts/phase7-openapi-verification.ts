@@ -5,10 +5,6 @@ import { writeFileSync } from "node:fs";
 // Never point this verification process at application data or start dev pings.
 process.env.NODE_ENV = "production";
 process.env.DATABASE_URL = "postgresql://audit:audit@127.0.0.1:1/unreachable";
-// Load adapter configuration before app/spec construction, just as server.ts
-// does. dotenv does not override the unreachable verification database above.
-await import("dotenv/config");
-
 const { default: app } = await import("../src/app.js");
 const { swaggerSpec } = await import("../src/config/swagger.js");
 const { prisma } = await import("../src/config/database.js");

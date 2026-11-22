@@ -32,39 +32,50 @@ class HomeHeader extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(17, 4, 17, 49),
-          child: Row(
-            children: [
-              Tooltip(
-                message: l10n.editProfile,
-                child: Semantics(
-                  label: l10n.editProfile,
-                  child: AppPressable(
-                    onTap: name == null
-                        ? null
-                        : () => Get.to(() => const EditProfilePage()),
-                    child: SizedBox.square(
-                      dimension: 48,
-                      child: Center(
-                        child: DecoratedBox(
-                          position: DecorationPosition.foreground,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: style.avatarRing),
-                          ),
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: style.avatar,
-                            ),
-                            child: AppNetworkImage(
-                              url: photo ?? '',
-                              width: 42,
-                              height: 42,
-                              radius: 21,
-                              placeholder: Icon(
-                                Icons.person_rounded,
-                                color: style.accent,
-                                size: 21,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Grow the original 42dp photo by 60%, keeping room for the
+              // greeting and notification control in narrow layouts.
+              final avatarSize = (constraints.maxWidth * .24)
+                  .clamp(42.0, 42 * 1.6)
+                  .toDouble();
+              final avatarTargetSize = avatarSize < 48 ? 48.0 : avatarSize;
+
+              return Row(
+                children: [
+                  Tooltip(
+                    message: l10n.editProfile,
+                    child: Semantics(
+                      label: l10n.editProfile,
+                      child: AppPressable(
+                        onTap: name == null
+                            ? null
+                            : () => Get.to(() => const EditProfilePage()),
+                        child: SizedBox.square(
+                          dimension: avatarTargetSize,
+                          child: Center(
+                            child: DecoratedBox(
+                              position: DecorationPosition.foreground,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: style.avatarRing),
+                              ),
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: style.avatar,
+                                ),
+                                child: AppNetworkImage(
+                                  url: photo ?? '',
+                                  width: avatarSize,
+                                  height: avatarSize,
+                                  radius: avatarSize / 2,
+                                  placeholder: Icon(
+                                    Icons.person_rounded,
+                                    color: style.accent,
+                                    size: avatarSize / 2,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -72,37 +83,37 @@ class HomeHeader extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.greetingForHour(DateTime.now().hour),
-                      style: context.texts.bodySmall?.copyWith(
-                        fontSize: HomeStyle.greeting,
-                        color: style.muted,
-                      ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.greetingForHour(DateTime.now().hour),
+                          style: context.texts.bodySmall?.copyWith(
+                            fontSize: HomeStyle.greeting,
+                            color: style.muted,
+                          ),
+                        ),
+                        Text(
+                          name?.trim().split(RegExp(r'\s+')).first ?? '',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.texts.headlineLarge?.copyWith(
+                            fontSize: HomeStyle.userName,
+                            fontWeight: FontWeight.w800,
+                            height: 1.18,
+                            color: style.text,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      name?.trim().split(RegExp(r'\s+')).first ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.texts.headlineLarge?.copyWith(
-                        fontSize: HomeStyle.userName,
-                        fontWeight: FontWeight.w800,
-                        height: 1.18,
-                        color: style.text,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const NotificationButton(showUnreadDot: true),
-            ],
+                  ),
+                  const SizedBox(width: 8),
+                  const NotificationButton(showUnreadDot: true),
+                ],
+              );
+            },
           ),
         ),
       ],

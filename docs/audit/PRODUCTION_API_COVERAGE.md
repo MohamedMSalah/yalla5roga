@@ -2,7 +2,25 @@
 
 Express registrations were enumerated with the repository consumer audit. The 114 documented operations below were reached over isolated loopback HTTP using the served OpenAPI document. Each PASS refers to the status, envelope, request ID, Server-Timing and documented response schema exercised in the boundary suite. The development mock storage operations are excluded by the production router.
 
-Protected endpoints were exercised without a bearer token in this sweep. Database cases use a disposable PostgreSQL database. Authenticated success, ownership, edge cases and concurrency have separate focused tests, with remaining coverage listed in the readiness report.
+Protected operations in the boundary sweep were exercised without a bearer token. The authenticated contracts below use the same served OpenAPI definitions and real disposable PostgreSQL. Firebase calls use isolated fixture identities at the Admin SDK boundary.
+
+## Authenticated contract coverage
+
+| Area | Successful HTTP contracts | Authorization and state checks |
+| --- | --- | --- |
+| Groups | Create, read detail and roster, list own groups, edit own group bio | Outsider detail denied, member edit denied, pending invitee has no group access |
+| Invitations | Invite by phone, read recipient inbox, accept and repeat acceptance | Outsider cannot invite or accept another recipient's invitation. Duplicate invite returns 409. |
+| Outings and ballots | Create and read, create/list/remove options, read voting state and votes, replace multi-option ballot | Outsider cannot read or vote. Non-creator cannot add an option. Replacing a ballot removes prior selections. |
+| RSVP and arrival | Update and list RSVP, record and list GPS arrival, repeat GPS write | Outsider cannot record RSVP or arrival. GPS remains separate from a Not Going RSVP. Repeated GPS writes keep one row. Fixture SQL advances the clock window. |
+| Chat | Send, page history, mark chat read, edit and delete own message | Concurrent duplicate send keeps one row. Outsider cannot read. A participant cannot edit or delete another member's message. |
+| Notifications | List, mark one read, mark all read | Another account cannot mark a recipient's notification. Invalid paging is rejected. |
+| Profile deletion | Self DELETE returns the documented 202 envelope | Path UID cannot select another account. Accepted deletion denies the old REST session and disconnects the socket. |
+| Media | Owner direct-upload, confirm and signed GET in isolated service contracts, public place URL and R2 signature checks | Anonymous and unrelated private resolution denied. Linked avatars allow signed-in viewers. Forged public key/bucket combinations are rejected. Hosting-side anonymous access remains a staging check. |
+| Realtime | Verified local connections and authorized group/chat joins | Out-of-scope joins, revoked/disabled/deleted identities, failed checks, expiry and room cleanup, plus established-session reconciliation covered by focused suites. |
+
+The expanded coverage includes authenticated writes and negative cases for the requested workflows. Other operations in the sweep still have boundary-only evidence. Live Firebase token minting, revocation, SMS and push, live R2 requests, and HTTPS ingress remain staging checks.
+
+## Unauthenticated and public boundary sweep
 
 | Method | Express route | Flutter consumer evidence | Executed boundary | Status |
 | --- | --- | --- | --- | --- |

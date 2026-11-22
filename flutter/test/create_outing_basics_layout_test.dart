@@ -77,7 +77,9 @@ void main() {
       );
       final wedding = find.widgetWithText(ChoiceChip, l10n.wedding);
       await tester.ensureVisible(wedding);
-      await tester.tap(wedding);
+      await tester.pumpAndSettle();
+      expect(wedding.hitTestable(), findsOneWidget);
+      await tester.tap(wedding.hitTestable());
       await tester.pumpAndSettle();
       expect(form.occasion, OutingOccasion.wedding);
       expect(tester.widget<PlanningCover>(cover).art, PlanningCoverArt.wedding);

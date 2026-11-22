@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -34,6 +35,7 @@ export class R2StorageAdapter implements MediaStorageAdapter {
       accessKeyId: string;
       secretAccessKey: string;
       bucket: string;
+      privateReads?: boolean;
       endpoint?: string | null;
     } = (() => {
       const config = getMediaConfig();
@@ -52,8 +54,11 @@ export class R2StorageAdapter implements MediaStorageAdapter {
     })(),
   ) {
     this.bucket = options.bucket;
+    this.privateReads = options.privateReads ?? true;
     this.client = new S3Client({
       region: "auto",
+      forcePathStyle: true,
+      maxAttempts: 2,
       endpoint: options.endpoint ?? `https://${options.accountId}.r2.cloudflarestorage.com`,
       credentials: {
         accessKeyId: options.accessKeyId,
@@ -61,6 +66,8 @@ export class R2StorageAdapter implements MediaStorageAdapter {
       },
     });
   }
+
+  private readonly privateReads: boolean;
 
   async createPresignedPutUrl(input: {
     key: string;
@@ -77,6 +84,7 @@ export class R2StorageAdapter implements MediaStorageAdapter {
     const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000);
     const url = await getSignedUrl(this.client, command, {
       expiresIn: input.ttlSeconds,
+      signableHeaders: new Set(["content-type", "content-length"]),
     });
     return { url, expiresAt, key: input.key };
   }
@@ -88,6 +96,7 @@ export class R2StorageAdapter implements MediaStorageAdapter {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: input.key,
+      ...(this.privateReads ? { ResponseCacheControl: "private, no-store" } : {}),
     });
     const expiresAt = new Date(Date.now() + input.ttlSeconds * 1000);
     const url = await getSignedUrl(this.client, command, {
@@ -99,7 +108,7 @@ export class R2StorageAdapter implements MediaStorageAdapter {
   async stat(key: string): Promise<StoredObject | null> {
     try {
       const head = await this.client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: AbortSignal.timeout(8000) },
       );
       return {
         key,
@@ -116,9 +125,52 @@ export class R2StorageAdapter implements MediaStorageAdapter {
     }
   }
 
+  async probe(): Promise<void> {
+    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }), { abortSignal: AbortSignal.timeout(5000) });
+  }
+
+  async read(key: string, maxBytes: number): Promise<Buffer | null> {
+    const signal = AbortSignal.timeout(12000);
+    try {
+      const object = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+        { abortSignal: signal });
+      const source = object.Body;
+      if (!source || !("destroy" in source)) return null;
+      if (!object.ContentLength || object.ContentLength > maxBytes) {
+        source.destroy();
+        return null;
+      }
+      const chunks: Buffer[] = [];
+      let size = 0;
+      const abort = () => source.destroy(new Error("R2 read timed out"));
+      signal.addEventListener("abort", abort, { once: true });
+      try {
+        if (signal.aborted) abort();
+        for await (const chunk of source) {
+          size += chunk.length;
+          if (size > maxBytes) return null;
+          chunks.push(chunk);
+        }
+        return Buffer.concat(chunks, size);
+      } finally {
+        signal.removeEventListener("abort", abort);
+      }
+    } catch (error) {
+      if (["NotFound", "NoSuchKey"].includes((error as Error).name)) return null;
+      throw error;
+    }
+  }
+
+  async write(key: string, bytes: Buffer, mimeType: string): Promise<void> {
+    await this.client.send(new PutObjectCommand({
+      Bucket: this.bucket, Key: key, Body: bytes, ContentType: mimeType,
+      CacheControl: this.privateReads ? "private, no-store" : "public, max-age=31536000, immutable",
+    }), { abortSignal: AbortSignal.timeout(12000) });
+  }
+
   async delete(key: string): Promise<void> {
     await this.client.send(
-      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }), { abortSignal: AbortSignal.timeout(8000) },
     );
   }
 }

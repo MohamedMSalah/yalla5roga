@@ -1,5 +1,4 @@
 /** Scoped, backed-up deployment of the existing duration checks. No new columns. */
-import "dotenv/config";
 import assert from "node:assert/strict";
 import {Client} from "pg";
 import {createHash,randomUUID} from "node:crypto";
