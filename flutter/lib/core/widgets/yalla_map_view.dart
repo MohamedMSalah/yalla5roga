@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, listEquals, mapEquals;
 import 'package:latlong2/latlong.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as ml;
+import 'package:yalla_5roga/core/maps/personal_location_map_layer.dart';
+import 'package:yalla_5roga/core/maps/personal_route_map_layer.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_camera_manager.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_clusters.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
@@ -26,7 +28,11 @@ class YallaMapView extends StatefulWidget {
     this.center = cairoMapCenter,
     this.zoom = 12,
     this.places = const [],
+    this.placeLabelPrefixes = const {},
     this.privatePlaces = const [],
+    this.personalLocations = const [],
+    this.personalRoute,
+    this.onPersonalLocationTap,
     this.categories = const [],
     this.selection = const YallaMapPlaceSelection(),
     this.onPlaceTap,
@@ -51,6 +57,10 @@ class YallaMapView extends StatefulWidget {
   final LatLng center;
   final double zoom, selectionBottom;
   final List<Place> places, privatePlaces;
+  final Map<String, String> placeLabelPrefixes;
+  final List<PersonalMapMarker> personalLocations;
+  final PersonalRouteOverlay? personalRoute;
+  final void Function(String key, Place? catalogPlace)? onPersonalLocationTap;
   final List<CatalogDefinition> categories;
   final YallaMapPlaceSelection selection;
   final ValueChanged<Place>? onPlaceTap;
@@ -74,6 +84,9 @@ class _YallaMapViewState extends State<YallaMapView>
     with SingleTickerProviderStateMixin {
   final _initialization = kDebugMode ? (Stopwatch()..start()) : null;
   final _markers = YallaMapMarkers();
+  final _personal = PersonalLocationMapLayer();
+  final _route = PersonalRouteMapLayer();
+  bool _personalInstalled = false;
   late final AnimationController _selectionAnimation = AnimationController(
     vsync: this,
     duration: AppMotion.standard,
@@ -82,6 +95,7 @@ class _YallaMapViewState extends State<YallaMapView>
   ml.MapLibreMapController? _native;
   String _style = '', _language = 'en';
   List<Place>? _mappedPlaces, _mappedPrivate;
+  Map<String, String>? _mappedPrefixes;
   Map<String, dynamic>? _privateData;
   String? _privateKey, _privateLanguage;
   String? _mappedLanguage;
@@ -148,7 +162,10 @@ class _YallaMapViewState extends State<YallaMapView>
     }
     widget.controller.selectionBottom = widget.selectionBottom;
     if (!identical(oldWidget.places, widget.places) ||
+        !mapEquals(oldWidget.placeLabelPrefixes, widget.placeLabelPrefixes) ||
         !identical(oldWidget.privatePlaces, widget.privatePlaces) ||
+        !listEquals(oldWidget.personalLocations, widget.personalLocations) ||
+        oldWidget.personalRoute != widget.personalRoute ||
         !identical(oldWidget.categories, widget.categories) ||
         oldWidget.selection.focusedId != widget.selection.focusedId ||
         oldWidget.selection.mode != widget.selection.mode ||
@@ -179,6 +196,9 @@ class _YallaMapViewState extends State<YallaMapView>
     _styleLoads++;
     _ready = true;
     _installed = false;
+    _personalInstalled = false;
+    _personal.reset();
+    _route.reset();
     widget.controller.ready = false;
     widget.controller.reportFailure(false);
     _queueLayers();
@@ -214,12 +234,15 @@ class _YallaMapViewState extends State<YallaMapView>
               _privateKey = jsonEncode(_privateData);
             }
             if (!identical(places, _mappedPlaces) ||
+                !mapEquals(widget.placeLabelPrefixes, _mappedPrefixes) ||
                 _language != _mappedLanguage) {
               _mappedPlaces = places;
+              _mappedPrefixes = widget.placeLabelPrefixes;
               _mappedLanguage = _language;
               _mappedData = YallaMapMarkers.collection(
                 places,
                 language: _language,
+                labelPrefixes: widget.placeLabelPrefixes,
               );
               _mappedKey = jsonEncode(_mappedData);
             }
@@ -228,6 +251,7 @@ class _YallaMapViewState extends State<YallaMapView>
               highlighted,
               language: _language,
               includeUnavailable: selection.showChecks,
+              labelPrefixes: widget.placeLabelPrefixes,
             );
             final custom = <String, dynamic>{
               'type': 'FeatureCollection',
@@ -325,6 +349,37 @@ class _YallaMapViewState extends State<YallaMapView>
               widget.controller.attach();
               _settled();
             }
+            if (!current()) return;
+            final personal = widget.personalLocations;
+            if (!_personalInstalled && personal.isNotEmpty) {
+              await _personal.install(map, dark: _dark, current: current);
+              if (!current()) return;
+              _personalInstalled = true;
+            }
+            if (_personalInstalled) {
+              await _personal.update(map, personal, current: current);
+              if (!current()) return;
+              await _markers.setPersonalOverlaps(map, {
+                for (final place in [...places, ...highlighted])
+                  if (YallaMapMarkers.validPoint(place) &&
+                      personal.any(
+                        (marker) =>
+                            marker.catalogPlaceId == place.id &&
+                            PersonalLocationMapLayer.overlaps(
+                              marker.point,
+                              LatLng(place.latitude!, place.longitude!),
+                            ),
+                      ))
+                    place.id,
+              });
+              if (!current()) return;
+            }
+            await _route.render(
+              map,
+              widget.personalRoute,
+              dark: _dark,
+              current: current,
+            );
             if (!current()) return;
             final markerTimer = kDebugMode ? (Stopwatch()..start()) : null;
             await _markers.update(
@@ -534,7 +589,9 @@ class _YallaMapViewState extends State<YallaMapView>
     bool current() =>
         mounted && _installed && generation == (_epoch, _styleLoads);
     try {
-      const layers = [
+      final layers = [
+        if (_personalInstalled && widget.personalLocations.isNotEmpty)
+          PersonalLocationMapLayer.dots,
         YallaMapMarkers.selectedPins,
         YallaMapMarkers.pins,
         YallaMapMarkers.privatePins,
@@ -559,6 +616,21 @@ class _YallaMapViewState extends State<YallaMapView>
       for (final feature in features.whereType<Map>()) {
         final properties = feature['properties'];
         if (properties is! Map) continue;
+        if (properties['personal_key'] case final String key) {
+          final marker = widget.personalLocations
+              .where((marker) => marker.key == key)
+              .firstOrNull;
+          if (marker != null) {
+            final catalogPlace = marker.catalogPlaceId == null
+                ? null
+                : [...widget.places, ...widget.selection.selected]
+                      .where((place) => place.id == marker.catalogPlaceId)
+                      .firstOrNull;
+            widget.onPersonalLocationTap?.call(key, catalogPlace);
+            return;
+          }
+          continue;
+        }
         if (properties['cluster_id'] case final num clusterId) {
           final geometry = feature['geometry'];
           final center = geometry is Map ? geometry['coordinates'] : null;

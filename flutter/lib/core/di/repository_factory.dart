@@ -1,4 +1,19 @@
+import 'package:yalla_5roga/features/place_reviews/data/datasources/place_reviews_remote_datasource.dart';
+import 'package:yalla_5roga/features/place_reviews/data/repositories/place_reviews_repository_impl.dart';
+import 'package:yalla_5roga/features/place_reviews/domain/repositories/place_reviews_repository.dart';
 import 'package:yalla_5roga/core/media/media_upload_service.dart';
+import 'package:yalla_5roga/features/smart_meetup/data/datasources/smart_meetup_remote_datasource.dart';
+import 'package:yalla_5roga/features/smart_meetup/data/repositories/smart_meetup_repository_impl.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/repositories/smart_meetup_repository.dart';
+import 'package:yalla_5roga/features/notifications/domain/repositories/location_travel_notification_repository.dart';
+import 'package:yalla_5roga/features/notifications/data/datasources/location_travel_notification_remote_datasource.dart';
+import 'package:yalla_5roga/features/notifications/data/repositories/location_travel_notification_repository_impl.dart';
+import 'package:yalla_5roga/features/route_preview/domain/route_preview_repository.dart';
+import 'package:yalla_5roga/features/route_preview/data/route_preview_remote_data_source.dart';
+import 'package:yalla_5roga/features/route_preview/data/route_preview_repository_impl.dart';
+import 'package:yalla_5roga/features/starting_location/domain/repositories/starting_location_repository.dart';
+import 'package:yalla_5roga/features/starting_location/data/datasources/starting_location_remote_datasource.dart';
+import 'package:yalla_5roga/features/starting_location/data/repositories/starting_location_repository_impl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/features/chat/data/datasources/chat_send_queue.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
@@ -15,12 +30,14 @@ import 'package:yalla_5roga/features/chat/data/repositories/outing_chat_reposito
 import 'package:yalla_5roga/features/discover/data/datasources/discover_remote_datasource.dart';
 import 'package:yalla_5roga/features/discover/data/datasources/places_local_store.dart';
 import 'package:yalla_5roga/features/discover/data/repositories/discover_repository_impl.dart';
-import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
 import 'package:yalla_5roga/features/groups/data/datasources/groups_remote_datasource.dart';
 import 'package:yalla_5roga/features/groups/data/repositories/groups_repository_impl.dart';
 import 'package:yalla_5roga/features/groups/domain/repositories/groups_repository.dart';
 import 'package:yalla_5roga/features/invitations/data/datasources/invitations_remote_datasource.dart';
 import 'package:yalla_5roga/features/invitations/data/repositories/invitations_repository_impl.dart';
+import 'package:yalla_5roga/features/location_privacy/data/datasources/location_privacy_remote_datasource.dart';
+import 'package:yalla_5roga/features/location_privacy/data/repositories/location_privacy_repository_impl.dart';
+import 'package:yalla_5roga/features/location_privacy/domain/repositories/location_privacy_repository.dart';
 import 'package:yalla_5roga/features/notifications/data/datasources/notifications_remote_datasource.dart';
 import 'package:yalla_5roga/features/notifications/data/repositories/notifications_repository_impl.dart';
 import 'package:yalla_5roga/features/notifications/domain/repositories/notifications_repository.dart';
@@ -34,6 +51,9 @@ import 'package:yalla_5roga/features/outings/domain/repositories/location_reposi
 import 'package:yalla_5roga/features/outings/domain/repositories/outings_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/repositories/saved_outings_repository.dart';
 
+import 'package:yalla_5roga/features/saved_locations/data/datasources/saved_locations_remote_datasource.dart';
+import 'package:yalla_5roga/features/saved_locations/data/repositories/saved_locations_repository_impl.dart';
+
 /// Builds API-backed repositories (plus local prefs where used as cache only).
 class RepositoryFactory {
   const RepositoryFactory({
@@ -45,6 +65,12 @@ class RepositoryFactory {
   });
 
   final ApiClient apiClient;
+
+  PlaceReviewsRepository placeReviews(String? Function() currentUserId) =>
+      PlaceReviewsRepositoryImpl(
+        PlaceReviewsRemoteDataSource(apiClient),
+        currentUserId,
+      );
   final NetworkInfo networkInfo;
   final SharedPreferences prefs;
   final FirebaseAuthService firebaseAuth;
@@ -58,6 +84,12 @@ class RepositoryFactory {
       firebaseAuth: firebaseAuth,
     );
   }
+
+  LocationTravelNotificationRepository locationTravelNotifications() =>
+      LocationTravelNotificationRepositoryImpl(
+        LocationTravelNotificationRemoteDataSource(apiClient),
+        networkInfo,
+      );
 
   NotificationsRepository notifications() {
     return NotificationsRepositoryImpl(
@@ -94,7 +126,7 @@ class RepositoryFactory {
     );
   }
 
-  DiscoverRepository discover() {
+  DiscoverRepositoryImpl discover() {
     return DiscoverRepositoryImpl(
       remote: DiscoverRemoteDataSource(apiClient),
       local: PlacesLocalStore(config.apiBaseUrl),
@@ -115,9 +147,46 @@ class RepositoryFactory {
     );
   }
 
+  SavedLocationsRepositoryImpl savedLocations(
+    String? Function() activeAccount,
+  ) => SavedLocationsRepositoryImpl(
+    SavedLocationsRemoteDataSource(apiClient),
+    networkInfo,
+    () {
+      final owner = activeAccount();
+      return owner == firebaseAuth.currentUser?.uid ? owner : null;
+    },
+  );
+
+  LocationPrivacyRepository locationPrivacy(String? Function() activeAccount) =>
+      LocationPrivacyRepositoryImpl(
+        LocationPrivacyRemoteDataSource(apiClient),
+        networkInfo,
+        () {
+          final owner = activeAccount();
+          return owner == firebaseAuth.currentUser?.uid ? owner : null;
+        },
+      );
+
   LocationRepository geocoding() {
     return GeocodingHttpRepository(apiClient);
   }
+
+  RoutePreviewRepository routePreview() => RoutePreviewRepositoryImpl(
+    RoutePreviewRemoteDataSource(apiClient),
+    networkInfo,
+  );
+
+  StartingLocationRepository startingLocation() =>
+      StartingLocationRepositoryImpl(
+        StartingLocationRemoteDataSource(apiClient),
+        networkInfo,
+      );
+
+  SmartMeetupRepository smartMeetup() => SmartMeetupRepositoryImpl(
+    SmartMeetupRemoteDataSource(apiClient),
+    networkInfo,
+  );
 
   InvitationsRepositoryImpl invitations() {
     return InvitationsRepositoryImpl(

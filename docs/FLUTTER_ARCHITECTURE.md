@@ -501,3 +501,56 @@ The invitation banner adds a group picker before the existing phone invitation s
 The shared media resolver evicts private account image keys on logout and clears stale private images when an authenticated API response omits their IDs. Offline transport errors keep the account's cached image available. Shared public cache files remain reusable.
 
 The shared Dio client records each attempt, including cancellation, timeout and the bounded credential retry. RequestScope propagates feature, origin and trigger across async repository work. A retry retains its correlation ID and gets a new request ID. Repository cache events are measured separately. Detail navigation uses repository TTL, and list patches retain the original expiration. Account-scoped cache invalidation prevents an older in-flight response from repopulating an evicted entry. Firebase Performance keeps one HTTP metric per attempt. Optional sampled metrics and device verification are documented in the [operator guide](development/OBSERVABILITY.md).
+
+### Shared Home and Settings background — 2026-11-24
+
+Home and Settings compose `core/widgets/app_page_background.dart` around their safe-area content. This shared renderer preserves Home’s theme-aware vertical gradient and directional top glow in both tabs. It does not change navigation or settings behavior. Focused Dart analysis passed with no issues. The device debug APK was generated and its Android debug signature verified. Gradle remained in Kotlin build-service cleanup after writing the APK. Device rendering remains unverified; no flows or diagrams changed.
+
+## Saved Locations
+
+`features/saved_locations` owns the personal and effective entities, DTO mapping, Dio-backed repository, use cases, account-bound provider, and Settings screens. The feature keeps personal locations and effective coordinates in memory for the current account and backend origin. It disables disk snapshots for its API reads, drops in-flight results from older sessions, and clears state on sign-out or account replacement. A successful Discover bookmark removal invalidates the effective selection. The map picker shares `YallaMapView`, and the GPS flow requests a single foreground fix through `MapLocation`. The form accepts a private address directly and avoids passing it through geocoding.
+
+`PersonalLocationsMap` adds a toggle and marker details to Discover, the outing location pickers and the full-screen venue map. It supplies owner data to `PersonalLocationMapLayer` through `YallaMapView`. The layer restores its own source, circle and icon layers on style load. Data changes update that source without recreating the map, and sign-out or account replacement drops the previous native surface. The renderer hides coincident catalog symbols for linked markers at the layer level, preserving the clustered source and the private-place source. A default bookmark can render from the effective DTO while the public viewport loads. The starting-location action selects an in-memory point for the current account session and focuses the camera.
+
+## Transportation preferences
+
+`features/transportation` provides the account-bound preference provider, Settings page, localized mode selector and capability message. The account provider reuses the saved locations data adapter's authenticated, snapshot-free requests and clears state on account changes. Personal and selected bookmark values stay in the saved locations provider. The selector accepts a caller-supplied mode list for future calculation flows that require explicit alternatives.
+
+## Location privacy settings
+
+`features/location_privacy` owns the Settings page, group exclusions and explicit consent sheet. Its account-bound provider clears state at session changes and applies only current-session responses. The repository sends requests with authenticated account guards, uses the existing group list for management and disables offline snapshots on privacy API reads. The DTOs carry settings and group IDs. The consent sheet permits only a policy version whose disclosure the app can display. English and Arabic use the existing L10n system.
+
+## Group Smart Meetup
+
+Planning and results providers lease Smart Meetup subscriptions through the existing `OutingChatSocketClient`. The visible foreground route owns the lease. Acknowledged joins and reconnects reconcile through REST. Providers debounce versioned hints and reject earlier responses by session version and calculation attempt. Result invalidation disables handoff immediately and displays the existing stale banner. Session expiry, access revocation and account changes clear protected state and release the room.
+
+`MeetupResultHandoffModel` carries the source calculation and catalog venues to `CreateOutingProvider`. `SmartMeetupLocationSource` opens the existing Group or Quick Meetup screens from the Location step and returns selected venues to the same route-local form. Stale submit responses open `StaleMeetupResultDialog`, which can refresh results while retaining that form and its request key. The draft serializer round-trips the source alongside selected places.
+
+Group Details pushes `GroupSmartMeetupPage` immediately for an accepted member. The route-scoped provider loads through the authenticated repository and discards data on an account change. Readiness stays in route memory. Reconnect, app resume, returning from settings, group roster changes and manual refresh revalidate through the API. Page controls and readiness are available in English and Arabic.
+
+Home and Discover open `MeetupEntrySelector`, which routes to Group Smart Meetup or `QuickMeetupPage`. The standalone instance of `SmartMeetupProvider` holds the current session in route memory and applies mutation responses atomically to the view. The map reuses the shared MapLibre layer, with owner and guest symbols identified in the participant list. The guest editor reuses the shared catalog, geocoding, foreground GPS picker and transportation controls.
+
+Both setup pages open `SmartMeetupResultsPage`. Its route-owned provider binds requests to the signed-in account, discards superseded responses and disables handoff while offline, stale or unverified. Ranked public places reuse MapLibre and the shared place card. The provider revalidates the exact calculation and selected place IDs before navigating to Discover details or opening the existing outing creation form. The results are held in route memory and no refresh is queued offline.
+
+## Temporary starting-location editor
+
+Group Smart Meetup, Quick Meetup and eligible Outing Details compose `StartingLocationEditor` with a meetup or outing scope. Its route-local provider keeps the effective inputs in memory and binds requests to the current account and account generation. Mutations reload the corresponding meetup readiness and Quick Meetup map. The editor reuses saved-location, bookmark, MapLibre, foreground GPS and transportation controls. Saving a point in My Locations opens the existing named-location form with the point prefilled and requires a separate save. A future route preview can mount the same editor with the outing scope and refresh from its change callback.
+
+Group and Quick Meetup share `MeetupPreferencesBottomSheet` and `MeetupPreferencesSummary`. A route-local `MeetupPreferencesProvider` loads catalog labels for the current account. The sheet holds a temporary copy and sends the complete selection only on Apply. Reset stages defaults locally and uses the reset endpoint when applied directly. The session response refreshes the active chips in the planning/results area, including the current routing-unavailable state.
+
+
+## Place ratings and reviews
+
+`features/place_reviews` holds the review domain types, API adapter, repository, and review UI. The detail Reviews tab owns its provider and cursor, and it is scoped to the signed-in user and branch. Public aggregates from the API populate the overview, distribution, Home, Discover, Saved Places, map cards, outing selection and votes. After a write, the committed statistics replace older card values and invalidate the affected place caches. Authenticated review reads avoid offline snapshots and writes require a live response. The shared compact widget can render future Smart Meetup venue results when those results include a catalog branch and its statistics.
+
+Discover sends Top Rated and minimum rating criteria through `PlaceFilters`. Rating pages use the live catalog endpoint and its cursor. Top Rated preserves server order through GPS updates and bypasses the offline viewport ordering path. The existing card summary displays actual rating and count. A committed catalog notification refreshes the mounted result set, and an expired ranking cursor restarts at the first page.
+
+
+## Personal route preview
+
+The route-local provider binds requests to the authenticated account and context. Its repository bypasses offline snapshots and the provider drops late responses after request replacement or disposal. The preview reuses the contextual starting-location editor and shared YallaMapView. PersonalRouteMapLayer uses distinct GeoJSON sources for the selected line, alternatives, origin and destination. Sources are reapplied on style load and emptied when the overlay is removed. The preview fits the selected geometry and endpoints, and hands off only the validated destination to the external navigation app.
+
+
+## Location requests and departure reminders
+
+Group Smart Meetup renders a confirmation action for each requestable member. Starting-location requests from the Inbox and FCM share the existing authenticated notification navigation. Departure settings use a route-scoped provider and the account-bound notification repository. Confirmed upcoming Outing Details shows the caller's status, effective starting location and transportation preference. Journey and departure fields render only when supplied by the backend.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_cover_image.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -53,6 +54,11 @@ class OutingVoteOptions extends StatelessWidget {
                     radius: 8,
                   ),
             selected: selectedIndexes.contains(i),
+            metadata: RatingsSummaryWidget(
+              placeId: options[i].catalogPlaceId ?? '',
+              statistics: options[i].ratingStatistics,
+              compact: true,
+            ),
             progress: options[i].percent / 100,
             trailing: Text(
               l10n.votesPercent(options[i].votes, options[i].percent),

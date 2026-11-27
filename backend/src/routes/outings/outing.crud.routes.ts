@@ -73,6 +73,8 @@ import {
  *       Group outings require group_id and active membership (occasion defaults to none).
  *       Special events use birthday, wedding, celebration or other, with optional group_id.
  *       A selected group requires active membership. Type is derived from occasion.
+ *       An optional Smart Meetup selection validates the latest recommendation result
+ *       and uses catalog snapshots within the same create transaction.
  *     operationId: createOuting
  *     requestBody:
  *       $ref: "#/components/requestBodies/CreateOuting"
@@ -94,7 +96,7 @@ import {
  *       "404":
  *         $ref: "#/components/responses/NotFound"
  *       "409":
- *         description: The request conflicts with the current resource state
+ *         description: The request conflicts with the current state. A stale or unpublished Smart Meetup result returns code stale_meetup_result.
  *         content:
  *           application/json:
  *             schema:

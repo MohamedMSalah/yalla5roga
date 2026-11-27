@@ -47,7 +47,7 @@ export function extendPlaceBrandsOpenApi(spec: any) {
     },
   } };
   spec.paths["/api/place-brands/{id}/branches"] = { get: {
-    ...spec.paths["/api/places"].get, operationId: "listPlaceBrandBranches", summary: "Paginated physical branches; optional nearest-first sort",
+    ...spec.paths["/api/places"].get, operationId: "listPlaceBrandBranches", summary: "List physical branches with catalog filters and sorting",
     parameters: [id, ...spec.paths["/api/places"].get.parameters.filter((p: any) => p.name !== "brand_id")],
     responses: { ...spec.paths["/api/places"].get.responses, "404": { $ref: "#/components/responses/NotFound" } },
   } };

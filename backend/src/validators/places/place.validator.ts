@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { mediaImageUrlSchema } from "../media/image-url.validator.js";
+import { catalogRatingFilters } from "./catalog.validator.js";
 
 const vibeSchema = z.enum(["food", "activity", "outdoor", "movie"]);
 const priceLevelSchema = z.enum([
@@ -87,6 +88,8 @@ const coordinate = (min: number, max: number) =>
   );
 
 export const nearbyPlacesQuerySchema = z.object({
+  ...catalogRatingFilters,
+  sort: z.enum(["distance", "top_rated"]).optional(),
   lat: coordinate(-90, 90),
   lng: coordinate(-180, 180),
   radiusKm: z.coerce.number().positive().optional(),

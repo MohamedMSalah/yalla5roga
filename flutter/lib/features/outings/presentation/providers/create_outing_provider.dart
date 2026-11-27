@@ -18,6 +18,7 @@ import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place_location.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/saved_outing.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/entities/meetup_result_handoff_model.dart';
 
 class CreateOutingProvider extends ChangeNotifier {
   CreateOutingProvider({
@@ -28,6 +29,8 @@ class CreateOutingProvider extends ChangeNotifier {
     this.placeCatalog,
     Group? group,
     SuggestedPlace? suggestedPlace,
+    List<Place> initialPlaces = const [],
+    MeetupResultHandoffModel? meetupSelection,
     this.saved,
     this.draft,
     bool specialEvent = false,
@@ -48,6 +51,10 @@ class CreateOutingProvider extends ChangeNotifier {
     );
     nameController.addListener(notifyListeners);
     if (_specialEvent) _occasion = OutingOccasion.birthday;
+    if (initialPlaces.isNotEmpty) {
+      _selectedPlaces = _normalizeSelection(initialPlaces);
+      _vibe = _selectedPlaces.first.vibe.index;
+    }
     if (suggestedPlace != null) {
       final place = suggestedPlace.toOutingPlace();
       _vibe = place.vibe.index;
@@ -83,6 +90,11 @@ class CreateOutingProvider extends ChangeNotifier {
           draft!.selectedPlaces.isNotEmpty) {
         _selectedPlaces = _normalizeSelection(draft!.selectedPlaces);
       }
+    }
+    final source = meetupSelection ?? draft?.meetupSelection;
+    if (source != null && !_applyMeetupSelection(source)) {
+      _meetupSelection = source;
+      _selectedPlaces = source.places;
     }
     _date = clampDate(_date);
     _deadlineUnit =
@@ -132,6 +144,7 @@ class CreateOutingProvider extends ChangeNotifier {
   DateTime _date = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _time = const TimeOfDay(hour: 11, minute: 30);
   List<Place> _selectedPlaces = const [];
+  MeetupResultHandoffModel? _meetupSelection;
   late String _savedState;
 
   String get _draftState => toDraft().toJson().toString();
@@ -238,7 +251,9 @@ class CreateOutingProvider extends ChangeNotifier {
 
   bool get specialEvent => _specialEvent;
 
-  bool get groupLocked => _groupLocked;
+  bool get groupLocked => _groupLocked || _meetupSelection?.groupId != null;
+
+  MeetupResultHandoffModel? get meetupSelection => _meetupSelection;
 
   Set<String> get guestIds => _guestIds;
   Set<String> get guestPhones => Set.unmodifiable(_guestPhones);
@@ -353,8 +368,13 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   String? validateLocation(L10n l10n) {
+    final sourceGroup = _meetupSelection?.groupId;
+    if (sourceGroup != null && sourceGroup != _group?.id) {
+      return l10n.groupRequired;
+    }
     if (_selectedPlaces.isEmpty) return l10n.locationRequired;
-    if (_selectedPlaces.any((place) => !_eligible(place))) {
+    if (_selectedPlaces.length > maxSelections ||
+        _selectedPlaces.any((place) => !_eligible(place))) {
       return l10n.pickLocationRequired;
     }
     return null;
@@ -420,6 +440,7 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   bool canAddPlace(Place place) =>
+      _meetupSelection == null &&
       _selectedPlaces.length < maxSelections &&
       _eligible(place) &&
       !_selectedPlaces.any(place.matchesSelection);
@@ -442,12 +463,44 @@ class CreateOutingProvider extends ChangeNotifier {
   }
 
   void replaceMapSelection(List<Place> places) {
-    _selectedPlaces = _normalizeSelection(places);
+    final ordered = _normalizeSelection(places);
+    final source = _meetupSelection;
+    if (source != null && ordered.isNotEmpty) {
+      if (ordered.any((place) => !source.places.any((p) => p.id == place.id))) {
+        return;
+      }
+      _meetupSelection = source.withPlaces(ordered);
+    } else {
+      _meetupSelection = null;
+    }
+    _selectedPlaces = ordered;
     notifyListeners();
   }
 
+  bool applyMeetupSelection(MeetupResultHandoffModel source) {
+    if (!_applyMeetupSelection(source)) return false;
+    _step = 0;
+    notifyListeners();
+    return true;
+  }
+
+  bool _applyMeetupSelection(MeetupResultHandoffModel source) {
+    final places = source.places;
+    if (places.isEmpty ||
+        places.length > maxSelections ||
+        places.map((place) => place.id).toSet().length != places.length ||
+        places.any((place) => place.id.isEmpty || !_eligible(place)) ||
+        (source.groupId != null && source.groupId != _group?.id)) {
+      return false;
+    }
+    _meetupSelection = source;
+    _selectedPlaces = places;
+    _vibe = places.first.vibe.index;
+    return true;
+  }
+
   void setGroup(Group? value) {
-    if (_groupLocked) return;
+    if (groupLocked) return;
     _group = value;
     notifyListeners();
   }
@@ -508,7 +561,8 @@ class CreateOutingProvider extends ChangeNotifier {
       guestPhones: _guestPhones.toList(),
       letVote: multiPlaceMode,
       voteDeadlineHours: _voteDeadlineHours,
-      selectedPlaces: _voteOptions,
+      selectedPlaces: _meetupSelection?.places ?? _voteOptions,
+      meetupSelection: _meetupSelection,
     );
   }
 
@@ -544,6 +598,7 @@ class CreateOutingProvider extends ChangeNotifier {
       guestIds: guests,
       guestPhones: _specialEvent ? _guestPhones.toList() : const [],
       createRequestKey: _draftId,
+      meetupSelection: _meetupSelection,
       status: voting
           ? OutingStatus.voting
           : selectedLocation != null

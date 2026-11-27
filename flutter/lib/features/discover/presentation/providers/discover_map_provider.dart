@@ -244,7 +244,7 @@ class DiscoverMapProvider extends PlaceCatalogProvider {
     if (!results.any((place) => place.id == selectedPlaceId)) {
       selectedPlaceId = null;
     }
-    if (userLocation != null) {
+    if (userLocation != null && !filters.topRated) {
       final distances = {
         for (final place in results)
           place.id: distanceKm(place) ?? double.infinity,

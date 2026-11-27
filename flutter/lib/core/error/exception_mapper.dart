@@ -68,7 +68,11 @@ abstract final class ExceptionMapper {
         break;
     }
 
-    return ServerFailure(message, _codeForStatus(status), status);
+    return ServerFailure(
+      message,
+      _responseCode(error) ?? _codeForStatus(status),
+      status,
+    );
   }
 
   /// Builds a typed [AppException] from a Dio failure (used by interceptors).
@@ -123,7 +127,7 @@ abstract final class ExceptionMapper {
       ),
       404 => ServerException(
         message,
-        ErrorCodes.notFound,
+        _responseCode(err) ?? ErrorCodes.notFound,
         status,
         method,
         endpoint,
@@ -131,7 +135,7 @@ abstract final class ExceptionMapper {
       ),
       409 => ServerException(
         message,
-        ErrorCodes.conflict,
+        _responseCode(err) ?? ErrorCodes.conflict,
         status,
         method,
         endpoint,
@@ -182,5 +186,12 @@ abstract final class ExceptionMapper {
       return data['message'] as String;
     }
     return null;
+  }
+
+  static String? _responseCode(DioException error) {
+    final data = error.response?.data;
+    return data is Map && data['code'] is String
+        ? data['code'] as String
+        : null;
   }
 }

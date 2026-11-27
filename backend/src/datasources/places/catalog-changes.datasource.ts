@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database.js";
 import { encodeChangeCursor, type ChangeCursor } from "../../services/places/catalog-cursor.js";
+import { PlaceRatingStatisticsRepository } from "../../repositories/places/place-rating-statistics.repository.js";
 import { publicPlace } from "../../services/places/public-place.js";
 
 export async function readCatalogChanges(cursor: ChangeCursor, limit: number) {
@@ -48,8 +49,9 @@ export async function readCatalogChanges(cursor: ChangeCursor, limit: number) {
     const vibes = vibeIds.length ? await tx.vibes.findMany({
       where: { id: { in: vibeIds }, is_active: true },
     }) : [];
+    const ratedPlaces = await new PlaceRatingStatisticsRepository().attach(places, (place) => place.id, tx);
     const records = new Map<string, unknown>([
-      ...places.map(p => [`place:${p.id}`, publicPlace(p)] as const),
+      ...ratedPlaces.map(p => [`place:${p.id}`, publicPlace(p)] as const),
       ...brands.map(p => [`brand:${p.id}`, p] as const),
       ...categories.map(p => [`category:${p.id}`, p] as const),
       ...vibes.map(p => [`vibe:${p.id}`, p] as const),

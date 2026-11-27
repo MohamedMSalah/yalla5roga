@@ -17,8 +17,17 @@ import {
 } from "../../usecases/places/place-details.usecase.js";
 import { UpdatePlaceUseCase } from "../../usecases/places/update-place.usecase.js";
 import { nearbyPlacesQuerySchema } from "../../validators/places/place.validator.js";
+import { catalogQuerySchema, hasRatingCriteria } from "../../validators/places/catalog.validator.js";
 import { CatalogController } from "./catalog.controller.js";
+import { PlaceRatingStatisticsRepository } from "../../repositories/places/place-rating-statistics.repository.js";
 import { publicPlace } from "../../services/places/public-place.js";
+
+const statistics = new PlaceRatingStatisticsRepository();
+
+async function placeData<T extends { id: string }>(place: T) {
+  const [rated] = await statistics.attach([place], (row) => row.id);
+  return publicPlace(rated!);
+}
 
 export class PlaceController {
   constructor(
@@ -52,12 +61,13 @@ export class PlaceController {
       // The route already validated the query (400 on bad input). Express 5
       // re-parses req.query on each access, so coerce here to get numbers.
       const query = nearbyPlacesQuerySchema.parse(req.query);
-      const { catalogQuerySchema } = await import("../../validators/places/catalog.validator.js");
       const { CatalogUseCase } = await import("../../usecases/places/catalog.usecase.js");
-      const result = await new CatalogUseCase().list(catalogQuerySchema.parse({ ...req.query,
-        lat: query.lat, lng: query.lng, radiusKm: query.radiusKm ?? 5, limit: query.limit ?? 20, sort: "distance" }));
-      const places = result.places;
-      res.json({ success: true, data: places });
+      const input = catalogQuerySchema.parse({ ...req.query,
+        lat: query.lat, lng: query.lng, radiusKm: query.radiusKm ?? 5, limit: query.limit ?? 20, sort: query.sort ?? "distance" });
+      const rated = hasRatingCriteria(input);
+      if (rated) res.set("Cache-Control", "no-store");
+      const result = await new CatalogUseCase().list(input);
+      res.json({ success: true, data: result.places, ...(rated && { pagination: result.pagination }) });
     } catch (error) {
       next(error);
     }
@@ -66,7 +76,7 @@ export class PlaceController {
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const place = await this.getPlace.execute(req.params.id as string);
-      res.json({ success: true, data: publicPlace(place) });
+      res.json({ success: true, data: await placeData(place) });
     } catch (error) {
       next(error);
     }
@@ -75,7 +85,7 @@ export class PlaceController {
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const place = await this.createPlace.execute(req.body, req.user?.uid);
-      res.status(201).json({ success: true, data: publicPlace(place) });
+      res.status(201).json({ success: true, data: await placeData(place) });
     } catch (error) {
       next(error);
     }
@@ -88,7 +98,7 @@ export class PlaceController {
         req.body,
         req.user?.uid,
       );
-      res.json({ success: true, data: publicPlace(place) });
+      res.json({ success: true, data: await placeData(place) });
     } catch (error) {
       next(error);
     }
@@ -97,7 +107,7 @@ export class PlaceController {
   remove = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const place = await this.deletePlace.execute(req.params.id as string);
-      res.json({ success: true, data: publicPlace(place) });
+      res.json({ success: true, data: await placeData(place) });
     } catch (error) {
       next(error);
     }

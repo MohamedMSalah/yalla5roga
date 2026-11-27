@@ -50,6 +50,8 @@ Invalid tokens should be deleted on FCM errors (Push channel behavior).
 1. Domain code calls `notifyOutingParticipants` / publisher with `eventType` + `eventKey`.
 2. Writes in-app `notifications` row (idempotent on `event_key`).
 3. Enqueues `notification_events` (status `pending`, channel `push` or `whatsapp`).
+
+The worker also consumes the internal `realtime` channel for Smart Meetup. Those rows carry only a session ID and version metadata. They are delivered on the authenticated socket and do not create inbox entries, push messages, WhatsApp messages or delivery-log rows.
 4. Worker claims due rows → channel send → `sent` / retry / `dead`.
 5. Delivery attempts logged in `notification_delivery_logs`.
 
@@ -214,3 +216,12 @@ Notifications presentation refinement (2026-11-14): the existing mark-all mutati
 ## Round-specific voting notifications — 2026-11-15
 
 Tie closure creates one member waiting notification and a creator intervention notification (`action_required` for creator only), both using existing `voting_closed` routing and distinct durable per-round keys. Revote uses `voting_started` with its round key. Final venue retains winner/tie-break and outing-confirmed producers. All carry the outing deep link; voting notifications target its voting section. Retried transitions do not duplicate outbox entries. Push resolution suppresses stale round/tie prompts after newer rounds or confirmation; current membership/preferences still apply. Delivery failure does not undo an already committed transition. Real FCM delivery/native notification taps are unverified.
+
+
+## Smart Meetup setup requests and personalized departure reminders
+
+An explicit request writes a single recipient's inbox row and push outbox row together. The existing worker rechecks the request's expiry, both memberships, setup readiness and recipient notification preferences before FCM. Inbox and notification taps navigate to the same authenticated session starting-location editor. Request metadata contains identifiers and timestamps, with no starting coordinates.
+
+The outbox also enforces a rolling recipient cooldown (360 minutes by default) and a per-sender 24-hour cap (five requests by default). The limits apply across groups and sessions. Configuration uses `LOCATION_REQUEST_COOLDOWN_MINUTES` and `LOCATION_REQUEST_DAILY_LIMIT`. Opening or refreshing a session only reads readiness.
+
+Personalized departure reminders require a separate account opt-in. The existing general outing reminder scan and notification worker continue to deliver their current events. Personalized reminder scheduling and polling stay inactive until a backend travel estimate source and its due-time validation are integrated.

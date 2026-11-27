@@ -7,7 +7,10 @@ import { collect, increment, observe } from "./metrics.js";
 
 const known = new Set(["data:reconcile", "data:changed", "catalog:changed", "outing:join", "outing:leave",
   "outing:message", "outing:read", "group:join", "group:leave", "outing:arrival_changed",
-  "outing:voting_round_updated", "outing:voting_closed", "outing:location_confirmed"]);
+  "outing:voting_round_updated", "outing:voting_closed", "outing:location_confirmed",
+  "meetup:join", "meetup:leave", "smart_meetup:session_updated", "smart_meetup:session_expired",
+  "smart_meetup:readiness_changed", "smart_meetup:preferences_changed", "smart_meetup:results_invalidated",
+  "smart_meetup:calculation_completed", "smart_meetup:subscription_revoked"]);
 const event = (name: string) => known.has(name) ? name : "other";
 const secret = randomBytes(32);
 
@@ -46,7 +49,7 @@ export function watchSocketServer(io: Server) {
     socket.onAnyOutgoing(outgoing);
     setImmediate(() => {
       if (!socket.connected) return;
-      for (const name of ["group:join", "group:leave", "outing:join", "outing:leave", "data:reconcile"]) {
+      for (const name of ["group:join", "group:leave", "outing:join", "outing:leave", "meetup:join", "meetup:leave", "data:reconcile"]) {
         if (socket.listeners(name).length > 1) increment("socket_duplicate_listeners_total", { event: name });
       }
     });

@@ -96,3 +96,28 @@ Discover now shares map controls with outing location selection: searchable OSM 
 ## OSM catalog management — 2026-11-14
 
 Places discovery now uses an extensible bilingual taxonomy (44 categories, 23 place vibes) on the existing Neon catalog, with administrative-boundary Overture/Geofabrik imports for Cairo/Giza, source-evidenced lifecycle history and explicit manual synchronization; automatic weekly execution was removed on 2026-11-15. Discover and Create Outing share server filters/pagination, map results and offline snapshots; the existing outing/voting/authentication architecture is retained. See [Places Management](audit/PLACES_MANAGEMENT.md) for verified data counts, operating commands and remaining deployment activation.
+
+## Personal locations
+
+Settings includes **My Locations**, which keeps named personal points synchronized across authenticated devices. An account can select one private default from a personal location or an existing Saved Place. The default is independent of the outing venue.
+
+Users can store a default transportation mode and choose a different preference per personal location or starting bookmark. The capability API reports that route calculations are unavailable.
+
+**Location Privacy** adds optional district sharing controls and explicit Smart Meetup calculation consent. Accepted groups can be excluded from automatic use. The backend supplies the authorization boundary for starting-point access and subsequent result consumption.
+
+## Group Smart Meetup
+
+**Group Smart Meetup** provides one-tap group planning with automatic roster and privacy-safe location readiness. It supports separate planning sessions for individual outings and reports routing availability independently.
+
+**Quick Meetup** gives a signed-in planner a private map for their starting point and temporary guest points. It uses the same meetup planning inputs and routing status with no group or guest account required.
+
+The session creator can narrow either meetup by category, relative budget and minimum rating, choose a travel objective and cap, and add ranking priorities. The preferences are optional and scoped to the current session.
+
+## Temporary starting locations
+
+Group Smart Meetup, Quick Meetup and active Outing Details support a starting point and transportation choice for the current plan. The user can reset to their authorized defaults. Travel estimates remain unavailable until routing is configured.
+
+
+## Place ratings and reviews
+
+Catalog branches support 1–5 ratings, optional written reviews, review reporting, reader controls and moderation. Home, Discover, Saved Places and current outing cards display server-derived compact ratings. See [API contracts](API_CONTRACTS.md#place-ratings-and-reviews) and [database architecture](DATABASE_ARCHITECTURE.md#branch-ratings-and-reviews).

@@ -5,7 +5,7 @@
 | Last verified | 2026-11-13 |
 | Documentation version | 1.1.0 |
 | Source of truth | `backend/prisma/schema.prisma` → Neon PostgreSQL |
-| Configured Neon schema | **24** migrations applied as of 2026-11-21, with zero pending. The [catalog change migration](audit/PLACE_CATALOG_CHANGES_MIGRATION_DEPLOYMENT.json) followed the [read index deployment](audit/DATABASE_READ_PERFORMANCE.md#neon-deployment). Earlier release and backup evidence is in the [voting rounds deployment](audit/LOCATION_TIE_MIGRATION_DEPLOYMENT.json), [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json), and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
+| Configured Neon schema | **34** migrations applied as of 2026-11-27, with zero pending, changed, unexpected or failed. The three latest migrations add starting-location overrides, place reviews and meetup preferences. A private backup of 48 tables and 212,214 rows was restored with matching checksums; all three migrations passed rollback-only rehearsal before deployment. Post-deployment Prisma diff found no schema difference. Earlier evidence is in the [catalog change migration](audit/PLACE_CATALOG_CHANGES_MIGRATION_DEPLOYMENT.json), [read index deployment](audit/DATABASE_READ_PERFORMANCE.md#neon-deployment), [voting rounds deployment](audit/LOCATION_TIE_MIGRATION_DEPLOYMENT.json), [release sync evidence](audit/NEON_RELEASE_SYNC_RESULTS.json), [notification deployment](audit/NOTIFICATION_MIGRATION_DEPLOYMENT.json), and [places deployment](audit/PLACES_MIGRATION_DEPLOYMENT.json). |
 | Needs verification | Live production index usage stats |
 
 Neon PostgreSQL is the **only** application data store. Firebase is not an app database.
@@ -14,6 +14,14 @@ Neon PostgreSQL is the **only** application data store. Firebase is not an app d
 
 ```mermaid
 erDiagram
+  users ||--o{ saved_locations : owns
+  users ||--o| default_starting_locations : sets
+  users ||--o| user_location_privacy : controls
+  users ||--o{ user_location_group_exclusions : sets
+  groups ||--o{ user_location_group_exclusions : scopes
+  places |o--o{ saved_locations : may_link_to
+  saved_locations |o--o| default_starting_locations : personal_source
+  saved_places |o--o| default_starting_locations : bookmark_source
   users {
     string id PK "Firebase UID"
     string phone UK "E.164 for real accounts"
@@ -363,3 +371,132 @@ to the configured Neon branch and all three indexes were verified. See the
 `20261121000000_outing_location_snapshot` adds nullable address and category snapshots to confirmed outings and vote options. Old rows remain valid. The application may be rolled back independently of these columns. The Prisma model maps the installed voting-round keys and the referential actions on vote options, recoveries and place brands. The current-round foreign key's deferrability is defined in SQL.
 
 The migration was applied after restoring and checksumming the verified Neon branch backup on disposable PostgreSQL. Readback confirmed all 25 migration records, four new columns and no Prisma-detectable difference. See the [production readiness report](audit/PRODUCTION_READINESS.md).
+
+## Saved personal locations and starting preferences — 2026-11-26
+
+Migration `20261126000000_saved_starting_locations` adds the `saved_location_type` enum, `saved_locations`, and `default_starting_locations`. No backfill is required. Existing bookmarks and device-local private pins keep their current storage and IDs.
+
+- `saved_locations` has a generated UUID, a required Firebase UID FK, a nonblank name (up to 100 characters), a required type, checked double-precision latitude/longitude, optional approximate area, optional private address, an optional catalog place UUID, and created/updated timestamps. A user owns zero or more locations. Account deletion cascades to personal rows. The optional place association becomes null if the catalog place is deleted. Deleting a personal location leaves the catalog intact.
+- `default_starting_locations` has one row per configured user, keyed by the required user UID, with nullable personal and bookmark reference columns and a required updated timestamp. The check constraint requires exactly one reference per row. Composite foreign keys include the owner UID. They cascade deletion when the referenced location or bookmark is removed. Clearing a preference deletes its row. The existing coordinated profile deletion cascades to both tables in its PostgreSQL transaction.
+- `saved_locations(user_id, id)` is unique for ownership checks and the composite reference. `(user_id, created_at DESC, id)` supports the owner list. `(place_id)` supports catalog unlinking. For dependent preference lookups the primary key already locates at most one row per UID. The existing `saved_places(user_id, place_id)` primary key backs the bookmark lookup.
+
+## Transportation preferences
+
+Migration `20261126000100_transportation_preferences` adds one nullable `transportation_mode` enum column to each of `users`, `saved_locations`, and `saved_places`. It depends on `20261126000000_saved_starting_locations`. Existing records start with a null preference. Bookmark metadata belongs to the composite `(user_id, place_id)` association. Public catalog storage and ER relationships are unchanged.
+
+## Smart Meetup location privacy
+
+Migration `20261126000200_location_privacy` adds the `location_visibility` enum and a one-to-one location settings extension to the user profile. Absent rows resolve to approximate visibility and disabled consent. Stored rows carry the same defaults, an update timestamp and a coordinate-free authorization revision. A check constraint requires both the consent timestamp and version when enabled and clears both fields when disabled.
+
+Exclusions use `(user_id, group_id)` as the primary key and a group index for cascading deletion. The application checks membership separately. The user foreign keys cascade when the coordinated deletion transaction removes the account. The exclusion's group foreign key cascades when the group is deleted.
+
+## Group Smart Meetup
+
+Migration `20261126000300_meetup_sessions` adds `meetup_sessions` with its own lifecycle and calculation statuses, expiry, optimization, version and a digest of input metadata. Participant coordinates remain in the existing location records. Partial unique indexes allow one active general session per group and one active session per group and outing pair. The group, outing and creator foreign keys cascade on deletion.
+
+The configured Neon database received the meetup and three prerequisite migrations on 26 November 2026. A pre-release backup restored 42 tables and 212,209 rows with matching checksums. The four migrations passed rehearsal, and the Neon migration journal and session indexes were verified after deployment.
+
+## Quick Meetup
+
+The standalone session uses the existing creator FK, a null group and outing, and a partial unique index that allows one active standalone session per owner. The current default starting point is resolved through the owner's existing selection. No separate owner participant row is written.
+
+`meetup_manual_participants` stores a session FK, a generated UUID, an optional name of up to 60 characters, an optional approximate area of up to 96 characters, coordinates, an optional transportation mode and timestamps. PostgreSQL checks coordinate ranges and label lengths. The session FK is indexed and cascades on deletion. Expiry and cancellation clear guest rows and the standalone input digest in the transaction that closes the session.
+
+```mermaid
+erDiagram
+    USERS ||--o{ MEETUP_SESSIONS : owns
+    MEETUP_SESSIONS ||--o{ MEETUP_MANUAL_PARTICIPANTS : contains
+    USERS ||--o| DEFAULT_STARTING_LOCATIONS : chooses
+```
+
+Migration `20261126000400_standalone_meetups` was applied to the configured Neon branch on 26 November 2026 after restoring and verifying 47 tables and 212,213 rows and rehearsing the exact SQL in a rollback-only transaction. Readback matched the Prisma journal checksum and validated the two indexes and cascade FK. User, group, membership, invitation and session row counts were unchanged.
+
+```mermaid
+erDiagram
+  GROUPS o|--o{ MEETUP_SESSIONS : scopes
+  OUTINGS o|--o{ MEETUP_SESSIONS : scopes
+  USERS ||--o{ MEETUP_SESSIONS : creates
+```
+
+## Temporary starting-location overrides
+
+`starting_location_overrides` has one owner and exactly one context. Unique owner/context keys permit one row per owner for each meetup or outing. Composite foreign keys enforce ownership of saved locations and Saved Places and cascade on deletion. Only manual points store coordinates. The expiry index supports the scheduled sweep. A meetup override expires with its session or linked outing, whichever ends first. An outing override expires at `ends_at` or six hours after `scheduled_at`. If an outing moves earlier, the existing expiry can shorten.
+
+Lifecycle, group exclusion and access changes delete affected rows. Withdrawal explicitly removes the owner's overrides and account deletion cascades. Override changes invalidate `meetup_sessions.input_version` or increment `outings.travel_input_version`. The latter provides the version for future travel estimates. The migration leaves permanent defaults and voting data in their existing tables.
+
+### Meetup preferences
+
+Migration `20261127000000_meetup_preferences` adds optional one-to-one session preferences and category selections referencing `place_categories`. The session owns the preference lifetime. PostgreSQL constrains the allowed ratings and travel-duration thresholds and uses enums for the travel mode, selected budget levels and selected priorities. The application resolves defaults for existing sessions without a preference row and maps the earlier shortest-time setting to Fastest Overall.
+
+```mermaid
+erDiagram
+  meetup_sessions ||--o| meetup_preferences : owns
+  meetup_preferences ||--o{ meetup_preference_categories : selects
+  place_categories ||--o{ meetup_preference_categories : identifies
+```
+
+The read-only Neon catalog check found 11,607 active places with no price summary level or minimum. Eleven itemized EGP entries had evidence for free admission. Admission is a separate measurement from cost per person, so those entries can support comparable admission ranking within a category and do not establish a venue budget level. The migration adds no price thresholds.
+
+### Meetup calculation results
+
+Migration `20261127000200_meetup_realtime` records evaluated public place IDs on existing calculation rows. Previously stored attempts are backfilled from their recommendations. Targeted candidate changes can stale those attempts, while effective input changes advance the session's existing `input_version`. Triggers coalesce cascaded changes to the same dirty session within one transaction.
+
+The existing `notification_events` table stores Meetup event IDs, type, timestamp and processing status. A database constraint limits the event payload to the session ID, input version, change type and calculation attempt when applicable. The Meetup expiry job removes processed and dead Meetup events after seven days.
+
+Migration `20261127000100_meetup_results` records calculation attempts by session and input version. The attempt stores the input fingerprint, policy version, readiness counts, status and expiry. The recommendation table stores ranks 1–5, canonical place IDs, internal aggregates and explanation codes. Unique calculation/place and calculation/rank pairs enforce distinct venues and the five-result cap. There are indexes for status and expiry and for place-based invalidation. The result schema stores no participant coordinates or route matrices.
+
+```mermaid
+erDiagram
+  meetup_sessions ||--o{ meetup_calculations : owns
+  meetup_calculations ||--o{ meetup_recommendations : ranks
+  places ||--o{ meetup_recommendations : identifies
+```
+
+Session version or lifecycle changes and relevant venue deactivation, removal and coordinate changes invalidate the affected attempts. Session deletion cascades through results. Venue deletion removes the affected recommendation rows and marks their calculations stale.
+
+```mermaid
+erDiagram
+  USERS ||--o{ STARTING_LOCATION_OVERRIDES : owns
+  MEETUP_SESSIONS o|--o{ STARTING_LOCATION_OVERRIDES : scopes
+  OUTINGS o|--o{ STARTING_LOCATION_OVERRIDES : scopes
+  SAVED_LOCATIONS o|--o{ STARTING_LOCATION_OVERRIDES : references
+  SAVED_PLACES o|--o{ STARTING_LOCATION_OVERRIDES : references
+```
+
+
+## Smart Meetup outing creation
+
+The create transaction consumes the calculation ID and selected catalog IDs. It stores the accepted venues in the existing `outings` and `outing_vote_options` fields with their catalog snapshots. The creator-scoped `create_request_key` still identifies the first successful submission. The outing has no dependency on the source session or calculation, so deleting either leaves the outing available. Saved drafts retain the source IDs on the first entry of the existing `selected_places` JSON array for revalidation on submit. The handoff requires no new schema and stores only catalog venue details and source IDs in the draft.
+
+## Branch ratings and reviews
+
+Migration `20261126000600_place_reviews` adds the following relations and keeps existing catalog and user rows intact.
+
+```mermaid
+erDiagram
+  places ||--o{ place_reviews : receives
+  places ||--o| place_rating_statistics : summarizes
+  users ||--o{ place_reviews : writes
+  place_reviews ||--o{ place_review_reports : receives
+  users ||--o{ place_review_reports : submits
+  users ||--o{ place_review_blocks : blocks
+  users ||--o{ place_review_blocks : is_blocked
+```
+
+The branch/author key is unique and PostgreSQL checks the rating range, moderation enum, and aggregate consistency. A trigger applies visible rating deltas to a branch row in the same transaction as the review operation. The average is derived from sum and count. The statistics timestamp increases per branch and the statistics trigger records a catalog change and sends the existing transaction-committed invalidation. A visibility-hidden review is excluded from all public statistics. Account deletion cascades from the user to reviews, reports and both sides of reviewer blocks. The branch foreign key restricts hard deletion while reviews exist. Normal import refreshes reuse branch IDs and archival preserves history.
+
+Top Rated derives the global prior and its cursor version from populated `place_rating_statistics` rows in the same PostgreSQL statement that ranks candidates and reads the page's public aggregates. The version incorporates the configured weight and the per-branch sums and counts, so a redistribution can invalidate a cursor even when global totals match. This query uses the existing aggregate table and branch primary key. It adds no stored score, statistics table or index.
+
+Run `pnpm project production tsx scripts/reconcile-place-ratings.ts` to count drift. `--repair` target-checks the database and briefly locks review and statistics writes while replacing only drifted rows. Repair triggers the catalog invalidation. The backup utility supports both ratings trigger functions for future restore rehearsals. See [release verification](audit/PLACE_REVIEWS_VERIFICATION.md) for the Neon rollout status.
+
+
+## Personal route preview data
+
+Route previews reuse contextual starting locations, temporary overrides, current meetup recommendations and outing venue snapshots. Preview data is transient. Prompt 18 must evaluate provider licensing, privacy and retention before any persistent route cache is introduced. If temporary metadata is later required, scope it by account and context, and include the input version or fingerprint, transportation mode, provider version, expiry and availability.
+
+
+## Location request and departure reminder storage
+
+`20261127000300_location_requests_departure_reminders` extends the existing push event enum and adds partial indexes to query recent requests by sender or recipient. The inbox and outbox retain their event-key constraints. Account deletion removes location requests involving that account.
+
+`departure_reminder_preferences` has one optional row per user. `departure_reminders` has one row per user and outing for the departure purpose, with a unique deduplication key, an estimate reference, input fingerprint and UTC schedule and lifecycle timestamps. The status/schedule index supports a future due scan. The outing and user indexes support scoped invalidation and account cleanup. Foreign keys cascade on account and outing deletion. Pending rows are invalidated transactionally when relevant outing, participant and travel inputs change.

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:yalla_5roga/features/place_reviews/presentation/providers/place_rating_updates.dart';
+import 'package:yalla_5roga/features/place_reviews/domain/repositories/place_reviews_repository.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/network/app_sync_provider.dart';
@@ -12,6 +14,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:yalla_5roga/core/cache/cached_remote.dart';
 import 'package:yalla_5roga/core/config/app_config.dart';
 import 'package:yalla_5roga/core/di/repository_factory.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/repositories/smart_meetup_repository.dart';
+import 'package:yalla_5roga/features/notifications/domain/repositories/location_travel_notification_repository.dart';
+import 'package:yalla_5roga/features/smart_meetup/data/datasources/socket_smart_meetup_realtime.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/smart_meetup_realtime.dart';
+import 'package:yalla_5roga/features/route_preview/domain/route_preview_repository.dart';
+import 'package:yalla_5roga/features/starting_location/domain/repositories/starting_location_repository.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_offline.dart';
 import 'package:yalla_5roga/core/media/media_upload_service.dart';
@@ -46,6 +54,10 @@ import 'package:yalla_5roga/features/outings/presentation/providers/outing_arriv
 import 'package:yalla_5roga/features/outings/domain/repositories/location_repository.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/saved_outings_provider.dart';
+import 'package:yalla_5roga/features/saved_locations/domain/usecases/saved_location_usecases.dart';
+import 'package:yalla_5roga/features/location_privacy/presentation/providers/location_privacy_provider.dart';
+import 'package:yalla_5roga/features/saved_locations/presentation/providers/saved_locations_provider.dart';
+import 'package:yalla_5roga/features/transportation/presentation/providers/transportation_preferences_provider.dart';
 import 'package:yalla_5roga/features/setting/presentation/providers/settings_provider.dart';
 import 'package:yalla_5roga/features/shell/presentation/providers/shell_provider.dart';
 
@@ -62,11 +74,21 @@ class AppDependencies {
     required this.outings,
     required this.outingArrivals,
     required this.savedOutings,
+    required this.savedLocations,
+    required this.locationPrivacy,
+    required this.transportationPreferences,
     required this.shell,
     required this.groups,
     required this.discover,
+    required this.placeReviews,
+    required this.placeRatingUpdates,
     required this.settings,
     required this.geocoding,
+    required this.smartMeetup,
+    required this.locationTravelNotifications,
+    required this.smartMeetupRealtime,
+    required this.startingLocation,
+    required this.routePreview,
     required this.prefs,
     required this.sync,
     required this.invitations,
@@ -85,11 +107,21 @@ class AppDependencies {
   final OutingsProvider outings;
   final OutingArrivalService outingArrivals;
   final SavedOutingsProvider savedOutings;
+  final SavedLocationsProvider savedLocations;
+  final LocationPrivacyProvider locationPrivacy;
+  final TransportationPreferencesProvider transportationPreferences;
   final ShellProvider shell;
   final GroupsProvider groups;
   final DiscoverProvider discover;
+  final PlaceReviewsRepository placeReviews;
+  final PlaceRatingUpdates placeRatingUpdates;
   final SettingsProvider settings;
   final LocationRepository geocoding;
+  final SmartMeetupRepository smartMeetup;
+  final LocationTravelNotificationRepository locationTravelNotifications;
+  final SmartMeetupRealtime smartMeetupRealtime;
+  final StartingLocationRepository startingLocation;
+  final RoutePreviewRepository routePreview;
   final SharedPreferences prefs;
   final AppSyncProvider sync;
   final InvitationsProvider invitations;
@@ -257,7 +289,31 @@ class AppDependencies {
       shell: shell,
       mediaUploads: mediaUploads,
     );
-    final discover = DiscoverProvider(repository: discoverRepository);
+    String? activeLocationsAccount() =>
+        auth.isAuthenticated ? auth.user?.id : null;
+    final savedLocationsRepository = repos.savedLocations(
+      activeLocationsAccount,
+    );
+    final transportationPreferences = TransportationPreferencesProvider(
+      savedLocationsRepository,
+      activeLocationsAccount(),
+    );
+    final savedLocations = SavedLocationsProvider(
+      SavedLocationUseCases(savedLocationsRepository),
+      activeLocationsAccount(),
+    );
+    final locationPrivacy = LocationPrivacyProvider(
+      repos.locationPrivacy(activeLocationsAccount),
+      groupsRepository,
+      activeLocationsAccount(),
+    );
+    final placeRatingUpdates = PlaceRatingUpdates(
+      discoverRepository.invalidatePlaceRatings,
+    );
+    final discover = DiscoverProvider(
+      repository: discoverRepository,
+      onSavedPlaceRemoved: savedLocations.savedPlaceRemoved,
+    );
     final savedOutings = SavedOutingsProvider(
       repository: savedOutingsRepository,
     );
@@ -292,7 +348,11 @@ class AppDependencies {
     String? notificationAccount;
     auth.addListener(() {
       final next = auth.isAuthenticated ? auth.user?.id : null;
+      savedLocations.bindAccount(next);
+      locationPrivacy.bindAccount(next);
+      transportationPreferences.bindAccount(next);
       if (next == notificationAccount) return;
+      placeRatingUpdates.clear();
       discover.clear();
       final previous = notificationAccount;
       notificationAccount = next;
@@ -338,11 +398,24 @@ class AppDependencies {
         outingChatSocket,
       ),
       savedOutings: savedOutings,
+      savedLocations: savedLocations,
+      locationPrivacy: locationPrivacy,
+      transportationPreferences: transportationPreferences,
       shell: shell,
       groups: groups,
       discover: discover,
+      placeReviews: repos.placeReviews(() => auth.user?.id),
+      placeRatingUpdates: placeRatingUpdates,
       settings: SettingsProvider(),
       geocoding: repos.geocoding(),
+      smartMeetup: repos.smartMeetup(),
+      locationTravelNotifications: repos.locationTravelNotifications(),
+      smartMeetupRealtime: SocketSmartMeetupRealtime(
+        outingChatSocket,
+        () => auth.isAuthenticated ? auth.user?.id : null,
+      ),
+      startingLocation: repos.startingLocation(),
+      routePreview: repos.routePreview(),
       prefs: prefs,
       invitations: invitations,
       mediaUrls: mediaUrls,

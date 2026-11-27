@@ -3,9 +3,16 @@ import type { CatalogQuery } from "../../validators/places/catalog.validator.js"
 import { ValidationError } from "../../utils/errors.js";
 function scope(q: CatalogQuery) {
   const { cursor, offset, limit, ...filters } = q;
-  return createHash("sha256").update(JSON.stringify(filters)).digest("hex").slice(0, 24);
+  // Keep tokens from before rating filters valid for the same default query.
+  const { includeUnrated, ...rest } = filters;
+  return createHash("sha256").update(JSON.stringify(includeUnrated ? rest : filters)).digest("hex").slice(0, 24);
 }
-export function decodeCatalogCursor(q: CatalogQuery): { id: string; value: string | number } | null {
+type CatalogCursor = {
+  id: string;
+  value: string | number;
+  rating?: { count: number; version: string };
+};
+export function decodeCatalogCursor(q: CatalogQuery): CatalogCursor | null {
   if (!q.cursor) return null;
   try {
     const parsed = JSON.parse(Buffer.from(q.cursor, "base64url").toString("utf8"));
@@ -13,11 +20,21 @@ export function decodeCatalogCursor(q: CatalogQuery): { id: string; value: strin
       (q.sort === "distance" ? typeof parsed.value !== "number" || !Number.isFinite(parsed.value) :
         typeof parsed.value !== "string" || parsed.value.length > 100) ||
       q.sort === "updated" && !Number.isFinite(Date.parse(parsed.value))) throw new Error("Invalid cursor");
-    return parsed;
+    if (q.sort === "top_rated" && (!/^[0-5](?:\.\d+)?$/.test(parsed.value) ||
+      !Number.isInteger(parsed.rating?.count) || parsed.rating.count < 0 ||
+      parsed.rating.count > 2147483647 || typeof parsed.rating.version !== "string" ||
+      !/^\d+:\d+:\d+:-?\d{1,40}$/.test(parsed.rating.version))) throw new Error("Invalid rating cursor");
+    return { id: parsed.id, value: parsed.value, ...(q.sort === "top_rated" && { rating: parsed.rating }) };
   } catch { throw new ValidationError("Invalid cursor or changed query filters"); }
 }
 export function encodeCatalogCursor(q: CatalogQuery, row: any): string {
-  return Buffer.from(JSON.stringify({ scope: scope(q), id: row.id, value: q.sort === "id" ? row.id : q.sort === "distance" ? Number(row.distance_km) : q.sort === "name" ? row.name : row.cursor_updated_at ?? new Date(row.updated_at).toISOString() })).toString("base64url");
+  const rating = q.sort === "top_rated"
+    ? { count: row.ranking_count, version: row.ranking_version }
+    : undefined;
+  const value = rating ? row.cursor_rating_score : q.sort === "id" ? row.id :
+    q.sort === "distance" ? Number(row.distance_km) : q.sort === "name" ? row.name :
+    row.cursor_updated_at ?? new Date(row.updated_at).toISOString();
+  return Buffer.from(JSON.stringify({ scope: scope(q), id: row.id, value, rating })).toString("base64url");
 }
 
 export type ChangeCursor = { revision: string; kind: string; id: string };

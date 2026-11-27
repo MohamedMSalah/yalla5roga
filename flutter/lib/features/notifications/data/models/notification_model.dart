@@ -15,6 +15,8 @@ class NotificationModel extends NotificationItem {
     super.type,
     super.eventType,
     super.messageId,
+    super.meetupSessionId,
+    super.expiresAt,
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,8 @@ class NotificationModel extends NotificationItem {
       type: apiString(json['type']),
       eventType: apiString(json['eventType']),
       messageId: apiString(json['messageId']),
+      meetupSessionId: apiString(json['sessionId']),
+      expiresAt: apiString(json['expiresAt']),
       createdAt: DateTime.tryParse(apiString(json['createdAt']) ?? ''),
     );
   }

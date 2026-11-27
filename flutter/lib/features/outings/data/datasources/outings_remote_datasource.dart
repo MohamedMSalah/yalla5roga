@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:yalla_5roga/features/outings/domain/entities/voting_deadline.dart';
 
 import 'package:dio/dio.dart';
+import 'package:yalla_5roga/features/place_reviews/data/models/place_rating_statistics_model.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
@@ -497,6 +498,8 @@ class OutingsRemoteDataSource implements OutingsDataSource {
           'guest_phones_whatsapp_opt_in': true,
         },
         'create_request_key': ?outing.createRequestKey,
+        if (outing.meetupSelection case final selection?)
+          'smart_meetup_selection': selection.toCreateJson(),
         if (outing.votePlaces.isNotEmpty)
           'initial_vote_options': [
             for (final place in outing.votePlaces)
@@ -953,6 +956,9 @@ class OutingsRemoteDataSource implements OutingsDataSource {
             address: apiString(option['address']) ?? '',
             imageUrl: apiString(option['image_url']) ?? '',
             catalogPlaceId: apiString(option['place_id']),
+            ratingStatistics: PlaceRatingStatisticsModel.tryFromJson(
+              option['rating_statistics'],
+            ),
           ),
       ],
       cuserOptionIds: state['my_option_ids'] is List

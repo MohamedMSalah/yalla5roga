@@ -36,6 +36,8 @@ class PlaceFilters {
     this.bounds,
     this.pageSize = 50,
     this.compact = false,
+    this.topRated = false,
+    this.minRating,
   });
   final Set<String> categories, vibes;
   final String search;
@@ -44,12 +46,15 @@ class PlaceFilters {
   final double radiusKm;
   final int pageSize;
   final bool compact;
+  final bool topRated;
+  final double? minRating;
+  bool get hasRatingCriteria => topRated || minRating != null;
 
   /// west,south,east,north as accepted by the existing catalog API.
   final String? bounds;
-  Map<String, dynamic> query({int offset = 0}) => {
+  Map<String, dynamic> query({int offset = 0, String? cursor}) => {
     'limit': pageSize.clamp(1, 100),
-    'offset': offset,
+    if (cursor == null) 'offset': offset else 'cursor': cursor,
     'status': 'active',
     if (compact) 'compact': 'true',
     if (brandId != null) 'brand_id': brandId,
@@ -62,8 +67,10 @@ class PlaceFilters {
       'lat': latitude,
       'lng': longitude,
       if (brandId == null) 'radiusKm': radiusKm,
-      'sort': 'distance',
+      if (!topRated) 'sort': 'distance',
     },
+    if (topRated) 'sort': 'top_rated',
+    if (minRating != null) 'minRating': minRating,
   };
   String key(int offset) => jsonEncode(query(offset: offset));
   PlaceFilters copyWith({
@@ -79,9 +86,14 @@ class PlaceFilters {
     bool clearBounds = false,
     int? pageSize,
     bool? compact,
+    bool? topRated,
+    double? minRating,
+    bool clearMinRating = false,
   }) => PlaceFilters(
     pageSize: pageSize ?? this.pageSize,
     compact: compact ?? this.compact,
+    topRated: topRated ?? this.topRated,
+    minRating: clearMinRating ? null : minRating ?? this.minRating,
     brandId: brandId ?? this.brandId,
     categories: categories ?? this.categories,
     vibes: vibes ?? this.vibes,

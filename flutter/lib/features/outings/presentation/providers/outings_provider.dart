@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/error/app_error_feedback.dart';
+import 'package:yalla_5roga/core/error/error_codes.dart';
 import 'package:yalla_5roga/core/localization/l10n.dart';
 import 'package:yalla_5roga/core/media/media_reference.dart';
 import 'package:yalla_5roga/core/media/media_upload_service.dart';
@@ -845,7 +846,11 @@ class OutingsProvider extends ChangeNotifier {
     );
   }
 
-  Future<OutingCreation?> add(Outing outing, {String? creatorId}) async {
+  Future<OutingCreation?> add(
+    Outing outing, {
+    String? creatorId,
+    VoidCallback? onStaleMeetupResult,
+  }) async {
     if (_isCreating) return null;
     final epoch = _sessionEpoch;
     _isCreating = true;
@@ -881,6 +886,11 @@ class OutingsProvider extends ChangeNotifier {
     if (epoch != _sessionEpoch) return null;
     final created = result.fold<OutingCreation?>(
       (failure) {
+        if (onStaleMeetupResult != null &&
+            failure.code == ErrorCodes.staleMeetupResult) {
+          onStaleMeetupResult();
+          return null;
+        }
         _errorMessage = AppErrorFeedback.messageOf(failure);
         AppErrorFeedback.report(
           failure,

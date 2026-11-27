@@ -64,22 +64,28 @@ export function extendPlacesOpenApi(spec: any) {
   spec.components.schemas.Place.properties.price_level.nullable = true;
   spec.components.schemas.NearbyPlace.properties.price_level.nullable = true;
   spec.components.schemas.SavedPlace.properties.places=ref('Place');
+  spec.components.schemas.PlaceCatalogPagination = {
+    type: "object",
+    required: ["limit", "offset", "has_more", "next_offset"],
+    properties: {
+      limit: { type: "integer" },
+      offset: { type: "integer" },
+      has_more: { type: "boolean" },
+      next_offset: { type: "integer", nullable: true },
+      next_cursor: { type: "string", nullable: true },
+      rating_ranking_available: {
+        type: "boolean",
+        description: "Present for top_rated. False when there are no eligible ratings globally. Unrated catalog matches then appear by ID.",
+      },
+    },
+  };
   spec.components.schemas.PlaceListResponse.allOf.push({
     type: "object",
-    properties: {
-      pagination: {
-        type: "object",
-        required: ["limit", "offset", "has_more", "next_offset"],
-        properties: {
-          limit: { type: "integer" },
-          offset: { type: "integer" },
-          has_more: { type: "boolean" },
-          next_offset: { type: "integer", nullable: true },
-          next_cursor: { type: "string", nullable: true },
-        },
-      },
-      attribution: { type: "string" },
-    },
+    properties: { pagination: ref("PlaceCatalogPagination"), attribution: { type: "string" } },
+  });
+  spec.components.schemas.NearbyPlaceListResponse.allOf.push({
+    type: "object",
+    properties: { pagination: ref("PlaceCatalogPagination") },
   });
   for (const name of ["CreatePlaceRequest", "UpdatePlaceRequest"])
     if (spec.components.schemas[name])
@@ -142,7 +148,7 @@ export function extendPlacesOpenApi(spec: any) {
   };
   const list = spec.paths["/api/places"].get;
   list.description =
-    "Paged active catalog. OR within categories/vibes and AND across dimensions. Bounds use bbox or all four min/max aliases. Use next_cursor with unchanged filters for keyset pagination, or the compatible offset API. Internal source evidence and sync diagnostics are excluded. Attribution covers Overture and OSM.";
+    "Paged active catalog. OR within categories/vibes and AND across dimensions. Bounds use bbox or all four min/max aliases. Top Rated orders eligible rated venues by Bayesian weighted rating, then rating count descending and place ID ascending. Unrated venues follow by ID. The response displays actual rating statistics. Use next_cursor with unchanged filters, or the compatible offset API. Attribution covers Overture and OSM.";
   list.parameters = [
     ...(list.parameters ?? []),
     ...Object.entries({
@@ -160,7 +166,9 @@ export function extendPlacesOpenApi(spec: any) {
       radiusKm: { type: "number", minimum: 0, maximum: 100 },
       bbox: { type: "string", description: "west,south,east,north; west greater than east crosses the antimeridian" },
       compact: { type: "string", enum: ["true"], description: "Return card and map fields only. Ignored with details=true." },
-      sort: { type: "string", enum: ["updated", "name", "distance", "id"], description: "Use id with next_cursor for complete geographic cache synchronization." },
+      sort: { type: "string", enum: ["updated", "name", "distance", "id", "top_rated"], description: "Use id with next_cursor for complete geographic cache synchronization." },
+      minRating: { type: "number", minimum: 1, maximum: 5, example: 4.5, description: "Inclusive threshold on the unrounded actual average. Always excludes unrated venues." },
+      includeUnrated: { type: "boolean", default: true, description: "Include unrated venues when minRating is absent." },
       limit: { type: "integer", minimum: 1, maximum: 100, default: 50 },
       offset: { type: "integer", minimum: 0, default: 0 },
       cursor: { type: "string", description: "Opaque next_cursor for the same filters/sort" },
@@ -171,6 +179,15 @@ export function extendPlacesOpenApi(spec: any) {
       maxLng: { type: "number", minimum: -180, maximum: 180 },
     }).map(([name, schema]) => ({ in: "query", name, schema })),
   ];
+  const staleRanking = { description: "Rating aggregates or prior changed. Restart from the first page." };
+  list.responses["409"] = staleRanking;
+  const nearby = spec.paths["/api/places/nearby"].get;
+  nearby.description = "Search active geocoded venues within the radius. Defaults to closest first. Supports the same Bayesian sort and rating filters as the catalog. Rating-dependent requests include pagination.";
+  nearby.parameters.push(
+    ...list.parameters.filter((parameter: { name: string }) => ["minRating", "includeUnrated", "cursor"].includes(parameter.name)),
+    { in: "query", name: "sort", schema: { type: "string", enum: ["distance", "top_rated"], default: "distance" } },
+  );
+  nearby.responses["409"] = staleRanking;
   const unauthorized = { $ref: "#/components/responses/Unauthorized" },
     forbidden = { $ref: "#/components/responses/Forbidden" },
     bad = { $ref: "#/components/responses/BadRequest" };
@@ -190,6 +207,7 @@ export function extendPlacesOpenApi(spec: any) {
             id: { type: "string", format: "uuid" }, name: { type: "string" },
             name_ar: { type: "string", nullable: true }, name_en: { type: "string", nullable: true },
             area: { type: "string" }, vibe: { type: "string" }, cover_image_url: { type: "string" },
+            rating_statistics: ref("PlaceRatingStatistics"),
           } } },
         },
       } } } },
@@ -203,14 +221,14 @@ export function extendPlacesOpenApi(spec: any) {
     parameters: list.parameters,
     responses: { "200": { description: "GeoJSON FeatureCollection", content: { "application/geo+json": { schema: {
       type: "object", required: ["type", "features", "pagination", "attribution"], properties: {
-        type: { type: "string", enum: ["FeatureCollection"] }, attribution: { type: "string" }, pagination: { type: "object" },
+        type: { type: "string", enum: ["FeatureCollection"] }, attribution: { type: "string" }, pagination: ref("PlaceCatalogPagination"),
         features: { type: "array", items: { type: "object", required: ["type", "geometry", "properties"], properties: {
           type: { type: "string", enum: ["Feature"] }, id: { type: "string", format: "uuid" },
           geometry: { type: "object", required: ["type", "coordinates"], properties: { type: { type: "string", enum: ["Point"] }, coordinates: { type: "array", minItems: 2, maxItems: 2, items: { type: "number" } } } },
           properties: { type: "object", required: ["place_id", "name", "category", "vibes", "icon"], properties: { place_id: { type: "string" }, name: { type: "string" }, category: { type: "string", nullable: true }, vibes: { type: "array", items: { type: "string" } }, icon: { type: "string" } } },
         } } },
       },
-    } } } }, "400": bad, "500": { $ref: "#/components/responses/InternalServerError" } },
+    } } } }, "400": bad, "409": staleRanking, "500": { $ref: "#/components/responses/InternalServerError" } },
   } };
   Object.assign(spec.components.schemas.Place.properties, {
     place_hours: { type: "array", items: ref("PlaceHour") },

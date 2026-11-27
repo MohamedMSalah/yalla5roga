@@ -7,6 +7,7 @@ import { PushChannel } from "./channels/push.channel.js";
 import { WhatsAppChannel } from "./channels/whatsapp.channel.js";
 import { notificationTarget } from "./notification-target.js";
 import { isDeletedAccount } from "../users/account-deletion-access.js";
+import { MeetupEventPublisher } from "../meetups/meetup-event-publisher.js";
 
 function backoffMs(attempt: number): number {
   // 10s, 30s, 90s, 270s, ... capped at 15 minutes
@@ -20,6 +21,7 @@ export class NotificationDispatcher {
     private readonly channels: NotificationChannelSender[] = [
       new WhatsAppChannel(),
       new PushChannel(),
+      new MeetupEventPublisher(),
     ],
     private readonly config = getNotificationConfig(),
   ) {}
@@ -53,7 +55,7 @@ export class NotificationDispatcher {
       return;
     }
 
-    const payload = this.events.parsePayload(event);
+    const payload = event.channel === "realtime" ? event.payload as Record<string, unknown> : this.events.parsePayload(event);
     const inboxEventKey = event.event_key?.startsWith("outbox:")
       ? event.event_key.slice("outbox:".length)
       : null;
@@ -81,20 +83,22 @@ export class NotificationDispatcher {
     });
     } catch (error) {
       result = {
-        provider: event.channel === "push" ? "fcm" : "whatsapp",
+        provider: event.channel === "realtime" ? "socket.io" : event.channel === "push" ? "fcm" : "whatsapp",
         status: "failed" as const,
-        error: error instanceof Error ? error.message : "Delivery failed",
+        error: event.channel !== "realtime" && error instanceof Error ? error.message : "Delivery failed",
       };
     }
 
-    await this.events.addDeliveryLog({
-      eventId: event.id,
-      channel: event.channel,
-      provider: result.provider,
-      providerMessageId: result.providerMessageId,
-      status: result.status,
-      response: result.response ?? { error: result.error },
-    });
+    if (event.channel !== "realtime") {
+      await this.events.addDeliveryLog({
+        eventId: event.id,
+        channel: event.channel,
+        provider: result.provider,
+        providerMessageId: result.providerMessageId,
+        status: result.status,
+        response: result.response ?? { error: result.error },
+      });
+    }
 
     if (result.status === "sent") {
       await this.events.markSent(event.id, now);

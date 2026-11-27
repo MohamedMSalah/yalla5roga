@@ -1,11 +1,13 @@
 import 'package:yalla_5roga/features/discover/data/datasources/saved_places_remote_datasource.dart';
 import 'package:dio/dio.dart';
+import 'package:yalla_5roga/features/discover/data/models/suggested_place_model.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
 import 'package:yalla_5roga/core/network/diagnostics/request_scope.dart';
 import 'package:yalla_5roga/core/network/api_payload.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
+import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
 abstract class DiscoverDataSource {
@@ -25,6 +27,7 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
   DiscoverRemoteDataSource(this._client);
 
   final ApiClient _client;
+  String? get savedPlacesOwner => _client.snapshots?.userId();
   Future<List<Map<String, dynamic>>> recommendations({
     String? latitude,
     String? longitude,
@@ -66,12 +69,12 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
     }
   }
 
-  Future<void> setSaved(String id, bool saved) async {
+  Future<void> setSaved(String id, bool saved, {required String owner}) async {
     try {
       if (saved) {
-        await SavedPlacesRemoteDataSource(_client).save(id);
+        await SavedPlacesRemoteDataSource(_client).save(id, owner: owner);
       } else {
-        await SavedPlacesRemoteDataSource(_client).unsave(id);
+        await SavedPlacesRemoteDataSource(_client).unsave(id, owner: owner);
       }
     } on DioException catch (e) {
       throw _unwrap(e);
@@ -98,6 +101,42 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
     Map<String, dynamic> query, {
     bool useSnapshots = true,
     Future<void>? cancelled,
+  }) async => apiObjectList(
+    await _queryCatalog(
+      query,
+      useSnapshots: useSnapshots,
+      cancelled: cancelled,
+    ),
+  );
+
+  Future<RatingPlacePage> ratingPage(
+    Map<String, dynamic> query, {
+    Future<void>? cancelled,
+  }) async {
+    final body = await _queryCatalog(
+      query,
+      useSnapshots: false,
+      cancelled: cancelled,
+    );
+    final pagination = body?['pagination'];
+    if (pagination is! Map<String, dynamic>) throw const ParseException();
+    final next = pagination['next_cursor'] as String?;
+    final available = pagination['rating_ranking_available'] as bool?;
+    if (pagination['has_more'] != (next != null) ||
+        (query['sort'] == 'top_rated' && available == null)) {
+      throw const ParseException();
+    }
+    return (
+      places: apiObjectList(body).map(parsePlace).toList(growable: false),
+      nextCursor: next,
+      rankingAvailable: available,
+    );
+  }
+
+  Future<Map<String, dynamic>?> _queryCatalog(
+    Map<String, dynamic> query, {
+    required bool useSnapshots,
+    Future<void>? cancelled,
   }) async {
     try {
       final token = cancelled == null ? null : CancelToken();
@@ -109,7 +148,7 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
         publicRead: !useSnapshots,
         cancelToken: token,
       );
-      return apiObjectList(response.data);
+      return response.data;
     } on DioException catch (error) {
       if (CancelToken.isCancel(error)) throw const NetworkException();
       throw _unwrap(error);
@@ -124,20 +163,28 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
   }) async {
     final token = cancelled == null ? null : CancelToken();
     if (token != null) cancelled!.then((_) => token.cancel());
-    final response = await RequestScope.run(() => _client.get<Map<String, dynamic>>(
-      ApiConstants.places,
-      queryParameters: {
-        'bbox': bounds,
-        'limit': 100,
-        if (compact) 'sort': 'id',
-        if (compact) 'compact': 'true' else 'details': 'true',
-        'cursor': ?cursor,
-      },
-      useSnapshots: false,
-      publicRead: true,
-      cancelToken: token,
-    ), origin: 'DiscoverRemoteDataSource', feature: 'Discover',
-       trigger: cursor != null ? 'pagination' : compact ? 'viewport_changed' : 'background_sync');
+    final response = await RequestScope.run(
+      () => _client.get<Map<String, dynamic>>(
+        ApiConstants.places,
+        queryParameters: {
+          'bbox': bounds,
+          'limit': 100,
+          if (compact) 'sort': 'id',
+          if (compact) 'compact': 'true' else 'details': 'true',
+          'cursor': ?cursor,
+        },
+        useSnapshots: false,
+        publicRead: true,
+        cancelToken: token,
+      ),
+      origin: 'DiscoverRemoteDataSource',
+      feature: 'Discover',
+      trigger: cursor != null
+          ? 'pagination'
+          : compact
+          ? 'viewport_changed'
+          : 'background_sync',
+    );
     if (response.data?['success'] != true) {
       throw const FormatException('Invalid geographic response');
     }
@@ -264,95 +311,15 @@ class DiscoverRemoteDataSource implements DiscoverDataSource {
   @override
   List<Place> catalogPlaces() => const [];
 
-  SuggestedPlace parsePlace(Map<String, dynamic> json) {
-    return SuggestedPlace(
-      id: apiString(json['id']) ?? '',
-      name: apiString(json['name']) ?? '',
-      brandId: apiString(json['brand_id']) ?? '',
-      brandName: apiString(json['brand_name']) ?? '',
-      branchName: apiString(json['branch_name']) ?? '',
-      branchCount: (json['branch_count'] as num?)?.toInt() ?? 0,
-      categoryId: apiString(json['category_id']) ?? '',
-      status: apiString(json['status']) ?? 'active',
-      nameAr: apiString(json['name_ar']) ?? '',
-      nameEn: apiString(json['name_en']) ?? '',
-      source: apiString(json['source']) ?? 'manual',
-      vibeIds:
-          (json['vibes'] as List? ??
-                  (json['place_vibes'] as List?)
-                      ?.map((v) => v['vibe_id'])
-                      .toList() ??
-                  const [])
-              .whereType<String>()
-              .toList(),
-      openingHours: apiString(json['opening_hours']) ?? '',
-      website: apiString(json['website']) ?? '',
-      phone: apiString(json['phone']) ?? '',
-      address: apiString(json['address']) ?? '',
-      area: apiString(json['area']) ?? '',
-      vibe: OutingVibe.values.firstWhere(
-        (item) => item.name == json['vibe'],
-        orElse: () => OutingVibe.food,
-      ),
-      coverImageUrl:
-          apiString(json['cover_image_url']) ??
-          apiString(json['image_url']) ??
-          apiString(json['coverImageUrl']) ??
-          apiString(json['imageUrl']) ??
-          '',
-      description:
-          apiString(json['description']) ??
-          apiString(json['descriptionKey']) ??
-          '',
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
-      featured: apiBool(json['featured']),
-      distanceKm: (json['distance_km'] as num?)?.toDouble(),
-      priceLevel: PriceLevel.values.firstWhere(
-        (p) => p.name == json['price_level'],
-        orElse: () => PriceLevel.moderate,
-      ),
-      priceMin: num.tryParse('${json['price_min']}')?.toDouble(),
-      priceMax: num.tryParse('${json['price_max']}')?.toDouble(),
-      currency: apiString(json['currency']) ?? 'EGP',
-      images: (json['place_images'] as List? ?? const [])
-          .whereType<Map>()
-          .map(
-            (v) => DiscoverPlaceImage(
-              imageUrl: apiString(v['image_url']) ?? '',
-              caption: apiString(v['caption']),
-            ),
-          )
-          .toList(),
-      hours: (json['place_hours'] as List? ?? const [])
-          .whereType<Map>()
-          .map(
-            (v) => DiscoverPlaceHours(
-              day: Weekday.values.firstWhere(
-                (d) => d.name == v['day'],
-                orElse: () => Weekday.monday,
-              ),
-              opensAt: apiString(v['opens_at']),
-              closesAt: apiString(v['closes_at']),
-              isClosed: apiBool(v['is_closed']),
-            ),
-          )
-          .toList(),
-      prices: (json['place_prices'] as List? ?? const [])
-          .whereType<Map>()
-          .map(
-            (v) => DiscoverPlacePrice(
-              labelKey: apiString(v['label']) ?? '',
-              amount: num.tryParse('${v['amount']}')?.toDouble() ?? 0,
-              currency: apiString(v['currency']) ?? 'EGP',
-            ),
-          )
-          .toList(),
-    );
-  }
+  SuggestedPlace parsePlace(Map<String, dynamic> json) =>
+      SuggestedPlaceModel.fromJson(json);
 
   AppException _unwrap(DioException error) {
     if (error.error is AppException) return error.error as AppException;
-    return ServerException(error.message ?? 'Server error');
+    return ServerException(
+      error.message ?? 'Server error',
+      null,
+      error.response?.statusCode,
+    );
   }
 }

@@ -43,10 +43,17 @@ export type OutingDraft = outing_drafts;
 export type SavedOuting = saved_outings;
 export type SavedPlace = saved_places;
 
+export type MeetupOutingSelection = {
+  session_id: string;
+  calculation_id: string;
+  place_ids: string[];
+};
+
 export type CreateOutingInput = {
   title: string;
   image_url?: string;
   create_request_key?: string;
+  smart_meetup_selection?: MeetupOutingSelection;
   initial_vote_options?: Omit<CreateVoteOptionInput, "outing_id">[];
   guest_phones?: string[];
   guest_phones_whatsapp_opt_in?: boolean;
@@ -70,7 +77,7 @@ export type CreateOutingInput = {
 };
 
 export type UpdateOutingInput = Partial<
-  Omit<CreateOutingInput, "created_by" | "guest_phones" | "guest_phones_whatsapp_opt_in" | "create_request_key" | "initial_vote_options">
+  Omit<CreateOutingInput, "created_by" | "guest_phones" | "guest_phones_whatsapp_opt_in" | "create_request_key" | "initial_vote_options" | "smart_meetup_selection">
 > & {
   vote_closed_at?: Date | null;
   vote_close_reason?: VoteCloseReason | null;

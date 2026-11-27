@@ -153,7 +153,7 @@ export class PlaceDatasource {
   }
 
   delete(id: string): Promise<Place> {
-    // Preserve saved places, voting candidates, outing history and media references.
+    // Preserve reviews, saved places, voting candidates, outing history and media references.
     return this.update(id, { status: "permanently_closed" });
   }
 

@@ -323,3 +323,54 @@ Express installs one completion recorder before CORS and parsing. AsyncLocalStor
 ## Production operations
 
 See [Public backend deployment](development/PRODUCTION_DEPLOYMENT.md) for independent startup and migration commands, proxy trust, media storage isolation and health checks.
+
+## Saved Locations
+
+The authenticated users router mounts `/me/saved-locations` and `/me/default-starting-location` ahead of the dynamic profile route. The controller passes the verified UID and Zod-validated request to focused use cases, an ownership-scoped repository and the Prisma datasource. It returns explicit projections with private no-store headers. Default writes validate the owned source and upsert the one preference row inside a transaction. Parent deletions cascade at the database. `EffectiveStartingLocationResolver.resolveForOwner` serves the verified owner context and reads the current source without a server cache.
+
+Location responses derive `is_default` from the existing default relation. The effective lookup projects marker type and catalog reference from the selected source. A bookmark resolves through the existing catalog association. Personal marker data stays on the authenticated users routes.
+
+## Transportation preferences and capability
+
+Account preferences flow through the authenticated user route, transportation use cases, and Prisma repository. Personal location mutations extend the existing saved-location API. Bookmark patches use the caller's composite bookmark key. The effective resolver reads owner-scoped preferences on demand. The public capability endpoint reports calculation support independently from preference validation and storage.
+
+## Smart Meetup location privacy
+
+`LocationPrivacyPolicy` owns consent validity and the shared district projection. Authenticated controllers pass owner settings to the location privacy use cases and shared area requests to `LocationUsageAuthorizationService`. The Prisma repository locks the necessary users, group and membership rows and reads the selected source with narrow projections. Private labels and addresses stay in the owner API.
+
+Calculation code uses `ResolveAuthorizedStartingLocationUseCase` or the service's batch entry point and retains only the coordinate-free authorization. Publication, result and cache reads, and reminder work use `withCurrentAuthorization` at consumption time. The callback runs inside the guarded transaction. The current implementation supplies these boundaries for a future planner.
+
+## Group Smart Meetup
+
+`SmartMeetupRealtimeService` registers an authorized session room on the existing transport. `MeetupEventPublisher` delivers its event type through an internal channel of the existing notification outbox worker. It checks the current audience and version before delivery and skips superseded input versions. The existing calculation invalidation service, session mutations and database triggers share the same outbox transaction boundary.
+
+The Smart Meetup router delegates to lifecycle and result use cases. Consistent database snapshots resolve the accepted roster, authorization, saved inputs and transportation. Result refresh records a versioned deferred attempt. The internal publisher accepts complete routed evidence from a future trusted coordinator, revalidates the current session and ranks up to five eligible catalog places atomically. Result retrieval checks the attempt and catalog before serializing an allowlisted response. The existing scheduler expires due sessions in the background.
+
+The standalone use cases check creator ownership before reading or mutating guest rows. Mutations reserve the next input version on the session before touching participants. This serializes competing guest edits and keeps the count limit and returned snapshot consistent. Both session types resolve through the shared workflow and coordinator.
+
+`ValidateMeetupSelectionService` reuses that workflow and the current-result reader inside the outing creation transaction after the existing creator-key lookup. It verifies source scope, current membership or Quick Meetup ownership, current published attempt, and catalog eligibility. The datasource copies canonical venue fields into the existing snapshot columns and commits the usual outing, options and creator RSVP together.
+
+## Context-specific planning inputs
+
+The starting-location override controller delegates to set, get-effective and clear use cases. The use cases bind authorization and writes to one owner and context in a database transaction. `ContextStartingLocationResolver` resolves consent-scoped references for Group Smart Meetup readiness, Quick Meetup and the owner endpoint. It uses `EffectiveTransportationResolver` to apply the same precedence across contexts. The existing meetup expiry job removes expired overrides. Database triggers invalidate versions and handle lifecycle and access revocation across write paths. A future travel worker must resolve the effective inputs and check current authorization and version again before releasing results.
+
+Meetup preference read, update and reset use cases reuse the session workflow and authorization. A change locks and increments the session's input version before replacing preference rows, clears the old calculation state and prepares the current version in the same transaction. The catalog candidate service takes a shortlist of place IDs and returns hard-filtered candidates with rating and price evidence. The routing interface accepts ordered per-participant measurements for that shortlist and the ranking service consumes filtered matches.
+
+
+## Place ratings and reviews
+
+The Places router mounts the ratings, review, report, block, and moderation operations. The review controller adapts requests to use cases and repositories. Ownership comes from the authenticated UID. The statistics repository batches aggregate hydration for saved places, recommendations, and voting DTOs. Recommendation sampling keeps its existing cache and reads statistics after retrieving the sample. Dedicated per-account write budgets protect ratings and review safety actions alongside the shared request limiter. Moderation uses its own server allowlist.
+
+`BayesianRatingService` provides the validated prior configuration and reusable PostgreSQL statistics and score expressions for catalog ranking and future Smart Meetup venue scoring. Catalog result hydration reads rating statistics in the ranking statement and reuses the same public DTO mapper as saved places, recommendations and voting. One global aggregate pass and set-based joins produce each ranked page. Ranked cursors carry an internal sort key and version, and ranked responses bypass shared caching.
+
+
+## Personal route preview boundary
+
+The meetup and outing route use cases prepare the caller's own effective inputs and validate the current destination in a transaction. RoutePreviewAuthorizationPolicy delegates to the contextual starting-location use case. RoutePreviewService exposes per-mode capabilities and provider-independent route outcomes. Provider output is validated before serialization. The wired service reports routing unavailable. The route endpoints perform no route storage.
+
+
+## Location request and departure reminder use cases
+
+The request use case locks the sender and recipient in stable order, evaluates the group policy and checks the existing outbox for cooldown and rate history. Both writes reuse `persistNotifications` in that transaction. Push resolution reuses the policy before sending.
+
+Departure preferences and explicit scheduling use the outing's existing access and starting-location resolver. The scheduling use case accepts a trusted backend estimate source through its internal contract. The HTTP composition currently leaves that source unconfigured. No personalized job poller is registered.

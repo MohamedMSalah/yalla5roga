@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:latlong2/latlong.dart';
@@ -16,6 +17,7 @@ import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
 import 'package:yalla_5roga/core/widgets/planning_cover.dart';
 import 'package:yalla_5roga/core/widgets/yalla_map_view.dart';
+import 'package:yalla_5roga/features/saved_locations/presentation/widgets/personal_locations_map.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/presentation/pages/discover_place_details_page.dart';
@@ -405,33 +407,40 @@ class _CreateOutingLocationStepState extends State<CreateOutingLocationStep> {
                 color: style.dark ? const Color(0xFF111A2A) : style.field,
                 child: ValueListenableBuilder(
                   valueListenable: _panelInset,
-                  builder: (context, inset, _) => YallaMapView(
+                  builder: (context, inset, _) => PersonalLocationsMap(
                     controller: _map,
-                    center: center,
-                    zoom: center == cairoMapCenter ? 12 : 15,
-                    selectionBottom: inset,
-                    controlsTop: 4,
-                    customControls: true,
-                    categories: _catalog.categories,
-                    places: _places,
-                    privatePlaces: _privatePlaces,
-                    selection: YallaMapPlaceSelection(
-                      mode: selected.length > 1
-                          ? YallaMapSelectionMode.multiple
-                          : YallaMapSelectionMode.single,
-                      selected: selected,
-                      showChecks: true,
+                    showToggle: !searches && !keyboard,
+                    onCatalogPlaceSelected: _openPlace,
+                    builder: (context, markers, onTap) => YallaMapView(
+                      controller: _map,
+                      personalLocations: markers,
+                      onPersonalLocationTap: onTap,
+                      center: center,
+                      zoom: center == cairoMapCenter ? 12 : 15,
+                      selectionBottom: inset,
+                      controlsTop: 4,
+                      customControls: true,
+                      categories: _catalog.categories,
+                      places: _places,
+                      privatePlaces: _privatePlaces,
+                      selection: YallaMapPlaceSelection(
+                        mode: selected.length > 1
+                            ? YallaMapSelectionMode.multiple
+                            : YallaMapSelectionMode.single,
+                        selected: selected,
+                        showChecks: true,
+                      ),
+                      onPlaceTap: _openPlace,
+                      onTap: _pin,
+                      onUserMove: () {
+                        if (_catalog.filters.search.trim().isEmpty) {
+                          _catalog.cameraMoving();
+                        }
+                        _searchFocus.unfocus();
+                      },
+                      onViewportChanged: (bounds, camera) =>
+                          _catalog.setBounds(bounds, zoom: camera.zoom),
                     ),
-                    onPlaceTap: _openPlace,
-                    onTap: _pin,
-                    onUserMove: () {
-                      if (_catalog.filters.search.trim().isEmpty) {
-                        _catalog.cameraMoving();
-                      }
-                      _searchFocus.unfocus();
-                    },
-                    onViewportChanged: (bounds, camera) =>
-                        _catalog.setBounds(bounds, zoom: camera.zoom),
                   ),
                 ),
               ),
@@ -949,6 +958,11 @@ class _PlaceCard extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color: style.ink,
                           ),
+                        ),
+                        RatingsSummaryWidget(
+                          placeId: place.id,
+                          statistics: place.ratingStatistics,
+                          compact: true,
                         ),
                         if (subtitle.isNotEmpty || place.branchLabel.isNotEmpty)
                           Text(

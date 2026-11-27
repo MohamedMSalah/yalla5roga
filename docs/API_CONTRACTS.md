@@ -239,6 +239,7 @@ Chat POST accepts `clientMessageId` (UUID). PostgreSQL deduplicates `(outing_id,
 
 - `POST /api/places/geocoding` requires a Firebase bearer token. Supply `{kind:"search", query, language}` or `{kind:"reverse", latitude, longitude, language}`. Language is `en` or `ar`. The response envelope contains `data.available`, `data.results` (rows with `id`, `name`, `area`, `latitude`, `longitude`), and, when configured, `data.attribution` and `data.cache_seconds`. A disabled provider returns `available:false`. Invalid requests return 400, the process quota returns 429 with `Retry-After`, and upstream failure returns 502.
 - `POST /api/outings` accepts optional `initial_vote_options` with 2–5 options in array order for a group outing without a fixed venue. Each uses the existing option fields. Coordinates may be absent or a valid pair. The backend assigns zero-based `sort_order`, rejects duplicate identities, and commits the options, outing and owner attendance together. A valid retry with the same `create_request_key` for the same creator returns the original outing. The first successful request wins for that key. The older individual and replacement option routes remain available. Deploy the backend change before clients that send `initial_vote_options`.
+- The same request accepts optional `smart_meetup_selection` with UUIDs `session_id`, `calculation_id`, and 1–5 distinct `place_ids`. Supply `create_request_key` and the matching `location_place_id` for one venue or matching `initial_vote_options[].place_id` values for a group ballot. The option array determines ballot display order. The server builds location snapshots from the catalog. Unpublished, superseded, expired or invalidated calculations return 409 with `code: stale_meetup_result`. A missing session or an inaccessible Quick Meetup session returns 404 with the same code. Mismatched place selections return 400 and unauthorized group use returns 403. A valid replay of a successful request returns the original outing even after its source expires.
 - Fixed custom venues can include `location_category_id` and `location_address`. Custom vote options can include `category_id` and `address`. Confirming a winning option copies its snapshot to the outing under the existing attendance, voting and outing-access rules. Device-local place identifiers are excluded from these requests.
 
 For chat history, Flutter sends `limit=40` and passes `next_cursor` as `before` when loading older messages. The API accepts page sizes from 1 to 100 and retains the legacy unpaged response when query parameters are omitted. REST history, send responses, and Socket.IO messages carry the sender’s `sender` display name and `avatar` fields. Existing message IDs and `client_message_id` remain the deduplication keys.
@@ -437,3 +438,184 @@ See [served Swagger HTTP verification](audit/LOCATION_TIE_OPENAPI_RESULTS.json).
 JSON parsing returns the standard error envelope with 400 for malformed bodies, 413 for oversized bodies and 415 for unsupported encodings or charsets. Production authentication can return 503 when Firebase is unavailable. Production has no mock media routes and reports 503 when a media operation needs unavailable storage.
 
 The server accepts `X-Request-ID`, `X-Correlation-ID`, `X-Client-Source` and `X-Request-Trigger`. It exposes validated request and correlation IDs, the normalized route template and `Server-Timing` when observability is enabled. Existing application envelopes and route paths remain available. Swagger now documents the vote-option write 403 and the replacement options array. See the [route and Flutter consumer inventory](audit/API_CONSUMERS.md).
+
+## My Locations and default starting location
+
+All eight operations require Firebase Bearer authentication and identify the owner from the session. Their responses use the standard success envelope and `Cache-Control: private, no-store`.
+
+| Method | Path | Result |
+|---|---|---|
+| GET | `/api/users/me/saved-locations` | Personal locations in newest-first order |
+| POST | `/api/users/me/saved-locations` | Creates a personal location and returns 201 |
+| GET | `/api/users/me/saved-locations/:id` | Reads one owned location |
+| PATCH | `/api/users/me/saved-locations/:id` | Updates supplied fields on an owned location |
+| DELETE | `/api/users/me/saved-locations/:id` | Removes an owned location and returns `data: null` |
+| GET | `/api/users/me/default-starting-location` | Effective starting point or `data: null` when setup is required |
+| PUT | `/api/users/me/default-starting-location` | Replaces the default and returns the effective starting point |
+| DELETE | `/api/users/me/default-starting-location` | Clears the default idempotently and returns `data: null` |
+
+Create requires `name`, `location_type` (`home`, `work`, `university`, `gym`, `custom`), `latitude`, and `longitude`. The optional `approximate_area`, `address`, and `place_id` accept null. PATCH accepts one or more fields. Coordinates in a PATCH must be supplied together. Location responses add `id`, `is_default`, `created_at`, and `updated_at`. The boolean is true when the owner's preference directly references that personal location.
+
+PUT takes `{ "source": "saved_place", "referenceId": "<catalog place UUID>" }` for an existing bookmark or `source: "saved_location"` with an owned personal location UUID. The effective response contains `source`, `reference_id`, `name`, `latitude`, `longitude`, nullable `approximate_area`, `location_type`, nullable catalog `place_id`, and `is_default: true`. A bookmark uses its existing catalog UUID as both `reference_id` and `place_id`, with `custom` as its personal marker type. Private addresses and owner IDs are omitted. Invalid payloads or a bookmark without usable coordinates return 400. Missing or other-account references return 404. A reference removed during a write can return 409. An unsave or a selected personal location deletion clears the preference in the same database statement. When catalog coordinates later become unavailable, the effective lookup returns `data: null` until the point is usable or the user chooses another source. Public places operations return catalog data only.
+
+## Transportation preferences
+
+| Method | Path | Result |
+| --- | --- | --- |
+| GET, PATCH | `/api/users/me/transportation-preferences` | Read, set or clear the caller's `default_transportation_mode` |
+| POST | `/api/users/me/saved-locations` | Create a personal location with an optional `preferred_transportation_mode` |
+| PATCH | `/api/users/me/saved-locations/{id}` | Update the caller's location, including `preferred_transportation_mode` |
+| PATCH | `/api/places/{id}/save` | Set or clear `preferred_transportation_mode` on the caller's existing bookmark |
+| GET | `/api/routing/capabilities` | Public capability flags by transportation mode |
+
+All preference mutations require Firebase authentication. Accepted identifiers are `CAR`, `MOTORCYCLE`, `METRO`, and `WALKING`. Send JSON `null` to clear a value. Omitting the transportation field from a personal-location patch preserves its current value. Saved-location reads, the selected default starting location, and saved bookmark reads include their stored preference. A missing or foreign saved record returns 404, and invalid values return 400.
+
+Capabilities expose separate flags for preference storage, routes, matrices, distance, duration, alternatives, isochrones, and departure time. All four modes accept stored preferences and return `false` for calculation flags with the localizable `ROUTING_NOT_CONFIGURED` reason.
+
+## Smart Meetup location privacy
+
+All operations require Firebase authentication. Successful responses use the standard envelope and `Cache-Control: private, no-store`.
+
+| Method | Path | Contract |
+| --- | --- | --- |
+| GET | `/api/users/me/location-privacy` | Read the caller's visibility, current consent, required policy version, update timestamp and setup status |
+| PATCH | `/api/users/me/location-privacy` | Set `location_visibility` to `APPROXIMATE` or `HIDDEN` |
+| PUT | `/api/users/me/location-consent` | Submit the explicitly accepted `consent_policy_version`. An obsolete version returns 409 |
+| DELETE | `/api/users/me/location-consent` | Withdraw consent and return updated settings |
+| GET | `/api/users/me/location-consent/excluded-groups` | List the caller's active exclusions as `group_id` and `created_at` |
+| PUT, DELETE | `/api/users/me/location-consent/excluded-groups/{groupId}` | Set or clear the caller's exclusion. Both methods require current membership and return `group_id` and `excluded` |
+| GET | `/api/groups/{groupId}/members/{userId}/starting-location-area` | Read `status` and `district`. A nonmember caller receives 403. An accepted caller receives 404 for a nonmember target |
+
+Owner setup responses use `CONSENT_REQUIRED`, `STARTING_LOCATION_REQUIRED`, or `READY`. Shared area responses use `APPROXIMATE` with a verified catalog district, or `HIDDEN` or `UNAVAILABLE` with a null district. The shared schema contains no personal coordinates, address, label, consent state or saved source ID.
+
+## Group Smart Meetup
+
+The shared `/socket.io` transport accepts `meetup:join` and `meetup:leave` with `{ sessionId }`. A successful join returns `{ ok: true, inputVersion }`. An authenticated caller without current session access receives `FORBIDDEN`. Authorized callers receive `CLOSED` for an ended session. A forced leave sends `smart_meetup:subscription_revoked` with the session ID.
+
+The socket publishes `smart_meetup:readiness_changed`, `smart_meetup:preferences_changed`, `smart_meetup:results_invalidated`, `smart_meetup:calculation_completed`, `smart_meetup:session_updated` for cancellation, and `smart_meetup:session_expired`. Events carry `sessionId`, `inputVersion` and `changeType`. The two calculation events also carry `calculationAttempt`. Clients read session readiness from the authenticated session GET and reconcile results through the results GET.
+
+### Recommendation results
+
+The private, non-cacheable result endpoints use the normal success envelope. Current group members can read or refresh a group session. Quick Meetup access is restricted to its owner.
+
+| Operation | Contract |
+| --- | --- |
+| `GET /api/smart-meetups/:sessionId/results` | Reads the latest attempt and recomputes current readiness and input version. An active session without an attempt returns deferred or insufficient-data status. |
+| `POST /api/smart-meetups/:sessionId/calculate` | Idempotently records the outcome for the current inputs. An empty body is accepted. Routing currently yields `ROUTING_UNAVAILABLE` or `INSUFFICIENT_DATA`, with an empty recommendation list. A closed session returns 409. |
+| `GET /api/smart-meetups/:sessionId/calculations/:calculationId` | Revalidates an exact calculation before handoff. A calculation in another session returns 404. A superseded or expired calculation returns `STALE` with an empty list. |
+
+Result reads include `sessionStatus`. A calculation includes its positive `attempt` within the input version. A candidate change can invalidate that attempt without changing the session input version.
+
+Results include `status`, `inputVersion`, the intended, included and unavailable participant counts, `isPartial`, and applied `preferences`. The nullable `calculation` supplies the ID, evaluated input version, optimization policy version, calculation and expiry times, and a safe failure code when applicable. Statuses also cover queued, calculating, ready, partial, failed and no matching venues.
+
+Current ready or partial results include up to five ranked canonical place summaries with the actual branch rating and count, budget level and localizable catalog explanation codes. The current privacy policy omits `travelStatistics` and `matchScore`. Publication takes place through an internal trusted contract.
+
+Group Smart Meetup requires current accepted membership and returns a private, non-cacheable response. The session manager is its creator while still a member.
+
+| Method | Path | Inputs and response |
+| --- | --- | --- |
+| POST | `/api/groups/{groupId}/smart-meetup` | Optional `outing_id` belonging to this group. Returns the existing or new active session. |
+| GET | `/api/smart-meetups/{sessionId}` | Current session and readiness. |
+| GET | `/api/smart-meetups/{sessionId}/readiness` | Readiness summary. Closed sessions return 409. |
+| POST | `/api/smart-meetups/{sessionId}/refresh` | Re-resolves current inputs and returns the session. |
+| GET | `/api/smart-meetups/filter-options` | Active catalog category IDs and bilingual names, supported options and defaults. |
+| GET | `/api/smart-meetups/{sessionId}/preferences` | Current session preferences. Same visibility as the session. |
+| PUT | `/api/smart-meetups/{sessionId}/preferences` | Manager replaces the complete preference object for the active session. Returns the updated session. |
+| POST | `/api/smart-meetups/{sessionId}/preferences/reset` | Manager restores defaults. Returns the updated session. |
+| PATCH | `/api/smart-meetups/{sessionId}/preferences` | Deprecated older-client operation. Maps `BALANCED` and `SHORTEST_TOTAL_TIME` to the corresponding travel mode and keeps the other filters. |
+| DELETE | `/api/smart-meetups/{sessionId}` | Manager closes the identified session. Retrying returns the closed state. |
+
+Session responses embed `preferences`. Send `categoryIds`, `budgetLevels`, `minimumRating`, `travelFairnessMode`, `maximumTravelDurationSeconds`, `additionalPriorities`, `plannedMeetupAt` and `requireOpenAtMeetupTime` in a PUT. Empty category and budget arrays mean any. Nullable thresholds accept `null` for any, or 3, 4 and 4.5 for rating and 900, 1800, 2700, 3600 and 5400 seconds for travel. Timestamps require an explicit UTC offset or `Z`. Invalid values, duplicate options, inactive categories and extra properties return 400. Only the session creator may write or reset preferences. Active sessions start with Balanced, no category, budget, rating or travel restrictions, no additional priorities, and open-at-time filtering disabled. Changing preferences increments `input_version`. Reapplying the same selections in a different order keeps the version.
+
+A session has its own lifecycle status, calculation status, input version and expiry. Active sessions return counts and display-safe participant readiness, with an optional verified district. Closed sessions return null readiness. Roster or coordinate input is rejected with 400. Pending invitees and removed members receive 403.
+
+## Quick Meetup
+
+Every request requires Firebase authentication. Successful responses use the standard envelope and `Cache-Control: private, no-store`. The session owner is the only authorized caller. Another account receives 404.
+
+| Method | Path | Inputs and response |
+| --- | --- | --- |
+| POST | `/api/smart-meetups/standalone` | Empty body. Opens or resumes the owner's active standalone session. |
+| GET | `/api/smart-meetups/{sessionId}/participants` | Lists the owner projection and active guest points. |
+| POST | `/api/smart-meetups/{sessionId}/participants` | Requires both coordinates. Accepts optional nullable display name, approximate area and transportation. Returns the updated session with 201. |
+| PATCH | `/api/smart-meetups/{sessionId}/participants/{participantId}` | Accepts at least one editable field. Changing coordinates requires both. Returns the updated session. |
+| DELETE | `/api/smart-meetups/{sessionId}/participants/{participantId}` | Removes the identified guest and returns the updated session. |
+
+The shared read, readiness, refresh, preferences and cancel routes also accept standalone session IDs. Standalone sessions return null group and outing IDs, a `standalone_participants` array and the server's `manual_participant_limit`. Entries are typed `OWNER` or `MANUAL` and carry no account identifier. The owner projection uses the session ID and has nullable coordinates. Guest coordinates are rounded to three decimals. Send `null` to clear an optional field. Closed sessions return null readiness and an empty array. Closed participant operations and attempts to exceed the guest limit return 409. The current calculation status is `ROUTING_UNAVAILABLE`.
+
+The served OpenAPI checks exercised both meetup flows against a disposable PostgreSQL database using isolated authentication fixtures.
+
+## Temporary starting location
+
+Both paths support authenticated GET, PUT and DELETE. All three return the signed-in caller's effective inputs in the standard envelope with `Cache-Control: private, no-store`.
+
+| Path | Access |
+| --- | --- |
+| `/api/smart-meetups/:sessionId/my-starting-location` | Current group member or owner of a private Quick Meetup. The session must be active. |
+| `/api/outings/:outingId/my-starting-location` | Outing creator, current group member or accepted outing guest. The outing must be scheduled and open. |
+
+PUT replaces the caller's override. Use `location_source` with one of the payloads below. DELETE is idempotent and re-resolves the authorized default.
+
+| Source | Required fields besides `location_source` |
+| --- | --- |
+| `DEFAULT` | `transportation_mode` or `consent_policy_version` |
+| `PERSONAL_LOCATION` | `personal_location_id`, `consent_policy_version` |
+| `SAVED_PLACE` | `saved_place_id` (catalog place ID from the caller's bookmark), `consent_policy_version` |
+| `MANUAL_POINT` | `latitude`, `longitude`, `consent_policy_version` |
+
+The last three sources accept optional `transportation_mode`. Sending the current version from GET records explicit calculation consent for the selected point in this context. Smart Meetup may also use a default covered by automatic consent. For an individual outing, authorize its default point by sending the contextual policy version with `DEFAULT`. A transport-only request leaves location authorization as is for Smart Meetup and leaves the default unavailable in an individual outing. Group exclusions apply to both forms of location consent. The response includes `status`, nullable `location` with the temporary indicator, `transportation` with its source, nullable `override` with expiry, `input_version` and the current `consent_policy_version`. The returned version is the meetup input version or outing travel input version. Invalid source shapes return 400. A stale consent version or closed context returns 409. Missing owner-scoped location references return 404. Group readiness continues to omit private planning inputs.
+
+
+## Place ratings and reviews
+
+All IDs in the review routes refer to physical catalog branches. The API returns the standard `{ success, data }` envelope.
+
+| Operation | Access | Data |
+| --- | --- | --- |
+| `GET /api/places/:placeId/ratings` | Public | `averageRating`, `ratingCount`, `writtenReviewCount`, `distribution` keyed by 1–5, and `updatedAt` |
+| `GET /api/places/:placeId/reviews?cursor=&limit=` | Signed in | `{ items, nextCursor }` with visible written reviews after applying the viewer's blocks |
+| `GET /api/places/:placeId/my-rating` | Signed in | Own review or `null` |
+| `PUT /api/places/:placeId/my-rating` | Signed in | Creates or replaces the caller's rating. Returns `{ review, statistics }`. |
+| `PATCH /api/places/:placeId/my-rating` | Signed in | Updates the caller's existing rating or returns 404. Returns `{ review, statistics }`. |
+| `DELETE /api/places/:placeId/my-rating` | Signed in | Idempotent for an existing place. Returns `{ review: null, statistics }`. |
+| `POST /api/places/:placeId/reviews/:reviewId/report` | Signed in | Accepts `reason`. Repeats return the existing report ID and status. |
+| `PUT /api/places/:placeId/reviews/:reviewId/block` | Signed in | Hides the review author's written reviews for the caller. |
+| `GET /api/places/review-blocks`, `DELETE /api/places/review-blocks/:id` | Signed in | Lists or removes the caller's blocks by opaque block ID. |
+| `GET /api/places/review-reports`, `PATCH /api/places/review-reports/:id/dismiss` | Review moderator | Lists open reports or dismisses a report. |
+| `PATCH /api/places/:placeId/reviews/:reviewId/moderation` | Review moderator | Accepts `moderationStatus` of `hidden` or `visible`. Returns `{ review, statistics }`. |
+
+Write requests require an integer `rating` from 1 to 5. `reviewText` is optional and capped at 1,000 characters. Missing, null and trimmed blank text all produce rating-only entries. Reviews are ordered by immutable `createdAt DESC, id DESC`. Request 1–50 items per page and reuse `nextCursor` while it is non-null. Reviewer profiles expose only a display name and each item has a viewer-specific `isMine` flag. Own and moderator responses can include visibility. Report reasons are `spam`, `harassment`, `inappropriate`, `off_topic` and `other`.
+
+The additive `rating_statistics` property uses the ratings response shape in catalog list, nearby, detail, branch, saved, Home recommendations, change feed and catalog-linked voting options. An unrated branch returns `averageRating: null`, zero counters and an all-zero distribution. Manual and private venue snapshots have no catalog rating.
+
+`GET /api/places`, `GET /api/places/nearby`, `GET /api/place-brands/{id}/branches` and `GET /api/places/geojson` accept `sort=top_rated`, `minRating` from 1 through 5 and `includeUnrated` (default `true`). A minimum rating applies to the unrounded actual average and excludes unrated venues. Top Rated orders by Bayesian weighted rating descending, then eligible rating count descending and place ID ascending. Unrated matches follow rated matches by ID. Nearby defaults to distance and includes pagination when a rating option affects its results.
+
+Top Rated sets `pagination.rating_ranking_available` to `false` when the global eligible count is zero. The branch statistics retain their actual values. For ranked pagination, send `next_cursor` with the same filters. A rating or prior change that invalidates the cursor returns HTTP 409, and the client requests page one again. Offset callers can continue using the compatible offset API. Rating-dependent responses use `Cache-Control: no-store`.
+
+
+## Personal route preview
+
+| Endpoint | Inputs |
+| --- | --- |
+| GET /api/smart-meetups/{sessionId}/recommendations/{placeId}/my-route | Required query parameters: calculation_id (UUID) and input_version (positive integer) |
+| GET /api/outings/{outingId}/my-route | The current confirmed venue is resolved from the outing snapshot. |
+
+Both operations require Firebase authentication and return private, non-cacheable responses. Request bodies and extra query parameters, including member identifiers and origin or destination coordinates, return 400. The backend uses the caller's effective start and transportation and the authorized venue. Meetup previews require a current READY or PARTIAL result and a venue in that result. A stale result or unavailable destination returns 409. Ineligible callers receive 403, and missing contexts or recommendations return 404.
+
+The 200 data envelope includes input_version, expires_at, starting_location_status, a nullable origin, destination, mode and a tagged routing result. Authorized previews currently report ROUTING_UNAVAILABLE. AVAILABLE includes distance_meters, duration_seconds, calculated_at, estimate_quality, capabilities, and geometry. Geometry is a GeoJSON LineString with finite [longitude, latitude] pairs and at least two distinct points. Alternatives appear only when supported. Other defined routing states cover unsupported mode, missing inputs, no route and invalid route.
+
+
+## Location requests and departure reminders
+
+All operations require Bearer authentication and return a private, no-store response.
+
+| Method | Path | Contract |
+| --- | --- | --- |
+| POST | `/api/smart-meetups/{sessionId}/location-requests` | Accepts `target_user_id`. Returns `REQUESTED`, `COOLDOWN` with UTC `retry_at`, or `UNAVAILABLE`. Outsiders, self-requests and Quick Meetup sessions receive 403. Closed group sessions receive 409. |
+| GET | `/api/users/me/departure-reminder-preferences` | Returns `enabled`, `preparation_buffer_minutes` and `updated_at`. The implicit default is false, 10 minutes and null. |
+| PATCH | `/api/users/me/departure-reminder-preferences` | Updates one or both settings. Preparation values are 0, 5, 10, 15 and 30. |
+| GET | `/api/outings/{outingId}/my-departure-reminder` | Returns current eligibility and the caller's own authorized starting location label and effective transportation preference. |
+| PUT | `/api/outings/{outingId}/my-departure-reminder` | Uses the same eligibility checks as GET. Its body accepts no estimate, location, schedule or user fields. Eligible requests return `ROUTING_UNAVAILABLE` with null journey and departure fields until a trusted backend source is configured. |
+| DELETE | `/api/outings/{outingId}/my-departure-reminder` | Removes the caller's pending reminder if present and returns null. |
+
+Group readiness may include `request_target_user_id` for another current member whose starting location setup is incomplete. Credentials, transportation preference, exact coordinates and another member's departure estimate stay outside the shared readiness response. The location request appears in the existing notifications feed as `meetup_location_requested` with a session ID, setup destination and expiry.

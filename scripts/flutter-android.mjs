@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, writeFileSync, unlinkSync, rmdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdtempSync, writeFileSync, unlinkSync, rmdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { readClientBuild } from "./flutter-config.mjs";
@@ -15,7 +15,7 @@ try {
     throw new Error("Use device apk, production apk, or device run <device-id>.");
   }
   const { values, excluded } = readClientBuild(mode);
-  if (command === "apk") validateReleaseSigning();
+  if (command === "apk" && mode === "production") validateReleaseSigning();
   temporaryDirectory = mkdtempSync(join(tmpdir(), "yalla-client-"));
   const defines = join(temporaryDirectory, "client.json");
   writeFileSync(defines, JSON.stringify(values), { mode: 0o600 });
@@ -44,6 +44,11 @@ try {
   if (result.status === 0 && command === "apk") {
     for (const abi of ["armeabi-v7a", "arm64-v8a", "x86_64"]) {
       const apk = rootPath(`flutter/build/app/outputs/flutter-apk/app-${mode}-${abi}-release.apk`);
+      if (mode === "device") {
+        const flutterApk = rootPath(`flutter/build/app/outputs/flutter-apk/app-${abi}-device-release.apk`);
+        if (!existsSync(flutterApk)) throw new Error("Flutter exited successfully but an expected split APK is missing.");
+        copyFileSync(flutterApk, apk);
+      }
       if (!existsSync(apk)) throw new Error("Flutter exited successfully but an expected split APK is missing.");
       console.log(apk);
     }

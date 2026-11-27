@@ -20,11 +20,6 @@ class HomeStyle {
   static const quickActionLabel = 13.0;
   static const quickActionIcon = 26.0;
 
-  Color get background =>
-      dark ? const Color(0xFF12101B) : const Color(0xFFFAF7FD);
-  Color get upperBackground =>
-      dark ? const Color(0xFF191526) : const Color(0xFFF1E7FA);
-  Color get glow => dark ? const Color(0xFF53328C) : const Color(0xFFDCC3F4);
   Color get text => dark ? const Color(0xFFF8F6FC) : const Color(0xFF251933);
   Color get muted => dark ? const Color(0xFFD8CAEB) : const Color(0xFF59476C);
   Color get accent => dark ? const Color(0xFFD1AEF8) : const Color(0xFF7035A2);

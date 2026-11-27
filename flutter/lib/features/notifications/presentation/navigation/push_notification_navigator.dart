@@ -5,6 +5,8 @@ import 'package:yalla_5roga/core/error/app_error_feedback.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/features/chat/presentation/pages/outing_chat_page.dart';
+import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/notifications/presentation/pages/location_request_setup_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_details_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/pages/group_info_page.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
@@ -35,6 +37,25 @@ class PushNotificationNavigator {
     }
 
     final destination = payload.destination;
+    if (destination == NotificationDestination.meetupStartingLocation) {
+      final sessionId = payload.data['sessionId'];
+      final expiresAt = DateTime.tryParse(payload.data['expiresAt'] ?? '');
+      final account = context.read<AuthProvider>().user?.id;
+      if (!isCurrent()) return;
+      if (sessionId == null ||
+          expiresAt == null ||
+          !expiresAt.isAfter(DateTime.now()) ||
+          account == null) {
+        AppSnackBar.showError(context.l10n.notificationTargetUnavailable);
+        return;
+      }
+      Get.to(
+        () => LocationRequestSetupPage(sessionId: sessionId, account: account),
+        routeName:
+            '/notification/smart-meetups/$sessionId/my-starting-location',
+      );
+      return;
+    }
     if (destination == NotificationDestination.inbox) {
       if (!fromInbox) Get.to(() => const NotificationsPage());
       return;

@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:yalla_5roga/core/constants/api_constants.dart';
 import 'package:yalla_5roga/core/network/api_client.dart';
+import 'package:yalla_5roga/core/network/dio_interceptors.dart';
 
 class SavedPlacesRemoteDataSource {
   SavedPlacesRemoteDataSource(this._api);
@@ -30,11 +32,13 @@ class SavedPlacesRemoteDataSource {
         .toList();
   }
 
-  Future<void> save(String placeId) async {
-    await _api.post(ApiConstants.savedPlace(placeId));
+  Options _bound(String? owner) => Options(extra: {expectedUserIdKey: ?owner});
+
+  Future<void> save(String placeId, {String? owner}) async {
+    await _api.post(ApiConstants.savedPlace(placeId), options: _bound(owner));
   }
 
-  Future<void> unsave(String placeId) async {
-    await _api.delete(ApiConstants.savedPlace(placeId));
+  Future<void> unsave(String placeId, {String? owner}) async {
+    await _api.delete(ApiConstants.savedPlace(placeId), options: _bound(owner));
   }
 }

@@ -1,6 +1,37 @@
 class ApiConstants {
   const ApiConstants._();
 
+  static String groupSmartMeetup(String groupId) =>
+      '/api/groups/$groupId/smart-meetup';
+  static String meetupStartingLocation(String id) =>
+      '${smartMeetup(id)}/my-starting-location';
+  static String outingStartingLocation(String id) =>
+      '${outing(id)}/my-starting-location';
+  static String smartMeetup(String id) => '/api/smart-meetups/$id';
+  static String meetupLocationRequests(String id) =>
+      '${smartMeetup(id)}/location-requests';
+  static const departureReminderPreferences =
+      '/api/users/me/departure-reminder-preferences';
+  static String myDepartureReminder(String id) =>
+      '${outing(id)}/my-departure-reminder';
+  static String myMeetupRoute(String id, String placeId) =>
+      '${smartMeetup(id)}/recommendations/$placeId/my-route';
+  static String myOutingRoute(String id) => '${outing(id)}/my-route';
+  static String meetupResults(String id) => '${smartMeetup(id)}/results';
+  static String calculateMeetup(String id) => '${smartMeetup(id)}/calculate';
+  static String meetupCalculation(String id, String calculationId) =>
+      '${smartMeetup(id)}/calculations/$calculationId';
+  static const standaloneMeetup = '/api/smart-meetups/standalone';
+  static const meetupFilterOptions = '/api/smart-meetups/filter-options';
+  static String meetupPreferences(String id) =>
+      '${smartMeetup(id)}/preferences';
+  static String resetMeetupPreferences(String id) =>
+      '${meetupPreferences(id)}/reset';
+  static String meetupParticipants(String id) =>
+      '${smartMeetup(id)}/participants';
+  static String meetupParticipant(String id, String participantId) =>
+      '${meetupParticipants(id)}/$participantId';
+
   // Relative paths under the API host. Include `/api` so API_BASE_URL stays
   // host-only (e.g. http://10.0.2.2:3000). Contract: docs/system-design/openapi-contract-freeze.md
 
@@ -27,6 +58,19 @@ class ApiConstants {
 
   // User
   static const String profile = '/api/users/cuser';
+  static const String transportationPreferences =
+      '/api/users/me/transportation-preferences';
+  static const String routingCapabilities = '/api/routing/capabilities';
+  static const String savedLocations = '/api/users/me/saved-locations';
+  static String savedLocation(String id) => '$savedLocations/$id';
+  static const String defaultStartingLocation =
+      '/api/users/me/default-starting-location';
+  static const String locationPrivacy = '/api/users/me/location-privacy';
+  static const String locationConsent = '/api/users/me/location-consent';
+  static const String locationExcludedGroups =
+      '$locationConsent/excluded-groups';
+  static String locationExcludedGroup(String groupId) =>
+      '$locationExcludedGroups/${Uri.encodeComponent(groupId)}';
   static const String savedOutings = '/api/outings/saved';
   static const String fcmToken = '/api/users/cuser/fcm-token';
 
@@ -128,6 +172,13 @@ class ApiConstants {
   static const String placeGeocoding = '/api/places/geocoding';
 
   static String place(String placeId) => '/api/places/$placeId';
+
+  static String placeRatings(String id) => '${place(id)}/ratings';
+  static String placeReviews(String id) => '${place(id)}/reviews';
+  static String myPlaceRating(String id) => '${place(id)}/my-rating';
+  static String placeReview(String id, String reviewId) =>
+      '${placeReviews(id)}/$reviewId';
+  static const String placeReviewBlocks = '/api/places/review-blocks';
 
   // Media — direct-to-R2 uploads and access-checked delivery URLs.
   static const String mediaUploadUrl = '/api/media/upload-url';

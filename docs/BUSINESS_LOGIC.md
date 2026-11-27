@@ -284,3 +284,70 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 Random and revote serialize on the same row. Random retries in the same confirmed round return the same winner; duplicate/stale revote requests return 409. New clients send `round_number`; omitted round guards mean round 1 for compatibility and cannot mutate later rounds. Vote removal uses the same guard in its query. New-round options must reference that round; manual confirmation cannot bypass a revote. Notification outbox writes commit with transitions and durable per-round keys. GPS/RSVP and chat membership never change.
 
 The deadline worker selects only rounds with at least two candidates, so older single-location outings awaiting manual confirmation leave room in each batch for competitive rounds. An elapsed outing end removes creator tie actions and prevents resolution.
+
+## Default starting location
+
+An account can have one default from an owned personal location or a Saved Place association with usable coordinates. A single transactional update replaces the selection. Deleting the selected personal location or bookmark clears the preference. Clear is idempotent. Missing effective coordinates require setup and do not cause fallback to a different point. GPS and map pins become named personal locations only after the user submits the form.
+
+Using a marker as the current starting location keeps the selection in the owner's app session. Removing that personal location or changing accounts clears the session selection. A coincident personal marker can indicate the default bookmark for the same linked place.
+
+## Effective transportation
+
+Resolve transportation in this order: an explicit temporary mode, the selected owned personal location or bookmark's preference, the account default, then unspecified. A null preference falls through. A missing or foreign selected reference is rejected when looked up. Each resolution reads current preference data so subsequent planning input requests see committed changes. Future cached planning inputs must resolve again before reuse and include the effective mode and its source. Temporary overrides are stored by owner and planning context.
+
+Preference and capability are independent. All four modes can be saved. Once calculations exist, an unavailable mode requires an explicit alternative selection and preserves the stored preference.
+
+## Location visibility and automatic usage
+
+New and existing accounts start with approximate visibility and automatic usage disabled. Hidden visibility returns a hidden status to current members, and the owner's explicit consent can still authorize internal calculation. An approximate area comes from the active catalog district of the selected bookmark or the catalog point matching a linked personal default. The shared view returns unavailable when there is no safely verified district.
+
+Only the owner can grant or withdraw consent to the current policy or exclude an accepted group. An exclusion persists across leaving and rejoining, and its effect remains specific to that group. A consent or exclusion change advances the owner's authorization revision. This conservatively expires prior work using the owner across groups, including work captured before an exclusion was removed. A new calculation applies the current permissions. Neither visibility changes nor failed or repeated mutations reissue consent.
+
+## Group Smart Meetup
+
+Current group membership determines the roster automatically. Changes to a member's effective starting point, transportation or consent refresh the affected planning views. Group exclusions apply to that group. Input changes advance the session version, and changes to evaluated candidate facts can invalidate an individual calculation at its current version.
+
+### Recommendation eligibility and privacy
+
+Only an authorized session viewer can read outcomes. The server recomputes the input version from the current roster, location authorization, effective starting points, transportation and preferences before returning a result. Results expire at most 30 minutes after future publication and never outlive the session. Stale or expired attempts suppress recommendations entirely. Catalog eligibility is rechecked before handoff.
+
+The shared response permits readiness counts, current catalog facts, ranks and explanations based on category, budget, rating and scheduled opening hours. Both Group and Quick Meetup suppress all journey-derived numeric metrics, including sums, averages, extrema, spread, distance, fairness and Match Score. A participant could subtract a known trip from a small-group total or compare aggregates across overlapping rosters. Temporary guest points also carry no guest consent for sharing trip data. Participant-to-place evidence stays in worker memory. Any future public travel statistic needs a reviewed release policy that addresses small and changing cohorts.
+
+Any accepted member opens a shared session with all current members. General planning and each existing outing have independent sessions. A session expires 24 hours after creation. The creator can change the balanced default optimization or cancel while still a member. Usable starts require an authorized, valid saved default. A missing point is represented as setup required. Routing availability and readiness are independent.
+
+## Quick Meetup
+
+Opening Quick Meetup resumes the owner's active standalone session or starts a 24-hour session. The owner can add guest points independently of their own starting-point setup. Guest labels are optional and never matched to accounts. `MEETUP_MANUAL_PARTICIPANT_LIMIT` sets the guest limit from 1 to 30 and defaults to 12. Each successful guest increase, edit or removal advances the input version and invalidates earlier results. Expiry and cancellation remove the guest records.
+
+## Temporary planning inputs
+
+A session override affects that Smart Meetup only, including when the session is linked to an outing. An outing override affects future travel inputs for that outing only. A currently authorized temporary point takes precedence over the authorized default. Transportation uses the explicit override, selected location preference, then account default. The existing automatic consent applies to Smart Meetup. Using the default point for an individual outing requires contextual approval. Excluded groups cannot use temporary points. Reset discards the contextual selection. Changing these inputs leaves the outing's voting candidates and confirmed venue intact.
+
+
+## Place ratings and reviews
+
+A user may give one 1–5 rating per catalog branch. Written feedback is optional. New ratings and edits require an active branch. Closed branches retain their history and authors can delete their own entries. An edit leaves the moderation state in place. Moderator hides remove the rating and review from public statistics and listings. A block filters written reviews across places for the blocker, and the public aggregate remains the same for every viewer.
+
+Top Rated uses `(place rating sum + m × C) / (eligible place rating count + m)`. `C` is the sum of all eligible individual ratings divided by their count, including eligible history retained by archived branches. Search, viewport and brand filters restrict candidates only. The default prior weight `m` is 20. With `C = 4.0`, five stars from one rating gives about 4.047619 and 4.8 stars from 500 ratings gives about 4.769231. Shrinkage moves small samples toward the catalog mean and makes the ranking more sensitive to confidence. Relative order can change when the global average or prior changes. The displayed score is the actual branch average. The future Smart Meetup Match Score is a separate measure.
+
+## Meetup preferences and ranking
+
+A current result can supply a fixed outing venue or two to five distinct candidates for regular group voting. The planner submits the existing outing form and meets its schedule, audience and voting deadline rules. Group results are scoped to their group. Quick Meetup results belong to the session creator, who must be an accepted member of any target group. The ballot resolves according to the existing vote counts and tie rules. Recalculation affects future handoffs only.
+
+Category, budget, actual average rating and strict opening hours are hard filters on the active catalog shortlist. Unknown budgets, unrated venues and unknown hours fail their respective explicit filters. With an empty budget selection, unknown prices are eligible. The strict hours check uses the proposed instant, or the evaluation instant when no planned time was supplied, in `Africa/Cairo`. It handles previous-day overnight intervals and daylight saving time. An explicit travel cap is evaluated per person when routing is available and requires valid routes for every participant.
+
+Balanced sorts by longest journey, then total duration, then duration spread. Fastest Overall sorts by total duration. Equal Travel discards choices that are slower for at least one participant and faster for none. Its configurable efficiency guardrail caps both the longest journey and total duration relative to the best Balanced option. Eligible destinations then sort by spread, longest journey and total duration.
+
+Additional priorities act within travel ties. Top Rated uses the existing Bayesian prior and review counts. Shortest Distance normalizes total routed distance when the tied venues have complete distance measurements. Budget Friendly groups known EGP amounts by category and price basis, normalizes cost within each group, and reorders only the positions already held by members of that group. This keeps admission and per-person prices separate and leaves unknown prices outside cost comparisons. The backend combines selected normalized signals with equal default weights and uses the place ID as the final tie-breaker. Routing must supply genuine measurements before the ranking produces results.
+
+
+## Personal route preview rules
+
+A meetup route belongs to the caller and a venue from a current published meetup calculation. Starting-location edits can invalidate that calculation, so the caller must refresh recommendations before reopening the preview. An outing route uses the currently confirmed venue and the caller's resolved point and mode. Contextual consent, exclusions and expiry govern origin use. Route metrics and geometry require genuine routing evidence.
+
+
+## Personalized departure reminder timing
+
+Suggested departure equals outing start minus trusted travel duration. The reminder send time also subtracts the selected preparation buffer. A calculated send time at or before the current time is skipped. Estimates must match the caller, venue, mode, starting-location version and outing schedule. They must still be valid and at most 15 minutes old when used for scheduling. A sent slot prevents another personalized reminder for the same user and outing.
+
+A change to access, RSVP, consent, starting point, transportation, outing time or venue, or reminder or push preferences invalidates affected pending jobs. Outing cancellation clears pending jobs. The app can save preferences before routing is integrated.

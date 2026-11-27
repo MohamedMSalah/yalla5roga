@@ -65,6 +65,7 @@ Blank entries use a source default or disable an optional service. Configure sec
 | Geocoding | Optional `GEOCODING_PROVIDER=pelias` requires an HTTPS `GEOCODING_BASE_URL` and `GEOCODING_ATTRIBUTION`. Set `GEOCODING_API_KEY` if the host requires it. `GEOCODING_CACHE_SECONDS` defaults to 0, clamped at 300. `GEOCODING_REQUESTS_PER_MINUTE` controls the route limiter. |
 | Ingress and attendance | `CORS_ORIGINS` is required in production as a comma-separated HTTPS origin allowlist. `TRUST_PROXY` takes the exact ingress IPs/CIDRs and defaults to no trusted forwarder. `OUTING_ARRIVAL_MAX_ACCURACY_METERS`, `OUTING_ARRIVAL_RADIUS_METERS`, `OUTING_ARRIVAL_WINDOW_MINUTES` override the existing arrival policy. No separate Socket.IO URL, port or credential is needed. |
 | Catalog ingestion | `PLACES_BATCH_SIZE`, `PLACES_ABSENCE_THRESHOLD`, `PLACES_DUPLICATE_DISTANCE_METERS`, `PLACES_MIN_CONFIDENCE`, `PLACES_PYTHON`, `PLACES_EXPECTED_TARGET`, `PLACES_SYNC_QUIET` control the operator CLI. `OSM_OVERPASS_URLS` or `OSM_OVERPASS_URL` selects operator Overpass sources. `OSM_REQUEST_INTERVAL_MS`, `OSM_USER_AGENT`, `OSM_HEALTH_ENDPOINTS` control operator Overpass requests and health probes. |
+| Rating ranking | `PLACE_RATING_PRIOR_WEIGHT` is a positive safe integer with a default of 20. The API validates it at startup. Changing it invalidates previously issued Top Rated cursors. |
 | Observability | `OBSERVABILITY_ENABLED` defaults on. `OBS_MOBILE_TELEMETRY=1` enables the bounded authenticated mobile sink. A `MONITORING_TOKEN` of at least 24 characters enables private dependency and metrics routes. `OBS_LOG_FORMAT=json` selects JSON in device, and `LOG_LEVEL` overrides the production/device log threshold. |
 | Observability tuning | `OBS_HTTP_LOG_SAMPLE` defaults to 0 in production and 1 otherwise. `OBS_DUPLICATE_WINDOW_MS` defaults to 2000, `OBS_HEALTH_TTL_MS` to 15000, `OBS_DB_WARN_MS` to 100 and `OBS_DB_CRITICAL_MS` to 500. `OBS_ENDPOINT_THRESHOLDS` accepts a JSON object of per-route thresholds. `OBS_ISOLATED_LOAD_TEST` is fixture-only. `GRAFANA_ADMIN_PASSWORD` is a separate Compose setting. |
 
@@ -73,3 +74,11 @@ Use literal assignments such as `R2_SECRET_ACCESS_KEY=`, `CORS_ORIGINS=https://a
 If local startup reports `DATABASE_URL`, restore the existing shared connection setting; do not create a new database or run migrations automatically. An invalid or missing Admin key leaves local auth unavailable. For hosted startup, populate the reported key or group and restart. A configured bucket that fails the private S3 health probe keeps hosted readiness at 503. A bucket probe verifies access to the bucket, and live reads, writes and public-access policies require their own checks.
 
 The [service setup guide](../SERVICE_SETUP_GUIDE.md) maps existing and missing credentials to provider dashboards. The [deployment runbook](PRODUCTION_DEPLOYMENT.md) covers backup, rehearsal, ingress and rollback.
+
+
+Set `PLACE_REVIEW_MODERATOR_UIDS` on the backend to authorize specific Firebase UIDs for report triage and review visibility changes. Leaving it empty disables moderator operations.
+
+
+### Smart Meetup location request limits
+
+`LOCATION_REQUEST_COOLDOWN_MINUTES` controls the global recipient cooldown. The default is 360 minutes and valid values are 1–1440. `LOCATION_REQUEST_DAILY_LIMIT` sets the rolling 24-hour sender cap. The default is 5 and valid values are 1–100. An unset or invalid value uses the default.

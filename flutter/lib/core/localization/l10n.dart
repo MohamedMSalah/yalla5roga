@@ -5,6 +5,438 @@ import 'package:intl/intl.dart';
 /// Single source for every on-screen string.
 /// Getter names match the copy they return.
 class L10n {
+  String get smartMeetup => _t('Smart Meetup', 'سمارت ميت أب');
+  String get requestLocation => _t('Request setup', 'اطلب إعداد الموقع');
+  String confirmLocationRequest(String name) => _t(
+    'Send $name a notification to set up their starting location for this meetup?',
+    'تبعت لـ $name إشعار عشان يحدد نقطة البداية للمقابلة دي؟',
+  );
+  String get locationRequestSent => _t('Request sent', 'تم إرسال الطلب');
+  String get locationRequestUnavailable =>
+      _t('Setup request unavailable.', 'طلب إعداد الموقع مش متاح.');
+  String locationRequestRetryAt(String time) => _t(
+    'You can request again after $time.',
+    'تقدر تطلب مرة تانية بعد $time.',
+  );
+  String get departureReminders => _t('Departure reminders', 'تذكيرات التحرك');
+  String get departurePreferenceHint => _t(
+    'Enable personalized reminders for outings you’re going to.',
+    'فعّل تذكيرات التحرك المخصصة للخروجات اللي هتحضرها.',
+  );
+  String get departurePreparationTime =>
+      _t('Preparation time', 'وقت الاستعداد');
+  String departureMinutes(int minutes) =>
+      _t('${n(minutes)} min', '${n(minutes)} د');
+  String departurePreferenceEnabled(int minutes) => _t(
+    'Enabled · ${departureMinutes(minutes)} to prepare',
+    'مفعّلة · ${departureMinutes(minutes)} للاستعداد',
+  );
+  String get departurePreferenceDisabled => _t('Disabled', 'متوقفة');
+  String get departureJourney => _t('Estimated journey', 'مدة الرحلة المتوقعة');
+  String get departureSuggested =>
+      _t('Suggested departure', 'وقت التحرك المقترح');
+  String get departureScheduled => _t('Reminder scheduled', 'تم جدولة التذكير');
+  String get departureSchedule => _t('Schedule reminder', 'جدولة التذكير');
+  String get departureClear => _t('Clear reminder', 'إلغاء التذكير');
+  String get departureRsvpRequired => _t(
+    'Mark yourself as Going to use a departure reminder.',
+    'اختار إنك هتحضر عشان تستخدم تذكير التحرك.',
+  );
+  String get departureNotificationsDisabled => _t(
+    'Enable push notifications and reminders for this account.',
+    'فعّل الإشعارات والتذكيرات للحساب ده.',
+  );
+  String get departureTransportationRequired => _t(
+    'Choose a transportation mode to continue.',
+    'اختار وسيلة مواصلات عشان تكمّل.',
+  );
+  String get departureRoutingUnavailable => _t(
+    'Departure times will be available when journey estimates are supported.',
+    'وقت التحرك هيظهر لما تقدير مدة الرحلة يبقى متاح.',
+  );
+  String get departureTimePassed =>
+      _t('The reminder time has already passed.', 'وقت التذكير عدى.');
+  String get departureAlreadySent => _t(
+    'The departure reminder was already sent.',
+    'تذكير التحرك اتبعت بالفعل.',
+  );
+  String get departureUnavailable => _t(
+    'A departure reminder is unavailable for this outing.',
+    'تذكير التحرك مش متاح للخروجة دي.',
+  );
+  String get quickMeetup => _t('Quick Meetup', 'مقابلة سريعة');
+  String get meetupChooseExistingGroup =>
+      _t('Choose Existing Group', 'اختار مجموعة موجودة');
+  String get meetupNoGroups =>
+      _t('You have no groups to choose from.', 'مفيش مجموعات تختار منها.');
+  String get meetupGuest => _t('Guest', 'ضيف');
+  String get meetupOwner => _t('You', 'أنت');
+  String get meetupGuests => _t('Guests', 'الضيوف');
+  String get meetupAddGuest => _t('Add guest', 'أضف ضيف');
+  String get meetupEditGuest => _t('Edit guest', 'عدّل بيانات الضيف');
+  String get meetupRemoveGuest => _t('Remove guest', 'احذف الضيف');
+  String get meetupRemoveGuestConfirmation => _t(
+    'Remove this guest’s starting point from the meetup?',
+    'تحذف نقطة بداية الضيف من المقابلة؟',
+  );
+  String get meetupGuestName => _t('Name (optional)', 'الاسم (اختياري)');
+  String get meetupGuestNameTooLong =>
+      _t('Use up to 60 characters.', 'اكتب ٦٠ حرف أو أقل.');
+  String get meetupStartingPoint => _t('Starting point', 'نقطة البداية');
+  String get meetupPickPoint =>
+      _t('Choose a starting point', 'اختار نقطة بداية');
+  String get meetupApproximatePoint => _t('Approximate point', 'نقطة تقريبية');
+  String get meetupApproximateHint => _t(
+    'Guest points are estimates for this meetup. They aren’t verified live locations.',
+    'نقاط الضيوف تقريبية للمقابلة دي، ومش مواقع مباشرة متحقّق منها.',
+  );
+  String get meetupOwnerDefault =>
+      _t('Your default starting point', 'نقطة بدايتك الافتراضية');
+  String meetupGuestLimit(int limit) => _t(
+    'This meetup has the maximum of $limit guests.',
+    'وصلت للحد الأقصى للضيوف (${digits('$limit')}).',
+  );
+  String get meetupQuickCancelConfirmation => _t(
+    'Close this meetup and clear its guest points?',
+    'تقفل المقابلة وتمسح نقاط الضيوف؟',
+  );
+  String meetupReadyCount(int ready, int total) => _t(
+    '$ready of $total members ready',
+    '${digits('$ready')} من ${digits('$total')} أعضاء جاهزين',
+  );
+  String meetupMissingCount(int count) => _t(
+    'Members needing location setup: $count',
+    'الأعضاء اللي محتاجين يجهّزوا موقعهم: ${digits('$count')}',
+  );
+  String meetupYourName(String name) => _t('$name (you)', '$name (أنت)');
+  String get meetupReady => _t('Ready', 'جاهز');
+  String get meetupNeedsSetup =>
+      _t('Needs location setup', 'محتاج يجهّز الموقع');
+  String get meetupAreaHidden => _t('Area not shared', 'المنطقة مش معروضة');
+  String get meetupMembers => _t('Group members', 'أعضاء المجموعة');
+  String get meetupRoutingUnavailable =>
+      _t('Routing unavailable', 'حساب المسارات مش متاح');
+  String get meetupViewResults => _t('View recommendations', 'اعرض الترشيحات');
+  String get meetupRefreshResults =>
+      _t('Refresh recommendations', 'حدّث الترشيحات');
+  String get meetupCalculating =>
+      _t('Calculating recommendations…', 'جاري حساب الترشيحات…');
+  String get meetupMissingInputs => _t(
+    'Add a starting location to prepare recommendations.',
+    'أضف نقطة بداية عشان تجهّز الترشيحات.',
+  );
+  String get meetupNoMatchingVenues => _t(
+    'No venues match the current meetup preferences.',
+    'مفيش أماكن مناسبة لتفضيلات المقابلة الحالية.',
+  );
+  String get meetupStaleResults => _t(
+    'These recommendations are out of date. Refresh for the current meetup.',
+    'الترشيحات دي قديمة. حدّثها عشان تشوف ترشيحات المقابلة الحالية.',
+  );
+  String get meetupCalculationFailed =>
+      _t('Recommendations could not be calculated.', 'تعذّر حساب الترشيحات.');
+  String meetupPartialResults(int count) => _t(
+    'Partial results · based on $count ready participants.',
+    'ترشيحات جزئية · حسب ${n(count)} مشارك جاهز.',
+  );
+  String meetupParticipantsReady(int ready, int total) => _t(
+    '$ready of $total participants ready',
+    '${n(ready)} من ${n(total)} مشاركين جاهزين',
+  );
+  String get meetupViewPlace => _t('View place details', 'اعرض تفاصيل المكان');
+  String get meetupSelectVotingPlaces =>
+      _t('Select places for voting', 'اختار أماكن للتصويت');
+  String get meetupVotingSelectionHint =>
+      _t('Choose two to five venues.', 'اختار من مكانين لخمسة أماكن.');
+  String get meetupUseVenue => _t('Use this venue', 'استخدم المكان ده');
+  String get meetupUseVenues =>
+      _t('Use selected venues', 'استخدم الأماكن المختارة');
+  String get meetupManualLocation => _t('Choose manually', 'اختار بنفسك');
+  String get meetupUnknownPrice => _t('Price unavailable', 'السعر مش متاح');
+  String get meetupNoPlaceRatings => _t('No ratings yet', 'مفيش تقييمات لسه');
+  String meetupPlaceRatingSummary(double rating, int count) => _t(
+    '${rating.toStringAsFixed(1)} / 5 · $count ratings',
+    '${digits(rating.toStringAsFixed(1))} / ٥ · ${n(count)} تقييم',
+  );
+  String meetupAverageTravel(int minutes) => _t(
+    'Average travel · $minutes min',
+    'متوسط المشوار · ${n(minutes)} دقيقة',
+  );
+  String meetupMatchScore(int score) =>
+      _t('$score% match', 'توافق ${n(score)}٪');
+  String meetupCalculatedAt(DateTime time) => _t(
+    'Calculated ${formatDate(time)} · ${formatTime(time)}',
+    'اتحسبت ${formatDate(time)} · ${formatTime(time)}',
+  );
+  String meetupValidUntil(DateTime time) =>
+      _t('Valid until ${formatTime(time)}', 'صالحة لحد ${formatTime(time)}');
+  String? meetupRecommendationExplanation(String code) => switch (code) {
+    'MATCHES_CATEGORY' => _t(
+      'Matches your place categories',
+      'من أنواع الأماكن المختارة',
+    ),
+    'MATCHES_BUDGET' => _t('Fits your budget', 'يناسب الميزانية'),
+    'MEETS_MINIMUM_RATING' => _t(
+      'Meets your minimum rating',
+      'بيحقق الحد الأدنى للتقييم',
+    ),
+    'OPEN_AT_MEETUP_TIME' => meetupOpenAtTime,
+    _ => null,
+  };
+  String get meetupRoutingHint => _t(
+    'Check who’s ready while route estimates are unavailable.',
+    'تقدر تعرف مين جاهز لحد ما حساب المسارات يبقى متاح.',
+  );
+  String get meetupCopyRequest =>
+      _t('Copy setup request', 'نسخ طلب تجهيز الموقع');
+  String get meetupSetupRequest => _t(
+    'Please set a default starting location in Settings → My Locations and review automatic location permission in Settings → Location Privacy for Smart Meetup.',
+    'من فضلك اختار نقطة بداية افتراضية من الإعدادات ← أماكني، وراجع إذن استخدام الموقع تلقائيًا من الإعدادات ← خصوصية الموقع لسمارت ميت أب.',
+  );
+  String get meetupRequestCopied =>
+      _t('Setup request copied.', 'تم نسخ طلب تجهيز الموقع.');
+  String get meetupPreferences => _t('Meetup preferences', 'تفضيلات المقابلة');
+  String get meetupPlaceCategory => _t('Place category', 'نوع المكان');
+  String get meetupBudget => _t('Budget', 'الميزانية');
+  String get meetupRelativeBudget => _t(
+    'Symbols show relative price levels.',
+    'الرموز بتوضح مستوى الأسعار النسبي.',
+  );
+  String get meetupAffordable => _t('Affordable', 'اقتصادي');
+  String get meetupModerate => _t('Moderate', 'متوسط');
+  String get meetupExpensive => _t('Expensive', 'غالي');
+  String get meetupPlaceRating => _t('Place rating', 'تقييم المكان');
+  String get meetupAny => _t('Any', 'الكل');
+  String meetupRatingThreshold(String rating) =>
+      _t('$rating+', '+${digits(rating)}');
+  String get meetupTravelFairness => _t('Travel fairness', 'توزيع وقت المشوار');
+  String get meetupBalanced => _t('Balanced', 'متوازن');
+  String get meetupBalancedHint => _t(
+    'Keep the longest individual journey as short as possible.',
+    'خلّي أطول مشوار على أي حد أقصر ما يمكن.',
+  );
+  String get meetupEqualTravel => _t('Equal Travel', 'مشاوير متقاربة');
+  String get meetupEqualTravelHint => _t(
+    'Keep journey times close while avoiding unnecessarily long trips.',
+    'قرّب أوقات المشاوير من بعض من غير مشاوير طويلة على الفاضي.',
+  );
+  String get meetupFastestOverall => _t('Fastest Overall', 'الأسرع إجمالاً');
+  String get meetupFastestOverallHint => _t(
+    'Minimize the total journey time for everyone.',
+    'قلّل إجمالي وقت مشاوير كل المشاركين.',
+  );
+  String get meetupMaximumTravelTime =>
+      _t('Maximum travel time', 'أقصى وقت للمشوار');
+  String meetupTravelMinutes(int minutes) =>
+      _t('$minutes min', '${digits('$minutes')} د');
+  String get meetupAdditionalPriorities =>
+      _t('Additional priorities', 'أولويات إضافية');
+  String get meetupTopRated => _t('Top Rated', 'الأعلى تقييمًا');
+  String get meetupBudgetFriendly => _t('Budget Friendly', 'أوفر سعر');
+  String get meetupShortestDistance => _t('Shortest Distance', 'أقصر مسافة');
+  String get meetupOpenAtTime =>
+      _t('Open at meetup time', 'مفتوح وقت المقابلة');
+  String get meetupResetPreferences => _t('Reset', 'إعادة ضبط');
+  String get meetupApplyPreferences =>
+      _t('Apply Preferences', 'تطبيق التفضيلات');
+  String get meetupUnavailableCategory =>
+      _t('Unavailable category', 'نوع مكان غير متاح');
+  String meetupSelectedCategories(int count) =>
+      _t('Selected: $count', 'الأنواع المحددة: ${digits('$count')}');
+  String get meetupExpired =>
+      _t('This meetup session expired.', 'جلسة المقابلة انتهت.');
+  String get meetupCancelled =>
+      _t('This meetup session was cancelled.', 'جلسة المقابلة اتلغت.');
+  String get meetupStartNew => _t('Open a new session', 'افتح جلسة جديدة');
+  String get meetupCancel => _t('Cancel meetup session', 'إلغاء جلسة المقابلة');
+  String get meetupCancelConfirmation => _t(
+    'Close this planning session for everyone in the group?',
+    'تقفل جلسة التخطيط دي لكل أعضاء المجموعة؟',
+  );
+
+  String get locationPrivacyTitle => _t('Location Privacy', 'خصوصية الموقع');
+  String get locationPrivacyHint => _t(
+    'Manage what your groups see and how Smart Meetup uses your starting point.',
+    'تحكّم في اللي مجموعاتك بتشوفه وإزاي Smart Meetup بيستخدم نقطة بدايتك.',
+  );
+  String get hideMyLocation => _t('Hide My Location', 'إخفاء موقعي');
+  String get locationVisibilityHint => _t(
+    'By default, current group members can see your district when we can verify it. You can hide it here.',
+    'في الوضع الافتراضي، أعضاء مجموعاتك الحاليين يقدروا يشوفوا منطقتك لو قدرنا نتحقق منها. تقدر تخفيها من هنا.',
+  );
+  String get allowAutomaticMeetupLocation => _t(
+    'Allow Automatic Smart Meetup Location Usage',
+    'السماح لـ Smart Meetup باستخدام موقعي تلقائيًا',
+  );
+  String get automaticMeetupLocationHint => _t(
+    'Smart Meetup can use your exact saved starting point in authorized calculations. Your group members only receive the area you choose to show.',
+    'Smart Meetup يقدر يستخدم نقطة بدايتك المحفوظة بدقة في الحسابات المصرّح بيها. أعضاء مجموعاتك بيشوفوا بس المنطقة اللي اخترت تعرضها.',
+  );
+  String get hiddenLocationConsentHint => _t(
+    'You can hide your district and still allow automatic calculations.',
+    'تقدر تخفي منطقتك وتسمح بالحسابات التلقائية في نفس الوقت.',
+  );
+  String get locationConsentTitle => _t(
+    'Allow Smart Meetup to use your starting point?',
+    'تسمح لـ Smart Meetup باستخدام نقطة بدايتك؟',
+  );
+  String get locationRoutingDisclosure => _t(
+    'If a routing provider is added, we’ll ask for your permission before sending your precise starting point to that provider to estimate routes.',
+    'لو أضفنا مزوّد لحساب المسارات، هنطلب إذنك قبل ما نبعت له نقطة بدايتك الدقيقة عشان يحسب المسارات.',
+  );
+  String get locationConsentControlsHint => _t(
+    'You can withdraw permission at any time or turn it off for specific groups.',
+    'تقدر تسحب الإذن في أي وقت أو توقف استخدام موقعك لمجموعات معيّنة.',
+  );
+  String get locationSetupConsentRequired => _t(
+    'Location setup required. Allow automatic usage to include your starting point in Smart Meetup.',
+    'إعداد الموقع مطلوب. فعّل الاستخدام التلقائي عشان Smart Meetup يقدر يستخدم نقطة بدايتك.',
+  );
+  String get locationSetupStartingPointRequired => _t(
+    'Location setup required. Choose a default starting point in My Locations.',
+    'إعداد الموقع مطلوب. اختار نقطة بداية افتراضية من أماكني.',
+  );
+  String get locationSetupUnavailable => _t(
+    'Location setup is temporarily unavailable.',
+    'إعداد الموقع مش متاح مؤقتًا.',
+  );
+  String get locationConsentUpdateRequired => _t(
+    'Update the app to read and accept the current Smart Meetup location policy.',
+    'حدّث التطبيق عشان تقرأ وتوافق على سياسة الموقع الحالية لـ Smart Meetup.',
+  );
+  String get locationExcludedGroups =>
+      _t('Excluded Groups', 'المجموعات المستبعدة');
+  String get locationExcludedGroupsHint => _t(
+    'Choose groups where Smart Meetup can’t use your saved starting point automatically.',
+    'اختار المجموعات اللي Smart Meetup ما يقدرش يستخدم فيها نقطة بدايتك المحفوظة تلقائيًا.',
+  );
+  String get locationExcludedGroupsEmpty => _t(
+    'Your groups will appear here after you join or create them.',
+    'مجموعاتك هتظهر هنا بعد ما تنضم لمجموعة أو تنشئ واحدة.',
+  );
+
+  String get transportationTitle => _t('Transportation', 'المواصلات');
+  String get transportationDefault =>
+      _t('Default transportation', 'المواصلات الافتراضية');
+  String get transportationDefaultHint => _t(
+    'Used when your starting location has no transportation preference.',
+    'بتُستخدم لما نقطة البداية ما يكونش لها وسيلة مواصلات مفضلة.',
+  );
+  String get transportationLocation =>
+      _t('Preferred transportation', 'المواصلات المفضلة');
+  String get transportationLocationHint => _t(
+    'With no preference, your account default applies.',
+    'لو مفيش تفضيل، بيتستخدم الاختيار الافتراضي لحسابك.',
+  );
+  String get transportationCar => _t('Car', 'عربية');
+  String get transportationMotorcycle => _t('Motorcycle', 'موتوسيكل');
+  String get transportationMetro => _t('Metro', 'مترو');
+  String get transportationWalking => _t('Walking', 'مشي');
+  String get transportationNoPreference => _t('No preference', 'بدون تفضيل');
+  String get transportationRoutingNotConfigured => _t(
+    'Route calculations aren’t available yet. You can still save your preference.',
+    'حساب المسارات لسه مش متاح. تقدر تحفظ وسيلة المواصلات المفضلة.',
+  );
+  String get transportationRoutingUnavailable => _t(
+    'Route calculations are unavailable for this selection.',
+    'حساب المسارات مش متاح للاختيار ده.',
+  );
+
+  String get myLocations => _t('My Locations', 'أماكني');
+  String get myLocationsHint => _t(
+    'Personal locations and your starting point',
+    'أماكنك الشخصية ونقطة البداية',
+  );
+  String get savedLocationHome => _t('Home', 'البيت');
+  String get savedLocationWork => _t('Work', 'الشغل');
+  String get savedLocationUniversity => _t('University', 'الجامعة');
+  String get savedLocationGym => _t('Gym', 'الجيم');
+  String get savedLocationCustom => _t('Custom', 'مكان مخصص');
+  String get savedLocationAdd => _t('Add a location', 'أضف مكان');
+  String get savedLocationEdit => _t('Edit location', 'عدّل المكان');
+  String get savedLocationDelete => _t('Delete location', 'احذف المكان');
+  String get savedLocationDeletePrompt => _t(
+    'Delete this location from your account? If it is your default, your starting point will be cleared.',
+    'تحذف المكان ده من حسابك؟ لو هو المكان الافتراضي، نقطة البداية هتتمسح.',
+  );
+  String get savedLocationSave => _t('Save location', 'احفظ المكان');
+  String get savedLocationName => _t('Location name', 'اسم المكان');
+  String get savedLocationType => _t('Location type', 'نوع المكان');
+  String get savedLocationArea =>
+      _t('Approximate area (optional)', 'المنطقة التقريبية (اختياري)');
+  String get savedLocationAddress =>
+      _t('Private address (optional)', 'العنوان الخاص (اختياري)');
+  String get savedLocationsEmpty =>
+      _t('You haven’t added any locations yet.', 'لسه ما أضفتش أي أماكن.');
+  String get defaultStartingLocation =>
+      _t('Default starting location', 'نقطة البداية الافتراضية');
+  String get startingLocationSetupRequired => _t(
+    'Setup required. Choose a starting location.',
+    'مطلوب الإعداد. اختار نقطة البداية.',
+  );
+  String get startingLocationClear =>
+      _t('Clear default', 'امسح الاختيار الافتراضي');
+  String get startingEdit => _t('Edit starting point', 'تعديل نقطة البداية');
+  String get startingReset => _t('Reset to default', 'الرجوع للافتراضي');
+  String get startingTemporary => _t('Temporary', 'مؤقت');
+  String get startingContextConsentRequired => _t(
+    'Approve your default starting point or choose another point for this plan.',
+    'اسمح باستخدام نقطة بدايتك الافتراضية أو اختار نقطة تانية للخطة دي.',
+  );
+  String get startingContextExcluded => _t(
+    'You excluded this group in Location Privacy.',
+    'إنت استثنيت الجروب ده في خصوصية الموقع.',
+  );
+  String get startingContextConsent => _t(
+    'Allow this exact point to be used to calculate travel for this meetup or outing only.',
+    'اسمح باستخدام النقطة دي بدقة لحساب المشوار للمقابلة أو الخروجة دي بس.',
+  );
+  String get startingDefaultContextConsent => _t(
+    'Allow my default starting point to be used for this plan only.',
+    'اسمح باستخدام نقطة بدايتي الافتراضية للخطة دي بس.',
+  );
+  String get startingSaveInMyLocations =>
+      _t('Also save to My Locations', 'احفظ كمان في أماكني');
+  String get startingTransportationFallback => _t(
+    'With no temporary preference, use the selected location’s preference or your account default.',
+    'لو مفيش تفضيل مؤقت، هنستخدم مواصلات المكان المختار أو التفضيل الافتراضي للحساب.',
+  );
+  String get startingDefaultIndicator => _t('Default', 'افتراضي');
+  String get startingNotDefault => _t('Not default', 'مش افتراضي');
+  String get startingSetDefault =>
+      _t('Set as default', 'خليه نقطة البداية الافتراضية');
+  String get startingUseLocation =>
+      _t('Use as starting location', 'استخدمه كنقطة بداية');
+  String get startingLocationInUse =>
+      _t('Current starting location', 'نقطة البداية الحالية');
+  String get startingLocationUsed =>
+      _t('Starting location selected', 'تم اختيار نقطة البداية');
+  String get startingSavedPlace => _t('Saved place', 'مكان محفوظ');
+  String get startingRemoveSavedPlacePrompt => _t(
+    'Remove this bookmark and clear your default starting location?',
+    'تلغي حفظ المكان ده وتمسح نقطة البداية الافتراضية؟',
+  );
+  String get startingSavedPlaces => _t('Saved Places', 'الأماكن المحفوظة');
+  String get startingCurrentGps => _t('Current GPS location', 'موقعي الحالي');
+  String get startingPickOnMap => _t('Pick on map', 'اختار على الخريطة');
+  String get startingChangeSource =>
+      _t('Change location source', 'غيّر مصدر المكان');
+  String get startingBookmarksEmpty =>
+      _t('You haven’t bookmarked any places yet.', 'لسه ما حفظتش أي أماكن.');
+  String get startingCoordinatesUnavailable =>
+      _t('Map location unavailable', 'الموقع على الخريطة غير متاح');
+  String get startingPointRequired =>
+      _t('Choose a point to continue.', 'اختار نقطة علشان تكمّل.');
+  String get startingPointSelected => _t('Point selected', 'تم اختيار النقطة');
+  String get startingTapMap =>
+      _t('Tap the map to place a pin.', 'اضغط على الخريطة علشان تثبّت نقطة.');
+  String get startingSaveAsDefault =>
+      _t('Save as default', 'احفظ كنقطة بداية افتراضية');
+  String get startingSavedButDefaultFailed => _t(
+    'Location saved. Try again to set it as your default.',
+    'المكان اتحفظ. حاول تاني علشان تخليه نقطة البداية الافتراضية.',
+  );
+
   String get groupHistoryTitle => _t('History', 'السجل');
   String get attendancePrompt => _t('Let your group know.', 'بلّغ مجموعتك.');
   String get creationSubmit => _t('Create Outing', 'إنشاء الخروجة');
@@ -126,8 +558,119 @@ class L10n {
   String get placeOverview => _t('Overview', 'نظرة عامة');
   String get placeBranches => _t('Branches', 'الفروع');
   String get placeReviews => _t('Reviews', 'التقييمات');
+  String get placeNotRatedYet => _t('Not Rated Yet', 'لا توجد تقييمات بعد');
+  String get discoverTopRated => _t('Top Rated', 'الأعلى تقييماً');
+  String minimumPlaceRating(String rating) =>
+      _t('$rating+ stars', '$rating نجوم فأكثر');
+  String get placeRatingRankingUnavailable => _t(
+    'Top Rated needs community ratings.',
+    'الترتيب حسب التقييم يحتاج إلى تقييمات المجتمع.',
+  );
+  String get discoverNoMinimumRatingResults => _t(
+    'No places match this rating filter.',
+    'لا توجد أماكن تطابق فلتر التقييم.',
+  );
+  String get placeYourRating => _t('Your rating', 'تقييمك');
+  String get placeRateThis => _t('Rate This Place', 'قيّم هذا المكان');
+  String get placeEditRating => _t('Edit rating', 'تعديل التقييم');
+  String get placeDeleteRating => _t('Delete rating', 'حذف التقييم');
+  String get placeSaveRating => _t('Save rating', 'حفظ التقييم');
+  String get placeSavingRating => _t('Saving…', 'جارٍ الحفظ…');
+  String get placeReviewOptional =>
+      _t('Written review (optional)', 'مراجعة مكتوبة (اختياري)');
+  String get placeWrittenReviews => _t('Written reviews', 'المراجعات المكتوبة');
+  String get placeNoWrittenReviews =>
+      _t('No written reviews to show.', 'لا توجد مراجعات مكتوبة للعرض.');
+  String get placeLoadingReviews =>
+      _t('Loading reviews…', 'جارٍ تحميل المراجعات…');
+  String get placeMoreReviews =>
+      _t('Load more reviews', 'تحميل المزيد من المراجعات');
+  String get placeRatingsClosed =>
+      _t('Ratings are closed for this branch.', 'التقييمات مغلقة لهذا الفرع.');
+  String get placeHiddenRating => _t(
+    'This rating is hidden by moderation.',
+    'أخفى فريق الإشراف هذا التقييم.',
+  );
+  String get placeDeleteRatingPrompt => _t(
+    'Remove your stars and any written review from this branch?',
+    'هل تريد إزالة تقييمك وأي مراجعة مكتوبة لهذا الفرع؟',
+  );
+  String get placeReportReview => _t('Report review', 'الإبلاغ عن المراجعة');
+  String get placeReviewActions => _t('Review actions', 'خيارات المراجعة');
+  String get placeReportReason => _t('Reason', 'السبب');
+  String get placeSendingReport => _t('Sending…', 'جارٍ الإرسال…');
+  String get placeReportSent => _t('Report sent.', 'تم إرسال البلاغ.');
+  String get placeBlockAuthor => _t('Block reviewer', 'حظر صاحب المراجعة');
+  String get placeBlockAuthorPrompt => _t(
+    'Hide this person’s written reviews across all places?',
+    'هل تريد إخفاء مراجعات هذا الشخص المكتوبة في جميع الأماكن؟',
+  );
+  String get placeBlockedAuthors =>
+      _t('Blocked reviewers', 'أصحاب المراجعات المحظورون');
+  String get placeNoBlockedAuthors =>
+      _t('You have no blocked reviewers.', 'لا يوجد أصحاب مراجعات محظورون.');
+  String get placeUnblockAuthor => _t('Unblock', 'إلغاء الحظر');
+  String get placeMoreReviewAuthors =>
+      _t('Load more reviewers', 'تحميل المزيد');
+  String placeStars(int value) =>
+      _t('${n(value)} out of 5 stars', '${n(value)} من ٥ نجوم');
+  String placeRatingCount(int count) => count == 1
+      ? _t('1 rating', 'تقييم واحد')
+      : _t('${n(count)} ratings', '${n(count)} تقييم');
+  String placeRatingSummary(String average, String count) =>
+      _t('$average out of 5, $count ratings', '$average من ٥، $count تقييم');
+  String placeRatingDistributionEntry(int stars, int count) => _t(
+    '${n(stars)} stars, ${placeRatingCount(count)}',
+    '${n(stars)} نجوم، ${placeRatingCount(count)}',
+  );
+  String placeReviewReason(String name) => switch (name) {
+    'spam' => _t('Spam', 'محتوى مزعج'),
+    'harassment' => _t('Harassment', 'مضايقة'),
+    'inappropriate' => _t('Inappropriate content', 'محتوى غير لائق'),
+    'offTopic' => _t('Off topic', 'خارج الموضوع'),
+    _ => _t('Other', 'سبب آخر'),
+  };
   String get placeReviewsUnavailable =>
       _t('Reviews are not available yet', 'التقييمات غير متاحة حالياً');
+  String get routePreviewTitle => _t('My route preview', 'معاينة مساري');
+  String get routePreviewDestination => _t('Destination', 'الوجهة');
+  String get routePreviewDistance =>
+      _t('Estimated distance', 'المسافة المقدرة');
+  String get routePreviewDuration =>
+      _t('Estimated travel time', 'مدة الرحلة المقدرة');
+  String get routePreviewNoEstimate => _t('Unavailable', 'غير متاح');
+  String get routePreviewPrimary => _t('Suggested route', 'المسار المقترح');
+  String get routePreviewUnsupported => _t(
+    'Routes are unavailable for this transportation method.',
+    'المسارات غير متاحة لوسيلة التنقل هذه.',
+  );
+  String get routePreviewChooseMode => _t(
+    'Choose a transportation method to preview a route.',
+    'اختر وسيلة تنقل لمعاينة المسار.',
+  );
+  String get routePreviewNoRoute => _t(
+    'No route was found for this trip.',
+    'لم يتم العثور على مسار لهذه الرحلة.',
+  );
+  String get routePreviewUnavailable => _t(
+    'Route estimates are currently unavailable.',
+    'تقديرات المسار غير متاحة حاليًا.',
+  );
+  String get routePreviewExternal =>
+      _t('Open in external navigation', 'فتح في تطبيق الملاحة');
+  String get routePreviewChangeStart =>
+      _t('Change starting location', 'تغيير نقطة البداية');
+  String get routePreviewRefreshMeetup => _t(
+    'Return to recommendations and refresh before opening a route again.',
+    'ارجع إلى التوصيات وحدّثها قبل فتح المسار مجددًا.',
+  );
+  String routePreviewMeters(int value) =>
+      _t('${n(value)} meters', '${n(value)} متر');
+  String routePreviewMinutes(int value) =>
+      _t('${n(value)} min', '${n(value)} دقيقة');
+  String routePreviewAlternative(int value) =>
+      _t('Alternative ${n(value)}', 'المسار البديل ${n(value)}');
+
   String get placeDirections => _t('Get directions', 'الاتجاهات');
 
   String get multipleBranches => _t('Multiple branches', 'فروع متعددة');

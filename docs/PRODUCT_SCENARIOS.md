@@ -385,3 +385,36 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 This request replaces the older zero-vote cancellation and all-voted early-closure policies. Location voting remains open until its backend deadline. Main outing lifecycle status remains separate from voting state. The authenticated outing creator (`created_by`) alone chooses random selection or revote; group ownership grants no permission. RSVP and GPS arrival are independent and never reset.
 
 For 2+ eligible locations, a unique positive leader confirms automatically. Tied leaders enter `tie_pending`; zero votes also enter `tie_pending`, retaining every current-round candidate. A single proposed venue keeps explicit creator confirmation. Random selection uses backend crypto RNG and a locked transaction; repeat requests return the persisted random winner. Revote creates an empty next round containing only persisted tied candidates, with a future deadline within seven days and strictly before scheduled start. Repeated ties require creator intervention again. Confirmed/cancelled/completed outings cannot reopen.
+
+## My Locations and starting point — owner-approved 2026-11-26
+
+Users can save, edit, and delete private personal locations from Settings. Locations are account data and synchronize through authenticated REST. A user may set one default starting point from My Locations or an existing Saved Place. Current GPS and Pick on Map open a personal location form with an explicit save step. If the selected location or bookmark is removed, the app asks the user to set up a default again. A starting point is private and independent of an outing venue and attendance.
+
+The My Locations map layer shows the owner's personal locations and the effective default in Discover and outing maps. A map user may select a point for the current session independently of the saved default.
+
+Users can choose Car, Motorcycle, Metro, Walking, or no preference for their account or a saved starting point. A temporary selection takes precedence for its meetup or outing. Route availability is separate, and unsupported calculation modes require an explicit alternative choice.
+
+## Smart Meetup location privacy
+
+The owner controls district visibility independently of automatic calculation consent. Accepted group members can see a verified district by default. The owner can hide the district and still opt in to internal calculation. Consent begins disabled, applies across meetups while valid and can be withdrawn at any time or limited through group exclusions. A future routing provider requires a separate explicit disclosure and permission before receiving a saved starting point.
+
+## Group Smart Meetup
+
+Accepted members can open Smart Meetup directly from Group Details and see everyone currently in the group. The page shows who has an authorized starting point, how many members need setup, and whether routing is available. It provides a copyable setup request and links to the signed-in member's location and privacy settings.
+
+Group and Quick Meetup both offer **View recommendations**. While routing is deferred, the screen shows readiness, applied preferences and a calculation status. A future current result can display up to five ranked catalog venues and let the planner open place details or start an outing with one venue or multiple voting options.
+
+## Quick Meetup
+
+Quick Meetup lets a signed-in planner add temporary guest points without a group or guest accounts. The planner alone can access the session and manage its guests. It uses the same optimization preferences and routing availability as Group Smart Meetup. Guest locations are approximate and the temporary entries expire with the session.
+
+## Temporary starting location and transportation
+
+Registered participants can choose their own temporary starting point and transportation in Group Smart Meetup, Quick Meetup and individual outings. A temporary point requires explicit context-specific consent. Reset returns to authorized defaults. The choices expire with the plan. Voting candidates, confirmed venues and permanent defaults are preserved.
+
+
+## Place ratings and reviews
+
+Ratings belong to individual catalog branches. A signed-in user can submit one integer rating with optional public written feedback, edit it while the branch accepts ratings, or remove it. Visible ratings contribute to a shared average and star distribution. Review reports support moderator triage and users can hide another author's written reviews for their own account. Private places and manually pinned venues have no public rating. Catalog refresh and archival preserve reviews.
+
+Discover offers Top Rated and minimum-rating filters. Top Rated uses Bayesian weighted ranking for eligible branch ratings. Place cards show the branch's actual average and count.

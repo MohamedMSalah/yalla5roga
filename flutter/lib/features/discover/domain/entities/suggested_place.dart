@@ -1,4 +1,5 @@
 import 'package:yalla_5roga/core/localization/l10n.dart';
+import 'package:yalla_5roga/features/place_reviews/domain/entities/place_rating_statistics.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
@@ -75,11 +76,13 @@ class SuggestedPlace {
     this.brandName = '',
     this.branchName = '',
     this.branchCount = 0,
+    this.ratingStatistics,
   });
 
   final String id;
   final String brandId, brandName, branchName;
   final int branchCount;
+  final PlaceRatingStatistics? ratingStatistics;
   String get branchLabel => [
     branchName,
     address.isNotEmpty ? address : area,
@@ -138,6 +141,7 @@ class SuggestedPlace {
     brandName: brandName,
     branchName: branchName,
     branchCount: branchCount,
+    ratingStatistics: ratingStatistics,
   );
 
   /// Display helpers — values come from the API, not local seed maps.

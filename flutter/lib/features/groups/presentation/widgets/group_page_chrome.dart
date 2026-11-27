@@ -145,8 +145,9 @@ class GroupPageAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 class GroupPageList extends StatelessWidget {
-  const GroupPageList({super.key, required this.children});
+  const GroupPageList({super.key, required this.children, this.physics});
   final List<Widget> children;
+  final ScrollPhysics? physics;
 
   @override
   Widget build(BuildContext context) => SafeArea(
@@ -156,6 +157,7 @@ class GroupPageList extends StatelessWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
         child: SingleChildScrollView(
+          physics: physics,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

@@ -44,6 +44,8 @@ pnpm start:production
 
 Use a service manager to restart failed processes and allow at least 25 seconds after SIGTERM. Ingress sends traffic only after `/health/ready` returns 200. `/health/live` is a process probe. A separate bearer credential of at least 24 characters enables metrics and dependency reporting. Protect them at ingress. Production disables Swagger and the development media routes. Use Swagger in an isolated test process for manual contract verification.
 
+Stop the previous notification worker before applying `20261127000200_meetup_realtime`. Start the backend release that recognizes the new outbox channel after the migration succeeds.
+
 To build the hosting-neutral Linux image from the repository root, run `docker build -t yalla5roga-api:candidate .`. Deploy a single replica using the host's secret injection and restart policy. Bind Node to the container interface and place the listener on a private network behind ingress. The image uses Node.js 24, a frozen pnpm install, native Sharp and Prisma, and runs the direct Node process as a non-root user. The image excludes the local profiles and signing assets. Run migration tooling separately from the image startup.
 
 ```sh
@@ -103,3 +105,8 @@ cd ..
 pnpm build:apk:device
 pnpm build:apk:production
 ```
+
+
+### Location requests and departure reminder rollout
+
+Apply `20261127000300_location_requests_departure_reminders` through the standard target, backup and rehearsal procedure before deploying the API that writes the new event type. Confirm the status of the preceding Smart Meetup realtime migration before batching them. Deploy the Flutter app with the setup destination handler before verifying notification taps on devices. Personalized scheduling requires a separate routing integration and remains inactive in this release.

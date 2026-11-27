@@ -30,6 +30,7 @@ test("production API operations enforce documented public and protected boundari
     const id = "00000000-0000-4000-8000-000000000001";
     const publicCases: Record<string, { status: number; query?: string; db?: boolean }> = {
       "GET /": { status: 200 },
+      "GET /api/routing/capabilities": { status: 200 },
       "GET /health": { status: 200, db: true },
       "GET /api/places": { status: 200, query: "?limit=1", db: true },
       "GET /api/places/nearby": { status: 400 },

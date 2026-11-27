@@ -4,6 +4,7 @@ import 'package:yalla_5roga/core/widgets/custom_button.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -11,9 +12,11 @@ import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/utils/map_location.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_controller.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_camera_manager.dart';
+import 'package:yalla_5roga/core/maps/personal_location_map_layer.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_markers.dart';
 import 'package:yalla_5roga/core/maps/yalla_map_place_selection.dart';
 import 'package:yalla_5roga/core/widgets/yalla_map_view.dart';
+import 'package:yalla_5roga/features/saved_locations/presentation/widgets/personal_locations_map.dart';
 import 'package:yalla_5roga/core/widgets/map_controls.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
@@ -32,6 +35,8 @@ class PickLocationPage extends StatelessWidget {
     this.onConfirm,
     this.maxSelections = 1,
     this.location = const MapLocation(),
+    this.includePersonalLocations = true,
+    this.includeGeocodingSearch = false,
   });
 
   final List<Place> catalog;
@@ -41,6 +46,8 @@ class PickLocationPage extends StatelessWidget {
   final int maxSelections;
   final ValueChanged<List<Place>>? onConfirm;
   final MapLocation location;
+  final bool includePersonalLocations;
+  final bool includeGeocodingSearch;
 
   @override
   Widget build(BuildContext context) => ChangeNotifierProvider(
@@ -53,14 +60,26 @@ class PickLocationPage extends StatelessWidget {
       selected: selected,
       maxSelections: maxSelections,
     ),
-    child: _Picker(placeCatalog: placeCatalog, onConfirm: onConfirm),
+    child: _Picker(
+      placeCatalog: placeCatalog,
+      onConfirm: onConfirm,
+      includePersonalLocations: includePersonalLocations,
+      includeGeocodingSearch: includeGeocodingSearch,
+    ),
   );
 }
 
 class _Picker extends StatefulWidget {
-  const _Picker({this.placeCatalog, this.onConfirm});
+  const _Picker({
+    this.placeCatalog,
+    this.onConfirm,
+    required this.includePersonalLocations,
+    required this.includeGeocodingSearch,
+  });
   final ValueChanged<List<Place>>? onConfirm;
   final PlaceCatalogProvider? placeCatalog;
+  final bool includePersonalLocations;
+  final bool includeGeocodingSearch;
 
   @override
   State<_Picker> createState() => _PickerState();
@@ -259,40 +278,61 @@ class _PickerState extends State<_Picker> {
           fit: StackFit.expand,
           children: [
             Consumer<PickLocationProvider>(
-              builder: (_, state, _) => YallaMapView(
-                controller: _map,
-                center: center,
-                zoom: center == cairoMapCenter ? 12 : 15,
-                selectionBottom: _height * _collapsed,
-                onTap: (point) => _pin(point, focus: true),
-                onUserMove: () {
-                  widget.placeCatalog?.cameraMoving();
-                  picker.startMoving();
-                },
-                onUserIdle: _pin,
-                onBoundsChanged: widget.placeCatalog?.setBounds,
-                categories: widget.placeCatalog?.categories ?? const [],
-                places:
-                    widget.placeCatalog?.places
-                        .where((p) => !p.id.startsWith('private:'))
-                        .map((p) => p.toOutingPlace())
-                        .toList() ??
-                    picker.catalog,
-                privatePlaces:
-                    widget.placeCatalog?.places
-                        .where((p) => p.id.startsWith('private:'))
-                        .map((p) => p.toOutingPlace())
-                        .toList() ??
-                    const [],
-                selection: YallaMapPlaceSelection(
-                  mode: picker.multiple
-                      ? YallaMapSelectionMode.multiple
-                      : YallaMapSelectionMode.single,
-                  focusedId: state.candidate?.id,
-                  selected: state.selected,
-                ),
-                onPlaceTap: _choose,
-              ),
+              builder: (_, state, _) {
+                Widget map(
+                  BuildContext context,
+                  List<PersonalMapMarker> markers, [
+                  void Function(String, Place?)? onTap,
+                ]) => YallaMapView(
+                  controller: _map,
+                  personalLocations: markers,
+                  onPersonalLocationTap: onTap,
+                  center: center,
+                  zoom: center == cairoMapCenter ? 12 : 15,
+                  selectionBottom: _height * _collapsed,
+                  onTap: (point) => _pin(point, focus: true),
+                  onUserMove: () {
+                    widget.placeCatalog?.cameraMoving();
+                    picker.startMoving();
+                  },
+                  onUserIdle: _pin,
+                  onBoundsChanged: widget.placeCatalog?.setBounds,
+                  categories: widget.placeCatalog?.categories ?? const [],
+                  places:
+                      widget.placeCatalog?.places
+                          .where((p) => !p.id.startsWith('private:'))
+                          .map((p) => p.toOutingPlace())
+                          .toList() ??
+                      picker.catalog,
+                  privatePlaces:
+                      widget.placeCatalog?.places
+                          .where((p) => p.id.startsWith('private:'))
+                          .map((p) => p.toOutingPlace())
+                          .toList() ??
+                      const [],
+                  selection: YallaMapPlaceSelection(
+                    mode: picker.multiple
+                        ? YallaMapSelectionMode.multiple
+                        : YallaMapSelectionMode.single,
+                    focusedId: state.candidate?.id,
+                    selected: state.selected,
+                  ),
+                  onPlaceTap: _choose,
+                );
+                if (!widget.includePersonalLocations) {
+                  return map(context, const []);
+                }
+                return PersonalLocationsMap(
+                  controller: _map,
+                  showToggle: !searching,
+                  onCatalogPlaceSelected: _choose,
+                  togglePadding: const EdgeInsetsDirectional.only(
+                    top: 8,
+                    start: 12,
+                  ),
+                  builder: map,
+                );
+              },
             ),
             if (!searching)
               Align(
@@ -394,6 +434,8 @@ class _PickerState extends State<_Picker> {
                               onChoose: _choose,
                               query: _query,
                               catalog: widget.placeCatalog,
+                              includeGeocodingSearch:
+                                  widget.includeGeocodingSearch,
                             ),
                           ),
                       ],
@@ -417,8 +459,10 @@ class _SearchResults extends StatelessWidget {
     required this.onChoose,
     required this.query,
     this.catalog,
+    required this.includeGeocodingSearch,
   });
   final PlaceCatalogProvider? catalog;
+  final bool includeGeocodingSearch;
 
   final ValueChanged<Place> onChoose;
   final TextEditingController query;
@@ -428,11 +472,14 @@ class _SearchResults extends StatelessWidget {
     final picker = context.watch<PickLocationProvider>();
     final l10n = context.l10n;
 
-    final places = catalog != null
-        ? catalog!.places.map((p) => p.toOutingPlace()).toList()
-        : (query.text.trim().isEmpty ? picker.catalog : picker.results)
-              .where((p) => p.status == 'active')
-              .toList();
+    final places = [
+      if (catalog case final publicCatalog?)
+        ...publicCatalog.places.map((place) => place.toOutingPlace()),
+      if (catalog == null || includeGeocodingSearch)
+        ...(query.text.trim().isEmpty ? picker.catalog : picker.results).where(
+          (place) => place.status == 'active',
+        ),
+    ];
     return Card(
       margin: const EdgeInsets.only(top: 8),
       child: ListView(
@@ -588,6 +635,11 @@ class _Details extends StatelessWidget {
           MapSelectedLocationCard(
             title: candidate.name,
             subtitle: candidate.area,
+            metadata: RatingsSummaryWidget(
+              placeId: candidate.id,
+              statistics: candidate.ratingStatistics,
+              compact: true,
+            ),
             imageUrl: candidate.imageUrl,
             selected: true,
             trailing: wizard && !picker.multiple
@@ -695,6 +747,11 @@ class _SelectedPlace extends StatelessWidget {
     return MapSelectedLocationCard(
       title: '${l10n.n(index + 1)}. ${place.name}',
       subtitle: place.area,
+      metadata: RatingsSummaryWidget(
+        placeId: place.id,
+        statistics: place.ratingStatistics,
+        compact: true,
+      ),
       imageUrl: place.imageUrl,
       onTap: onFocus,
       selected: true,

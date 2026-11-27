@@ -10,6 +10,7 @@ import { userRealtimeRoom } from "./rooms.js";
 import { corsOrigin, isAllowedOrigin } from "../config/cors.js";
 import { reconcileDataChanges } from "./data-changes.js";
 import { isDeletedAccount } from "../services/users/account-deletion-access.js";
+import { SmartMeetupRealtimeService } from "../services/meetups/smart-meetup-realtime.service.js";
 
 /**
  * Attaches Socket.IO to the existing HTTP server (same port as Express).
@@ -43,6 +44,7 @@ export function attachRealtime(httpServer: HttpServer, sessionRecheckMs?: number
   watchSocketServer(io);
   registerChatGateway(io);
   registerGroupGateway(io);
+  new SmartMeetupRealtimeService().register(io);
   bindChatEmitter(io);
 
   io.on("connection", (socket) => {

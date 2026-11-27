@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
+import 'package:yalla_5roga/core/widgets/app_page_background.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
 
 import '../pages/edit_profile_page.dart';
@@ -52,34 +53,36 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
 
-    return SafeArea(
-      bottom: false,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
-          child: ListView(
-            padding: Responsive.pagePadding().add(
-              EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
-            ),
-            children: [
-              ProfileHeader(
-                user: user,
-                onLogout: () => _logout(context),
-                onEditProfile: () => Get.to(() => const EditProfilePage()),
+    return AppPageBackground(
+      child: SafeArea(
+        bottom: false,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: Responsive.contentMaxWidth),
+            child: ListView(
+              padding: Responsive.pagePadding().add(
+                EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
               ),
+              children: [
+                ProfileHeader(
+                  user: user,
+                  onLogout: () => _logout(context),
+                  onEditProfile: () => Get.to(() => const EditProfilePage()),
+                ),
 
-              Responsive.spaceXl.gapH,
-              const SettingsAccountSection(),
-              12.gapH,
-              // SettingsGroup — notifications + LanguageChoice
-              const SettingsPreferencesSection(),
-              12.gapH,
-              // SettingsGroup — help, contact
-              const SettingsSupportSection(),
-              12.gapH,
-              // SettingsGroup — about, privacy, terms
-              const SettingsAboutSection(),
-            ],
+                Responsive.spaceXl.gapH,
+                const SettingsAccountSection(),
+                12.gapH,
+                // SettingsGroup — notifications + LanguageChoice
+                const SettingsPreferencesSection(),
+                12.gapH,
+                // SettingsGroup — help, contact
+                const SettingsSupportSection(),
+                12.gapH,
+                // SettingsGroup — about, privacy, terms
+                const SettingsAboutSection(),
+              ],
+            ),
           ),
         ),
       ),

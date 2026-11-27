@@ -51,6 +51,9 @@ export class PushChannel implements NotificationChannelSender {
     data.eventId = input.eventId;
     const type = data.type ?? "system",
       control = controlTypes.has(type);
+    const expiry = type === "meetup_location_requested" && data.expiresAt
+      ? Date.parse(data.expiresAt) : null;
+    if (expiry !== null && expiry <= Date.now()) return skip("location_request_expired");
     data.notificationType = type;
     data.actionType = control ? "update" : "open";
     data.createdAt ??= new Date().toISOString();
@@ -113,7 +116,7 @@ export class PushChannel implements NotificationChannelSender {
             // No top-level notification: otherwise Android bypasses the Dart handler.
             android: {
               priority: "high",
-              ttl: control ? 3_600_000 : 86_400_000,
+              ttl: expiry !== null ? Math.max(0, expiry - Date.now()) : control ? 3_600_000 : 86_400_000,
             },
             apns: control
               ? {
@@ -123,7 +126,9 @@ export class PushChannel implements NotificationChannelSender {
                   },
                   payload: { aps: { contentAvailable: true } },
                 }
-              : { payload: { aps: {
+              : {
+                  ...(expiry !== null && { headers: { "apns-expiration": String(Math.floor(expiry / 1000)) } }),
+                  payload: { aps: {
                       alert: {
                         title: data.title ?? "Yalla 5roga",
                         body: data.body ?? "New notification",

@@ -1,5 +1,6 @@
 import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_badge.dart';
@@ -62,6 +63,11 @@ class SuggestedPlaceTile extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     fontSize: Responsive.fontSm,
                   ),
+                ),
+                RatingsSummaryWidget(
+                  placeId: place.id,
+                  statistics: place.ratingStatistics,
+                  compact: true,
                 ),
                 Responsive.spaceXs.gapH,
                 Text(

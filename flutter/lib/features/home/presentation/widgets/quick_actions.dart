@@ -6,6 +6,7 @@ import 'package:yalla_5roga/features/groups/presentation/pages/create_group_page
 import 'package:yalla_5roga/features/home/presentation/widgets/home_style.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/special_event_page.dart';
+import 'package:yalla_5roga/features/smart_meetup/presentation/widgets/meetup_entry_selector.dart';
 
 class QuickActions extends StatelessWidget {
   const QuickActions({super.key});
@@ -32,6 +33,12 @@ class QuickActions extends StatelessWidget {
         colors: QuickActionColors.event,
         onPressed: () => Get.to(() => const SpecialEventPage()),
       ),
+      QuickActionCard(
+        icon: Icons.route_outlined,
+        label: l10n.smartMeetup,
+        colors: QuickActionColors.meetup,
+        onPressed: () => MeetupEntrySelector.show(context),
+      ),
     ];
 
     const gap = 10.0;
@@ -47,13 +54,19 @@ class QuickActions extends StatelessWidget {
           );
         }
 
-        return IntrinsicHeight(
+        Widget row(Iterable<QuickActionCard> items) => IntrinsicHeight(
           child: Row(
             spacing: gap,
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [for (final action in actions) Expanded(child: action)],
+            children: [for (final action in items) Expanded(child: action)],
           ),
         );
+        return constraints.maxWidth < 340
+            ? Column(
+                spacing: gap,
+                children: [row(actions.take(2)), row(actions.skip(2))],
+              )
+            : row(actions);
       },
     );
   }
@@ -154,6 +167,12 @@ enum QuickActionColors {
     [Color(0xFFFFE1C0), Color(0xFFF7E3EB), Color(0xFFECD9F6)],
     Color(0xFFFFCC82),
     Color(0xFF974724),
+  ),
+  meetup(
+    [Color(0xFF336E68), Color(0xFF234749), Color(0xFF252B44)],
+    [Color(0xFFC8ECE1), Color(0xFFE0F1ED), Color(0xFFE3E8F7)],
+    Color(0xFFA7EADD),
+    Color(0xFF23645B),
   );
 
   const QuickActionColors(this.dark, this.light, this.darkIcon, this.lightIcon);

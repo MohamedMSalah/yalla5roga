@@ -2,7 +2,7 @@ import type { users } from "@prisma/client";
 
 export type User = users;
 type UserCredentials = Pick<User, "password_hash">;
-export type PublicUser = Omit<User, keyof UserCredentials | "notification_preferences"
+export type PublicUser = Omit<User, keyof UserCredentials | "notification_preferences" | "default_transportation_mode"
 > & { has_password: boolean };
 export type PublicUserSummary = Pick<
   User,

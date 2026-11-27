@@ -10,7 +10,7 @@ import 'package:yalla_5roga/features/discover/domain/repositories/discover_repos
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 
 class DiscoverProvider extends ChangeNotifier {
-  DiscoverProvider({required this.repository}) {
+  DiscoverProvider({required this.repository, this.onSavedPlaceRemoved}) {
     _catalogChanges = repository.catalogChanges.listen((_) {
       if (!_hasLoaded && _loadingPlaces == null) return;
       if (_loadingPlaces != null) {
@@ -28,6 +28,7 @@ class DiscoverProvider extends ChangeNotifier {
   }
 
   final DiscoverRepository repository;
+  final ValueChanged<String>? onSavedPlaceRemoved;
   List<SuggestedPlace> savedPlaces = [];
   bool savedLoading = false, savedLoaded = false, savedFailed = false;
   String? savingPlaceId;
@@ -64,18 +65,34 @@ class DiscoverProvider extends ChangeNotifier {
 
   Future<bool> toggleSavedPlace(SuggestedPlace place) async {
     if (place.id.startsWith('private:')) return false;
-    if (savingPlaceId != null || !savedLoaded || savedFailed) return false;
+    if (!savedLoaded || savedFailed) return false;
+    return _setSavedPlace(
+      place.id,
+      save: !isPlaceSaved(place.id),
+      place: place,
+    );
+  }
+
+  /// The caller already has an ownership-checked Saved Place reference.
+  Future<bool> removeSavedPlace(String id) => _setSavedPlace(id, save: false);
+
+  Future<bool> _setSavedPlace(
+    String id, {
+    required bool save,
+    SuggestedPlace? place,
+  }) async {
+    if (savingPlaceId != null) return false;
     final epoch = _savedEpoch;
-    final save = !isPlaceSaved(place.id);
-    savingPlaceId = place.id;
+    savingPlaceId = id;
     notifyListeners();
-    final result = await repository.setPlaceSaved(place.id, save);
+    final result = await repository.setPlaceSaved(id, save);
     if (epoch != _savedEpoch) return false;
     final success = result.isRight();
     if (success) {
+      if (!save) onSavedPlaceRemoved?.call(id);
       savedPlaces = [
-        if (save) place,
-        ...savedPlaces.where((p) => p.id != place.id),
+        if (save && place != null) place,
+        ...savedPlaces.where((p) => p.id != id),
       ];
     }
     notifyListeners();

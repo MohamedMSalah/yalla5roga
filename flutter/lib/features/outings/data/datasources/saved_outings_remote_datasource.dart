@@ -71,7 +71,7 @@ class SavedOutingsRemoteDataSource {
     'let_vote': draft.letVote,
     'vote_deadline_hours': draft.voteDeadlineHours,
     'guest_ids': draft.guestIds,
-    'selected_places': [for (final p in draft.selectedPlaces) p.toJson()],
+    'selected_places': draft.selectedPlacesJson(),
   };
 
   OutingDraft _draft(Map<String, dynamic> row) => OutingDraft.fromJson({

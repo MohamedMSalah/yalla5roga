@@ -40,12 +40,6 @@ android {
         versionName = flutter.versionName
     }
 
-    flavorDimensions += "environment"
-    productFlavors {
-        create("device") { dimension = "environment" }
-        create("production") { dimension = "environment" }
-    }
-
     signingConfigs {
         create("release") {
             // A missing store produces a signing error only when assembling release.
@@ -58,10 +52,20 @@ android {
         }
     }
 
-    buildTypes {
-        release {
+    flavorDimensions += "environment"
+    productFlavors {
+        create("device") {
+            dimension = "environment"
+            signingConfig = signingConfigs.getByName("debug")
+        }
+        create("production") {
+            dimension = "environment"
             signingConfig = signingConfigs.getByName("release")
         }
+    }
+
+    buildTypes {
+        release { }
     }
 }
 

@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 enum NotificationDestination {
   group,
   groupMembers,
+  meetupStartingLocation,
   outing,
   placeVoting,
   attendance,
@@ -83,6 +84,8 @@ class PushNotificationPayload {
   bool get isInteractiveAction => actionType != null;
 
   NotificationDestination get destination => switch (type) {
+    'meetup_location_requested' =>
+      NotificationDestination.meetupStartingLocation,
     'chat' || 'chat_message' => NotificationDestination.chat,
     'voting_started' ||
     'voting_deadline_approaching' ||

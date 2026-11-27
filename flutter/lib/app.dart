@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/providers/place_rating_updates.dart';
+import 'package:yalla_5roga/features/place_reviews/domain/repositories/place_reviews_repository.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +22,14 @@ import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/features/auth/presentation/providers/auth_provider.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/repositories/smart_meetup_repository.dart';
+import 'package:yalla_5roga/features/notifications/domain/repositories/location_travel_notification_repository.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/smart_meetup_realtime.dart';
+import 'package:yalla_5roga/features/route_preview/domain/route_preview_repository.dart';
+import 'package:yalla_5roga/features/starting_location/domain/repositories/starting_location_repository.dart';
+import 'package:yalla_5roga/features/saved_locations/presentation/providers/saved_locations_provider.dart';
+import 'package:yalla_5roga/features/location_privacy/presentation/providers/location_privacy_provider.dart';
+import 'package:yalla_5roga/features/transportation/presentation/providers/transportation_preferences_provider.dart';
 import 'package:yalla_5roga/features/chat/presentation/providers/outing_chat_provider.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/discover_provider.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
@@ -76,8 +86,30 @@ class App extends StatelessWidget {
           value: deps.invitations,
         ),
         ChangeNotifierProvider<DiscoverProvider>.value(value: deps.discover),
+        Provider<PlaceReviewsRepository>.value(value: deps.placeReviews),
+        ChangeNotifierProvider<PlaceRatingUpdates>.value(
+          value: deps.placeRatingUpdates,
+        ),
+        ChangeNotifierProvider<TransportationPreferencesProvider>.value(
+          value: deps.transportationPreferences,
+        ),
+        ChangeNotifierProvider<SavedLocationsProvider>.value(
+          value: deps.savedLocations,
+        ),
+        ChangeNotifierProvider<LocationPrivacyProvider>.value(
+          value: deps.locationPrivacy,
+        ),
         ChangeNotifierProvider<SettingsProvider>.value(value: deps.settings),
         Provider<LocationRepository>.value(value: deps.geocoding),
+        Provider<SmartMeetupRepository>.value(value: deps.smartMeetup),
+        Provider<LocationTravelNotificationRepository>.value(
+          value: deps.locationTravelNotifications,
+        ),
+        Provider<SmartMeetupRealtime>.value(value: deps.smartMeetupRealtime),
+        Provider<RoutePreviewRepository>.value(value: deps.routePreview),
+        Provider<StartingLocationRepository>.value(
+          value: deps.startingLocation,
+        ),
         Provider<SharedPreferences>.value(value: deps.prefs),
       ],
       child: Consumer2<ThemeProvider, LocaleProvider>(

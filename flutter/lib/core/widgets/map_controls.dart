@@ -119,8 +119,10 @@ class MapSelectedLocationCard extends StatelessWidget {
     this.onTap,
     this.trailing,
     this.selected = false,
+    this.metadata,
   });
   final String title, subtitle, imageUrl;
+  final Widget? metadata;
   final VoidCallback? onTap;
   final Widget? trailing;
   final bool selected;
@@ -139,7 +141,12 @@ class MapSelectedLocationCard extends StatelessWidget {
           placeholderIcon: Icons.place_outlined,
         ),
         title: Text(title),
-        subtitle: subtitle.isEmpty ? null : Text(subtitle),
+        subtitle: metadata == null
+            ? (subtitle.isEmpty ? null : Text(subtitle))
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [if (subtitle.isNotEmpty) Text(subtitle), metadata!],
+              ),
         onTap: onTap,
         trailing: trailing,
       ),

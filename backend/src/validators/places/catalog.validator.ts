@@ -19,6 +19,10 @@ const coordinate = (min: number, max: number) =>
       z.number().finite().min(min).max(max),
     )
     .optional();
+export const catalogRatingFilters = {
+  minRating: coordinate(1, 5),
+  includeUnrated: z.enum(["true", "false"]).optional(),
+};
 const baseCatalogQuerySchema = z
   .object({
     compact: z.literal("true").optional(),
@@ -70,7 +74,9 @@ const baseCatalogQuerySchema = z
         }
         return a;
       }),
-    sort: z.enum(["updated", "name", "distance", "id"]).default("updated"),
+    ...catalogRatingFilters,
+    includeUnrated: catalogRatingFilters.includeUnrated.transform((value) => value !== "false"),
+    sort: z.enum(["updated", "name", "distance", "id", "top_rated"]).default("updated"),
   })
   .superRefine((q, ctx) => {
     if (
@@ -103,3 +109,7 @@ export const catalogQuerySchema = z.preprocess((value, ctx) => {
   return q;
 }, baseCatalogQuerySchema);
 export type CatalogQuery = z.infer<typeof catalogQuerySchema>;
+
+export function hasRatingCriteria(query: CatalogQuery): boolean {
+  return query.sort === "top_rated" || query.minRating !== undefined || !query.includeUnrated;
+}

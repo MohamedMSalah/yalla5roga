@@ -1,9 +1,11 @@
+import type { Prisma } from "@prisma/client";
 import { ConflictError, ForbiddenError, NotFoundError } from "../../utils/errors.js";
 import { getNotificationConfig, hasAutomaticWhatsApp,
 } from "../../config/notifications.js";
 import { specialEventInvitation } from "../../services/whatsapp/special-event-invitation.js";
 import { prisma } from "../../config/database.js";
 import { assertSelectablePlaces } from "../../services/places/place-selection.js";
+import { ValidateMeetupSelectionService } from "../../services/meetups/validate-meetup-selection.service.js";
 import { persistOutingTransition } from "../../services/notifications/outing-events.js";
 import { notifyOutingParticipants } from "../../services/notifications/outing-notifier.js";
 import type {
@@ -25,7 +27,13 @@ import type {
   UpsertAttendanceInput,
 } from "../../types/outings/outing.types.js";
 
+function catalogAddressSnapshot(address: string | null) {
+  return address && Array.from(address).slice(0, 500).join("");
+}
+
 export class OutingDatasource {
+  constructor(private readonly meetupSelection = new ValidateMeetupSelectionService()) {}
+
   findById(id: string): Promise<Outing | null> {
     return prisma.outings.findUnique({ where: { id } });
   }
@@ -61,7 +69,9 @@ export class OutingDatasource {
    * Creates the outing and marks the owner Going in one transaction.
    */
   async create(data: CreateOutingInput): Promise<Outing> {
-    return prisma.$transaction(async (tx) => {
+    const selection = data.smart_meetup_selection;
+    if (selection) this.meetupSelection.requireMatchingSelection(data, selection);
+    const create = async (tx: Prisma.TransactionClient) => {
       if (data.create_request_key) {
         const requestKey = `${data.created_by}:${data.create_request_key}`;
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${requestKey}, 0))`;
@@ -87,13 +97,43 @@ export class OutingDatasource {
       const {
         guest_phones: phones,
         guest_phones_whatsapp_opt_in: _optIn,
-        initial_vote_options: options,
+        smart_meetup_selection: _selection,
+        initial_vote_options: initialOptions,
         ...fields
       } = data;
-      await assertSelectablePlaces(tx, [
-        data.location_place_id,
-        ...(options ?? []).map((o) => o.place_id),
-      ]);
+      let options = initialOptions;
+      if (selection) {
+        const places = await this.meetupSelection.execute(tx, data, selection);
+        if (options) {
+          options = options.map(({ place_id }) => {
+            const venue = places.get(place_id!.toLowerCase())!;
+            return {
+              place_id: venue.id, label: venue.name, area: venue.area,
+              category_id: venue.category_id ?? undefined, address: catalogAddressSnapshot(venue.address) ?? undefined,
+              latitude: venue.latitude, longitude: venue.longitude, vibe: venue.vibe,
+              image_url: venue.cover_image_url,
+            };
+          });
+          // Voting locations only come from the initial options.
+          Object.assign(fields, {
+            location_place_id: null, location_name: null, location_area: null,
+            location_category_id: null, location_address: null,
+            location_latitude: null, location_longitude: null,
+          });
+        } else {
+          const venue = places.get(data.location_place_id!.toLowerCase())!;
+          Object.assign(fields, {
+            location_place_id: venue.id, location_name: venue.name, location_area: venue.area,
+            location_category_id: venue.category_id, location_address: catalogAddressSnapshot(venue.address),
+            location_latitude: venue.latitude, location_longitude: venue.longitude,
+          });
+        }
+      } else {
+        await assertSelectablePlaces(tx, [
+          data.location_place_id,
+          ...(options ?? []).map((o) => o.place_id),
+        ]);
+      }
       const outing = await tx.outings.create({
         data: {
           ...fields,
@@ -139,7 +179,8 @@ export class OutingDatasource {
 
       await persistOutingTransition(tx, null, outing);
       return outing;
-    });
+    };
+    return selection ? this.meetupSelection.transaction(create) : prisma.$transaction(create);
   }
 
   update(id: string, data: UpdateOutingInput): Promise<Outing> {

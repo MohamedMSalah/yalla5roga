@@ -29,7 +29,10 @@ assert.ok(deviceManifest.includes('android:usesCleartextTraffic="true"') && !deb
 const gradle = readFileSync(rootPath("flutter/android/app/build.gradle.kts"), "utf8");
 assert.ok(gradle.includes('create("device")') && gradle.includes('create("production")') &&
   gradle.includes('applicationId = "com.example.yalla_5roga"') && !gradle.includes('applicationIdSuffix') &&
-  gradle.includes('signingConfig = signingConfigs.getByName("release")'), "Both flavors must retain the registered application ID and release signer");
+  /create\("device"\)\s*\{[^}]*signingConfig = signingConfigs\.getByName\("debug"\)/s.test(gradle) &&
+  /create\("production"\)\s*\{[^}]*signingConfig = signingConfigs\.getByName\("release"\)/s.test(gradle) &&
+  !/buildTypes\s*\{[\s\S]*?release\s*\{[^}]*signingConfig\s*=/.test(gradle),
+  "Both flavors must retain the registered application ID and their distinct release signers");
 for (const api of ["", "http://api.example.org", "https://127.0.0.1:3000"]) {
   assert.throws(() => clientValues("production", { ...production, API_BASE_URL: api }), undefined, "Production must reject missing or unsafe API origins");
 }

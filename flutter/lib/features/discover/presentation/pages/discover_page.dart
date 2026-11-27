@@ -5,6 +5,7 @@ import 'package:yalla_5roga/features/discover/presentation/widgets/private_place
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -238,6 +239,7 @@ class _DiscoverPageState extends State<_AccountDiscover> {
                 onPoint: _point,
                 bottomInset: bottom,
                 darkBasemap: darkBasemap,
+                showLocationToggle: !keyboard && availableMap >= 60,
               ),
             ),
             if (availableMap > 52)
@@ -358,6 +360,8 @@ class _DiscoverMapMessages extends StatelessWidget {
     final l10n = context.l10n;
     final issue = catalog.locationIssue;
     final failed = catalog.error != null;
+    final rankingUnavailable =
+        !catalog.loading && catalog.ratingRankingAvailable == false;
     final message = failed
         ? l10n.mapLookupFailed
         : switch (issue) {
@@ -409,6 +413,18 @@ class _DiscoverMapMessages extends StatelessWidget {
                           : null,
                     ),
                   ),
+                if (rankingUnavailable)
+                  Material(
+                    color: surface,
+                    borderRadius: radius,
+                    child: ListTile(
+                      dense: true,
+                      title: Semantics(
+                        liveRegion: true,
+                        child: Text(l10n.placeRatingRankingUnavailable),
+                      ),
+                    ),
+                  ),
                 if (catalog.hasQueried &&
                     !catalog.loading &&
                     !failed &&
@@ -420,7 +436,11 @@ class _DiscoverMapMessages extends StatelessWidget {
                       padding: const EdgeInsets.all(12),
                       child: Semantics(
                         liveRegion: true,
-                        child: Text(l10n.mapNoResults),
+                        child: Text(
+                          catalog.filters.minRating == null
+                              ? l10n.mapNoResults
+                              : l10n.discoverNoMinimumRatingResults,
+                        ),
                       ),
                     ),
                   ),
@@ -444,6 +464,11 @@ class _DiscoverMapMessages extends StatelessWidget {
                   return MapSelectedLocationCard(
                     title: place.localizedName(l10n),
                     subtitle: place.localizedSummary(l10n),
+                    metadata: RatingsSummaryWidget(
+                      placeId: place.id,
+                      statistics: place.ratingStatistics,
+                      compact: true,
+                    ),
                     imageUrl: place.coverImageUrl,
                     onTap: () {
                       FocusScope.of(context).unfocus();

@@ -19,6 +19,7 @@ import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/domain/repositories/discover_repository.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
+import 'package:yalla_5roga/features/place_reviews/domain/entities/place_rating_statistics.dart';
 
 class DiscoverRepositoryImpl
     implements DiscoverRepository, OfflinePlaceCatalog, ViewportCatalog {
@@ -112,40 +113,81 @@ class DiscoverRepositoryImpl
     );
   }
 
+  void invalidatePlaceRatings(
+    String placeId,
+    PlaceRatingStatistics statistics,
+  ) {
+    unawaited(
+      local?.updateRatings(placeId, statistics).catchError((_) {}) ??
+          Future<void>.value(),
+    );
+    _placeCache.invalidate(placeId);
+    _placesCache.invalidate();
+    _viewportCache.invalidate();
+    _recommendations.invalidate();
+    _savedCache.invalidate();
+    _knownPlaces.remove(placeId);
+    _changes.add(null);
+  }
+
   String? _catalogVersion;
   DateTime? _nextVersionCheck;
   Future<void>? _checkingVersion;
   bool _loadedViewport = false;
+  bool _catalogNoticePending = false;
 
   @override
   Stream<void> get catalogChanges => _changes.stream;
 
   @override
-  Future<void> checkCatalogVersion() => _checkingVersion ??= _checkVersion()
-      .whenComplete(() => _checkingVersion = null);
+  Future<void> checkCatalogVersion({bool force = false}) {
+    _catalogNoticePending = _catalogNoticePending || force;
+    return _checkingVersion ??= _checkCatalogUpdates().whenComplete(
+      () => _checkingVersion = null,
+    );
+  }
 
-  Future<void> _checkVersion() async {
+  Future<void> _checkCatalogUpdates() async {
+    do {
+      final force = _catalogNoticePending;
+      _catalogNoticePending = false;
+      await _checkVersion(force: force);
+    } while (_catalogNoticePending);
+  }
+
+  Future<void> _checkVersion({required bool force}) async {
     final now = DateTime.now();
-    if (!_loadedViewport || (_nextVersionCheck?.isAfter(now) ?? false)) return;
+    if (!_loadedViewport ||
+        (!force && (_nextVersionCheck?.isAfter(now) ?? false))) {
+      return;
+    }
     _nextVersionCheck = now.add(const Duration(minutes: 15));
+    String? version;
     try {
-      final version = await remote.catalogVersion();
-      if (version != null &&
-          _catalogVersion != null &&
-          version != _catalogVersion) {
+      version = await remote.catalogVersion();
+    } catch (_) {
+      // A committed socket notification still invalidates a mounted view.
+    }
+    if (force ||
+        (version != null &&
+            _catalogVersion != null &&
+            version != _catalogVersion)) {
+      try {
         await _regionQueue;
         await local?.invalidateCoverage();
-        _viewportCache.invalidate();
-        _definitionsCache.invalidate();
-        _placeCache.invalidate();
-        _placesCache.invalidate();
-        _knownPlaces.clear();
-        _changes.add(null);
+      } catch (_) {
+        // Disk cache failures must not block in-memory invalidation.
       }
-      _catalogVersion = version;
-    } catch (_) {
-      // Cached pages and explicit offline downloads remain usable.
+      _viewportCache.invalidate();
+      _definitionsCache.invalidate();
+      _placeCache.invalidate();
+      _placesCache.invalidate();
+      _recommendations.invalidate();
+      _savedCache.invalidate();
+      _knownPlaces.clear();
+      _changes.add(null);
     }
+    if (version != null) _catalogVersion = version;
   }
 
   @override
@@ -256,14 +298,22 @@ class DiscoverRepositoryImpl
       if (obsolete) return;
       final missing = await store.missing(bounds);
       RequestDiagnostics.instance.recordLocal(
-        method: 'GET', endpoint: '/api/places', feature: 'Discover',
+        method: 'GET',
+        endpoint: '/api/places',
+        feature: 'Discover',
         source: 'PlacesLocalStore',
-        outcome: missing.isEmpty ? RequestOutcome.cache : RequestOutcome.cacheMiss,
+        outcome: missing.isEmpty
+            ? RequestOutcome.cache
+            : RequestOutcome.cacheMiss,
       );
       _loadedViewport = true;
       for (final region in missing) {
         if (obsolete || !await networkInfo.isConnected) return;
-        final rows = await _regionRecords(region.key, () => obsolete, cancelled);
+        final rows = await _regionRecords(
+          region.key,
+          () => obsolete,
+          cancelled,
+        );
         final timer = kDebugMode ? (Stopwatch()..start()) : null;
         if (obsolete) return;
         await store.completeRegion(region, rows);
@@ -293,7 +343,12 @@ class DiscoverRepositoryImpl
     String? cursor;
     do {
       if (obsolete()) throw const NetworkException();
-      final page = await remote.areaPage(bounds, cursor, compact: true, cancelled: cancelled);
+      final page = await remote.areaPage(
+        bounds,
+        cursor,
+        compact: true,
+        cancelled: cancelled,
+      );
       for (final row in page.rows) {
         records[row['id'] as String] = row;
       }
@@ -323,12 +378,16 @@ class DiscoverRepositoryImpl
     if (id.startsWith('private:')) {
       return const Left(NetworkFailure('Device-local place'));
     }
+    final owner = remote.savedPlacesOwner;
+    if (owner == null) return const Left(AuthFailure());
     final result = await guardRemote(
       networkInfo,
-      () => remote.setSaved(id, saved),
+      () => remote.setSaved(id, saved, owner: owner),
       reason: 'savePlace',
     );
-    if (result.isRight()) _savedCache.invalidate();
+    if (result.isRight() && remote.savedPlacesOwner == owner) {
+      _savedCache.invalidate();
+    }
     return result;
   }
 
@@ -380,6 +439,24 @@ class DiscoverRepositoryImpl
           forceRefresh: forceRefresh,
           cancelled: cancelled,
         );
+
+  @override
+  Future<Either<Failure, RatingPlacePage>> queryRatingPage(
+    PlaceFilters filters, {
+    String? cursor,
+    Future<void>? cancelled,
+  }) {
+    _loadedViewport = true;
+    return guardRemote(
+      networkInfo,
+      () => remote.ratingPage(
+        filters.query(cursor: cursor),
+        cancelled: cancelled,
+      ),
+      reason: 'discoverRatingPage',
+      offlineRead: true,
+    );
+  }
 
   final _viewportCache = TtlCache<List<SuggestedPlace>>(
     ttl: const Duration(minutes: 5),
@@ -498,10 +575,19 @@ class DiscoverRepositoryImpl
         if (obsolete) throw const NetworkException();
         _requireDemandAvailable();
         try {
-          final rows = await RequestScope.run(() => remote.queryRecords(params,
-            useSnapshots: state == null, cancelled: cancelled),
-            origin: 'DiscoverRepositoryImpl', trigger: offset > 0 ? 'pagination' :
-              filters.search.trim().isNotEmpty ? 'search' : null);
+          final rows = await RequestScope.run(
+            () => remote.queryRecords(
+              params,
+              useSnapshots: state == null,
+              cancelled: cancelled,
+            ),
+            origin: 'DiscoverRepositoryImpl',
+            trigger: offset > 0
+                ? 'pagination'
+                : filters.search.trim().isNotEmpty
+                ? 'search'
+                : null,
+          );
           if (obsolete) throw const NetworkException();
           await local?.seed('place', rows);
           return convert(rows);

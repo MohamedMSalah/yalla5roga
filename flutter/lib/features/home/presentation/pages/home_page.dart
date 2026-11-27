@@ -5,6 +5,7 @@ import 'package:yalla_5roga/core/network/app_sync_provider.dart';
 import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_offline_indicator.dart';
+import 'package:yalla_5roga/core/widgets/app_page_background.dart';
 import 'package:yalla_5roga/features/home/presentation/widgets/cards/featured_outing_card.dart';
 import 'package:yalla_5roga/features/home/presentation/widgets/home_header.dart';
 import 'package:yalla_5roga/features/home/presentation/widgets/home_hero_banner.dart';
@@ -23,7 +24,7 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const inset = EdgeInsets.symmetric(horizontal: HomeStyle.gutter);
-    return HomeBackground(
+    return AppPageBackground(
       child: SafeArea(
         bottom: false,
         child: Center(
@@ -72,50 +73,6 @@ class HomePage extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class HomeBackground extends StatelessWidget {
-  const HomeBackground({super.key, required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final style = HomeStyle(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [style.upperBackground, style.background, style.background],
-          stops: const [0, .56, 1],
-        ),
-      ),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          PositionedDirectional(
-            top: 0,
-            start: 0,
-            end: 0,
-            height: 285,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: const AlignmentDirectional(.44, -.35),
-                    radius: .58,
-                    colors: [style.glow, style.glow.withValues(alpha: 0)],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          child,
-        ],
       ),
     );
   }

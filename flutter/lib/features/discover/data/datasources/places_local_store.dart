@@ -8,6 +8,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/viewport_region.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
+import 'package:yalla_5roga/features/place_reviews/data/models/place_rating_statistics_model.dart';
+import 'package:yalla_5roga/features/place_reviews/domain/entities/place_rating_statistics.dart';
 
 typedef CatalogSyncState = ({String? cursor, DateTime? syncedAt});
 
@@ -56,6 +58,64 @@ class PlacesLocalStore {
       'updated': DateTime.now().toUtc().toIso8601String(),
       'data': jsonEncode(places),
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> updateRatings(
+    String placeId,
+    PlaceRatingStatistics statistics,
+  ) async {
+    final db = await open();
+    if (db == null) return;
+
+    bool update(Map<String, dynamic> row) {
+      if (row['id'] != placeId ||
+          !statistics.isNewerThan(
+            PlaceRatingStatisticsModel.tryFromJson(row['rating_statistics']),
+          )) {
+        return false;
+      }
+      row['rating_statistics'] = PlaceRatingStatisticsModel.toJson(statistics);
+      return true;
+    }
+
+    // Patch cached public payloads in place so reopening offline preserves new counts.
+    await db.transaction((tx) async {
+      final place = (await tx.query(
+        'catalog',
+        columns: ['data'],
+        where: "kind = 'place' AND id = ? AND data IS NOT NULL",
+        whereArgs: [placeId],
+      )).firstOrNull;
+      if (place != null) {
+        final payload =
+            jsonDecode(place['data'] as String) as Map<String, dynamic>;
+        if (update(payload)) {
+          await tx.update(
+            'catalog',
+            {'data': jsonEncode(payload)},
+            where: "kind = 'place' AND id = ?",
+            whereArgs: [placeId],
+          );
+        }
+      }
+
+      const home = "kind = 'recommendations' AND id = 'home'";
+      final recommendations = (await tx.query(
+        'catalog',
+        columns: ['data'],
+        where: home,
+      )).firstOrNull;
+      if (recommendations != null) {
+        final payload = (jsonDecode(recommendations['data'] as String) as List)
+            .cast<Map<String, dynamic>>();
+        final branch = payload.where((row) => row['id'] == placeId).firstOrNull;
+        if (branch != null && update(branch)) {
+          await tx.update('catalog', {
+            'data': jsonEncode(payload),
+          }, where: home);
+        }
+      }
+    });
   }
 
   Future<Database?> _open() async {

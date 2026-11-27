@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:get/get.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -98,6 +99,12 @@ class ExplorePlaceCard extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             height: 1.22,
                           ),
+                        ),
+                        RatingsSummaryWidget(
+                          placeId: place.id,
+                          statistics: place.ratingStatistics,
+                          compact: true,
+                          onPhoto: true,
                         ),
                         const SizedBox(height: 5),
                         Row(

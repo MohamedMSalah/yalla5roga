@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:ui' show lerpDouble;
 
-import 'package:flutter/foundation.dart' show FlutterError;
+import 'package:flutter/foundation.dart' show FlutterError, setEquals;
 import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 import 'package:yalla_5roga/core/maps/yalla_map_clusters.dart';
@@ -34,6 +34,7 @@ class YallaMapMarkers {
   String? _lastData, _lastPrivate, _lastCustom, _selectionKey;
   Map<String, Map<String, dynamic>> _selected = {}, _departing = {};
   Map<String, double> _starts = {};
+  Set<String> _personalOverlaps = const {};
   String _ink = '', _halo = '';
 
   void reset() {
@@ -42,12 +43,14 @@ class YallaMapMarkers {
     _selected.clear();
     _departing.clear();
     _starts.clear();
+    _personalOverlaps = const {};
   }
 
   static Map<String, dynamic> collection(
     Iterable<Place> places, {
     required String language,
     bool includeUnavailable = false,
+    Map<String, String> labelPrefixes = const {},
   }) => {
     'type': 'FeatureCollection',
     'features': [
@@ -64,9 +67,11 @@ class YallaMapMarkers {
             },
             'properties': {
               'place_id': place.id,
-              'name': place.id.startsWith('private:')
-                  ? '◆ ${place.displayName(language)}'
-                  : place.displayName(language),
+              'name': [
+                ?labelPrefixes[place.id],
+                if (place.id.startsWith('private:')) '◆',
+                place.displayName(language),
+              ].join(' '),
               'category': place.categoryId,
               'icon':
                   place.id.startsWith('private:') && place.categoryId.isEmpty
@@ -352,16 +357,38 @@ class YallaMapMarkers {
       'type': 'FeatureCollection',
       'features': features.values.toList(growable: false),
     });
-    final exclude = [
-      '!',
-      [
-        'in',
-        ['get', 'place_id'],
-        ['literal', features.keys.toList()],
-      ],
-    ];
-    await map.setFilter(privatePins, exclude);
-    await map.setFilter(pins, ['all', _unclustered, exclude]);
+    await map.setFilter(privatePins, _excludePlaces(features.keys));
+    await _filterCatalog(map);
+  }
+
+  static List<Object> _excludePlaces(Iterable<String> ids) => [
+    '!',
+    [
+      'in',
+      ['get', 'place_id'],
+      ['literal', ids.toList()],
+    ],
+  ];
+
+  Future<void> _filterCatalog(ml.MapLibreMapController map) =>
+      map.setFilter(pins, [
+        'all',
+        _unclustered,
+        _excludePlaces({
+          ..._departing.keys,
+          ..._selected.keys,
+          ..._personalOverlaps,
+        }),
+      ]);
+
+  Future<void> setPersonalOverlaps(
+    ml.MapLibreMapController map,
+    Set<String> ids,
+  ) async {
+    if (setEquals(ids, _personalOverlaps)) return;
+    _personalOverlaps = ids;
+    await _filterCatalog(map);
+    await map.setFilter(selectedPins, _excludePlaces(ids));
   }
 
   double _progressFor(String id, double progress) =>

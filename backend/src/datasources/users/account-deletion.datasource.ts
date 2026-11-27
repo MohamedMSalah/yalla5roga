@@ -163,6 +163,9 @@ async function recordDeletionTransaction(uid: string) {
 
     // Deletes account-only relations via their existing cascades, including
     // memberships, RSVPs, votes, arrivals, drafts, saves and push registrations.
+    // Account-owned saved locations and starting preferences cascade with the profile.
+    // Location consent, its authorization revision and group exclusions cascade too.
+    // Reviews, reports and review blocks cascade. The review trigger updates each branch in this transaction.
     await tx.users.delete({ where: { id: uid } });
     return {
       accountKey,

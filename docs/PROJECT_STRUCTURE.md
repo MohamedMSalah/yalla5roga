@@ -469,3 +469,48 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 - `backend/tests/observability*.test.ts` and `backend/scripts/benchmark-*.ts` verify HTTP boundaries and measure isolated workflows.
 - `flutter/lib/core/network/diagnostics/` owns Dio correlation, the bounded developer buffer and optional telemetry.
 - `docs/development/OBSERVABILITY.md` describes operation and verification, with evidence in `docs/audit/`.
+
+## Saved Locations
+
+Flutter lives under `flutter/lib/features/saved_locations/` and opens from Settings Preferences. The backend feature lives in the users route/controller/use-case/repository/datasource folders. The served OpenAPI definitions are in `backend/src/config/saved-locations-openapi.ts` and the focused contract test is `backend/tests/saved-locations.test.ts`.
+
+`features/saved_locations/presentation/widgets/personal_locations_map.dart` provides the map toggle and marker details. `core/maps/personal_location_map_layer.dart` owns the corresponding MapLibre source and layers.
+
+Transportation preferences span `backend/src/types/users/transportation.types.ts`, the transportation preference repository and use cases, `backend/src/services/users/effective-transportation-resolver.ts`, `backend/src/routes/routing.routes.ts`, and `flutter/lib/features/transportation/`. Existing saved location and bookmark handlers own their per-record inputs.
+
+## Location privacy
+
+Flutter settings live under `flutter/lib/features/location_privacy/`. The backend uses `backend/src/services/users/location-privacy-policy.ts`, `backend/src/services/users/location-usage-authorization.service.ts` and the user-scoped location privacy use cases and repository. `backend/src/config/location-privacy-openapi.ts` defines the served contracts, and `backend/tests/location-privacy.test.ts` exercises Swagger against isolated fixtures.
+
+## Group Smart Meetup
+
+The backend Meetup event publisher and subscription authorization live under `backend/src/services/meetups/`. Flutter's `socket_smart_meetup_realtime.dart` adapts the shared socket for route providers. The served REST and real Socket.IO acceptance test is `backend/tests/smart-meetup-realtime.test.ts`.
+
+`backend/src/services/meetups/validate-meetup-selection.service.ts` checks the Smart Meetup handoff inside the outing transaction. The Flutter results feature owns the handoff model and venue selection sheet. The existing outing Location step exposes `SmartMeetupLocationSource`.
+
+Group Smart Meetup lives under `flutter/lib/features/smart_meetup/` and the backend `meetups` route, controller, use case, service, repository and type folders. The served contract is in `backend/src/config/meetup-openapi.ts` and the isolated acceptance checks are in `backend/tests/smart-meetup.test.ts`.
+
+Quick Meetup extends those same folders with the standalone participant repository, use cases, validators and map-led Flutter page. Its temporary participant schema is in `backend/prisma/migrations/20261126000400_standalone_meetups/`.
+
+Meetup preference schema and category links live in migration `20261127000000_meetup_preferences`. The backend's `services/meetups` folder contains catalog filtering, evidence resolution and ranking. The `smart_meetup` Flutter feature shares one preferences sheet and summary across Group and Quick Meetup.
+
+Result storage lives in migration `20261127000100_meetup_results`. Result use cases and the privacy serializer live in the corresponding backend `meetups` folders. The same Flutter feature holds the result models, provider and screen. `backend/tests/meetup-results.test.ts` verifies the served contracts against a disposable database.
+
+## Temporary starting-location inputs
+
+- `backend/src/{controllers,repositories,usecases,validators}/users/starting-location-override*` owns the caller's effective inputs and mutations.
+- `backend/src/services/users/context-starting-location-resolver.ts` resolves effective planning inputs for active contexts.
+- `flutter/lib/features/starting_location/` contains the shared editor, account-scoped state and API adapter.
+- `backend/tests/starting-location-overrides.test.ts` exercises the served Swagger contract against disposable PostgreSQL.
+
+
+## Place ratings and reviews
+
+- Backend routes, controllers, repositories and use cases are grouped under their existing `places/` directories. The aggregate reconciliation and isolated Swagger driver live in `backend/scripts/`.
+- Flutter code lives in `flutter/lib/features/place_reviews/`. Existing feature widgets consume the shared rating summary.
+- `backend/src/services/places/bayesian-rating.service.ts` owns the prior and ranking expressions. Discover's catalog provider, repository and filter chips use the existing places list endpoint for ranking and rating filters.
+
+
+## Personal route preview
+
+Backend contracts live under backend/src/types/routing, with the service in backend/src/services/routing and context-specific use cases in backend/src/usecases/routing. Swagger is extended in backend/src/config/route-preview-openapi.ts. Flutter's route_preview feature contains the model, repository, provider and screen. Its shared MapLibre overlay lives in flutter/lib/core/maps/personal_route_map_layer.dart.

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -181,6 +182,11 @@ class _TiedPlaceCard extends StatelessWidget {
                 ),
                 if (subtitle.isNotEmpty)
                   Text(subtitle, style: style.type(11, color: style.secondary)),
+                RatingsSummaryWidget(
+                  placeId: id ?? '',
+                  statistics: option.ratingStatistics,
+                  compact: true,
+                ),
                 const SizedBox(height: 4),
                 Wrap(
                   spacing: 8,

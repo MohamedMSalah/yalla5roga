@@ -9,6 +9,7 @@ import { validateProductionConfig } from "./config/deployment.js";
 import { hasAutomaticWhatsApp } from "./config/notifications.js";
 import { initFirebase } from "./config/firebase.js";
 import { configuredGeocodingProvider } from "./services/places/geocoding.js";
+import { BayesianRatingService } from "./services/places/bayesian-rating.service.js";
 import { R2StorageAdapter } from "./services/media/r2-storage.adapter.js";
 import { startOutingCompletionJob } from "./jobs/complete-outings.job.js";
 import { startVotingDeadlineJob } from "./jobs/close-voting-deadline.job.js";
@@ -22,6 +23,8 @@ import { enabled, environment } from "./monitoring/config.js";
 import { databaseHealth, dependencyState, privateMonitoringAvailable, setDependency } from "./monitoring/health.js";
 import { errorCode, logger } from "./monitoring/logger.js";
 import { startMetrics, stopMetrics } from "./monitoring/metrics.js";
+import { MeetupSessionRepository } from "./repositories/meetups/meetup-session.repository.js";
+import { scheduleJob } from "./monitoring/jobs.js";
 
 const started = performance.now();
 const PORT = Number(process.env.PORT?.trim() || 3000);
@@ -123,6 +126,7 @@ async function shutdown(reason: string) {
 async function start() {
   const dbKind = configuredDatabase();
   if (!Number.isInteger(PORT) || PORT < 0 || PORT > 65535) throw new Error("PORT");
+  BayesianRatingService.configuredPriorWeight();
   if (environment === "production") validateProductionConfig();
 
   phase = "database";
@@ -173,6 +177,9 @@ async function start() {
     voting_deadlines: () => startVotingDeadlineJob(),
     notification_worker: () => startNotificationWorker(),
     media_cleanup: () => startMediaCleanupJob(),
+    meetup_expiry: () => scheduleJob("meetup_expiry", 15 * 60_000, async () => {
+      await new MeetupSessionRepository().cleanupExpired();
+    }),
     account_deletion: () => startAccountDeletionJob(),
     }),
     catalog_listener: () => startCatalogListener(),

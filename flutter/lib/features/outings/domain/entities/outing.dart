@@ -1,6 +1,7 @@
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place_location.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/entities/meetup_result_handoff_model.dart';
 
 /// Core outing entity (UI historically called this [HeroSlide]).
 class Outing {
@@ -19,6 +20,7 @@ class Outing {
     this.guestIds = const [],
     this.guestPhones = const [],
     this.createRequestKey,
+    this.meetupSelection,
     this.status = OutingStatus.draft,
     this.votePlaces = const [],
     this.voteDeadlineHours,
@@ -47,6 +49,7 @@ class Outing {
   final List<String> guestIds;
   final List<String> guestPhones;
   final String? createRequestKey;
+  final MeetupResultHandoffModel? meetupSelection;
   final OutingStatus status;
 
   /// Places the group can vote on (2+ when status is voting).
@@ -176,6 +179,7 @@ class Outing {
       guestIds: guestIds ?? this.guestIds,
       guestPhones: guestPhones,
       createRequestKey: createRequestKey,
+      meetupSelection: meetupSelection,
       status: status ?? this.status,
       votePlaces: votePlaces ?? this.votePlaces,
       voteDeadlineHours: voteDeadlineHours ?? this.voteDeadlineHours,

@@ -9,6 +9,7 @@ import 'package:yalla_5roga/core/error/error_context.dart';
 import 'package:yalla_5roga/core/error/exceptions.dart';
 import 'package:yalla_5roga/features/chat/data/models/chat_message_model.dart';
 import 'package:yalla_5roga/features/chat/domain/entities/chat_message.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/entities/smart_meetup_realtime_event.dart';
 
 typedef OutingChatTokenProvider = Future<String?> Function({bool forceRefresh});
 
@@ -86,7 +87,11 @@ class OutingChatSocketClient {
       StreamController<OutingChatReadSocketEvent>.broadcast();
   final _arrivalController = StreamController<String>.broadcast();
   final _dataController = StreamController<RealtimeChange>.broadcast();
+  final _meetupController =
+      StreamController<SmartMeetupRealtimeEvent>.broadcast();
   Stream<RealtimeChange> get dataChanges => _dataController.stream;
+  Stream<SmartMeetupRealtimeEvent> get meetupChanges =>
+      _meetupController.stream;
 
   int _session = 0;
   int get sessionGeneration => _session;
@@ -269,6 +274,15 @@ class OutingChatSocketClient {
           );
         }
       });
+      for (final change in SmartMeetupChange.values) {
+        socket.on(change.topic, (raw) {
+          if (_disposed || session != _session || _socket != socket) return;
+          final payload = _asStringKeyedMap(raw);
+          if (payload == null) return;
+          final event = SmartMeetupRealtimeEvent.fromMessage(change, payload);
+          if (event != null) _meetupController.add(event);
+        });
+      }
       socket.on('outing:message', (raw) {
         if (session == _session) _onMessage(raw);
       });
@@ -326,6 +340,25 @@ class OutingChatSocketClient {
       );
       return join;
     });
+  }
+
+  Future<Map<String, dynamic>?> joinMeetup(String sessionId) async {
+    final socket = _socket;
+    if (socket == null || !socket.connected) return null;
+    final connection = socket.id;
+    final ack = await _emitWithAck(socket, 'meetup:join', {
+      'sessionId': sessionId,
+    });
+    return _socket == socket && socket.connected && socket.id == connection
+        ? ack
+        : null;
+  }
+
+  void leaveMeetup(String sessionId) {
+    final socket = _socket;
+    if (socket != null && socket.connected) {
+      socket.emit('meetup:leave', {'sessionId': sessionId});
+    }
   }
 
   Future<void> _join(io.Socket socket, String outingId) async {
@@ -460,6 +493,7 @@ class OutingChatSocketClient {
     await _connectionController.close();
     await _arrivalController.close();
     await _dataController.close();
+    await _meetupController.close();
   }
 
   Future<void> _rejoinAll() async {

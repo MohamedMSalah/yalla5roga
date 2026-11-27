@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/features/place_reviews/domain/entities/place_rating_statistics.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place_location.dart';
 
@@ -22,12 +23,14 @@ class Place {
     this.brandName = '',
     this.branchName = '',
     this.branchCount = 0,
+    this.ratingStatistics,
   });
 
   /// Stable id when known; otherwise [placeId] derives a slug from [name].
   final String id;
   final String brandId, brandName, branchName;
   final int branchCount;
+  final PlaceRatingStatistics? ratingStatistics;
   String get branchLabel => [
     branchName,
     address.isNotEmpty ? address : area,
@@ -95,6 +98,7 @@ class Place {
       brandName: brandName,
       branchName: branchName,
       branchCount: branchCount,
+      ratingStatistics: id == null || id == this.id ? ratingStatistics : null,
     );
   }
 

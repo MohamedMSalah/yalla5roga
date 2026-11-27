@@ -3,6 +3,7 @@ import 'package:yalla_5roga/features/outings/domain/entities/outing.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place_location.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/entities/meetup_result_handoff_model.dart';
 
 class SavedOuting {
   const SavedOuting({
@@ -73,6 +74,7 @@ class OutingDraft {
     this.letVote = false,
     this.voteDeadlineHours,
     this.selectedPlaces = const [],
+    this.meetupSelection,
     this.remoteVersion,
     this.pending = false,
     this.deleted = false,
@@ -102,6 +104,7 @@ class OutingDraft {
   final bool letVote;
   final int? voteDeadlineHours;
   final List<Place> selectedPlaces;
+  final MeetupResultHandoffModel? meetupSelection;
 
   OutingDraft withSync({
     String? id,
@@ -121,6 +124,12 @@ class OutingDraft {
   TimeOfDay get time => TimeOfDay(hour: hour, minute: minute);
 
   factory OutingDraft.fromJson(Map<String, dynamic> json) {
+    final placeRows = (json['selectedPlaces'] as List? ?? const [])
+        .whereType<Map>();
+    final places = [
+      for (final row in placeRows)
+        Place.fromJson(Map<String, dynamic>.from(row)),
+    ];
     return OutingDraft(
       id: json['id'] as String? ?? '',
       remoteVersion: json['remoteVersion'] as String?,
@@ -152,10 +161,11 @@ class OutingDraft {
       ],
       letVote: json['letVote'] as bool? ?? false,
       voteDeadlineHours: json['voteDeadlineHours'] as int?,
-      selectedPlaces: [
-        for (final item in json['selectedPlaces'] as List? ?? const [])
-          if (item is Map) Place.fromJson(Map<String, dynamic>.from(item)),
-      ],
+      selectedPlaces: places,
+      meetupSelection: MeetupResultHandoffModel.fromDraftJson(
+        placeRows.firstOrNull?['smart_meetup_selection'],
+        places,
+      ),
     );
   }
 
@@ -179,8 +189,17 @@ class OutingDraft {
     'guestPhones': guestPhones,
     'letVote': letVote,
     'voteDeadlineHours': voteDeadlineHours,
-    'selectedPlaces': [for (final place in selectedPlaces) place.toJson()],
+    'selectedPlaces': selectedPlacesJson(),
   };
+
+  List<Map<String, dynamic>> selectedPlacesJson() => [
+    for (final (index, place) in selectedPlaces.indexed)
+      {
+        ...place.toJson(),
+        if (index == 0 && meetupSelection != null)
+          'smart_meetup_selection': meetupSelection!.toDraftJson(),
+      },
+  ];
 }
 
 class SavedItem {

@@ -99,6 +99,8 @@ class FcmProvider extends ChangeNotifier {
       'groupId': item.groupId,
       'outingId': item.outingId,
       'messageId': item.messageId,
+      'sessionId': item.meetupSessionId,
+      'expiresAt': item.expiresAt,
       'notificationId': item.id,
     }),
     fromInbox: true,

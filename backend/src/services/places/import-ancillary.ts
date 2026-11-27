@@ -2,18 +2,24 @@ import type { weekday } from "@prisma/client";
 import type { Tags } from "./taxonomy.js";
 const DAYS: weekday[] = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const TOKENS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
+type ParsedHours = { day: weekday; opens_at: Date | null; closes_at: Date | null; is_closed: boolean };
 /** Only the subset representable by the existing unique place/day schema. */
-export function parseHours(expression: string | null): { rows: any[]; supported: boolean } {
+export function parseHours(expression: string | null, allowOvernight = false): { rows: ParsedHours[]; supported: boolean } {
   if (!expression) return { rows: [], supported: true };
-  const rows = new Map<string, any>();
+  const rows = new Map<weekday, ParsedHours>();
   for (const clause of expression.split(";")) {
     const match = /^\s*((?:Mo|Tu|We|Th|Fr|Sa|Su)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?(?:,(?:Mo|Tu|We|Th|Fr|Sa|Su))*)\s+(off|closed|\d{2}:\d{2}-\d{2}:\d{2})\s*$/.exec(clause);
     if (!match) return { rows: [], supported: false };
     let opens: Date | null = null, closes: Date | null = null;
     if (match[2] !== "off" && match[2] !== "closed") {
       const [start, end] = match[2]!.split("-") as [string, string];
-      if (![start, end].every((v) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v)) || start >= end) return { rows: [], supported: false };
-      opens = new Date(`1970-01-01T${start}:00.000Z`); closes = new Date(`1970-01-01T${end}:00.000Z`);
+      const validTime = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+      const validEnd = validTime.test(end) || (allowOvernight && end === "24:00");
+      if (!validTime.test(start) || !validEnd || start === end || (!allowOvernight && start > end)) {
+        return { rows: [], supported: false };
+      }
+      opens = new Date(`1970-01-01T${start}:00.000Z`);
+      closes = new Date(`1970-01-01T${end}:00.000Z`);
     }
     for (const group of match[1]!.split(",")) {
       const [a, b] = group.split("-"); const first = TOKENS.indexOf(a!); const last = TOKENS.indexOf(b ?? a!);

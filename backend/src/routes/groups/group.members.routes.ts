@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { GroupController } from "../../controllers/groups/group.controller.js";
+import { SharedStartingAreaController } from "../../controllers/groups/shared-starting-area.controller.js";
+import { sharedStartingAreaParamsSchema } from "../../validators/users/location-privacy.validator.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import {
   addGroupMemberBodySchema,
@@ -100,6 +102,12 @@ import {
  */
 const router = Router();
 const controller = new GroupController();
+
+router.get(
+  "/:groupId/members/:userId/starting-location-area",
+  validate({ params: sharedStartingAreaParamsSchema }),
+  new SharedStartingAreaController().get,
+);
 
 router.get(
   "/:id/members",

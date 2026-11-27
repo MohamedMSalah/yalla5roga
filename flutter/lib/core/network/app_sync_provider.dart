@@ -62,7 +62,7 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
   final NotificationsProvider notifications;
   final InvitationsProvider invitations;
   final Future<void> Function()? onNotificationRecovery;
-  final Future<void> Function()? onCatalogRecovery;
+  final Future<void> Function({bool force})? onCatalogRecovery;
 
   final _realtimeConsumers = <Object, ({String? groupId, String? outingId})>{};
 
@@ -389,8 +389,13 @@ class AppSyncProvider extends ChangeNotifier with WidgetsBindingObserver {
     if (_syncAttempt > 5) _syncAttempt = 0;
     switch (event.kind) {
       case 'catalog':
-        unawaited(RequestScope.run(() => onCatalogRecovery?.call() ?? Future<void>.value(),
-          origin: 'AppSyncProvider', trigger: 'socket_event'));
+        unawaited(
+          RequestScope.run(
+            () => onCatalogRecovery?.call(force: true) ?? Future<void>.value(),
+            origin: 'AppSyncProvider',
+            trigger: 'socket_event',
+          ),
+        );
       case 'membership':
         _chatDirty = true;
         _outingsDirty = true;

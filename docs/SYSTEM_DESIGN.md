@@ -553,6 +553,8 @@ YallaMapView renders the existing OpenMapTiles style through MapLibre. A 350 ms 
 
 Pin or card focus updates presentation selection and camera only. Create Outing's existing picker owns explicit single/multiple confirmation and custom geographic candidates. Catalog providers retain camera state across picker navigation. Explicit offline region downloads use the configured vector style and the native offline database with bounded area/tile/concurrency limits; ordinary tile viewing does not guarantee offline coverage. No backend lifecycle or notification workflow changed.
 
+The My Locations overlay reads the owner list and effective default independently of the viewport. A marker tap opens location details, whose writes use the existing owner CRUD and bookmark operations. Successful writes update provider state and the personal GeoJSON source. A style reload recreates the graphics from current provider state. An account change drops the old native surface and invalidates pending owner reads.
+
 
 ## Discover viewport/search/selection refinement — 2026-11-14
 
@@ -631,3 +633,183 @@ The server retains voting deadlines, winner resolution and attendance authority.
 ## Operational measurements
 
 HTTP, Prisma, job and Socket.IO observations share the server process. Prometheus scrapes the protected in-memory aggregates and Grafana reads that history. Flutter can attach request scope and upload sampled timing batches through a protected API. The [operator guide](development/OBSERVABILITY.md) defines timing boundaries, retention and dependency states.
+
+Effective transportation is a planning input resolved from an explicit temporary choice, the selected saved source, or the account default. A missing preference yields an unspecified value. Routing capability is evaluated independently. Planning input reuse requires fresh preference resolution, and a future unsupported route request must prompt for an explicit alternative.
+
+## Smart Meetup authorization checkpoints
+
+```mermaid
+flowchart LR
+  Start[Calculation start] --> Verify[Check membership, current consent and exclusions]
+  Verify --> Point[Resolve saved coordinates in memory]
+  Verify --> Revision[Retain coordinate-free authorization]
+  Revision --> Recheck[Recheck current authorization]
+  Recheck -->|Current| Use[Publish, read, reuse or deliver reminder]
+  Recheck -->|Revoked| Reject[Discard protected work]
+```
+
+The backend implements the two authorization checkpoints. Future session, result, cache and reminder code must use the same guard on every protected operation.
+
+## Group Smart Meetup
+
+```mermaid
+sequenceDiagram
+  actor Member
+  participant Flutter
+  participant API
+  participant Neon
+  participant Socket as Shared Socket.IO
+  Member->>Flutter: Tap Smart Meetup in Group Details
+  Flutter->>API: Initialize group planning session
+  API->>Neon: Check membership and find or create scoped session
+  API->>Neon: Resolve current roster, consent and saved inputs
+  Neon-->>API: Current input metadata and readiness
+  API-->>Flutter: Privacy-safe readiness and routing status
+  Flutter->>Socket: Join the authorized Meetup session
+  API->>Neon: Commit the input mutation and outbox hint
+  Neon-->>Socket: Existing worker reads the committed hint
+  Socket->>Neon: Check current membership and input version
+  Socket-->>Flutter: Send the versioned hint
+  Flutter->>API: Read current readiness through authenticated REST
+```
+
+A repeatable-read transaction and database uniqueness handle concurrent initialization. Input writes and their durable hints commit together. A later read resolves the current roster, consent and effective inputs. Foreground clients rejoin and read current state after a disconnect.
+
+## Quick Meetup
+
+```mermaid
+sequenceDiagram
+  actor Planner
+  participant Flutter
+  participant API
+  participant Neon
+  Planner->>Flutter: Open Quick Meetup
+  Flutter->>API: Open or resume standalone session
+  API->>Neon: Resolve owner selection and temporary guest points
+  Planner->>Flutter: Add or edit a guest point
+  Flutter->>API: Submit the participant change
+  API->>Neon: Verify owner, advance input version and update guest rows
+  API-->>Flutter: Updated planning snapshot and routing status
+```
+
+Version changes make earlier results ineligible. The current routing coordinator returns routing unavailable for both session types.
+
+### Read and hand off Smart Meetup results
+
+```mermaid
+sequenceDiagram
+  actor Planner
+  participant Flutter
+  participant API
+  participant PostgreSQL
+  Planner->>Flutter: View recommendations or refresh
+  Flutter->>API: Read latest result or request calculation
+  API->>PostgreSQL: Authorize and recompute input version
+  API->>PostgreSQL: Load attempt and validate current catalog
+  API-->>Flutter: Status, readiness and permitted venue fields
+  Planner->>Flutter: Select a recommendation action
+  Flutter->>API: Revalidate exact calculation and current result
+  API-->>Flutter: Current rankings or stale status
+  Flutter-->>Planner: Prefill venues in Create Outing
+  Planner->>Flutter: Confirm details and submit
+  Flutter->>API: POST outings with selection and create request key
+  alt Existing successful request key
+    API->>PostgreSQL: Load the creator's existing outing
+    API-->>Flutter: Existing outing response
+  else First successful create with a current result
+    API->>PostgreSQL: Commit outing, venue or vote options, and creator RSVP
+    API-->>Flutter: Existing outing response
+  else Result unavailable or stale
+    API-->>Flutter: Stale-result status
+    Flutter-->>Planner: Offer refresh and retain draft
+  end
+```
+
+## Apply meetup preferences
+
+```mermaid
+sequenceDiagram
+  actor Creator
+  participant App as Flutter
+  participant API as Meetup API
+  participant DB as PostgreSQL
+  Creator->>App: Edit the local preference selection
+  Creator->>App: Apply
+  App->>API: Replace preferences or apply Reset
+  API->>DB: Check access and validate catalog selections
+  opt Selection changed
+    API->>DB: Replace preferences and advance session input version
+  end
+  API-->>App: Return the session with active preferences
+  App->>App: Refresh the active chips and calculation status
+```
+
+## Change a temporary starting location
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant App as Starting Location Editor
+  participant API as Meetup or Outing API
+  participant DB as PostgreSQL
+  User->>App: Select a point and authorize context-only use
+  App->>API: PUT my-starting-location
+  API->>DB: Check participation, consent and reference ownership
+  API->>DB: Write owner override and invalidate context input version
+  API-->>App: Return effective inputs
+  User->>App: Reset to default
+  App->>API: DELETE my-starting-location
+  API-->>App: Return authorized defaults
+```
+
+
+## Place rating write and cache refresh
+
+```mermaid
+sequenceDiagram
+  participant F as Flutter
+  participant A as Places API
+  participant D as PostgreSQL
+  F->>A: Submit, edit or delete own rating
+  A->>D: Change the review in a transaction
+  D->>D: Apply the visible rating delta and mark the catalog revision
+  D-->>A: Current review and rating statistics
+  A-->>F: Committed review and statistics
+  F->>F: Refresh review list and affected cards
+  opt Discover has rating criteria
+    F->>A: Request fresh catalog page
+    A->>D: Filter and rank using current branch and global statistics
+    D-->>A: Ordered page and ranking availability
+    A-->>F: Actual rating statistics and next cursor
+  end
+```
+
+
+## Personal route preview flow
+
+```mermaid
+flowchart LR
+  A[Outing Details or Smart Meetup recommendation] --> B[Authenticated personal route endpoint]
+  B --> C[Resolve current destination and caller's authorized start]
+  C --> D[Route preview service]
+  D --> E[Private preview response]
+  E --> F[MapLibre route preview and external navigation]
+```
+
+Smart Meetup ties the request to a calculation and input version. Outings use the confirmed venue from the same snapshot as the travel input version. The API expires a preview at the earliest relevant context, calculation or override expiry. Route data stays in memory for the active preview.
+
+
+## Location request and personalized departure reminder flows
+
+```mermaid
+flowchart LR
+  A[Confirm individual request] --> B[Check current membership and recipient readiness]
+  B --> C[Lock users and check outbox history]
+  C --> D[Commit inbox and push outbox rows]
+  D --> E[Worker checks expiry and current eligibility]
+  E --> F[FCM]
+  D --> G[Authenticated starting-location editor]
+  F --> G
+```
+
+The departure reminder endpoint resolves the caller's current outing and travel inputs, then requests an estimate from the backend contract. With no source configured, the eligible response is `ROUTING_UNAVAILABLE`. The schema can hold a single pending slot after routing integration. Delivery will require due-time revalidation and the existing outbox before the personalized poller is enabled.

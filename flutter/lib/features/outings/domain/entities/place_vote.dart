@@ -1,3 +1,4 @@
+import 'package:yalla_5roga/features/place_reviews/domain/entities/place_rating_statistics.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/outing_enums.dart';
 
 class VoteOption {
@@ -11,11 +12,13 @@ class VoteOption {
     this.address = '',
     this.imageUrl = '',
     this.catalogPlaceId,
+    this.ratingStatistics,
   });
 
   final String area, categoryId, address;
   final String imageUrl;
   final String? catalogPlaceId;
+  final PlaceRatingStatistics? ratingStatistics;
 
   final String placeId;
   final String label;
@@ -38,6 +41,7 @@ class VoteOption {
       address: address,
       imageUrl: imageUrl,
       catalogPlaceId: catalogPlaceId,
+      ratingStatistics: ratingStatistics,
     );
   }
 

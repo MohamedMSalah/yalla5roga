@@ -342,7 +342,8 @@ class LocalNotificationsService {
     NotificationDestination.chat => p.isMention ? 'mentions' : 'chat',
     NotificationDestination.invitation => 'invitations',
     NotificationDestination.group ||
-    NotificationDestination.groupMembers => 'groups',
+    NotificationDestination.groupMembers ||
+    NotificationDestination.meetupStartingLocation => 'groups',
     NotificationDestination.placeVoting => 'voting',
     _ => p.type.contains('reminder') ? 'reminders' : 'outings',
   };

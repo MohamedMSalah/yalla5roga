@@ -3,6 +3,8 @@ import { prisma } from "../../config/database.js";
 import type { CatalogQuery } from "../../validators/places/catalog.validator.js";
 import { nearbySearchBounds } from "../../services/places/nearby-search-bounds.js";
 import { decodeCatalogCursor, encodeCatalogCursor } from "../../services/places/catalog-cursor.js";
+import { BayesianRatingService } from "../../services/places/bayesian-rating.service.js";
+import { ConflictError } from "../../utils/errors.js";
 
 const recommendationFields = Prisma.sql`p.id,p.name,p.name_ar,p.name_en,p.area,p.vibe,
   coalesce(nullif(p.cover_image_url,''), (
@@ -122,16 +124,36 @@ export class CatalogDatasource {
         conditions.push(Prisma.sql`${distance}<=${q.radiusKm}::float8`);
       }
     }
+    const bayesian = q.sort === "top_rated" ? new BayesianRatingService() : null;
+    const filterRatings = q.minRating !== undefined || !q.includeUnrated;
+    const ratingJoin = bayesian || filterRatings
+      ? Prisma.sql`LEFT JOIN place_rating_statistics r ON r.place_id=p.id` : Prisma.empty;
+    const rankingJoin = bayesian ? Prisma.sql`
+      CROSS JOIN rating_prior g
+      CROSS JOIN LATERAL (SELECT coalesce(${bayesian.scoreSql(
+        Prisma.sql`r.rating_sum`, Prisma.sql`r.rating_count`,
+        Prisma.sql`g.rating_sum`, Prisma.sql`g.rating_count`,
+      )}, 0) AS score, coalesce(r.rating_count, 0) AS count) ranking`
+      : Prisma.empty;
+    if (filterRatings) conditions.push(Prisma.sql`r.rating_count > 0`);
+    if (q.minRating !== undefined) {
+      conditions.push(Prisma.sql`r.rating_sum >= r.rating_count * ${q.minRating.toString()}::numeric`);
+    }
     const cursor = decodeCatalogCursor(q);
     if (cursor) {
-      if (q.sort === "id") conditions.push(Prisma.sql`p.id > ${cursor.id}::uuid`);
+      if (cursor.rating) {
+        conditions.push(Prisma.sql`g.version = ${cursor.rating.version}
+          AND (-ranking.score, -ranking.count, p.id) >
+            (-${cursor.value}::numeric, -${cursor.rating.count}::int, ${cursor.id}::uuid)`);
+      } else if (q.sort === "id") conditions.push(Prisma.sql`p.id > ${cursor.id}::uuid`);
       else if (q.sort === "updated") conditions.push(Prisma.sql`p.updated_at <= ${cursor.value}::timestamptz AND (p.updated_at < ${cursor.value}::timestamptz OR p.id > ${cursor.id}::uuid)`);
       else if (q.sort === "name") conditions.push(Prisma.sql`(p.name > ${cursor.value} OR (p.name = ${cursor.value} AND p.id > ${cursor.id}::uuid))`);
       else conditions.push(Prisma.sql`(${distance} > ${cursor.value}::float8 OR (${distance} = ${cursor.value}::float8 AND p.id > ${cursor.id}::uuid))`);
     }
     const where = Prisma.join(conditions, " AND ");
     const order =
-      q.sort === "id" ? Prisma.sql`p.id ASC` : q.sort === "distance"
+      bayesian ? Prisma.sql`ranking_score DESC, ranking_count DESC, p.id ASC`
+        : q.sort === "id" ? Prisma.sql`p.id ASC` : q.sort === "distance"
         ? Prisma.sql`distance_km ASC,p.id ASC`
         : q.sort === "name"
           ? Prisma.sql`p.name ASC,p.id ASC`
@@ -164,10 +186,12 @@ export class CatalogDatasource {
     ` : Prisma.empty;
     const rows = await prisma.$queryRaw<
       any[]
-    >`WITH page AS MATERIALIZED (
+    >`WITH ${bayesian ? Prisma.sql`rating_prior AS MATERIALIZED (${bayesian.globalStatisticsSql()}),` : Prisma.empty}
+      page AS MATERIALIZED (
         SELECT ${markerFields},p.branch_name,p.brand_id,p.source,p.source_id,p.source_type,
           ${distance} AS distance_km${pageDetails}
-        FROM places p
+          ${bayesian ? Prisma.sql`,ranking.score AS ranking_score, ranking.count AS ranking_count` : Prisma.empty}
+        FROM places p ${ratingJoin} ${rankingJoin}
         WHERE ${where} ORDER BY ${order} LIMIT ${q.limit + 1} OFFSET ${q.offset}
       ), brand_summaries AS MATERIALIZED (
         SELECT b.id,b.name,
@@ -182,17 +206,31 @@ export class CatalogDatasource {
       to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_updated_at,p.distance_km,
       coalesce((SELECT jsonb_agg(pv.vibe_id ORDER BY pv.vibe_id) FROM place_vibes pv JOIN vibes v ON v.id=pv.vibe_id WHERE pv.place_id=p.id AND v.is_active),'[]'::jsonb) AS vibes,
       ${compact ? Prisma.sql`NULL::jsonb` : Prisma.sql`(SELECT to_jsonb(c) FROM place_categories c WHERE c.id=p.category_id)`} AS category ${details}
+      ${markers ? Prisma.empty : Prisma.sql`,to_jsonb(s) AS rating_row`}
+      ${bayesian ? Prisma.sql`,p.ranking_score::text AS cursor_rating_score, p.ranking_count,
+        g.version AS ranking_version, g.rating_count > 0 AS rating_ranking_available` : Prisma.empty}
       FROM page p LEFT JOIN brand_summaries b ON b.id=p.brand_id
+      ${markers ? Prisma.empty : Prisma.sql`LEFT JOIN place_rating_statistics s ON s.place_id=p.id`}
+      ${bayesian ? Prisma.sql`RIGHT JOIN rating_prior g ON true` : Prisma.empty}
       ${coverImage} ORDER BY ${order}`;
-    const hasMore = rows.length > q.limit;
+    if (cursor?.rating && cursor.rating.version !== rows[0]?.ranking_version) {
+      throw new ConflictError("Place ratings or prior changed. Restart pagination.");
+    }
+    // The prior still returns one row when the selected area or filters match nothing.
+    const places = rows.filter((row) => row.id !== null);
+    const hasMore = places.length > q.limit;
     return {
-      places: rows.slice(0, q.limit).map(({ cursor_updated_at, ...row }) => row),
+      places: places.slice(0, q.limit).map(({
+        cursor_updated_at, cursor_rating_score, ranking_count, ranking_version,
+        rating_ranking_available, ...row
+      }) => row),
       pagination: {
         limit: q.limit,
         offset: q.offset,
         has_more: hasMore,
         next_offset: hasMore ? q.offset + q.limit : null,
-        next_cursor: hasMore ? encodeCatalogCursor(q, rows[q.limit - 1]) : null,
+        next_cursor: hasMore ? encodeCatalogCursor(q, places[q.limit - 1]) : null,
+        ...(bayesian && { rating_ranking_available: rows[0]?.rating_ranking_available === true }),
       },
     };
   }
@@ -218,7 +256,7 @@ export class CatalogDatasource {
   async version() {
     const [row] = await prisma.$queryRaw<
       { version: Date | null }[]
-    >`SELECT greatest((SELECT max(updated_at) FROM places),(SELECT max(updated_at) FROM place_categories),(SELECT max(updated_at) FROM vibes),(SELECT max(updated_at) FROM place_brands)) AS version`;
+    >`SELECT greatest((SELECT max(updated_at) FROM places),(SELECT max(updated_at) FROM place_categories),(SELECT max(updated_at) FROM vibes),(SELECT max(updated_at) FROM place_brands),(SELECT max(updated_at) FROM place_rating_statistics)) AS version`;
     return row?.version?.toISOString() ?? "empty";
   }
 }

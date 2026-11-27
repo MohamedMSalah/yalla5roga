@@ -2,6 +2,8 @@ import { prisma } from "../../config/database.js";
 import { chatParticipantIds, mentionedUserIds } from "../chat/chat-mentions.js";
 import { listEligibleVoterIds } from "../outings/outing-participants.js";
 import { arrivalWindowOpen } from "../outings/arrival-policy.js";
+import { LocationRequestAuthorizationPolicy } from "../meetups/location-request-authorization.policy.js";
+import { AppError } from "../../utils/errors.js";
 import { notificationPreferences } from "./notification-preferences.js";
 
 export const controlTypes = new Set([
@@ -56,6 +58,20 @@ export async function resolvePush(
   // Dismissal controls intentionally still reach removed members to erase content.
   if (control && type !== "chat_updated") return data;
   if (!prefs.pushEnabled || (!control && inbox?.is_read)) return null;
+  if (type === "meetup_location_requested") {
+    const { sessionId, requesterId, expiresAt } = data;
+    const now = new Date();
+    if (!inbox || typeof sessionId !== "string" || typeof requesterId !== "string" ||
+        typeof expiresAt !== "string" || !(Date.parse(expiresAt) > now.getTime())) return null;
+    try {
+      const { eligible } = await prisma.$transaction(tx =>
+        new LocationRequestAuthorizationPolicy().check(tx, sessionId, requesterId, uid, now));
+      return eligible ? data : null;
+    } catch (error) {
+      if (error instanceof AppError && [403, 404, 409].includes(error.statusCode)) return null;
+      throw error;
+    }
+  }
   if (data.outingId) {
     const outing = await prisma.outings.findUnique({
       where: { id: String(data.outingId) },

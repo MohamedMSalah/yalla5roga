@@ -8,6 +8,10 @@ import 'package:yalla_5roga/core/cache/offline_snapshots.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/app_launcher.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
+import 'package:yalla_5roga/features/route_preview/presentation/route_preview_page.dart';
+import 'package:yalla_5roga/features/starting_location/domain/entities/effective_starting_location.dart';
+import 'package:yalla_5roga/features/starting_location/presentation/widgets/starting_location_editor.dart';
+import 'package:yalla_5roga/features/notifications/presentation/widgets/departure_reminder_card.dart';
 import 'package:yalla_5roga/core/widgets/app_alert.dart';
 import 'package:yalla_5roga/core/widgets/app_card.dart';
 import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
@@ -529,6 +533,7 @@ class _EventPageState extends State<EventPage>
                                 ? _refreshLifecycle
                                 : null,
                           ),
+
                           if (participant) ...[
                             const SizedBox(height: 12),
                             OutingArrivalsSection(
@@ -548,6 +553,30 @@ class _EventPageState extends State<EventPage>
                             location: location,
                             canView: canViewDetails,
                           ),
+
+                          if (participant &&
+                              _editable(live) &&
+                              live.scheduledAt != null) ...[
+                            const SizedBox(height: 12),
+                            if (live.status == OutingStatus.confirmed &&
+                                live.scheduledAt!.isAfter(DateTime.now()))
+                              OutingDepartureReminderSection(
+                                outingId: live.id,
+                                revision: (
+                                  live.scheduledAt,
+                                  location?.latitude,
+                                  location?.longitude,
+                                  placeId,
+                                ),
+                              )
+                            else
+                              StartingLocationEditor(
+                                scope: (
+                                  context: StartingLocationContext.outing,
+                                  id: live.id,
+                                ),
+                              ),
+                          ],
                           if (participant) ...[
                             const SizedBox(height: 10),
                             _QuickActions(
@@ -560,6 +589,30 @@ class _EventPageState extends State<EventPage>
                                       ? null
                                       : () => _openChat(context, live),
                                 ),
+                                if (live.status == OutingStatus.confirmed &&
+                                    _editable(live) &&
+                                    live.scheduledAt != null &&
+                                    location?.hasCoordinates == true)
+                                  _DetailAction(
+                                    icon: Icons.route_outlined,
+                                    label: l10n.routePreviewTitle,
+                                    onTap: () => Navigator.of(context)
+                                        .push<void>(
+                                          MaterialPageRoute(
+                                            builder: (_) => RoutePreviewPage(
+                                              target: (
+                                                scope: (
+                                                  context:
+                                                      StartingLocationContext
+                                                          .outing,
+                                                  id: live.id,
+                                                ),
+                                                recommendation: null,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                  ),
                                 if (location?.hasCoordinates == true)
                                   _DetailAction(
                                     icon: Icons.map_outlined,

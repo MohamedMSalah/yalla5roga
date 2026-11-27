@@ -5,6 +5,7 @@ import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
+import 'package:yalla_5roga/features/smart_meetup/presentation/widgets/meetup_entry_selector.dart';
 
 class DiscoverFilterChips extends StatelessWidget {
   const DiscoverFilterChips({super.key, required this.catalog});
@@ -16,12 +17,18 @@ class DiscoverFilterChips extends StatelessWidget {
     final all =
         !catalog.privateOnly &&
         filters.categories.isEmpty &&
-        filters.vibes.isEmpty;
+        filters.vibes.isEmpty &&
+        !filters.hasRatingCriteria;
     void clearFilters() {
       if (!all) {
         catalog.privateOnly = false;
         catalog.update(
-          filters.copyWith(categories: {}, vibes: {}),
+          filters.copyWith(
+            categories: {},
+            vibes: {},
+            topRated: false,
+            clearMinRating: true,
+          ),
           debounce: true,
         );
       }
@@ -33,6 +40,12 @@ class DiscoverFilterChips extends StatelessWidget {
       child: Row(
         spacing: 8,
         children: [
+          if (catalog.privateOwner != null)
+            _CategoryChip(
+              label: context.l10n.smartMeetup,
+              icon: Icons.route_outlined,
+              onTap: () => MeetupEntrySelector.show(context),
+            ),
           _CategoryChip(
             label: context.l10n.discoverAllPlaces,
             icon: Icons.grid_view_rounded,
@@ -46,7 +59,9 @@ class DiscoverFilterChips extends StatelessWidget {
               selected: catalog.privateOnly,
               onTap: () {
                 catalog.privateOnly = !catalog.privateOnly;
-                catalog.update(filters, retainPlaces: false);
+                catalog.update(
+                  filters.copyWith(topRated: false, clearMinRating: true),
+                );
               },
             ),
           if (!all)
@@ -55,6 +70,27 @@ class DiscoverFilterChips extends StatelessWidget {
               icon: Icons.filter_alt_off_outlined,
               onTap: clearFilters,
             ),
+          _CategoryChip(
+            label: context.l10n.discoverTopRated,
+            icon: Icons.star_outline_rounded,
+            selected: filters.topRated,
+            onTap: () {
+              catalog.privateOnly = false;
+              catalog.update(filters.copyWith(topRated: !filters.topRated));
+            },
+          ),
+          MinimumRatingFilterChips(
+            minimum: filters.minRating,
+            onChanged: (minimum) {
+              catalog.privateOnly = false;
+              catalog.update(
+                filters.copyWith(
+                  minRating: minimum,
+                  clearMinRating: minimum == null,
+                ),
+              );
+            },
+          ),
           for (final (items, vibe) in [
             (catalog.categories, false),
             (catalog.vibes, true),
@@ -89,6 +125,39 @@ class DiscoverFilterChips extends StatelessWidget {
           debounce: true,
         );
       },
+    );
+  }
+}
+
+class MinimumRatingFilterChips extends StatelessWidget {
+  const MinimumRatingFilterChips({
+    super.key,
+    required this.minimum,
+    required this.onChanged,
+  });
+
+  final double? minimum;
+  final ValueChanged<double?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 8,
+      children: [
+        for (final threshold in const <double>[3, 4, 4.5])
+          _CategoryChip(
+            label: l10n.minimumPlaceRating(
+              l10n.digits(
+                threshold.toStringAsFixed(threshold % 1 == 0 ? 0 : 1),
+              ),
+            ),
+            icon: Icons.star_rounded,
+            selected: minimum == threshold,
+            onTap: () => onChanged(minimum == threshold ? null : threshold),
+          ),
+      ],
     );
   }
 }

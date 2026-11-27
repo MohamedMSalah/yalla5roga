@@ -13,6 +13,7 @@ class PlaceCard extends StatelessWidget {
     required this.onTap,
     this.compact = false,
     this.trailing,
+    this.metadata,
   }) : leading = null,
        inline = false,
        selected = false,
@@ -27,6 +28,7 @@ class PlaceCard extends StatelessWidget {
     this.selected = false,
     this.progress,
     this.trailing,
+    this.metadata,
   }) : inline = true,
        compact = true,
        cover = const Icon(Icons.place_outlined);
@@ -39,7 +41,7 @@ class PlaceCard extends StatelessWidget {
   final bool inline;
   final bool selected;
   final double? progress;
-  final Widget? trailing;
+  final Widget? trailing, metadata;
   final bool compact;
 
   @override
@@ -77,6 +79,7 @@ class PlaceCard extends StatelessWidget {
                         Text(title, style: context.texts.titleSmall),
                         if (subtitle.isNotEmpty)
                           Text(subtitle, style: context.texts.bodySmall),
+                        ?metadata,
                         ?trailing,
                       ],
                     ),
@@ -151,6 +154,7 @@ class PlaceCard extends StatelessWidget {
                         fontSize: AppTypography.body,
                       ),
                     ),
+                    ?metadata,
                     2.gapH,
                     Text(
                       subtitle,

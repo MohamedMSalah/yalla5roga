@@ -18,6 +18,8 @@ import 'package:yalla_5roga/features/groups/presentation/widgets/lists/group_out
 import 'package:yalla_5roga/features/outings/presentation/pages/create_outing_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/outings_provider.dart';
 import 'package:yalla_5roga/features/shell/presentation/shell_route_navigation.dart';
+import 'package:yalla_5roga/features/smart_meetup/presentation/pages/group_smart_meetup_page.dart';
+import 'package:yalla_5roga/features/smart_meetup/presentation/widgets/meetup_widgets.dart';
 
 class GroupDetailsPage extends StatefulWidget {
   const GroupDetailsPage({super.key, required this.groupId});
@@ -55,7 +57,8 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
     setState(() => _loading = true);
     await RequestScope.run(
       () => _groups.ensureGroupLoaded(widget.groupId, forceRefresh: retry),
-      origin: 'GroupDetailsPage', trigger: retry ? 'manual_refresh' : 'navigation',
+      origin: 'GroupDetailsPage',
+      trigger: retry ? 'manual_refresh' : 'navigation',
     );
     if (mounted) setState(() => _loading = false);
   }
@@ -136,6 +139,11 @@ class _GroupDetailsPageState extends State<GroupDetailsPage>
                       label: l10n.createOuting,
                       icon: Icons.add,
                       onTap: _createOuting,
+                    ),
+                    SmartMeetupButton(
+                      onPressed: () => Get.to(
+                        () => GroupSmartMeetupPage(groupId: widget.groupId),
+                      ),
                     ),
                     GroupOutingsList(
                       group: group,

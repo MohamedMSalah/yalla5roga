@@ -337,3 +337,45 @@ Verification: ten requested scenarios passed through served Swagger/HTTP against
 ## Location voting state synchronization — 2026-11-15
 
 The existing single Node process retains the deadline job and notification worker. `vote-resolution.ts` owns locked current-round transitions; no second voting pipeline or scheduler is introduced. Realtime emits `outing:voting_tie_detected`, `outing:voting_revote_started`, `outing:voting_round_updated`, and `outing:location_confirmed` with outing/round IDs, state, relevant IDs and updated timestamp to the existing authenticated participant audience. Existing `data:changed` invalidations remain the Flutter integration and reconnect journal; Flutter does not trust event-supplied winners or apply old-round payloads. REST revalidates the current round. Physical socket/FCM behavior remains unverified; local HTTP and source evidence are distinct.
+
+## Personal starting locations
+
+Flutter reads and writes personal locations and the starting preference through authenticated REST. PostgreSQL owns both records and clears a preference when the selected source is removed. These values stay outside shared outing, notification, and realtime payloads. The owner can pick a point through the shared map or request a one-time foreground fix.
+
+The authenticated location provider supplies the personal MapLibre layer independently of public viewport requests. The effective Saved Place is resolved by the existing bookmark relation and stays in the owner projection.
+
+Transportation values are stored on the account and the owner's saved starting sources. The public routing capability contract reports provider availability independently. Planning can call the uncached effective resolver with a selected starting source and an optional temporary mode.
+
+## Location privacy boundaries
+
+Authenticated owner APIs hold exact saved starting points. The group-area API projects verified districts or a status after checking both current memberships. The internal authorization service loads exact calculation inputs only after consent and exclusion checks. A coordinate-free revision allows subsequent publication, result and reminder work to detect revocation. The settings feature does not emit location data through notifications or Socket.IO.
+
+## Group Smart Meetup
+
+The existing notification worker delivers versioned Meetup hints on the shared Socket.IO server. The projection remains in authenticated REST, and reconnecting clients reconcile by reading current state. Session rooms authorize current group membership or Quick Meetup ownership without inheriting the broader outing chat audience.
+
+The Smart Meetup results interface reuses session authorization and the canonical place catalog. PostgreSQL stores versioned calculation attempts and up to five ranked venue references per published attempt. The results read path revalidates input and catalog state, then applies a restricted public serializer. A trusted publication interface is available for a future routing worker.
+
+The outing API accepts an optional Smart Meetup selection on the existing create command. The command checks the current result and saves canonical venues in the regular outing and vote-option records. The normal voting lifecycle owns venue resolution.
+
+The Express planning API scopes meetup sessions to their group and optional outing in Neon. Session reads resolve the current roster and consent before projecting readiness. The response exposes a verified district when shareable and uses private, non-cacheable headers.
+
+Quick Meetup extends the same API, session table, versioning and routing coordinator with an owner-only standalone flow. Neon holds temporary guest inputs under the session FK. The existing scheduler expires sessions and removes guest rows. Flutter keeps the owner projection and guest points in route memory.
+
+Both session types use the same preference API and session-owned rows. A preference update and its calculation input version advance together. The catalog and ranking services are ready for a routing coordinator that provides measurements for the current version.
+
+## Temporary planning inputs
+
+The app's reusable starting-location editor reads and writes private, versioned inputs through the meetup and outing APIs. PostgreSQL stores one override per owner and context. Smart Meetup readiness resolves effective inputs from current authorization and the stored references. The outing version is available to a future travel-estimate consumer.
+
+
+## Place ratings and reviews
+
+PostgreSQL keeps branch reviews and running aggregates in sync using triggers. The ratings API, catalog reads and outing voting reads share the aggregate source. The app displays server-provided values and applies committed mutation responses to its mounted cards. Catalog invalidation uses the existing PostgreSQL notification and Socket.IO recovery channel.
+
+The Places API computes Top Rated pages from the current catalog-wide prior and branch aggregates in PostgreSQL. Discover sends its criteria and renders the server's ordered page with actual rating statistics.
+
+
+## Personal route preview
+
+Flutter requests the caller's preview from the API. The API authorizes the context, resolves the starting point and destination from existing records, and calls the provider-independent routing boundary. The default boundary reports unavailability. Flutter can present the endpoints and launch external navigation using the verified destination coordinates.

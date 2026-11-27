@@ -17,6 +17,7 @@ export type NotificationInput = {
   invitationId?: string | null;
   messageId?: string;
   actionRequired?: boolean;
+  createdAt?: Date;
   data?: Record<string, string>;
 };
 
@@ -31,7 +32,7 @@ export async function persistNotifications(
   tx: Prisma.TransactionClient,
   input: NotificationInput,
 ) {
-  const createdAt = new Date().toISOString();
+  const createdAt = (input.createdAt ?? new Date()).toISOString();
   const rows = [...new Set(input.recipients)].map((uid) => {
     const original = `${input.eventKey}:${uid}`;
     const key =
@@ -67,6 +68,7 @@ export async function persistNotifications(
       outing_id: input.outingId,
       group_id: input.groupId,
       action_required: input.actionRequired ?? false,
+      created_at: input.createdAt,
       data,
     })),
     skipDuplicates: true,
@@ -81,6 +83,7 @@ export async function persistNotifications(
       group_id: input.groupId,
       outing_id: input.outingId,
       invitation_id: input.invitationId,
+      created_at: input.createdAt,
       payload: data,
     })),
     skipDuplicates: true,

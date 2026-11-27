@@ -563,3 +563,60 @@ stateDiagram-v2
 ```
 
 Implemented and checked via static analysis and local served Swagger/HTTP fixtures. English/Arabic, light/dark, reduced motion, large text, phone/wide/foldable, offline-device and input behavior remain visually/runtime unverified under the no-launch restriction.
+
+## My Locations
+
+Open **Settings → My Locations** to manage personal Home, Work, University, Gym, and custom locations. Choose a point on the map or request a foreground GPS fix. Name the location and optionally enter its area and address. The default tile opens a selector for personal locations, existing Saved Places, current GPS, and the map. Selecting an existing bookmark uses that bookmark directly. GPS and map candidates become defaults after the personal location is saved and default selection succeeds.
+
+The selected item displays **Default**. Deleting the selected personal location, removing its bookmark, or clearing the preference leaves the tile in its setup-required state. The page refreshes when opened or resumed and supports pull-to-refresh. In-session data can remain visible offline. Changes require a connection. A denied GPS permission still allows the map picker.
+
+In Discover, the outing location pickers and the full-screen venue map, **My Locations** toggles the owner's pins. Tap a pin to see its type, area and default status, edit or delete a personal location, or choose a default. A linked place opens the existing Place Details. A bookmark used as the default can be managed from the same sheet. **Use as Starting Location** selects the point for the current app session and centers the map.
+
+## Choose preferred transportation
+
+Open **Settings → Transportation** to choose a default or clear it. In **Settings → My Locations**, edit an individual personal location to choose its own mode or inherit the account default. For a Saved Place used as the default starting point, set its mode on the default starting location card. Route calculations are unavailable, and preferences can be saved independently.
+
+## Manage Smart Meetup location privacy
+
+Open **Settings → Location Privacy** and turn on **Hide My Location** to hide the district from current group members. To allow automatic calculation, turn on **Allow Automatic Smart Meetup Location Usage**, read the disclosure and tap **Allow**. The approval remains valid for subsequent meetups under the same policy. Choose a default starting point in **My Locations** if setup requires one.
+
+Use **Excluded Groups** to disable automatic usage for particular groups. Turn off automatic usage on the main privacy page to withdraw consent for all groups.
+
+## Group Smart Meetup
+
+Open **Group Details → Smart Meetup**. The page lists the current group members, the number ready and the number needing setup. Use **Copy setup request** to share instructions with the group, or open **My Locations** and **Location Privacy** to set up your own starting point. The session creator can set a shared optimization preference or cancel the session. Pull down to refresh current readiness.
+
+Readiness updates while the planning screen is open. When the session's inputs or an evaluated venue changes, open recommendations show a stale notice and disable venue selection until current results are available.
+
+In either Group or Quick Meetup, tap **View recommendations** to see readiness and applied preferences. **Refresh recommendations** checks the session again. While routing is deferred, the page shows the missing setup or routing availability state. When a current result is available, open venue details or choose a venue to fill the Location step of Create Outing. **Select places for voting** lets you choose two to five venues and continue to the existing group and deadline setup. Special events use one fixed venue and the existing schedule and invitations. From the outing's Location step, you can open **Smart Meetup** and return with a selection or tap **Choose manually**. If recommendations become stale, the refresh dialog keeps your outing draft while you review current results.
+
+## Plan a Quick Meetup
+
+Open **Smart Meetup** from Home Quick Actions or Discover. Select **Quick Meetup**, or choose **Choose Existing Group** to plan with an accepted group. Quick Meetup opens your private planning map with your authorized default starting point when available.
+
+Tap **Add guest** and pick an approximate point or public landmark. You can add a display name and transportation preference, then edit or remove that entry from its menu. Guest points are planning estimates. You can save the meetup preference while routing is unavailable. Reopening Quick Meetup resumes the active session for up to 24 hours. Cancelling or expiry clears the guest points.
+
+In either meetup, the session creator can open **Meetup preferences**, select any combination of catalog categories, relative budget levels and additional priorities, and choose a minimum rating, travel fairness mode and maximum travel time. The session opens automatically with Balanced. Close the sheet to discard edits, or tap **Apply Preferences** to share them with the session. To restore the defaults, tap **Reset** and then **Apply Preferences**. Current selections appear as chips in the meetup planning area.
+
+## Use a temporary starting point
+
+On Group Smart Meetup, Quick Meetup or an eligible outing, open **Edit starting point**. Select a My Locations entry, a Saved Place, current GPS or a map point. Confirm that the selected point can be used to calculate travel for this plan and tap **Save changes**. To change transportation only, keep **Default starting location** selected and choose a mode. To use the default point for an individual outing, confirm its use for that outing. Reset also clears this contextual permission. To keep a GPS or map point for later, tap **Also save to My Locations**, enter a name and save it there. Tap **Reset to default** to clear the temporary choices. The card shows the effective point and transportation when you return.
+
+
+## Rate a place branch
+
+Open a catalog branch and select **Reviews**. Pick an integer number of stars and optionally write a review. The tab shows the branch average, rating count, distribution and written reviews. The author's own rating includes edit and delete actions when available. The review menu lets readers report a review or hide an author's written reviews across places. The **Blocked reviewers** dialog provides an unblock action. An empty aggregate displays **Not Rated Yet**.
+
+In Discover, select **Top Rated** to browse the visible catalog in confidence-aware order. The **3+**, **4+** and **4.5+** star filters can be used with or without Top Rated. Place cards show the actual average and number of ratings. Unrated catalog venues appear after rated venues when there is no minimum filter. Discover explains when the catalog has no eligible ratings and when the current filter has no matches.
+
+
+## Preview my route
+
+From a confirmed, scheduled outing or a current Smart Meetup recommendation, tap **My route preview**. The page shows the effective starting point, destination and transportation method. With routing deferred, the preview shows unavailable estimates and pins for the authorized endpoints. Tap **Change starting location** to update the point or transportation for this plan. If a meetup calculation becomes stale, return to recommendations and refresh. **Open in external navigation** opens directions to the venue coordinates.
+
+
+## Location setup requests and departure reminder preferences
+
+A group member confirms an individual request from Smart Meetup. An eligible recipient receives one request in their Inbox and can open their session starting-location editor from it. When a request is rate-limited, the sender sees when they can try again.
+
+A user can enable departure reminders under Settings and choose 0, 5, 10, 15 or 30 minutes to prepare. On a confirmed upcoming outing, the user sees their reminder status and own travel preferences. Before routing is available, the card explains the missing estimate and the user can still change preferences.

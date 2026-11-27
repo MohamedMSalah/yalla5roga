@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:yalla_5roga/features/discover/presentation/widgets/place_branch_picker.dart';
 
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/pages/reviews_list_page.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart'
     show PlaceCatalogAttribution;
 import 'package:get/get.dart';
@@ -10,7 +12,6 @@ import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/theme/app_tokens.dart';
 import 'package:yalla_5roga/core/theme/app_motion.dart';
 import 'package:yalla_5roga/core/utils/app_launcher.dart';
-import 'package:yalla_5roga/core/widgets/app_empty_state.dart';
 import 'package:yalla_5roga/core/widgets/app_snackbar.dart';
 import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -389,14 +390,11 @@ class _DiscoverPlaceDetailsState extends State<DiscoverPlaceDetailsPage> {
                             ),
                           ],
                         ),
-                  ListView(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
-                    children: [
-                      AppEmptyState(
-                        icon: Icons.rate_review_outlined,
-                        message: l10n.placeReviewsUnavailable,
-                      ),
-                    ],
+                  ReviewsListPage(
+                    placeId: place.id,
+                    initialStatistics: place.ratingStatistics,
+                    acceptsRatings: place.status == 'active',
+                    embedded: true,
                   ),
                 ],
               ),
@@ -524,6 +522,11 @@ class _PlaceOverview extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl),
       children: [
+        RatingsSummaryWidget(
+          placeId: place.id,
+          statistics: place.ratingStatistics,
+        ),
+        const SizedBox(height: AppSpacing.md),
         if (place.localizedDescription(l10n).trim().isNotEmpty) ...[
           Text(
             place.localizedDescription(l10n),

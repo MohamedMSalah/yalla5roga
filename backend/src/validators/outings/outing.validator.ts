@@ -61,6 +61,12 @@ export const createOutingBodySchema = z
 
     occasion: outingOccasionSchema.optional(),
     create_request_key: z.string().trim().min(1).max(80).optional(),
+    smart_meetup_selection: z.strictObject({
+      session_id: z.uuid(),
+      calculation_id: z.uuid(),
+      place_ids: z.array(z.uuid().transform(id => id.toLowerCase())).min(1).max(5)
+        .refine(ids => new Set(ids).size === ids.length, "Select distinct venues"),
+    }).optional(),
     initial_vote_options: z.array(createVoteOptionBodySchema.extend({
       latitude: z.number().min(-90).max(90).nullish(),
       longitude: z.number().min(-180).max(180).nullish(),

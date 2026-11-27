@@ -39,6 +39,7 @@ class PlaceCatalogProvider extends ChangeNotifier {
   String? privateOwner;
   bool privateOnly = false;
   bool loading = false, hasMore = false;
+  bool? ratingRankingAvailable;
   String? error;
   bool taxonomyFailed = false;
   bool definitionsLoaded = false;
@@ -48,6 +49,7 @@ class PlaceCatalogProvider extends ChangeNotifier {
   Timer? _debounce;
   Completer<void>? _request;
   int _nextOffset = 0;
+  String? _nextRatingCursor;
   String? _viewport;
   bool _hasLoaded = false, _refreshPending = false;
   bool _viewportNeedsLoad = false;
@@ -61,8 +63,9 @@ class PlaceCatalogProvider extends ChangeNotifier {
     if (!_paused || _disposed) return;
     _paused = false;
     if (_refreshPending) loadDefinitions(force: true);
-    if ((_refreshPending || _viewportNeedsLoad) && _hasLoaded ||
-        filters.search.trim().isNotEmpty && !_hasLoaded) {
+    if (_hasLoaded
+        ? _refreshPending || _viewportNeedsLoad || filters.hasRatingCriteria
+        : filters.search.trim().isNotEmpty) {
       unawaited(load());
     }
   }
@@ -138,6 +141,9 @@ class PlaceCatalogProvider extends ChangeNotifier {
     bool retainPlaces = false,
   }) async {
     if (_disposed) return;
+    final ratingChanged =
+        filters.topRated != value.topRated ||
+        filters.minRating != value.minRating;
     filters = value;
     // Clearing chips must not silently discard the map's geographic constraint.
     if (searchAcrossBounds && value.search.trim().isNotEmpty) {
@@ -154,7 +160,11 @@ class PlaceCatalogProvider extends ChangeNotifier {
     _debounce?.cancel();
     cancelPending();
     // Hide non-matching old markers immediately while the new request is pending.
-    if (!retainPlaces && places.isNotEmpty) {
+    if (ratingChanged || (!retainPlaces && filters.hasRatingCriteria)) {
+      places = const [];
+      hasMore = false;
+      ratingRankingAvailable = null;
+    } else if (!retainPlaces && places.isNotEmpty) {
       places = places.where((p) => filters.matches(p.toOutingPlace())).toList();
     }
     loading = debounce;
@@ -181,7 +191,9 @@ class PlaceCatalogProvider extends ChangeNotifier {
     _refreshPending = false;
     error = null;
     notifyListeners();
-    if (requestedFilters.bounds != null && repository is ViewportCatalog) {
+    if (!requestedFilters.hasRatingCriteria &&
+        requestedFilters.bounds != null &&
+        repository is ViewportCatalog) {
       try {
         await for (final items in (repository as ViewportCatalog).viewport(
           requestedFilters,
@@ -207,22 +219,42 @@ class PlaceCatalogProvider extends ChangeNotifier {
       return;
     }
     final privateMatches =
-        searchAcrossBounds &&
+        !requestedFilters.hasRatingCriteria &&
+            searchAcrossBounds &&
             privateOwner != null &&
             requestedFilters.search.trim().isNotEmpty &&
             offset == 0
         ? _findPrivatePlaces(requestedFilters, request.future)
         : Future.value(const <SuggestedPlace>[]);
-    final result = await repository.queryPlaces(
-      requestedFilters,
-      offset: offset,
-      forceRefresh: force,
-      cancelled: request.future,
-    );
+    final result = requestedFilters.hasRatingCriteria
+        ? await repository.queryRatingPage(
+            requestedFilters,
+            cursor: more ? _nextRatingCursor : null,
+            cancelled: request.future,
+          )
+        : (await repository.queryPlaces(
+            requestedFilters,
+            offset: offset,
+            forceRefresh: force,
+            cancelled: request.future,
+          )).map<RatingPlacePage>(
+            (items) =>
+                (places: items, nextCursor: null, rankingAvailable: null),
+          );
     final matchingPrivate = await privateMatches;
     if (_disposed || revision != _revision) return;
+    var restartRanking = false;
     result.fold(
-      (_) {
+      (failure) {
+        if (requestedFilters.hasRatingCriteria) {
+          restartRanking = more && failure.statusCode == 409;
+          if (!more || restartRanking) {
+            places = const [];
+            hasMore = false;
+            ratingRankingAvailable = null;
+          }
+          if (restartRanking) return;
+        }
         error = 'catalog_load_failed';
         if (matchingPrivate.isNotEmpty) {
           places = [
@@ -231,7 +263,8 @@ class PlaceCatalogProvider extends ChangeNotifier {
           ];
         }
       },
-      (items) {
+      (page) {
+        final items = page.places;
         final next = {
           if (more)
             for (final p in places) p.id: p,
@@ -242,16 +275,20 @@ class PlaceCatalogProvider extends ChangeNotifier {
         final ordered = orderResults(next.take(cap).toList(growable: false));
         if (!listEquals(places, ordered)) places = ordered;
         _nextOffset = offset + items.length;
+        _nextRatingCursor = page.nextCursor;
+        ratingRankingAvailable = page.rankingAvailable;
         hasMore =
             (maxPlaces == null || places.length < maxPlaces!) &&
-            items.length >= requestedFilters.pageSize.clamp(1, 100);
+            (requestedFilters.hasRatingCriteria
+                ? page.nextCursor != null
+                : items.length >= requestedFilters.pageSize.clamp(1, 100));
       },
     );
     _request = null;
     loading = false;
     if (!request.isCompleted) request.complete();
     notifyListeners();
-    if (_refreshPending) unawaited(load());
+    if (_refreshPending || restartRanking) unawaited(load());
   }
 
   Future<List<SuggestedPlace>> _findPrivatePlaces(

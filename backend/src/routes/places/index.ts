@@ -6,6 +6,7 @@ import placeMetaRoutes from "./place.meta.routes.js";
 import placeSavedRoutes from "./place.saved.routes.js";
 import placeGeocodingRoutes from "./place.geocoding.routes.js";
 import catalogRoutes from "./place.catalog.routes.js";
+import placeReviewRoutes from "./place.review.routes.js";
 
 const api = Router();
 
@@ -13,6 +14,7 @@ const api = Router();
 api.use(placeSavedRoutes);
 api.use(placeGeocodingRoutes);
 api.use(catalogRoutes);
+api.use(placeReviewRoutes);
 api.use(placeCrudRoutes);
 api.use(placeMetaRoutes);
 

@@ -14,6 +14,7 @@ import 'package:yalla_5roga/features/discover/presentation/pages/discover_place_
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place_location.dart';
 import 'package:yalla_5roga/features/outings/presentation/outing_info_l10n.dart';
+import 'package:yalla_5roga/features/saved_locations/presentation/widgets/personal_locations_map.dart';
 
 import 'outing_info_style.dart';
 
@@ -325,12 +326,17 @@ class _OutingVenueMapState extends State<_OutingVenueMap> {
     }
     return Scaffold(
       appBar: AppPageBar(title: _location.name),
-      body: YallaMapView(
+      body: PersonalLocationsMap(
         controller: _controller,
-        center: LatLng(_location.latitude!, _location.longitude!),
-        zoom: 15,
-        places: _places,
-        controlsTop: 0,
+        builder: (context, markers, onTap) => YallaMapView(
+          controller: _controller,
+          personalLocations: markers,
+          onPersonalLocationTap: onTap,
+          center: LatLng(_location.latitude!, _location.longitude!),
+          zoom: 15,
+          places: _places,
+          controlsTop: 0,
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:yalla_5roga/core/maps/location_repository.dart';
 import 'package:yalla_5roga/core/maps/location_search_provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -41,6 +42,11 @@ class DiscoverPlacesResults extends StatelessWidget {
             subtitle:
                 '${place.localizedSummary(l10n)}'
                 '${place.distanceKm == null ? '' : ' · ${l10n.digits(place.distanceKm!.toStringAsFixed(1))} ${l10n.kilometersShort}'}',
+            metadata: RatingsSummaryWidget(
+              placeId: place.id,
+              statistics: place.ratingStatistics,
+              compact: true,
+            ),
             imageUrl: place.coverImageUrl,
             selected: selectedId == place.id,
             onTap: () => onSelect(place),

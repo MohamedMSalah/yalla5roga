@@ -1,3 +1,10 @@
+import { transportationModes } from "../types/users/transportation.types.js";
+import { extendSavedLocationsOpenApi } from "./saved-locations-openapi.js";
+import { extendLocationPrivacyOpenApi } from "./location-privacy-openapi.js";
+import { extendRoutePreviewOpenApi } from "./route-preview-openapi.js";
+import { extendMeetupOpenApi } from "./meetup-openapi.js";
+import { extendLocationTravelNotificationOpenApi } from "./location-travel-notification-openapi.js";
+import { extendPlaceReviewsOpenApi } from "./place-reviews-openapi.js";
 import { extendPlacesOpenApi } from "./places-openapi.js";
 import { notification_event_type } from "@prisma/client";
 import fs from "node:fs";
@@ -470,6 +477,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
           properties: {
             success: { type: "boolean", example: false },
             message: { type: "string" },
+            code: { type: "string", description: "Stable error code when available." },
           },
         },
         HealthOk: {
@@ -999,6 +1007,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
                 notificationId: uuid,
                 eventId: uuid,
                 notificationType: { type: "string" },
+            sessionId: { ...uuid, description: "Smart Meetup setup destination" },
+            expiresAt: { ...dateTime, description: "Last valid time for a location setup request" },
                 actionType: { type: "string" },
                 createdAt: dateTime,
                 recipientUserId: firebaseUid,
@@ -1035,7 +1045,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               type: "string",
               enum: ["outing", "group", "chat", "vote", "invitation", "system"],
             },
-            eventType: { type: "string", enum: [...Object.values(notification_event_type), "outing_created", "place_vote", "outing", "group", "chat", "vote", "invitation", "system",
+            eventType: { type: "string", enum: [...Object.values(notification_event_type).filter(type => type !== "smart_meetup_changed"), "outing_created", "place_vote", "outing", "group", "chat", "vote", "invitation", "system",
               ], description: "Specific event used by the inbox to select a destination",
             },
             messageId: { ...uuid, description: "Chat message targeted by the notification",
@@ -1043,6 +1053,8 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
             notificationId: uuid,
             eventId: uuid,
             notificationType: { type: "string" },
+            sessionId: { ...uuid, description: "Smart Meetup setup destination" },
+            expiresAt: { ...dateTime, description: "Last valid time for a location setup request" },
             invitationId: uuid,
             actionType: { type: "string", enum: ["open", "update"] },
             createdAt: dateTime,
@@ -1110,6 +1122,17 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               maxItems: 5,
               description: "Ordered candidates for a group outing with no fixed location. Saved atomically with the outing.",
               items: { $ref: "#/components/schemas/CreateVoteOptionRequest" },
+            },
+            smart_meetup_selection: {
+              type: "object",
+              additionalProperties: false,
+              required: ["session_id", "calculation_id", "place_ids"],
+              description: "Optional source validation for current Smart Meetup recommendations. Requires create_request_key and place IDs matching the fixed location or all initial vote options. Venue snapshots come from the catalog.",
+              properties: {
+                session_id: uuid,
+                calculation_id: uuid,
+                place_ids: { type: "array", minItems: 1, maxItems: 5, uniqueItems: true, items: uuid },
+              },
             },
             guest_phones: { type: "array", maxItems: 50, items: { type: "string" }, description: "Special-event phone guests.",
             },
@@ -1206,6 +1229,7 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
               ],
               nullable: true,
             },
+            travel_input_version: { type: "integer", minimum: 1 },
             winning_option_id: { ...uuid, nullable: true },
             created_at: dateTime,
             updated_at: dateTime,
@@ -1471,8 +1495,9 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
         }),
         SavedPlace: {
           type: "object",
-          required: ["user_id", "place_id", "saved_at"],
+          required: ["user_id", "place_id", "saved_at", "preferred_transportation_mode"],
           properties: { user_id: firebaseUid, place_id: uuid, saved_at: dateTime,
+            preferred_transportation_mode: { type: "string", nullable: true, enum: [...transportationModes, null] },
           },
         },
         SavedPlaceResponse: itemResponse("SavedPlace"),
@@ -1859,8 +1884,16 @@ const swaggerOptions: swaggerJsdoc.OAS3Options = {
 
 export const swaggerSpec = swaggerJsdoc(swaggerOptions);
 extendPlacesOpenApi(swaggerSpec);
+extendPlaceReviewsOpenApi(swaggerSpec as Parameters<typeof extendPlaceReviewsOpenApi>[0]);
 
 // Shared /api middleware applies this response to every HTTP API operation.
+extendSavedLocationsOpenApi(swaggerSpec as Parameters<typeof extendSavedLocationsOpenApi>[0]);
+extendLocationPrivacyOpenApi(swaggerSpec as Parameters<typeof extendLocationPrivacyOpenApi>[0]);
+extendMeetupOpenApi(swaggerSpec as Parameters<typeof extendMeetupOpenApi>[0]);
+
+extendRoutePreviewOpenApi(swaggerSpec as Parameters<typeof extendRoutePreviewOpenApi>[0]);
+extendLocationTravelNotificationOpenApi(swaggerSpec as Parameters<typeof extendLocationTravelNotificationOpenApi>[0]);
+
 const generated = swaggerSpec as { paths?: Record<string, Record<string, { responses?: Record<string, unknown> }>> };
 
 const probeResponse = (description: string, status: string) => ({

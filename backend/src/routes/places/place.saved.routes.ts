@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { OutingController } from "../../controllers/outings/outing.controller.js";
+import { TransportationPreferencesController } from "../../controllers/users/transportation-preferences.controller.js";
+import { updateBookmarkTransportationSchema } from "../../validators/users/transportation.validator.js";
 import { authMiddleware } from "../../middleware/auth.middleware.js";
 import { validate } from "../../middleware/validate.middleware.js";
 import { savedOutingParamsSchema } from "../../validators/outings/outing.validator.js";
@@ -73,6 +75,12 @@ router.post(
   authMiddleware,
   validate({ params: savedOutingParamsSchema }),
   controller.savePlaceBookmark,
+);
+router.patch(
+  "/:id/save",
+  authMiddleware,
+  validate({ params: savedOutingParamsSchema, body: updateBookmarkTransportationSchema }),
+  new TransportationPreferencesController().patchBookmark,
 );
 router.delete(
   "/:id/save",

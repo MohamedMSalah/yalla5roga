@@ -8,14 +8,23 @@ datasource db {
 }
 
 model users {
+  starting_location_overrides       starting_location_overrides[]
+  meetup_sessions                   meetup_sessions[]
   id                                String                @id @db.VarChar(128)
   name                              String                @db.VarChar(30)
   phone                             String                @unique @db.VarChar(16)
   password_hash                     String?               @db.VarChar(255)
+  default_transportation_mode       transportation_mode?
   notification_preferences          Json                  @default("{}")
+  departure_reminder_preferences    departure_reminder_preferences?
+  departure_reminders               departure_reminders[]
   image_url                         String?               @db.VarChar(2048)
   created_at                        DateTime              @default(now()) @db.Timestamptz(6)
   updated_at                        DateTime              @default(now()) @updatedAt @db.Timestamptz(6)
+  place_reviews                     place_reviews[]
+  place_review_reports              place_review_reports[]
+  place_review_blocks_created       place_review_blocks[] @relation("place_review_block_viewer")
+  place_review_blocks_received      place_review_blocks[] @relation("place_review_block_author")
   password_recoveries               password_recoveries[]
   chat_messages                     chat_messages[]
   chat_reads                        chat_reads[]
@@ -30,6 +39,10 @@ model users {
   outings_outings_created_byTousers outings[]             @relation("outings_created_byTousers")
   saved_outings                     saved_outings[]
   saved_places                      saved_places[]
+  saved_locations                   saved_locations[]
+  default_starting_location         default_starting_locations?
+  location_privacy                  user_location_privacy?
+  location_group_exclusions         user_location_group_exclusions[]
   user_fcm_tokens                   user_fcm_tokens[]
   group_invitations_sent            group_invitations[]   @relation("group_invitations_invited_by")
   group_invitations_received        group_invitations[]   @relation("group_invitations_user")
@@ -62,6 +75,7 @@ model account_deletion_media {
 }
 
 model groups {
+  meetup_sessions   meetup_sessions[]
   id                String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name              String              @db.VarChar(30)
   bio               String              @default("") @db.VarChar(160)
@@ -71,6 +85,7 @@ model groups {
   updated_at        DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
   group_members     group_members[]
   group_invitations group_invitations[]
+  location_exclusions user_location_group_exclusions[]
   users             users               @relation(fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
   notifications     notifications[]
   outing_drafts     outing_drafts[]
@@ -165,8 +180,12 @@ model places {
   place_images        place_images[]
   place_prices        place_prices[]
   saved_places        saved_places[]
+  saved_locations     saved_locations[]
   media_assets        media_assets[]
   source_records      place_source_records[]
+  place_reviews       place_reviews[]
+  rating_statistics   place_rating_statistics?
+  meetup_recommendations meetup_recommendations[]
 
   @@unique([source, source_type, source_id], map: "places_source_identity_key")
   @@index([vibe], map: "idx_places_vibe")
@@ -223,6 +242,7 @@ model place_categories {
   is_active   Boolean     @default(true)
   sort_order  Int         @default(0)
   places      places[]
+  meetup_preferences meetup_preference_categories[]
 }
 
 model vibes {
@@ -365,6 +385,10 @@ model place_hours {
 }
 
 model outings {
+  starting_location_overrides     starting_location_overrides[]
+  travel_input_version            Int                   @default(1)
+  departure_reminders             departure_reminders[]
+  meetup_sessions                 meetup_sessions[]
   id                              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   title                           String                @db.VarChar(20)
   image_url                       String                @default("") @db.VarChar(2048)
@@ -461,6 +485,88 @@ model outing_attendance {
 
   @@id([outing_id, user_id])
   @@index([user_id], map: "idx_outing_attendance_user")
+}
+
+enum place_review_visibility {
+  visible
+  hidden
+}
+
+enum place_review_report_reason {
+  spam
+  harassment
+  inappropriate
+  off_topic
+  other
+}
+
+enum place_review_report_status {
+  open
+  dismissed
+  actioned
+}
+
+model place_reviews {
+  id                String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  place_id          String                  @db.Uuid
+  user_id           String                  @db.VarChar(128)
+  rating            Int
+  review_text       String?                 @db.VarChar(1000)
+  moderation_status place_review_visibility @default(visible)
+  created_at        DateTime                @default(now()) @db.Timestamptz(3)
+  updated_at        DateTime                @default(now()) @updatedAt @db.Timestamptz(3)
+  place             places                  @relation(fields: [place_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  user              users                   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reports           place_review_reports[]
+
+  @@unique([place_id, user_id])
+  @@index([place_id, moderation_status], map: "idx_place_reviews_visibility")
+  @@index([place_id, created_at(sort: Desc), id(sort: Desc)], map: "idx_place_reviews_page")
+  @@index([user_id], map: "idx_place_reviews_user")
+}
+
+model place_rating_statistics {
+  place_id             String   @id @db.Uuid
+  rating_sum           Int      @default(0)
+  rating_count         Int      @default(0)
+  written_review_count Int      @default(0)
+  one_star_count       Int      @default(0)
+  two_star_count       Int      @default(0)
+  three_star_count     Int      @default(0)
+  four_star_count      Int      @default(0)
+  five_star_count      Int      @default(0)
+  updated_at           DateTime @default(now()) @db.Timestamptz(3)
+  place                places   @relation(fields: [place_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([updated_at(sort: Desc)], map: "idx_place_rating_statistics_updated")
+}
+
+model place_review_reports {
+  id          String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  review_id   String                     @db.Uuid
+  reporter_id String                     @db.VarChar(128)
+  reason      place_review_report_reason
+  status      place_review_report_status @default(open)
+  created_at  DateTime                   @default(now()) @db.Timestamptz(3)
+  updated_at  DateTime                   @default(now()) @updatedAt @db.Timestamptz(3)
+  review      place_reviews              @relation(fields: [review_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reporter    users                      @relation(fields: [reporter_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([review_id, reporter_id])
+  @@index([status, created_at(sort: Desc), id(sort: Desc)], map: "idx_place_review_reports_status")
+  @@index([reporter_id], map: "idx_place_review_reports_reporter")
+}
+
+model place_review_blocks {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  viewer_id  String   @db.VarChar(128)
+  author_id  String   @db.VarChar(128)
+  created_at DateTime @default(now()) @db.Timestamptz(3)
+  viewer     users    @relation("place_review_block_viewer", fields: [viewer_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  author     users    @relation("place_review_block_author", fields: [author_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([viewer_id, author_id])
+  @@index([author_id], map: "idx_place_review_blocks_author")
 }
 
 model outing_vote_options {
@@ -611,7 +717,280 @@ model saved_outings {
   @@index([user_id, saved_at(sort: Desc)], map: "idx_saved_outings_user_saved")
 }
 
+enum meetup_session_type {
+  GROUP
+  STANDALONE
+}
+
+enum meetup_session_status {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum meetup_calculation_status {
+  ROUTING_UNAVAILABLE
+  INSUFFICIENT_DATA
+  QUEUED
+  CALCULATING
+  READY
+  PARTIAL
+  STALE
+  FAILED
+  NO_MATCHING_VENUES
+}
+
+enum meetup_optimization {
+  BALANCED
+  SHORTEST_TOTAL_TIME
+}
+
+enum travel_fairness_mode {
+  BALANCED
+  EQUAL_TRAVEL
+  FASTEST_OVERALL
+}
+
+enum meetup_budget_level {
+  AFFORDABLE
+  MODERATE
+  EXPENSIVE
+}
+
+enum meetup_optimization_priority {
+  TOP_RATED
+  BUDGET_FRIENDLY
+  SHORTEST_DISTANCE
+}
+
+model meetup_sessions {
+  id                 String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_type       meetup_session_type
+  group_id           String?                  @db.Uuid
+  outing_id          String?                  @db.Uuid
+  created_by_user_id String                   @db.VarChar(128)
+  status             meetup_session_status    @default(ACTIVE)
+  calculation_status meetup_calculation_status @default(ROUTING_UNAVAILABLE)
+  optimization       meetup_optimization      @default(BALANCED)
+  input_version      Int                      @default(1)
+  input_digest       String?                  @db.Char(64)
+  created_at         DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime                 @default(now()) @updatedAt @db.Timestamptz(6)
+  expires_at         DateTime                 @db.Timestamptz(6)
+  group              groups?                  @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  outing             outings?                 @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  creator            users                    @relation(fields: [created_by_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  manual_participants meetup_manual_participants[]
+  starting_location_overrides starting_location_overrides[]
+  preferences         meetup_preferences?
+  calculations        meetup_calculations[]
+
+  @@index([group_id, status])
+  @@index([created_by_user_id])
+  @@index([outing_id])
+  @@index([expires_at])
+}
+
+model meetup_calculations {
+  id                            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetup_session_id             String @db.Uuid
+  input_version                 Int
+  attempt                       Int
+  calculation_status            meetup_calculation_status
+  input_fingerprint             String @db.Char(64)
+  intended_participant_count    Int
+  included_participant_count    Int
+  unavailable_participant_count Int
+  is_partial                    Boolean
+  optimization_policy_version   String @db.VarChar(32)
+  calculated_at                 DateTime? @db.Timestamptz(6)
+  expires_at                    DateTime? @db.Timestamptz(6)
+  created_at                    DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                    DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  safe_failure_code             String? @db.VarChar(64)
+  candidate_place_ids           String[] @default([]) @db.Uuid
+  session                       meetup_sessions @relation(fields: [meetup_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recommendations               meetup_recommendations[]
+
+  @@unique([meetup_session_id, input_version, attempt], map: "meetup_calculations_version_attempt_key")
+  @@index([calculation_status, expires_at])
+  @@index([candidate_place_ids], type: Gin, map: "meetup_calculations_candidate_places_idx")
+}
+
+model meetup_recommendations {
+  id                      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  calculation_id          String @db.Uuid
+  place_id                String @db.Uuid
+  rank                    Int
+  average_duration_seconds Float?
+  maximum_duration_seconds Int?
+  total_duration_seconds   Int?
+  minimum_duration_seconds Int?
+  total_distance_meters    Float?
+  duration_spread_seconds  Int?
+  fairness_score           Float?
+  match_score              Float?
+  explanation_codes        String[] @default([])
+  created_at               DateTime @default(now()) @db.Timestamptz(6)
+  calculation              meetup_calculations @relation(fields: [calculation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  place                    places @relation(fields: [place_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([calculation_id, place_id])
+  @@unique([calculation_id, rank])
+  @@index([place_id])
+}
+
+model meetup_preferences {
+  meetup_session_id               String @id @db.Uuid
+  travel_fairness_mode            travel_fairness_mode @default(BALANCED)
+  selected_budget_levels          meetup_budget_level[] @default([])
+  minimum_rating                  Decimal? @db.Decimal(2, 1)
+  maximum_travel_duration_seconds Int?
+  additional_priorities           meetup_optimization_priority[] @default([])
+  planned_meetup_at               DateTime? @db.Timestamptz(6)
+  require_open_at_meetup_time      Boolean @default(false)
+  updated_at                      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  meetup_session                  meetup_sessions @relation(fields: [meetup_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  categories                      meetup_preference_categories[]
+}
+
+model meetup_preference_categories {
+  meetup_session_id String @db.Uuid
+  category_id       String @db.VarChar(64)
+  preferences       meetup_preferences @relation(fields: [meetup_session_id], references: [meetup_session_id], onDelete: Cascade, onUpdate: NoAction)
+  category          place_categories @relation(fields: [category_id], references: [id], onDelete: Restrict)
+
+  @@id([meetup_session_id, category_id])
+  @@index([category_id])
+}
+
+model meetup_manual_participants {
+  id                  String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetup_session_id   String               @db.Uuid
+  display_name        String?              @db.VarChar(60)
+  approximate_area    String?              @db.VarChar(96)
+  latitude            Float
+  longitude           Float
+  transportation_mode transportation_mode?
+  created_at          DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  meetup_session      meetup_sessions      @relation(fields: [meetup_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([meetup_session_id])
+}
+
+enum starting_location_override_source {
+  DEFAULT
+  PERSONAL_LOCATION
+  SAVED_PLACE
+  MANUAL_POINT
+}
+
+model starting_location_overrides {
+  id                     String                            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                String                            @db.VarChar(128)
+  meetup_session_id      String?                           @db.Uuid
+  outing_id              String?                           @db.Uuid
+  location_source        starting_location_override_source
+  personal_location_id   String?                           @db.Uuid
+  saved_place_id         String?                           @db.Uuid
+  latitude               Float?
+  longitude              Float?
+  transportation_mode    transportation_mode?
+  consent_policy_version String?                           @db.VarChar(64)
+  created_at             DateTime                          @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                          @default(now()) @updatedAt @db.Timestamptz(6)
+  expires_at             DateTime                          @db.Timestamptz(6)
+  user                   users                             @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  meetup_session         meetup_sessions?                  @relation(fields: [meetup_session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  outing                 outings?                          @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  personal_location      saved_locations?                  @relation(fields: [user_id, personal_location_id], references: [user_id, id], onDelete: Cascade, onUpdate: NoAction, map: "starting_override_personal_fkey")
+  saved_place            saved_places?                     @relation(fields: [user_id, saved_place_id], references: [user_id, place_id], onDelete: Cascade, onUpdate: NoAction, map: "starting_override_bookmark_fkey")
+
+  @@unique([user_id, meetup_session_id], map: "starting_override_owner_session_key")
+  @@unique([user_id, outing_id], map: "starting_override_owner_outing_key")
+  @@index([meetup_session_id], map: "starting_override_session_idx")
+  @@index([outing_id], map: "starting_override_outing_idx")
+  @@index([expires_at], map: "starting_override_expiry_idx")
+}
+
+enum transportation_mode {
+  CAR
+  MOTORCYCLE
+  METRO
+  WALKING
+}
+
+enum saved_location_type {
+  home
+  work
+  university
+  gym
+  custom
+}
+
+enum location_visibility {
+  APPROXIMATE
+  HIDDEN
+}
+
+model user_location_privacy {
+  user_id                                 String              @id @db.VarChar(128)
+  location_visibility                     location_visibility @default(APPROXIMATE)
+  automatic_meetup_location_usage_enabled Boolean             @default(false)
+  location_usage_consent_at               DateTime?           @db.Timestamptz(6)
+  consent_policy_version                  String?             @db.VarChar(64)
+  authorization_revision                  String              @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  updated_at                              DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  user                                    users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model user_location_group_exclusions {
+  user_id    String   @db.VarChar(128)
+  group_id   String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  user       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  group      groups   @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, group_id])
+  @@index([group_id], map: "idx_location_exclusions_group")
+}
+
+model saved_locations {
+  id               String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String              @db.VarChar(128)
+  name             String              @db.VarChar(100)
+  location_type    saved_location_type
+  latitude         Float
+  longitude        Float
+  approximate_area String?             @db.VarChar(100)
+  address          String?             @db.VarChar(1000)
+  preferred_transportation_mode transportation_mode?
+  place_id         String?             @db.Uuid
+  created_at       DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  users            users               @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  place            places?             @relation(fields: [place_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  defaults         default_starting_locations[]
+  starting_location_overrides starting_location_overrides[]
+
+  @@unique([user_id, id])
+  @@index([user_id, created_at(sort: Desc), id], map: "idx_saved_locations_user_created")
+  @@index([place_id], map: "idx_saved_locations_place")
+}
+
+model default_starting_locations {
+  user_id           String           @id @db.VarChar(128)
+  saved_location_id String?          @db.Uuid
+  saved_place_id    String?          @db.Uuid
+  updated_at        DateTime         @default(now()) @updatedAt @db.Timestamptz(6)
+  users             users            @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  saved_location    saved_locations? @relation(fields: [user_id, saved_location_id], references: [user_id, id], onDelete: Cascade, onUpdate: NoAction, map: "default_starting_locations_personal_fkey")
+  saved_place       saved_places?    @relation(fields: [user_id, saved_place_id], references: [user_id, place_id], onDelete: Cascade, onUpdate: NoAction, map: "default_starting_locations_bookmark_fkey")
+}
+
 model saved_places {
+  preferred_transportation_mode transportation_mode?
   user_id  String   @db.VarChar(128)
   place_id String   @db.Uuid
   saved_at DateTime @default(now()) @db.Timestamptz(6)
@@ -619,6 +998,9 @@ model saved_places {
   users    users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@id([user_id, place_id])
+  defaults default_starting_locations[]
+  starting_location_overrides starting_location_overrides[]
+
   @@index([place_id], map: "idx_saved_places_place")
   @@index([user_id, saved_at(sort: Desc)], map: "idx_saved_places_user_saved")
 }
@@ -754,11 +1136,49 @@ enum notification_event_type {
   tie_break_selected
   outing_confirmed
   outing_cancelled
+  smart_meetup_changed
+  meetup_location_requested
+}
+
+enum departure_reminder_status {
+  pending
+  sent
+}
+
+model departure_reminder_preferences {
+  user_id                     String   @id @db.VarChar(128)
+  enabled                     Boolean  @default(false)
+  preparation_buffer_minutes  Int      @default(10) @db.SmallInt
+  updated_at                  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  user                        users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+// One slot per user and outing for the personalized departure purpose.
+model departure_reminders {
+  id                   String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  outing_id            String                    @db.Uuid
+  user_id              String                    @db.VarChar(128)
+  scheduled_send_at    DateTime                  @db.Timestamptz(6)
+  estimate_reference   String                    @db.VarChar(128)
+  input_fingerprint    String                    @db.Char(64)
+  deduplication_key    String                    @unique @db.Char(64)
+  duration_seconds     Int
+  status               departure_reminder_status @default(pending)
+  created_at           DateTime                  @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime                  @default(now()) @updatedAt @db.Timestamptz(6)
+  sent_at              DateTime?                 @db.Timestamptz(6)
+  user                 users                     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  outing               outings                   @relation(fields: [outing_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([outing_id, user_id])
+  @@index([user_id])
+  @@index([status, scheduled_send_at])
 }
 
 enum notification_channel {
   whatsapp
   push
+  realtime
 }
 
 enum notification_event_status {

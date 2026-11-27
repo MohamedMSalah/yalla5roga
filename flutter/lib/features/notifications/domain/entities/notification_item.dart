@@ -12,6 +12,8 @@ class NotificationItem {
     this.type,
     this.eventType,
     this.messageId,
+    this.meetupSessionId,
+    this.expiresAt,
   });
 
   final String id;
@@ -30,6 +32,8 @@ class NotificationItem {
   final String? type;
   final String? eventType;
   final String? messageId;
+  final String? meetupSessionId;
+  final String? expiresAt;
 
   /// Legacy alias used by older UI / JSON payloads.
   String? get eventId => outingId;
@@ -59,6 +63,8 @@ class NotificationItem {
       type: type,
       eventType: eventType,
       messageId: messageId,
+      meetupSessionId: meetupSessionId,
+      expiresAt: expiresAt,
     );
   }
 }

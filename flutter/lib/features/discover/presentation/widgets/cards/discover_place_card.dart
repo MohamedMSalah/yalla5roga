@@ -1,5 +1,6 @@
 import 'package:yalla_5roga/features/discover/presentation/widgets/save_place_button.dart';
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/app_hero.dart';
@@ -30,6 +31,12 @@ class DiscoverPlaceCard extends StatelessWidget {
     final l10n = context.l10n;
     return PlaceCard(
       trailing: SavePlaceButton(place: place),
+      metadata: RatingsSummaryWidget(
+        placeId: place.id,
+        statistics: place.ratingStatistics,
+        compact: true,
+        onPhoto: true,
+      ),
       title: place.localizedName(l10n),
       subtitle: showPriceLevel
           ? place.localizedSummary(l10n)

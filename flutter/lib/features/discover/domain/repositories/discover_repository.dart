@@ -7,6 +7,12 @@ import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.da
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 
+typedef RatingPlacePage = ({
+  List<SuggestedPlace> places,
+  String? nextCursor,
+  bool? rankingAvailable,
+});
+
 abstract interface class ViewportCatalog {
   Future<({double lat, double lng, double? accuracy})?> previousFix(
     String owner,
@@ -47,7 +53,7 @@ abstract class DiscoverRepository {
   });
   Future<Either<Failure, void>> setPlaceSaved(String id, bool saved);
   Stream<void> get catalogChanges;
-  Future<void> checkCatalogVersion();
+  Future<void> checkCatalogVersion({bool force = false});
   Future<Either<Failure, List<CatalogDefinition>>> getDefinitions(
     String kind, {
     bool forceRefresh = false,
@@ -56,6 +62,11 @@ abstract class DiscoverRepository {
     PlaceFilters filters, {
     int offset = 0,
     bool forceRefresh = false,
+    Future<void>? cancelled,
+  });
+  Future<Either<Failure, RatingPlacePage>> queryRatingPage(
+    PlaceFilters filters, {
+    String? cursor,
     Future<void>? cancelled,
   });
   Future<Either<Failure, List<SuggestedPlace>>> getNearbyPlaces({

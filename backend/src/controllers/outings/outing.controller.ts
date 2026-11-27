@@ -1,4 +1,5 @@
 import { startRevote } from "../../services/outings/vote-resolution.js";
+import { PlaceRatingStatisticsRepository } from "../../repositories/places/place-rating-statistics.repository.js";
 import { publicPlace } from "../../services/places/public-place.js";
 import { z } from "zod";
 import { emitDataChange, outingRealtimeUsers, publishOutingChange,
@@ -59,6 +60,8 @@ import {
   UnsavePlaceUseCase,
 } from "../../usecases/outings/saved-places.usecase.js";
 import { ForbiddenError, UnauthorizedError } from "../../utils/errors.js";
+
+const placeStatistics = new PlaceRatingStatisticsRepository();
 
 export class OutingController {
   constructor(
@@ -313,7 +316,8 @@ export class OutingController {
       if (!req.user?.uid) throw new UnauthorizedError();
       const id = req.params.id as string;
       await assertOutingAccess(id, req.user.uid);
-      const data = await this.listVoteOptions.execute(id);
+      const options = await this.listVoteOptions.execute(id);
+      const data = await placeStatistics.attach(options, (option) => option.place_id);
       res.json({ success: true, data });
     } catch (error) {
       next(error);
@@ -490,7 +494,8 @@ export class OutingController {
       const counts = new Map<string, number>();
       for (const vote of state.votes) counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
       const { outing } = state;
-      const winner = state.options.find(option => option.id === outing.winning_option_id);
+      const options = await placeStatistics.attach(state.options, (option) => option.place_id);
+      const winner = options.find(option => option.id === outing.winning_option_id);
       const fixedVenue = state.voting_state === "confirmed" && (outing.location_name || outing.location_place_id)
         ? {
             outing_id: id, place_id: outing.location_place_id, label: outing.location_name ?? "",
@@ -502,7 +507,7 @@ export class OutingController {
         ...state,
         outing_id: id,
         confirmed_location: winner ?? fixedVenue,
-        options: state.options.map((option) => ({ ...option, vote_count: state.isClosed ? option.persisted_vote_count : counts.get(option.id) ?? 0,
+        options: options.map((option) => ({ ...option, vote_count: state.isClosed ? option.persisted_vote_count : counts.get(option.id) ?? 0,
           })),
         my_option_ids: state.votes.filter((vote) => vote.user_id === req.user?.uid).map((vote) => vote.option_id),
         voted_count: new Set(state.votes.map((vote) => vote.user_id)).size,
@@ -540,7 +545,10 @@ export class OutingController {
     try {
       if (!req.user?.uid) throw new UnauthorizedError();
       const data = await this.listSavedPlaces.execute(req.user.uid);
-      res.json({ success: true, data: data.map((row) => ({ ...row, places: publicPlace((row as any).places) })) });
+      const rated = await placeStatistics.attach(data, (row) => row.place_id);
+      res.json({ success: true, data: rated.map(({ rating_statistics, ...row }) => ({
+        ...row, places: publicPlace({ ...(row as any).places, rating_statistics }),
+      })) });
     } catch (error) {
       next(error);
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:yalla_5roga/core/theme/app_palette.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
 import 'package:yalla_5roga/core/widgets/place_catalog_filters.dart';
@@ -238,6 +239,11 @@ class _PlaceDescription extends StatelessWidget {
             fontWeight: FontWeight.w800,
             color: palette.textPrimary,
           ),
+        ),
+        RatingsSummaryWidget(
+          placeId: place.id,
+          statistics: place.ratingStatistics,
+          compact: true,
         ),
         if (metadata.isNotEmpty || distance.isNotEmpty)
           Row(

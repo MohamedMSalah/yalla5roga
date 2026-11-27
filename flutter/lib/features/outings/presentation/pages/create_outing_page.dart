@@ -17,6 +17,7 @@ import 'package:yalla_5roga/features/discover/presentation/providers/discover_pr
 import 'package:yalla_5roga/features/discover/presentation/providers/place_catalog_provider.dart';
 import 'package:yalla_5roga/features/groups/domain/entities/group.dart';
 import 'package:yalla_5roga/features/groups/presentation/providers/groups_provider.dart';
+import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/event_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/pages/invite_guests_page.dart';
 import 'package:yalla_5roga/features/outings/presentation/providers/create_outing_provider.dart';
@@ -25,13 +26,18 @@ import 'package:yalla_5roga/features/outings/presentation/providers/saved_outing
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_basics_step.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_location_step.dart';
 import 'package:yalla_5roga/features/outings/presentation/widgets/create_outing_step_header.dart';
+import 'package:yalla_5roga/features/outings/presentation/widgets/smart_meetup_location_source.dart';
+import 'package:yalla_5roga/features/smart_meetup/domain/entities/meetup_result_handoff_model.dart';
+import 'package:yalla_5roga/features/smart_meetup/presentation/widgets/stale_meetup_result_dialog.dart';
 
 class CreateOutingPage extends StatefulWidget {
   const CreateOutingPage({
     super.key,
     this.group,
     this.suggestedPlace,
+    this.initialPlaces = const [],
     this.suggestionOwner,
+    this.meetupSelection,
     this.saved,
     this.draft,
     this.specialEvent = false,
@@ -39,7 +45,9 @@ class CreateOutingPage extends StatefulWidget {
 
   final Group? group;
   final SuggestedPlace? suggestedPlace;
+  final List<Place> initialPlaces;
   final String? suggestionOwner;
+  final MeetupResultHandoffModel? meetupSelection;
   final SavedOuting? saved;
   final OutingDraft? draft;
   final bool specialEvent;
@@ -64,6 +72,8 @@ class _CreateOutingPageState extends State<CreateOutingPage> {
     final outings = context.read<OutingsProvider>();
     final discover = context.read<DiscoverProvider>();
     final l10n = context.l10n;
+    final acceptsSuggestion =
+        widget.suggestionOwner == null || widget.suggestionOwner == owner;
 
     return ChangeNotifierProvider(
       key: ValueKey(owner),
@@ -83,10 +93,9 @@ class _CreateOutingPageState extends State<CreateOutingPage> {
               : outings.places,
           specialEventImage: outings.specialEventImage,
           group: widget.group,
-          suggestedPlace:
-              widget.suggestionOwner == null || widget.suggestionOwner == owner
-              ? widget.suggestedPlace
-              : null,
+          initialPlaces: acceptsSuggestion ? widget.initialPlaces : const [],
+          suggestedPlace: acceptsSuggestion ? widget.suggestedPlace : null,
+          meetupSelection: acceptsSuggestion ? widget.meetupSelection : null,
           saved: widget.saved,
           draft: widget.draft,
           specialEvent: widget.specialEvent,
@@ -112,12 +121,19 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
   bool _submitting = false;
   bool _confirmingExit = false;
   bool _savingDraft = false;
+  bool _pickingMeetup = false;
 
   bool get _isCurrent =>
       mounted && context.read<AuthProvider>().user?.id == widget.owner;
 
   Future<void> _goBack(CreateOutingProvider form) async {
-    if (_submitting || _savingDraft || _confirmingExit || !_isCurrent) return;
+    if (_submitting ||
+        _savingDraft ||
+        _pickingMeetup ||
+        _confirmingExit ||
+        !_isCurrent) {
+      return;
+    }
     FocusManager.instance.primaryFocus?.unfocus();
     if (form.step > 0) {
       form.placeCatalog?.resumeBrowsing();
@@ -331,7 +347,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
   }
 
   void _next(CreateOutingProvider form) {
-    if (form.step != 0) return;
+    if (form.step != 0 || _pickingMeetup) return;
     final error = form.next(context.l10n);
     if (error != null) {
       AppSnackBar.show(error);
@@ -339,6 +355,29 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     }
     FocusManager.instance.primaryFocus?.unfocus();
     form.placeCatalog?.pauseBrowsing();
+  }
+
+  Future<void> _pickMeetup(
+    CreateOutingProvider form, {
+    bool refresh = false,
+  }) async {
+    if (_pickingMeetup || !_isCurrent) return;
+    setState(() => _pickingMeetup = true);
+    try {
+      final source = form.meetupSelection;
+      final selected = await SmartMeetupLocationSource.pick(
+        context,
+        groupId: source == null ? form.group?.id : source.groupId,
+        limit: form.maxSelections,
+        refresh: refresh,
+      );
+      if (!_isCurrent || selected == null) return;
+      if (form.applyMeetupSelection(selected)) {
+        form.placeCatalog?.resumeBrowsing();
+      }
+    } finally {
+      if (mounted) setState(() => _pickingMeetup = false);
+    }
   }
 
   Future<void> _create(CreateOutingProvider form) async {
@@ -379,13 +418,20 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
         return;
       }
 
+      var staleMeetup = false;
       final created = await outings.add(
         form.buildOuting(createdById: widget.owner),
         creatorId: widget.owner,
+        onStaleMeetupResult: () => staleMeetup = true,
       );
-      if (!_isCurrent) return;
+      if (!mounted || !_isCurrent) return;
       if (created == null) {
-        if (outings.errorMessage case final error?) AppSnackBar.show(error);
+        if (staleMeetup) {
+          final refresh = await StaleMeetupResultDialog.show(context);
+          if (refresh && _isCurrent) await _pickMeetup(form, refresh: true);
+        } else if (outings.errorMessage case final error?) {
+          AppSnackBar.show(error);
+        }
         return;
       }
       if (form.draft case final draft?) {
@@ -452,7 +498,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     final l10n = context.l10n;
     final style = OutingCreationStyle(context);
     final sending = _submitting || creating;
-    final locked = sending || _savingDraft;
+    final locked = sending || _savingDraft || _pickingMeetup;
     return ListenableBuilder(
       listenable: form,
       builder: (context, _) {
@@ -551,7 +597,7 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
     final offline = context.select(
       (AppSyncProvider p) => p.status == SyncStatus.offline,
     );
-    final locked = _submitting || creating || _savingDraft;
+    final locked = _submitting || creating || _savingDraft || _pickingMeetup;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -581,6 +627,18 @@ class _CreateOutingViewState extends State<_CreateOutingView> {
                         CreateOutingStepHeader(
                           details: details,
                           onLocation: locked ? null : () => _goBack(form),
+                        ),
+                      if (!details)
+                        ListenableBuilder(
+                          listenable: form,
+                          builder: (context, _) => SmartMeetupLocationSource(
+                            onPick: locked || offline
+                                ? null
+                                : () => _pickMeetup(form),
+                            onManual: locked || form.meetupSelection == null
+                                ? null
+                                : () => form.replaceMapSelection(const []),
+                          ),
                         ),
                       Expanded(
                         child: details

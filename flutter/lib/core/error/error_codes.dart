@@ -8,6 +8,7 @@ abstract final class ErrorCodes {
   static const forbidden = 'forbidden';
   static const notFound = 'not-found';
   static const conflict = 'conflict';
+  static const staleMeetupResult = 'stale_meetup_result';
   static const validation = 'validation';
   static const server = 'server';
   static const parse = 'parse';

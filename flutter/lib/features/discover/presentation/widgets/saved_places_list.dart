@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:yalla_5roga/features/place_reviews/presentation/widgets/ratings_summary_widget.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -43,6 +44,11 @@ class SavedPlacesList extends StatelessWidget {
             subtitle: place.status == 'active'
                 ? place.localizedSummary(context.l10n)
                 : context.l10n.catalogStatus(place.status),
+            metadata: RatingsSummaryWidget(
+              placeId: place.id,
+              statistics: place.ratingStatistics,
+              compact: true,
+            ),
             imageUrl: place.coverImageUrl,
             trailing: SavePlaceButton(place: place),
             onTap: () => Get.to(

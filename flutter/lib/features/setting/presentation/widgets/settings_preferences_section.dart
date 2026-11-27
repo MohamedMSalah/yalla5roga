@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
 import 'package:yalla_5roga/core/localization/locale_provider.dart';
+import 'package:yalla_5roga/features/location_privacy/presentation/pages/location_privacy_page.dart';
+import 'package:yalla_5roga/features/saved_locations/presentation/pages/my_locations_page.dart';
 import 'package:yalla_5roga/features/setting/presentation/pages/offline_maps_page.dart';
 import 'package:yalla_5roga/core/theme/theme_provider.dart';
 import 'package:yalla_5roga/core/utils/extensions.dart';
@@ -18,6 +20,10 @@ import 'package:yalla_5roga/features/notifications/presentation/providers/notifi
 
 import 'package:yalla_5roga/core/utils/app_permissions.dart';
 import 'package:yalla_5roga/features/notifications/presentation/providers/fcm_provider.dart';
+
+import 'package:yalla_5roga/features/transportation/presentation/pages/transportation_preference_page.dart';
+
+import 'package:yalla_5roga/features/notifications/presentation/pages/departure_reminder_settings_page.dart';
 
 import '../widgets/settings_section.dart';
 import '../widgets/settings_tile.dart';
@@ -48,8 +54,9 @@ class _SettingsPreferencesSectionState
         if (!mounted) return;
         await context.read<FcmProvider>().afterPermissionPrompt();
       }
-      if (mounted)
+      if (mounted) {
         await context.read<NotificationsProvider>().setPushEnabled(value);
+      }
     } catch (_) {
       AppSnackBar.show(l10n.tryAgain);
     } finally {
@@ -105,6 +112,35 @@ class _SettingsPreferencesSectionState
           foreground: context.palette.brandStrong,
           trailing: const SettingsChevron(),
           onTap: () => Get.to(() => const SavedOutingsPage()),
+        ),
+        SettingsTile(
+          icon: Icons.location_on_outlined,
+          title: l10n.myLocations,
+          subtitle: l10n.myLocationsHint,
+          background: context.palette.brandSoft,
+          foreground: context.palette.brandStrong,
+          trailing: const SettingsChevron(),
+          onTap: () => Get.to(() => const MyLocationsPage()),
+        ),
+        SettingsTile(
+          icon: Icons.location_disabled_outlined,
+          title: l10n.locationPrivacyTitle,
+          subtitle: l10n.locationPrivacyHint,
+          trailing: const SettingsChevron(),
+          onTap: () => Get.to(() => const LocationPrivacyPage()),
+        ),
+        SettingsTile(
+          icon: Icons.directions_car_outlined,
+          title: l10n.transportationTitle,
+          subtitle: l10n.transportationDefault,
+          trailing: const SettingsChevron(),
+          onTap: () => Get.to(() => const TransportationPreferencePage()),
+        ),
+        SettingsTile(
+          icon: Icons.alarm_outlined,
+          title: l10n.departureReminders,
+          trailing: const SettingsChevron(),
+          onTap: () => Get.to(() => const DepartureReminderSettingsPage()),
         ),
         SettingsTile(
           icon: Icons.history,

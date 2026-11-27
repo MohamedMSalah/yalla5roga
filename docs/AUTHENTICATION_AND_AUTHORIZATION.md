@@ -192,3 +192,50 @@ Sole-owner leave/deletion (2026-11-14): DELETE /api/groups/:id still verifies th
 ## Phase 7 repository cleanup — 2026-11-15
 
 Flutter removes the unreferenced `_fromFirebaseCredential` and `_provisionBackendUser` helpers. Active phone/password/Firebase OTP/custom-token flows remain. Registration awaits its existing session result inside try/catch; password update awaits asynchronous local profile caching inside try/catch so cache exceptions become the existing typed failures. No auth contract, password authority, identity, token verification or resource authorization rule changes. The Phase 7 Swagger HTTP audit verifies missing/malformed-token rejection only; authenticated success and SMS are NOT RUN.
+
+## Saved Locations ownership
+
+Only the verified account can read or mutate its personal locations or starting preference. The backend ignores client identity as a source of authorization and rejects unexpected request fields. Reads and writes scope IDs to the verified UID. The database enforces that each default source belongs to that same UID. Coordinated account deletion removes both tables' account-owned records without removing catalog places.
+
+Transportation settings are account-private. Authenticated writes derive the owner from the verified Firebase UID, and per-location writes use owner-scoped keys. The public routing capabilities response contains mode support only.
+
+## Smart Meetup location authorization
+
+The owner can retrieve the exact point through the existing account-scoped saved location API. The group area's audience requires a current membership row for both caller and subject. Exact internal use requires current membership, explicit consent to the current policy and no exclusion for each subject. A pending invitation or an exclusion row grants no planning privilege.
+
+The internal authorization service checks the originating membership and participant revisions at calculation start and again when publishing or consuming protected work. A result reader must also hold current membership. Withdrawal, re-grant and exclusion changes cannot restore a previously invalidated authorization.
+
+## Group Smart Meetup
+
+The authenticated socket checks current accepted membership for each group Meetup join and before delivering outbox events. Quick Meetup joins require session ownership. Outing-linked sessions must still belong to their original group. Revoked viewers leave the Meetup room and receive only its ID in the access-loss message. Location consent controls inputs while current members retain permission to see freshly resolved group readiness.
+
+Outing creation with Smart Meetup validates the current accepted membership of the selected group inside the create transaction. Group results can supply venues only for an outing in their own group. Quick Meetup results require session ownership and the same accepted membership if the planner associates the outing with a group.
+
+Session initialization, reads and refresh require current accepted group membership. Shared preference changes and cancellation require that same membership and the session's creator UID. The group and optional existing outing define the planning scope. Readiness collapses absent points, absent consent and group exclusion into a single setup status. A nullable verified district respects area visibility. A missing district gives no reason code.
+
+Quick Meetup requires the Firebase UID that created the standalone session on every operation. The owner's saved default is resolved only with current Smart Meetup consent. Its coordinates are returned through this owner-only projection. Guest identifiers are local to the session, and guest mutations cannot address owner records or registered profiles.
+
+Preference reads follow the session's visibility. Preference replacement and reset require the active session creator and, for a Group meetup, current membership. The filter-options endpoint requires authentication and provides active catalog labels and supported values.
+
+Recommendation reads, refresh and calculation lookup follow that same session visibility. An exact calculation lookup is scoped by both IDs, and the server checks the current input version and venue eligibility before releasing any places. The public API accepts no routing evidence or publication data.
+
+## Temporary starting-location authorization
+
+All override operations derive the owner from the verified identity. Group Smart Meetup uses current membership, Quick Meetup uses the session creator, and outing overrides require the outing creator, current group membership or an accepted guest invitation. Owners and creators can write only their own inputs. The current policy version authorizes one explicitly selected point for one context. Group exclusions and account-wide consent withdrawal revoke relevant overrides. A default requires either current Smart Meetup automatic authorization or contextual authorization for the individual plan. An individual outing uses contextual authorization only. Exact points and private labels are returned only in the caller's own response or private Quick Meetup.
+
+
+## Place review authorization
+
+Statistics reads are public. Review listings, ownership operations, reports and blocks use the authenticated Firebase UID. `PLACE_REVIEW_MODERATOR_UIDS` is a server-only, comma-separated allowlist that defaults to empty. Catalog curation and group or outing roles grant no review moderation privileges. Public review profiles contain only their display name. Coordinated user deletion removes authored reviews, submitted reports and reviewer blocks.
+
+
+## Personal route preview
+
+Use the Firebase subject for origin resolution and the existing contextual starting-location policy for consent and group exclusions. Quick Meetup previews require the session owner. Group Meetup previews require current membership. Outing previews require the creator, a current group member or an accepted registered outing guest. Client input cannot select a member or supply either endpoint's coordinates. The response is private and uses Cache-Control: private, no-store.
+
+
+## Location requests and departure reminder access
+
+A location request requires both sender and recipient to be current members of the active session's group. The policy rejects self-requests, standalone sessions and recipients who already have an eligible location or have excluded the group. Recipient push and group notification preferences must both permit the request. The worker checks these rules again before delivery.
+
+Departure reminder APIs are caller-scoped. Current outing participation, a confirmed upcoming outing, Going RSVP, authorized starting location, a resolved transportation mode, account opt-in and push/reminder preferences are required for scheduling. The backend resolves these inputs and validates any trusted estimate against the current caller and outing.

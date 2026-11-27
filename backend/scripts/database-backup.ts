@@ -71,22 +71,50 @@ try {
     for (const constraint of post) after.push(`ALTER TABLE ${quote(constraint.table_name)} ADD CONSTRAINT ${quote(constraint.name)} ${constraint.definition};`);
     if (catalog.triggers.length) {
       // Restore application triggers after their tables and saved rows.
+      const known = new Set([
+        'record_place_catalog_change', 'initialize_outing_round_option', 'initialize_outing_voting_round',
+        'normalize_place_fields', 'reject_deleted_account', 'apply_place_review_statistics',
+        'record_place_rating_catalog_change', 'invalidate_starting_location_override',
+        'clear_closed_starting_location_overrides', 'clear_group_starting_location_overrides',
+        'clear_guest_starting_location_override', 'invalidate_meetup_calculations_for_session',
+        'invalidate_meetup_calculations_for_place',
+        'advance_closed_meetup_version', 'record_meetup_session_change', 'record_meetup_calculation_change',
+        'invalidate_meetup_membership_inputs', 'invalidate_meetup_default_inputs',
+        'invalidate_meetup_personal_location_inputs', 'invalidate_meetup_transport_inputs',
+        'invalidate_meetup_privacy_inputs', 'invalidate_meetup_exclusion_inputs', 'invalidate_meetup_outing_scope',
+        'invalidate_meetup_candidate_fact', 'invalidate_meetup_candidate_category', 'invalidate_meetup_catalog_starting_points',
+      ]);
+      const triggers = catalog.triggers as { definition: string }[];
+      const referenced = triggers.map(trigger =>
+        / EXECUTE FUNCTION (?:public\.)?([a-z_]+)\(/.exec(trigger.definition)?.[1]);
+      if (referenced.some(name => !name || !known.has(name))) {
+        throw Error('Unrecognized database triggers require explicit backup support');
+      }
+      const required = new Set(referenced);
+      if (required.has('record_place_catalog_change') || required.has('record_place_rating_catalog_change')) {
+        required.add('mark_place_catalog_change');
+      }
+      const meetupHelpers = ['enqueue_meetup_change', 'meetup_inputs_already_dirty',
+        'invalidate_meetup_user_inputs', 'invalidate_meetup_candidates'];
+      if (required.has('record_meetup_session_change')) {
+        for (const helper of meetupHelpers) required.add(helper);
+      }
       const { rows: functions } = await db.query(`
-        SELECT pg_get_functiondef(p.oid) AS definition
+        SELECT p.proname AS name, pg_get_functiondef(p.oid) AS definition
         FROM pg_proc p
         WHERE p.pronamespace='public'::regnamespace
           AND p.prokind='f'
-          AND p.proname IN ('mark_place_catalog_change', 'record_place_catalog_change',
-            'initialize_outing_round_option', 'initialize_outing_voting_round', 'normalize_place_fields',
-            'reject_deleted_account')
+          AND p.proname = ANY($1::text[])
         ORDER BY p.proname
-      `);
-      const triggers = catalog.triggers as { definition: string }[];
-      const expectedFunctions = triggers.some(trigger => / EXECUTE FUNCTION (?:public\.)?reject_deleted_account\(/.test(trigger.definition)) ? 6 : 5;
-      if (functions.length !== expectedFunctions || triggers.some(trigger =>
-        !/ EXECUTE FUNCTION (?:public\.)?(?:record_place_catalog_change|initialize_outing_round_option|initialize_outing_voting_round|normalize_place_fields|reject_deleted_account)\(/.test(trigger.definition))) {
+      `, [[...required]]);
+      if (functions.length !== required.size || functions.some(({ name }) => !required.has(name))) {
         throw Error('Unrecognized database triggers require explicit backup support');
       }
+      const helpersFirst = (name: string) => {
+        const index = meetupHelpers.indexOf(name);
+        return index < 0 ? meetupHelpers.length : index;
+      };
+      functions.sort((a, b) => helpersFirst(a.name) - helpersFirst(b.name));
       for (const { definition } of functions) after.push(definition.replace('FUNCTION public.', 'FUNCTION ') + ';');
       for (const trigger of catalog.triggers) {
         after.push(trigger.definition.replace(' ON public.', ' ON ').replace('FUNCTION public.', 'FUNCTION ') + ';');
@@ -132,7 +160,7 @@ try {
       const migrations = [];
       for (const file of process.argv.slice(4)) {
         const sql = await readFile(file, 'utf8');
-        const body = sql.match(/^(?:--[^\n]*\r?\n)*BEGIN;([\s\S]+)COMMIT;\s*$/)?.[1];
+        const body = sql.trimStart().match(/^(?:--[^\n]*\r?\n)*BEGIN;([\s\S]+)COMMIT;\s*$/)?.[1];
         if (!body || /\b(?:COMMIT|ROLLBACK|START TRANSACTION|SET\s+(?:LOCAL\s+)?search_path)\b/i.test(body)) {
           throw Error("Rehearsal requires a single transaction with no search_path changes");
         }

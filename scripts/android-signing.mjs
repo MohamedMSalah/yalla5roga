@@ -4,7 +4,7 @@ import { rootPath } from "./environment.mjs";
 
 export function validateReleaseSigning() {
   const path = rootPath("flutter/android/key.properties");
-  if (!existsSync(path)) throw new Error("Configure release signing in ignored flutter/android/key.properties (both release flavors require it).");
+  if (!existsSync(path)) throw new Error("Configure production release signing in ignored flutter/android/key.properties.");
   // Java Properties escaping, including Windows paths and unicode escapes.
   const unescape = value => value.replace(/\\u([0-9a-fA-F]{4})|\\(.)/g,
     (_, unicode, char) => unicode ? String.fromCharCode(parseInt(unicode, 16)) : ({ n: "\n", r: "\r", t: "\t", f: "\f" }[char] ?? char));

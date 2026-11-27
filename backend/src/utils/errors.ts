@@ -2,6 +2,7 @@ export class AppError extends Error {
   constructor(
     public readonly statusCode: number,
     message: string,
+    public readonly code?: string,
   ) {
     super(message);
     this.name = "AppError";
@@ -9,15 +10,15 @@ export class AppError extends Error {
 }
 
 export class NotFoundError extends AppError {
-  constructor(resource = "Resource") {
-    super(404, `${resource} not found`);
+  constructor(resource = "Resource", code?: string) {
+    super(404, `${resource} not found`, code);
     this.name = "NotFoundError";
   }
 }
 
 export class ConflictError extends AppError {
-  constructor(message: string) {
-    super(409, message);
+  constructor(message: string, code?: string) {
+    super(409, message, code);
     this.name = "ConflictError";
   }
 }

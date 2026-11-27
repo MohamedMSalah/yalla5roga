@@ -7,6 +7,7 @@ import 'package:yalla_5roga/features/discover/presentation/providers/discover_ma
 import 'package:yalla_5roga/features/discover/domain/entities/suggested_place.dart';
 import 'package:yalla_5roga/features/discover/domain/entities/place_catalog.dart';
 import 'package:yalla_5roga/features/outings/domain/entities/place.dart';
+import 'package:yalla_5roga/features/saved_locations/presentation/widgets/personal_locations_map.dart';
 
 /// Retains the native map and converted input across selection changes.
 class DiscoverMapView extends StatefulWidget {
@@ -17,12 +18,14 @@ class DiscoverMapView extends StatefulWidget {
     this.darkBasemap,
     required this.onPoint,
     this.pending,
+    this.showLocationToggle = true,
   });
   final DiscoverMapProvider catalog;
   final double bottomInset;
   final bool? darkBasemap;
   final ValueChanged<LatLng> onPoint;
   final Place? pending;
+  final bool showLocationToggle;
   @override
   State<DiscoverMapView> createState() => _DiscoverMapViewState();
 }
@@ -41,6 +44,7 @@ class _DiscoverMapViewState extends State<DiscoverMapView> {
     String? selected,
     Place? pending,
     double inset,
+    bool showLocationToggle,
   })?
   _inputs;
   Widget? _view;
@@ -96,36 +100,50 @@ class _DiscoverMapViewState extends State<DiscoverMapView> {
       selected: catalog.selectedPlaceId,
       pending: widget.pending,
       inset: widget.bottomInset,
+      showLocationToggle: widget.showLocationToggle,
     );
     if (_inputs == inputs && _view != null) return _view!;
     _inputs = inputs;
-    return _view = YallaMapView(
+    return _view = PersonalLocationsMap(
       controller: catalog.mapController,
-      center: catalog.userLocation ?? cairoMapCenter,
-      userLocation: catalog.userLocation,
-      selectionBottom: widget.bottomInset,
-      userAccuracy: catalog.locationAccuracy,
-      userLocationApproximate: catalog.locationApproximate,
-      darkBasemap: widget.darkBasemap,
-      customControls: true,
-      controlsTop: 16,
-      places: _places,
-      privatePlaces: _privatePlaces,
-      categories: catalog.categories,
-      selection: YallaMapPlaceSelection(
-        focusedId: catalog.selectedPlaceId,
-        selected: [?widget.pending],
+      showToggle: widget.showLocationToggle,
+      toggleAlignment: AlignmentDirectional.bottomStart,
+      togglePadding: EdgeInsetsDirectional.only(
+        start: 12,
+        bottom: widget.bottomInset + 10,
       ),
-      onPlaceTap: (place) {
-        final match = catalog.places.where((p) => p.id == place.id).firstOrNull;
-        if (match != null) {
-          FocusScope.of(context).unfocus();
-          catalog.toggleMarker(match);
-        }
-      },
-      onTap: widget.onPoint,
-      onUserMove: catalog.cameraMoving,
-      onViewportChanged: catalog.viewportChanged,
+      builder: (context, markers, onTap) => YallaMapView(
+        controller: catalog.mapController,
+        personalLocations: markers,
+        onPersonalLocationTap: onTap,
+        center: catalog.userLocation ?? cairoMapCenter,
+        userLocation: catalog.userLocation,
+        selectionBottom: widget.bottomInset,
+        userAccuracy: catalog.locationAccuracy,
+        userLocationApproximate: catalog.locationApproximate,
+        darkBasemap: widget.darkBasemap,
+        customControls: true,
+        controlsTop: 16,
+        places: _places,
+        privatePlaces: _privatePlaces,
+        categories: catalog.categories,
+        selection: YallaMapPlaceSelection(
+          focusedId: catalog.selectedPlaceId,
+          selected: [?widget.pending],
+        ),
+        onPlaceTap: (place) {
+          final match = catalog.places
+              .where((p) => p.id == place.id)
+              .firstOrNull;
+          if (match != null) {
+            FocusScope.of(context).unfocus();
+            catalog.toggleMarker(match);
+          }
+        },
+        onTap: widget.onPoint,
+        onUserMove: catalog.cameraMoving,
+        onViewportChanged: catalog.viewportChanged,
+      ),
     );
   }
 }
